@@ -1,0 +1,29 @@
+<svg width="600" height="315" viewBox="0 0 600 315" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_13220_103922)">
+<foreignObject x="-74" y="-74" width="748" height="463"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(37px);clip-path:url(#bgblur_1_13220_103922_clip_path);height:100%;width:100%"></div></foreignObject><rect data-figma-bg-blur-radius="74" width="600" height="315" fill="white"/>
+<g filter="url(#filter1_f_13220_103922)">
+<ellipse cx="218.011" cy="132.737" rx="217.5" ry="137" transform="rotate(10.0151 218.011 132.737)" fill="#2088FF" fill-opacity="0.4"/>
+</g>
+<g filter="url(#filter2_f_13220_103922)">
+<ellipse cx="548.545" cy="146.237" rx="106.996" ry="75.7848" transform="rotate(10.0151 548.545 146.237)" fill="#3A20FF" fill-opacity="0.4"/>
+</g>
+<foreignObject x="-74" y="-74" width="748" height="463"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(37px);clip-path:url(#bgblur_2_13220_103922_clip_path);height:100%;width:100%"></div></foreignObject><rect data-figma-bg-blur-radius="74" width="600" height="315" fill="white" fill-opacity="0.4"/>
+</g>
+<defs>
+<clipPath id="bgblur_1_13220_103922_clip_path" transform="translate(74 74)"><rect width="600" height="315"/>
+</clipPath><filter id="filter1_f_13220_103922" x="-111.515" y="-121.413" width="659.052" height="508.301" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="57" result="effect1_foregroundBlur_13220_103922"/>
+</filter>
+<filter id="filter2_f_13220_103922" x="328.347" y="-44.6953" width="440.395" height="381.865" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="57" result="effect1_foregroundBlur_13220_103922"/>
+</filter>
+<clipPath id="bgblur_2_13220_103922_clip_path" transform="translate(74 74)"><rect width="600" height="315"/>
+</clipPath><clipPath id="clip0_13220_103922">
+<rect width="600" height="315" fill="white"/>
+</clipPath>
+</defs>
+</svg>
