@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/contact_request_service.dart';
+import '../../utils/toast_util.dart';
 
 class DemoPage extends StatefulWidget {
   const DemoPage({super.key});
@@ -133,6 +134,15 @@ class _DemoPageState extends State<DemoPage> {
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator())
                       : const Text('Submit'),
                 ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _testToast,
+                  icon: const Icon(Icons.notifications),
+                  label: const Text('测试 Toast 提示'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                  ),
+                ),
               ],
             ),
           ),
@@ -164,21 +174,68 @@ class _DemoPageState extends State<DemoPage> {
     });
 
     try {
-      await _service.submit({
-        'name': name,
-        'email': email,
-        'country': _country,
-        'affiliation': affiliation,
-        'job_title': jobTitle,
-        'reason': reason,
-        'details': details.isEmpty ? null : details,
-      });
+      await _service.submit(
+        name: name,
+        email: email,
+        country: _country!,
+        affiliation: affiliation,
+        jobTitle: jobTitle,
+        reason: reason,
+        details: details.isEmpty ? null : details,
+      );
       setState(() => _isSuccess = true);
+      // 显示成功提示
+      ToastUtil.showSuccess(
+        context: context,
+        title: '提交成功',
+        description: '您的请求已成功提交，我们会尽快与您联系。',
+        duration: const Duration(seconds: 4),
+      );
     } catch (error) {
+      // 显示错误提示
+      ToastUtil.showError(
+        context: context,
+        title: '提交失败',
+        description: error.toString(),
+        duration: const Duration(seconds: 5),
+      );
       setState(() => _error = error.toString());
     } finally {
       setState(() => _isSubmitting = false);
     }
+  }
+
+  void _testToast() {
+    // 显示成功提示
+    ToastUtil.showSuccess(
+      context: context,
+      title: '成功提示',
+      description: '这是一个成功类型的 Toast 提示',
+    );
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      ToastUtil.showInfo(
+        context: context,
+        title: '信息提示',
+        description: '这是一个信息类型的 Toast 提示',
+      );
+    });
+
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      ToastUtil.showWarning(
+        context: context,
+        title: '警告提示',
+        description: '这是一个警告类型的 Toast 提示',
+      );
+    });
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      ToastUtil.showError(
+        context: context,
+        title: '错误提示',
+        description: '这是一个错误类型的 Toast 提示',
+      );
+    });
   }
 }
 

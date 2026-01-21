@@ -10,6 +10,7 @@ class ResetCallbackPage extends StatefulWidget {
 }
 
 class _ResetCallbackPageState extends State<ResetCallbackPage> {
+  final _emailController = TextEditingController();
   final _codeController = TextEditingController();
   final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
@@ -18,6 +19,7 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
 
   @override
   void dispose() {
+    _emailController.dispose();
     _codeController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -26,6 +28,9 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
   @override
   Widget build(BuildContext context) {
     final query = GoRouterState.of(context).uri.queryParameters;
+    if (_emailController.text.isEmpty && query['email'] != null) {
+      _emailController.text = query['email']!;
+    }
     if (_codeController.text.isEmpty && query['code'] != null) {
       _codeController.text = query['code']!;
     }
@@ -52,6 +57,12 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  enabled: false,
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _codeController,
                   decoration: const InputDecoration(labelText: 'Reset code'),
@@ -80,10 +91,11 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
   }
 
   Future<void> _submit() async {
+    final email = _emailController.text.trim();
     final code = _codeController.text.trim();
     final password = _passwordController.text;
-    if (code.isEmpty || password.isEmpty) {
-      setState(() => _message = 'Please enter code and new password.');
+    if (email.isEmpty || code.isEmpty || password.isEmpty) {
+      setState(() => _message = 'Please enter email, code and new password.');
       return;
     }
     setState(() {
@@ -91,7 +103,11 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
       _isLoading = true;
     });
     try {
-      await _authService.confirmReset(code: code, password: password);
+      await _authService.confirmReset(
+        email: email,
+        code: code,
+        newPassword: password,
+      );
       setState(() => _message = 'Password updated. You can sign in now.');
     } catch (error) {
       setState(() => _message = error.toString());

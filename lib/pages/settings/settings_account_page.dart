@@ -82,7 +82,7 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
   Future<void> _changePassword() async {
     try {
       await _authService.changePassword(
-        oldPassword: _oldPasswordController.text,
+        currentPassword: _oldPasswordController.text.isNotEmpty ? _oldPasswordController.text : null,
         newPassword: _newPasswordController.text,
       );
       setState(() => _message = 'Password updated.');
