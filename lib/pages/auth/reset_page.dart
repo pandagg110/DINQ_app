@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/auth_service.dart';
+import '../../constants/app_constants.dart';
 
 class ResetPage extends StatefulWidget {
   const ResetPage({super.key});
@@ -83,7 +84,12 @@ class _ResetPageState extends State<ResetPage> {
       _isSending = true;
     });
     try {
-      await _authService.forgotPassword(email: email);
+      // 构建重置密码回调 URL
+      final redirectUrl = '${appUrl}/reset-callback';
+      await _authService.forgotPassword(
+        email: email,
+        redirectUrl: redirectUrl,
+      );
       setState(() => _message = 'Reset link sent. Check your inbox.');
     } catch (error) {
       setState(() => _message = error.toString());

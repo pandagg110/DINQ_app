@@ -135,8 +135,10 @@ class _SignUpPageState extends State<SignUpPage> {
       _isSendingCode = true;
     });
     try {
-      await _authService.sendCode(email: email);
+      await _authService.sendCode(email: email, type: 'register');
     } catch (error) {
+      debugPrint('error9999: $error');
+      debugPrint('error9999: $email');
       setState(() => _error = error.toString());
     } finally {
       setState(() => _isSendingCode = false);

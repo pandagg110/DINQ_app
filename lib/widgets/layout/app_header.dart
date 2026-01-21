@@ -120,6 +120,7 @@ class _AppHeaderState extends State<AppHeader> {
             itemBuilder: (context) => const [
               PopupMenuItem(value: '/admin/mydinq', child: Text('My DINQ')),
               PopupMenuItem(value: '/settings/profile', child: Text('Settings')),
+              PopupMenuItem(value: '/demo', child: Text('Request a Demo')),
               PopupMenuDivider(),
               PopupMenuItem(value: 'logout', child: Text('Sign out')),
             ],

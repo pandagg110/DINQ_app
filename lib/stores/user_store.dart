@@ -88,7 +88,8 @@ class UserStore extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
       return user;
-    } catch (_) {
+    } catch (error) {
+      debugPrint('login error: $error');
       isLoading = false;
       notifyListeners();
       rethrow;
