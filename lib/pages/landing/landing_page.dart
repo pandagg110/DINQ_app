@@ -1,22 +1,23 @@
 ﻿import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
 import '../../constants/landing.dart';
 import '../../stores/user_store.dart';
 import '../../utils/asset_path.dart';
 import '../../widgets/common/badge.dart';
-import '../../widgets/landing/hero_animation.dart';
+import '../../widgets/common/lottie_view.dart';
 import '../../widgets/landing/hand_decoration.dart';
+import '../../widgets/landing/hero_animation.dart';
 import '../../widgets/landing/radiant_background.dart';
 import '../../widgets/landing/roles_marquee.dart';
 import '../../widgets/landing/tabs_media.dart';
 import '../../widgets/landing/title_block.dart';
 import '../../widgets/layout/app_footer.dart';
 import '../../widgets/layout/app_header.dart';
-import '../../widgets/common/lottie_view.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -130,7 +131,11 @@ class _LandingPageState extends State<LandingPage> {
                   top: 40,
                   child: Transform.translate(
                     offset: Offset(0, parallaxIcons * 0.15),
-                    child: SvgPicture.asset(assetPath('images/landing/1-bg-magic.svg'), width: 48, height: 48),
+                    child: SvgPicture.asset(
+                      assetPath('images/landing/1-bg-magic.svg'),
+                      width: 48,
+                      height: 48,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -138,7 +143,11 @@ class _LandingPageState extends State<LandingPage> {
                   top: 180,
                   child: Transform.translate(
                     offset: Offset(0, parallaxIcons * 0.12),
-                    child: SvgPicture.asset(assetPath('images/landing/1-bg-user.svg'), width: 48, height: 48),
+                    child: SvgPicture.asset(
+                      assetPath('images/landing/1-bg-user.svg'),
+                      width: 48,
+                      height: 48,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -146,7 +155,11 @@ class _LandingPageState extends State<LandingPage> {
                   top: 160,
                   child: Transform.translate(
                     offset: Offset(0, parallaxIcons * 0.18),
-                    child: SvgPicture.asset(assetPath('images/landing/1-bg-network.svg'), width: 48, height: 48),
+                    child: SvgPicture.asset(
+                      assetPath('images/landing/1-bg-network.svg'),
+                      width: 48,
+                      height: 48,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -154,7 +167,11 @@ class _LandingPageState extends State<LandingPage> {
                   top: 60,
                   child: Transform.translate(
                     offset: Offset(0, parallaxIcons * 0.1),
-                    child: SvgPicture.asset(assetPath('images/landing/1-bg-cup.svg'), width: 48, height: 48),
+                    child: SvgPicture.asset(
+                      assetPath('images/landing/1-bg-cup.svg'),
+                      width: 48,
+                      height: 48,
+                    ),
                   ),
                 ),
                 Column(
@@ -164,9 +181,16 @@ class _LandingPageState extends State<LandingPage> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SvgPicture.asset(assetPath('images/landing/1-tag-icon.svg'), width: 24, height: 24),
+                          SvgPicture.asset(
+                            assetPath('images/landing/1-tag-icon.svg'),
+                            width: 24,
+                            height: 24,
+                          ),
                           const SizedBox(width: 8),
-                          Text(HERO.label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                          Text(
+                            HERO.label,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
                         ],
                       ),
                     ),
@@ -205,10 +229,16 @@ class _LandingPageState extends State<LandingPage> {
                     const SizedBox(height: 20),
                     Column(
                       children: HERO.subtitle
-                          .map((line) => Text(
-                                line,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF303030)),
-                              ))
+                          .map(
+                            (line) => Text(
+                              line,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF303030),
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                     const SizedBox(height: 32),
@@ -259,7 +289,10 @@ class _LandingPageState extends State<LandingPage> {
               child: Row(
                 children: [
                   const SizedBox(width: 12),
-                  const Text('dinq.me/', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                  const Text(
+                    'dinq.me/',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -282,15 +315,16 @@ class _LandingPageState extends State<LandingPage> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   _claimWarning,
-                  style: const TextStyle(color: Color(0xFF92400E), fontSize: 12, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    color: Color(0xFF92400E),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
           ],
         ),
-        if (isNarrow) ...[
-          const SizedBox(height: 12),
-          buildClaimButton(fullWidth: true),
-        ],
+        if (isNarrow) ...[const SizedBox(height: 12), buildClaimButton(fullWidth: true)],
         const SizedBox(height: 20),
         ElevatedButton(
           onPressed: () => context.go('/demo'),
@@ -335,7 +369,11 @@ class _LandingPageState extends State<LandingPage> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
-          icon: SvgPicture.asset(assetPath('images/card/dinq-card-white.svg'), width: 24, height: 24),
+          icon: SvgPicture.asset(
+            assetPath('images/card/dinq-card-white.svg'),
+            width: 24,
+            height: 24,
+          ),
           label: const Text('My DINQ'),
         ),
         OutlinedButton.icon(
@@ -358,7 +396,7 @@ class _LandingPageState extends State<LandingPage> {
     final username = _claimUsername.trim();
     if (!userStore.isLoggedIn()) {
       final redirect = username.isEmpty ? '/generation' : '/generation?domain=$username';
-      context.go('/signin?redirect=$redirect');
+      context.push('/signin?redirect=$redirect');
       return;
     }
     if (username.isEmpty) {
@@ -461,7 +499,12 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  Widget _buildCtaSection(BuildContext context, bool isAuthenticated, bool hasFlow, double progress) {
+  Widget _buildCtaSection(
+    BuildContext context,
+    bool isAuthenticated,
+    bool hasFlow,
+    double progress,
+  ) {
     final cardScale = lerpDouble(0.85, 1.0, progress) ?? 1;
     final cardTranslateY = lerpDouble(80, 0, progress) ?? 0;
     final cardRotation = lerpDouble(-15, -5.6, progress) ?? -5.6;
@@ -491,7 +534,11 @@ class _LandingPageState extends State<LandingPage> {
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: const Color(0xFF171717)),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 24, offset: const Offset(0, 8)),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
                     ],
                   ),
                   child: Stack(
@@ -501,7 +548,10 @@ class _LandingPageState extends State<LandingPage> {
                         children: [
                           Container(
                             height: 36,
-                            decoration: BoxDecoration(color: const Color(0xFF171717), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF171717),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: Row(
                               children: [
                                 const SizedBox(width: 12),
@@ -517,7 +567,11 @@ class _LandingPageState extends State<LandingPage> {
                           if (CTA.eyebrow.isNotEmpty)
                             Text(
                               CTA.eyebrow.toUpperCase(),
-                              style: const TextStyle(letterSpacing: 3, fontSize: 12, color: Color(0xFF303030)),
+                              style: const TextStyle(
+                                letterSpacing: 3,
+                                fontSize: 12,
+                                color: Color(0xFF303030),
+                              ),
                             ),
                           const SizedBox(height: 12),
                           Transform.translate(
@@ -539,12 +593,16 @@ class _LandingPageState extends State<LandingPage> {
                           Transform.translate(
                             offset: Offset(0, buttonOffset),
                             child: ElevatedButton(
-                              onPressed: () => isAuthenticated && hasFlow ? context.go('/admin/mydinq') : _handleClaim(context),
+                              onPressed: () => isAuthenticated && hasFlow
+                                  ? context.go('/admin/mydinq')
+                                  : _handleClaim(context),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF171717),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
                               child: Text(isAuthenticated && hasFlow ? 'My DINQ' : CTA.buttonLabel),
                             ),
@@ -608,11 +666,17 @@ class _LandingPageState extends State<LandingPage> {
                       (item) => ExpansionPanelRadio(
                         value: item.question,
                         headerBuilder: (context, isExpanded) => ListTile(
-                          title: Text(item.question, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          title: Text(
+                            item.question,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
                         body: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Text(item.answer, style: const TextStyle(color: Color(0xFF4B5563))),
+                          child: Text(
+                            item.answer,
+                            style: const TextStyle(color: Color(0xFF4B5563)),
+                          ),
                         ),
                       ),
                     )
