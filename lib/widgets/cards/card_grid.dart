@@ -293,7 +293,7 @@ class CardGrid extends StatelessWidget {
           width: gridWidth,
           child: ReorderableGridView.count(
             crossAxisCount: 1, // 单列布局，垂直排列
-            mainAxisSpacing: gap,
+            // mainAxisSpacing: gap,
             crossAxisSpacing: 0,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -328,25 +328,106 @@ class CardGrid extends StatelessWidget {
                 ),
             ],
             onReorder: (oldIndex, newIndex) {
-              // 处理拖拽重排
-              if (oldIndex < newIndex) {
-                newIndex -= 1;
+              // 重新获取最新的卡片列表（因为 sortedCards 是 build 时的快照）
+              final currentCards = List<CardItem>.from(cardStore.cards);
+              
+              // 按位置排序卡片（先按 y，再按 x）
+              currentCards.sort((a, b) {
+                final layoutA = isMobile ? a.layout.mobile : a.layout.desktop;
+                final layoutB = isMobile ? b.layout.mobile : b.layout.desktop;
+                if (layoutA.position.y != layoutB.position.y) {
+                  return layoutA.position.y.compareTo(layoutB.position.y);
+                }
+                return layoutA.position.x.compareTo(layoutB.position.x);
+              });
+
+              // 创建新的卡片顺序（按照拖拽后的顺序）
+              // ReorderableGridView 的 onReorder 中，newIndex 已经是调整后的索引
+              // 不需要再减1，直接使用即可
+              final reorderedCards = List<CardItem>.from(currentCards);
+              final item = reorderedCards.removeAt(oldIndex);
+              reorderedCards.insert(newIndex, item);
+
+              // 按照排序规则（先按 y，再按 x）重新计算位置
+              // 在单列布局中，y 从 0 开始递增，x 保持为 0
+              for (int i = 0; i < reorderedCards.length; i++) {
+                final card = reorderedCards[i];
+                final currentLayout = isMobile ? card.layout.mobile : card.layout.desktop;
+                final newY = i;
+                final newX = 0; // 单列布局，x 始终为 0
+
+                // 如果位置没有变化，跳过
+                if (currentLayout.position.y == newY && currentLayout.position.x == newX) {
+                  continue;
+                }
+
+                final newPosition = CardPosition(
+                  x: newX,
+                  y: newY,
+                  w: currentLayout.position.w,
+                  h: currentLayout.position.h,
+                );
+
+                final newLayoutState = CardLayoutState(
+                  size: currentLayout.size,
+                  position: newPosition,
+                );
+
+                final newLayout = CardLayout(
+                  desktop: isMobile ? card.layout.desktop : newLayoutState,
+                  mobile: isMobile ? newLayoutState : card.layout.mobile,
+                );
+
+                cardStore.updateCardLayout(card.id, newLayout);
               }
 
-              // 创建新的排序索引列表
-              final newOrder = List<int>.generate(sortedCards.length, (index) => index);
-              final item = newOrder.removeAt(oldIndex);
-              newOrder.insert(newIndex, item);
+              // 如果是 Desktop 模式，自动更新 Mobile 布局（压缩布局）
+              if (!isMobile) {
+                // 重新获取更新后的卡片列表
+                final updatedCards = List<CardItem>.from(cardStore.cards);
+                
+                // 按新的 Desktop 布局排序
+                updatedCards.sort((a, b) {
+                  final layoutA = a.layout.desktop;
+                  final layoutB = b.layout.desktop;
+                  if (layoutA.position.y != layoutB.position.y) {
+                    return layoutA.position.y.compareTo(layoutB.position.y);
+                  }
+                  return layoutA.position.x.compareTo(layoutB.position.x);
+                });
 
-              // 调用布局变化处理函数
-              _handleLayoutChange(
-                context,
-                cardStore,
-                settings,
-                sortedCards,
-                viewMode,
-                newOrder,
-              );
+                // 获取 Mobile 列数
+                final mobileColumns = settings.gridConfig.mobileColumns;
+
+                // 使用压缩布局
+                final compactedPositions = _compactLayout(
+                  updatedCards,
+                  mobileColumns,
+                  true, // isMobile
+                );
+
+                // 更新 Mobile 布局
+                for (int i = 0; i < updatedCards.length && i < compactedPositions.length; i++) {
+                  final card = updatedCards[i];
+                  final newPos = compactedPositions[i];
+                  final oldPos = card.layout.mobile.position;
+
+                  // 只有位置变化时才更新
+                  if (oldPos.x != newPos.x || oldPos.y != newPos.y) {
+                    final newMobileLayout = CardLayoutState(
+                      size: card.layout.mobile.size,
+                      position: newPos,
+                    );
+
+                    final newLayout = CardLayout(
+                      desktop: card.layout.desktop,
+                      mobile: newMobileLayout,
+                    );
+
+                    cardStore.updateCardLayout(card.id, newLayout);
+                  }
+                }
+              }
             },
           ),
         ),
