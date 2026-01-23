@@ -1,0 +1,80 @@
+---
+description: DINQ App 项目开发规则
+globs: 
+alwaysApply: true
+---
+
+# DINQ App 项目开发规则
+
+## 项目概述
+这是一个 Flutter 项目，名为 DINQ App，是一个人才展示与发现平台，核心功能是生成和管理个人展示卡片（DINQ Card）。
+
+## 技术栈
+- Flutter/Dart
+- 状态管理: Provider + ChangeNotifier
+- 路由: go_router
+- 网络请求: Dio
+- 本地存储: shared_preferences
+
+## 项目结构
+```
+lib/
+├── main.dart              # 应用入口
+├── app.dart               # 应用根组件
+├── constants/             # 常量配置
+├── models/                # 数据模型
+├── pages/                 # 页面/屏幕
+├── router/                # 路由配置
+├── services/              # API 服务层
+├── stores/                # 状态管理
+├── theme/                 # 主题配置
+├── utils/                 # 工具类
+└── widgets/               # 可复用组件
+```
+
+## 开发规范
+
+### 文件命名
+- 页面文件: `xxx_page.dart`
+- 服务文件: `xxx_service.dart`
+- 状态文件: `xxx_store.dart`
+- 模型文件: `xxx_models.dart`
+- 组件文件: `xxx_widget.dart` 或直接 `xxx.dart`
+
+### 状态管理
+- 使用 `context.read<XxxStore>()` 获取 Store 实例（不监听变化）
+- 使用 `context.watch<XxxStore>()` 监听状态变化
+- Store 文件位于 `lib/stores/` 目录
+
+### API 请求
+- 所有 API 请求通过 `ApiClient` 单例进行
+- Service 文件位于 `lib/services/` 目录
+- API Base URL: `https://api.dinq.me`
+
+### 路由
+- 路由配置在 `lib/router/app_router.dart`
+- 使用 `context.go('/path')` 进行页面跳转
+- 使用 `context.push('/path')` 进行页面入栈
+
+### 新增功能清单
+1. 新增页面: 在 `lib/pages/` 对应模块目录创建，在 `app_router.dart` 添加路由
+2. 新增 API: 在 `lib/services/` 对应 service 文件添加方法
+3. 新增状态: 在 `lib/stores/` 创建 Store，在 `app.dart` 注册 Provider
+4. 新增模型: 在 `lib/models/` 创建模型类
+5. 新增组件: 在 `lib/widgets/` 对应目录创建
+
+## 关键文件
+- `lib/services/api_client.dart` - API 客户端配置
+- `lib/constants/app_constants.dart` - 应用常量
+- `lib/router/app_router.dart` - 路由配置
+- `lib/theme/app_theme.dart` - 主题配置
+
+## 业务模块
+- 用户认证: `lib/pages/auth/`, `lib/services/auth_service.dart`
+- 用户资料: `lib/pages/profile/`, `lib/services/profile_service.dart`
+- DINQ Card: `lib/pages/generation/`, `lib/services/card_service.dart`
+- 数据分析: `lib/pages/analysis/`
+- 设置: `lib/pages/settings/`
+- 管理后台: `lib/pages/admin/`
+- 消息通知: `lib/services/message_service.dart`, `lib/stores/messages_store.dart`
+- 支付订阅: `lib/services/payment_service.dart`
