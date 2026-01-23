@@ -22,6 +22,7 @@ class CardRenderer extends StatefulWidget {
 
 class _CardRendererState extends State<CardRenderer> {
   bool _hasPrintedJson = false;
+  bool _isDrag = false;
 
   @override
   void initState() {
@@ -89,203 +90,235 @@ class _CardRendererState extends State<CardRenderer> {
         : const Color(0xFFE5E7EB); // 默认灰色
     final borderWidth = isSelected ? 2.0 : 1.0;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
+    // 卡片内容
+    final cardContent = Container(
+      width: double.infinity,
+      // height: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor, width: borderWidth),
+        boxShadow: [
+          BoxShadow(
+            color: isSelected
+                ? const Color(0xFF3B82F6).withOpacity(0.2) // 选中时蓝色阴影
+                : Colors.black.withOpacity(0.04),
+            blurRadius: isSelected ? 8 : 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // 主要内容 - 只有在加载状态时才隐藏
+          if (!isLoading)
+            Positioned.fill(
+              child: _buildContent(context, viewMode, isSelected),
+            ),
+
+          // 加载状态
+          if (showLoading)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text(
+                        'Analyzing with AI...',
+                        style: TextStyle(color: Color(0xFF6B7280)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // 失败状态
+          if (isFailed)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Oops!',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF171717),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'The card didn\'t go through...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      if (widget.editable) ...[
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            cardStore.regenerateCard(cardId: widget.card.id);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF171717),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          child: const Text(
+                            'Try Again',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    return Listener(
+      onPointerUp: (event) {
+        // 延迟一下，确保不是拖拽过程中的短暂抬起
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            setState(() {
+              _isDrag = false;
+            });
+          }
+        });
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+        // 卡片主体内容
+        Column(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.deferToChild,
+                  onTapUp: (details) {
+                    setState(() {
+                      _isDrag = false;
+                    });
+                  },
+                  onTap: () {
+                    // 在编辑模式下，点击卡片切换选中状态
+                    if (widget.editable) {
+                      cardStore.toggleCardSelection(widget.card.id);
+                    } else {
+                      // 非编辑模式下，点击跳转链接
+                      if (jumpUrl != null && jumpUrl.isNotEmpty) {
+                        launchUrl(
+                          Uri.parse(jumpUrl),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      }
+                    }
+                  },
+                  child: cardContent,
+                ),
+              ),
+            ),
+            SizedBox(height: 24),
+          ],
+        ),
+
         // 编辑模式下的按钮 - 放在 Stack 外层，避免被 ClipRRect 裁剪
         if (widget.editable && isSelected) ...[
-          Positioned(
-            top: -1,
-            left: -1,
-            child: PortalTarget(
-              visible: true,
-              portalFollower: Material(
-                color: Colors.transparent, // 添加 Material widget
-                child: Transform.translate(
-                  offset: const Offset(0, 0), // 偏移到卡片外部
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      debugPrint('删除按钮被点击');
-                      cardStore.removeCard(widget.card.id);
-                    },
-                    child: Image.asset(
-                      'assets/icons/delete-card-btn.png',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.contain,
+          _isDrag
+              ? const SizedBox.shrink()
+              : Positioned(
+                  top: -1,
+                  left: -1,
+                  child: PortalTarget(
+                    visible: true,
+                    portalFollower: Material(
+                      color: Colors.transparent, // 添加 Material widget
+                      child: Transform.translate(
+                        offset: const Offset(0, 0), // 偏移到卡片外部
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            debugPrint('删除按钮被点击');
+                            cardStore.removeCard(widget.card.id);
+                          },
+                          child: Image.asset(
+                            'assets/icons/delete-card-btn.png',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
                     ),
+                    anchor: const Aligned(
+                      follower: Alignment.center,
+                      target: Alignment.center,
+                    ),
+
+                    // offset: Offset(-20, -20),
+                    child: const SizedBox(width: 1, height: 1),
                   ),
                 ),
-              ),
-              anchor: const Aligned(
-                follower: Alignment.center,
-                target: Alignment.center,
-              ),
 
-              // offset: Offset(-20, -20),
-              child: const SizedBox(width: 1, height: 1),
-            ),
+          // Positioned(
+          //   bottom: -1,
+          //   left: 0,
+          //   right: 0,
+          //   child: PortalTarget(
+          //     visible: true,
+          //     portalFollower: Material(
+          //       color: Colors.transparent, // 添加 Material widget
+          //       child: Transform.translate(
+          //         offset: const Offset(0, 0), // 偏移到卡片外部
+          //         child: Center(
+          //           child: _buildCardToolbar(context, cardStore, viewMode),
+          //         ),
+          //       ),
+          //     ),
+          //     anchor: const Aligned(
+          //       follower: Alignment.center,
+          //       target: Alignment.center,
+          //     ),
+
+          //     // offset: Offset(-20, -20),
+          //     child: const SizedBox(width: 1, height: 1),
+          //   ),
+          // ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: _buildCardToolbar(context, cardStore, viewMode),
           ),
-          Positioned(
-            bottom: -1,
-            left: 0,
-            right: 0,
-            child: PortalTarget(
-              visible: true,
-              portalFollower: Material(
-                color: Colors.transparent, // 添加 Material widget
-                child: Transform.translate(
-                  offset: const Offset(0, 0), // 偏移到卡片外部
-                  child: Center(
-                    child: _buildCardToolbar(context, cardStore, viewMode),
-                  ),
-                ),
-              ),
-              anchor: const Aligned(
-                follower: Alignment.center,
-                target: Alignment.center,
-              ),
-
-              // offset: Offset(-20, -20),
-              child: const SizedBox(width: 1, height: 1),
-            ),
-          ),
-
-          // 工具栏 - 底部居中，选中时显示
+          //   // 工具栏 - 底部居中，选中时显示
         ],
-
-        // 卡片主体内容
-        ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: GestureDetector(
-            onTap: () {
-              // 在编辑模式下，点击卡片切换选中状态
-              if (widget.editable) {
-                cardStore.toggleCardSelection(widget.card.id);
-              } else {
-                // 非编辑模式下，点击跳转链接
-                if (jumpUrl != null && jumpUrl.isNotEmpty) {
-                  launchUrl(
-                    Uri.parse(jumpUrl),
-                    mode: LaunchMode.externalApplication,
-                  );
-                }
-              }
-            },
-            child: Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: borderColor, width: borderWidth),
-                boxShadow: [
-                  BoxShadow(
-                    color: isSelected
-                        ? const Color(0xFF3B82F6).withOpacity(0.2) // 选中时蓝色阴影
-                        : Colors.black.withOpacity(0.04),
-                    blurRadius: isSelected ? 8 : 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // 主要内容 - 只有在加载状态时才隐藏
-                  if (!isLoading)
-                    Positioned.fill(
-                      child: _buildContent(context, viewMode, isSelected),
-                    ),
-
-                  // 加载状态
-                  if (showLoading)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(),
-                              SizedBox(height: 16),
-                              Text(
-                                'Analyzing with AI...',
-                                style: TextStyle(color: Color(0xFF6B7280)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // 失败状态
-                  if (isFailed)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'Oops!',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF171717),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'The card didn\'t go through...',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF6B7280),
-                                ),
-                              ),
-                              if (widget.editable) ...[
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    cardStore.regenerateCard(
-                                      cardId: widget.card.id,
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF171717),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Try Again',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ],
+      ),
     );
   }
 
@@ -316,19 +349,24 @@ class _CardRendererState extends State<CardRenderer> {
           // 可以在这里添加更多工具栏按钮
           // 例如：编辑、复制、设置等
           if (definition != null)
-            Tooltip(
-              message: widget.card.data.type,
-              child: GestureDetector(
-                onTap: () {
-                  // 可以在这里添加移动功能的逻辑
-                  debugPrint('移动按钮被点击');
-                },
-                child: Image.asset(
-                  'assets/icons/move.png',
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.contain,
-                ),
+            GestureDetector(
+              behavior: HitTestBehavior.deferToChild,
+              onTapDown: (details) {
+                setState(() {
+                  _isDrag = true;
+                });
+              },
+              onTapUp: (details) {
+                debugPrint('onTapUp222222');
+                setState(() {
+                  _isDrag = false;
+                });
+              },
+              child: Image.asset(
+                'assets/icons/move.png',
+                width: 40,
+                height: 40,
+                fit: BoxFit.contain,
               ),
             ),
         ],
@@ -346,7 +384,13 @@ class _CardRendererState extends State<CardRenderer> {
         ? widget.card.layout.mobile.size
         : widget.card.layout.desktop.size;
 
-    return _buildCardByType(type, size, viewMode, isSelected, context);
+    return _buildCardByType(
+      type,
+      size,
+      viewMode,
+      isSelected && !_isDrag,
+      context,
+    );
   }
 
   Widget _buildCardByType(

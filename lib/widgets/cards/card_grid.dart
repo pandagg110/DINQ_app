@@ -297,6 +297,13 @@ class CardGrid extends StatelessWidget {
             crossAxisSpacing: 0,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            proxyDecorator: (child, index, animation) {
+              // 只让背景透明，保留卡片内容可见
+              return Container(
+                color: Colors.transparent, // 背景透明
+                child: child,
+              );
+            },
             children: [
               for (int i = 0; i < sortedCards.length; i++)
                 Builder(
