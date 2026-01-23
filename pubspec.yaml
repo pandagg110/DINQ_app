@@ -25,6 +25,8 @@ dependencies:
   uuid: ^4.5.1
   web_socket_channel: ^3.0.3
   toastification: ^1.0.0
+  flutter_html: ^3.0.0-beta.2
+  reorderable_grid: ^1.0.13
 
 dev_dependencies:
   flutter_test:

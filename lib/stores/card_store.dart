@@ -1,36 +1,93 @@
 ﻿import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
+import 'package:flutter/foundation.dart';
 import '../models/card_models.dart';
 import '../services/card_service.dart';
 import '../services/datasource_service.dart';
+import '../widgets/cards/factory/card_registry.dart';
+import '../widgets/cards/factory/definitions/index.dart' show isAICard;
 
 class CardStore extends ChangeNotifier {
   CardStore() {
     _cardService = CardService();
     _datasourceService = DatasourceService();
+    _registry = CardRegistry();
   }
 
   late final CardService _cardService;
   late final DatasourceService _datasourceService;
+  late final CardRegistry _registry;
 
   ViewMode viewMode = ViewMode.desktop;
   List<CardItem> cards = [];
   Map<String, CardState> cardStates = {};
   Set<String> dirtyCardIds = {};
+  Set<String> selectedCardIds = {}; // 选中的卡片 ID
   bool isInitialized = false;
   bool isAdding = false;
   bool isSaving = false;
 
   Timer? _saveTimer;
+  Timer? _pollingTimer;
+  String? _currentUsername;
+
+  static const Duration _saveDelay = Duration(milliseconds: 1000);
+  static const Duration _pollingInterval = Duration(seconds: 3);
 
   Future<void> loadCards(String username) async {
-    try {
-      final result = await _cardService.getCardBoard(username);
-      cards = result;
+    _currentUsername = username;
+
+    // If we have cached cards, mark as initialized immediately (no blocking)
+    if (cards.isNotEmpty) {
       isInitialized = true;
       notifyListeners();
-    } catch (_) {
+    }
+
+    try {
+      // Fetch latest data in background
+      final result = await _cardService.getCardBoard(username);
+      
+      // Smart merge: keep cached cards with data, use server data for others
+      final cachedCardsMap = <String, CardItem>{};
+      for (final card in cards) {
+        cachedCardsMap[card.id] = card;
+      }
+
+      final mergedCards = <CardItem>[];
+      for (final serverCard in result) {
+        final cachedCard = cachedCardsMap[serverCard.id];
+        if (cachedCard != null &&
+            isAICard(cachedCard.data.type) &&
+            cachedCard.data.status == 'COMPLETED') {
+          // Keep cached card if it's a completed AI card
+          mergedCards.add(cachedCard);
+        } else {
+          // Adapt server card to ensure layout data is valid
+          CardItem adaptedCard = serverCard;
+          // debugPrint('serverCard: ${serverCard.toJson().toString()}');
+          if (_registry.isRegistered(serverCard.data.type)) {
+            adaptedCard = _registry.adapt(serverCard, ViewMode.desktop);
+            adaptedCard = _registry.adapt(adaptedCard, ViewMode.mobile);
+          }
+          mergedCards.add(adaptedCard);
+        }
+      }
+
+      cards = mergedCards;
+      isInitialized = true;
+      debugPrint('CardStore: Loaded ${cards.length} cards for user $username');
+      if (cards.isNotEmpty) {
+        final cardTypes = cards.map((c) => c.data.type).toSet();
+        debugPrint('CardStore: Card types: ${cardTypes.join(", ")}');
+      }
+      // for (final card in cards) {
+      //   debugPrint('card111: ${card.toJson().toString()}');
+      // }
+      notifyListeners();
+
+      // Start polling immediately
+      _startPolling();
+    } catch (e) {
+      debugPrint('CardStore: Error loading cards: $e');
       isInitialized = true;
       notifyListeners();
     }
@@ -40,53 +97,78 @@ class CardStore extends ChangeNotifier {
     isAdding = true;
     notifyListeners();
 
-    final id = const Uuid().v4();
-    final mockCard = CardItem(
-      id: id,
-      data: CardData(
-        id: id,
-        type: type,
-        title: metadata?['title']?.toString() ?? '',
-        description: metadata?['description']?.toString() ?? '',
-        metadata: metadata ?? {},
-        status: 'PROCESSING',
-      ),
-      layout: CardLayout(
-        desktop: CardLayoutState(
-          size: '2x2',
-          position: CardPosition(x: 0, y: 0, w: 2, h: 2),
-        ),
-        mobile: CardLayoutState(
-          size: '2x2',
-          position: CardPosition(x: 0, y: 0, w: 2, h: 2),
-        ),
-      ),
-    );
-
-    cards.add(mockCard);
-    cardStates[id] = CardState(loading: true, isNew: true);
-    notifyListeners();
-
     try {
-      final created = await _cardService.addCardToBoard(type: type, metadata: metadata);
-      _replaceCard(id, created);
-      return created;
-    } catch (_) {
-      return mockCard;
-    } finally {
+      // Create mock card using CardRegistry
+      final mockCard = await _registry.create(type, metadata ?? {}, cards);
+      final adaptedCard = _registry.adapt(mockCard, viewMode);
+
+      // Add mock card to UI immediately
+      cards.add(adaptedCard);
+      cardStates[adaptedCard.id] = CardState(
+        loading: isAICard(type),
+        isNew: true,
+      );
+      notifyListeners();
+
+      // Remove isNew flag after animation completes
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (cardStates.containsKey(adaptedCard.id)) {
+          final state = cardStates[adaptedCard.id]!;
+          cardStates[adaptedCard.id] = CardState(
+            loading: state.loading,
+            isNew: false,
+          );
+          notifyListeners();
+        }
+      });
+
+      // Async call to create real card
+      final finalMetadata = Map<String, dynamic>.from(adaptedCard.data.metadata);
+      final created = await _cardService.addCardToBoard(type: type, metadata: finalMetadata);
+
+      // Update card info but preserve layout
+      final index = cards.indexWhere((c) => c.id == adaptedCard.id);
+      if (index >= 0) {
+        final realCard = _registry.isRegistered(created.data.type)
+            ? _registry.adapt(created, viewMode)
+            : created;
+
+        cards[index] = CardItem(
+          id: realCard.id,
+          data: realCard.data,
+          layout: adaptedCard.layout, // Preserve layout
+        );
+
+        cardStates.remove(adaptedCard.id);
+        cardStates[realCard.id] = CardState(loading: isAICard(type));
+
+        // Save current layout info to server
+        dirtyCardIds.add(realCard.id);
+        _scheduleSave();
+
+        // If AI card, generate it
+        if (isAICard(type)) {
+          await _cardService.generateCard(
+            datasourceId: realCard.data.id,
+            type: type,
+            extraMetadata: metadata,
+          );
+          _startPolling();
+        }
+
+        isAdding = false;
+        notifyListeners();
+        return cards[index];
+      }
+
       isAdding = false;
       notifyListeners();
-    }
-  }
-
-  void _replaceCard(String tempId, CardItem created) {
-    final index = cards.indexWhere((card) => card.id == tempId);
-    if (index >= 0) {
-      cards[index] = created;
-      cardStates.remove(tempId);
-      cardStates[created.id] = CardState(loading: false);
-      dirtyCardIds.add(created.id);
-      _scheduleSave();
+      return adaptedCard;
+    } catch (e) {
+      debugPrint('CardStore: Error adding card: $e');
+      isAdding = false;
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -133,33 +215,290 @@ class CardStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> regenerateCard({String? cardId}) async {
-    if (cardId == null) {
-      await _datasourceService.regenerateAllCards();
-      return;
+  /// 切换卡片选中状态（单选模式：只能同时选中一个）
+  void toggleCardSelection(String cardId) {
+    if (selectedCardIds.contains(cardId)) {
+      // 如果已经选中，则取消选中
+      selectedCardIds.remove(cardId);
+    } else {
+      // 如果未选中，先清除所有选中状态，然后选中当前卡片
+      selectedCardIds.clear();
+      selectedCardIds.add(cardId);
     }
-    await _datasourceService.regenerateCard(datasourceId: cardId);
+    notifyListeners();
+  }
+
+  /// 清除所有选中状态
+  void clearSelection() {
+    selectedCardIds.clear();
+    notifyListeners();
+  }
+
+  /// 检查卡片是否被选中
+  bool isCardSelected(String cardId) {
+    return selectedCardIds.contains(cardId);
+  }
+
+  Future<void> regenerateCard({String? cardId}) async {
+    try {
+      Map<String, dynamic> response;
+      List<dynamic> results = [];
+
+      if (cardId == null) {
+        // Regenerate all cards
+        response = await _datasourceService.regenerateAllCards();
+        results = (response['results'] as List<dynamic>?) ?? [];
+        if (results.isEmpty) {
+          debugPrint('CardStore: No cards to regenerate');
+          return;
+        }
+      } else {
+        // Regenerate single card
+        final card = cards.firstWhere(
+          (c) => c.id == cardId,
+          orElse: () => throw Exception('Card not found'),
+        );
+
+        response = await _datasourceService.regenerateCard(datasourceId: card.data.id);
+        final result = response['result'];
+        if (result != null) {
+          results = [result];
+        }
+      }
+
+      // Handle results
+      bool hasStarted = false;
+      for (final result in results) {
+        final resultMap = Map<String, dynamic>.from(result as Map);
+        final status = resultMap['status']?.toString() ?? '';
+        if (status == 'started') {
+          hasStarted = true;
+          final datasourceId = resultMap['datasource_id']?.toString() ?? '';
+
+          // Find and update card
+          final cardIndex = cards.indexWhere((c) => c.data.id == datasourceId);
+          if (cardIndex >= 0) {
+            final card = cards[cardIndex];
+            cards[cardIndex] = CardItem(
+              id: card.id,
+              data: CardData(
+                id: card.data.id,
+                type: card.data.type,
+                title: card.data.title,
+                description: card.data.description,
+                metadata: card.data.metadata,
+                status: 'PROCESSING',
+              ),
+              layout: card.layout,
+            );
+            cardStates[card.id] = CardState(loading: true);
+          }
+        }
+      }
+
+      if (hasStarted) {
+        _startPolling();
+        debugPrint('CardStore: Regeneration has started!');
+      } else {
+        // Check if all skipped or reused
+        final allSkipped = results.every((r) {
+          final status = (r as Map)['status']?.toString() ?? '';
+          return status == 'skipped';
+        });
+        final allReused = results.every((r) {
+          final status = (r as Map)['status']?.toString() ?? '';
+          return status == 'reused';
+        });
+
+        if (allSkipped) {
+          debugPrint('CardStore: Card is already being processed');
+        } else if (allReused) {
+          debugPrint('CardStore: Reusing existing card data');
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('CardStore: Failed to regenerate card: $e');
+      rethrow;
+    }
   }
 
   void _scheduleSave() {
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 1000), () async {
+    _saveTimer = Timer(_saveDelay, () async {
       await _saveDirtyCards();
     });
   }
 
   Future<void> _saveDirtyCards() async {
-    if (dirtyCardIds.isEmpty) return;
+    // Don't save when isAdding
+    if (isAdding || dirtyCardIds.isEmpty) return;
+
     isSaving = true;
     notifyListeners();
+
     try {
       final dirty = cards.where((card) => dirtyCardIds.contains(card.id)).toList();
-      await _cardService.updateCardBoard(dirty);
+      
+      // Convert AI card types to "datasource" when saving
+      final cardsToSave = dirty.map((card) {
+        if (isAICard(card.data.type)) {
+          return CardItem(
+            id: card.id,
+            data: CardData(
+              id: card.data.id,
+              type: 'datasource',
+              title: card.data.title,
+              description: card.data.description,
+              metadata: card.data.metadata,
+              status: card.data.status,
+            ),
+            layout: card.layout,
+          );
+        }
+        return card;
+      }).toList();
+
+      await _cardService.updateCardBoard(cardsToSave);
       dirtyCardIds.clear();
+    } catch (e) {
+      debugPrint('CardStore: Failed to save cards: $e');
     } finally {
       isSaving = false;
       notifyListeners();
     }
+  }
+
+  /// Analyze datasource status and update cards
+  Future<bool> _analyzeDatasource() async {
+    if (_currentUsername == null) return false;
+
+    // Collect data_source_ids from existing cards
+    final dataSourceIds = cards
+        .where((card) => isAICard(card.data.type) && card.data.status == 'PROCESSING')
+        .map((card) => card.data.id)
+        .toList();
+
+    if (dataSourceIds.isEmpty) return false;
+
+    bool hasPending = false;
+
+    try {
+      final response = await _datasourceService.getDatasources(
+        _currentUsername!,
+        dataSourceIds: dataSourceIds,
+      );
+
+      final datasources = (response['data_sources'] as List<dynamic>?) ?? [];
+
+      for (final datasourceData in datasources) {
+        final datasource = Map<String, dynamic>.from(datasourceData as Map);
+        final datasourceId = datasource['id']?.toString() ?? '';
+
+        final cardIndex = cards.indexWhere((card) => card.data.id == datasourceId);
+        if (cardIndex < 0) continue;
+
+        final card = cards[cardIndex];
+        final status = datasource['status']?.toString() ?? '';
+
+        if (status == 'PROCESSING') {
+          hasPending = true;
+        }
+
+        if (status == 'COMPLETED') {
+          // Preserve user settings (like displayMode)
+          final prevDisplayMode = card.data.metadata['displayMode'];
+
+          // Update card with raw_metadata from datasource
+          final rawMetadata = datasource['raw_metadata'];
+          Map<String, dynamic> finalMetadata;
+          if (rawMetadata is Map<String, dynamic>) {
+            finalMetadata = prevDisplayMode != null
+                ? {...rawMetadata, 'displayMode': prevDisplayMode}
+                : rawMetadata;
+          } else {
+            finalMetadata = {};
+          }
+
+          final updatedCard = CardItem(
+            id: card.id,
+            data: CardData(
+              id: card.data.id,
+              type: (datasource['type']?.toString() ?? card.data.type).toUpperCase(),
+              title: card.data.title,
+              description: card.data.description,
+              metadata: finalMetadata,
+              status: status,
+            ),
+            layout: card.layout,
+          );
+
+          // Adapt the card
+          final adaptedCard = _registry.isRegistered(updatedCard.data.type)
+              ? _registry.adapt(updatedCard, viewMode)
+              : updatedCard;
+
+          cards[cardIndex] = adaptedCard;
+        }
+
+        // Update card state
+        if (!cardStates.containsKey(card.id)) {
+          cardStates[card.id] = CardState();
+        }
+        final state = cardStates[card.id]!;
+        cardStates[card.id] = CardState(
+          loading: status == 'PROCESSING',
+          isNew: state.isNew,
+        );
+
+        // Update card status and type
+        final updatedCard = cards[cardIndex];
+        cards[cardIndex] = CardItem(
+          id: updatedCard.id,
+          data: CardData(
+            id: updatedCard.data.id,
+            type: (datasource['type']?.toString() ?? updatedCard.data.type).toUpperCase(),
+            title: updatedCard.data.title,
+            description: updatedCard.data.description,
+            metadata: updatedCard.data.metadata,
+            status: status,
+          ),
+          layout: updatedCard.layout,
+        );
+      }
+
+      // Filter out datasource type cards
+      cards.removeWhere((card) => card.data.type.toLowerCase() == 'datasource');
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('CardStore: Error analyzing datasource: $e');
+    }
+
+    return hasPending;
+  }
+
+  /// Start polling for datasource status
+  void _startPolling() {
+    // If already polling, stop first
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+
+    // Start polling
+    _pollingTimer = Timer(_pollingInterval, () async {
+      final hasPending = await _analyzeDatasource();
+      if (hasPending) {
+        _startPolling(); // Continue polling
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _saveTimer?.cancel();
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 }
 
