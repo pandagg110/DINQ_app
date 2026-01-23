@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_portal/flutter_portal.dart';
 import '../../models/user_models.dart';
 import '../../services/profile_service.dart';
 import '../../stores/card_store.dart';
@@ -45,7 +46,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     // 当应用进入后台或关闭时，清空选中状态
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _cardStore?.clearSelection();
     }
   }
@@ -83,7 +85,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           cardStore.clearSelection();
         }
       },
-      behavior: HitTestBehavior.translucent,
+      behavior: HitTestBehavior.deferToChild,
       child: Stack(
         children: [
           Scaffold(
@@ -91,19 +93,18 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               children: [
                 const AppHeader(showAuthButtons: true),
                 Expanded(
-                  child: SingleChildScrollView(
+                  child: Portal(child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (_userData != null) ...[
-                          _buildProfileHeader(context, _userData!),
-                          const SizedBox(height: 24),
-                          CardGrid(
-                            editable: isEditable,
-                          ),
+                    child:  Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (_userData != null) ...[
+                            _buildProfileHeader(context, _userData!),
+                            const SizedBox(height: 24),
+                            CardGrid(editable: isEditable),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -124,12 +125,17 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Widget _buildProfileHeader(BuildContext context, UserData data) {
     final userStore = context.watch<UserStore>();
-    final isEditable = userStore.isLoggedIn() &&
+    final isEditable =
+        userStore.isLoggedIn() &&
         userStore.user?.userData.domain == data.domain;
 
     // 解析标签（逗号分隔，取第一个）
     final tags = data.tags.isNotEmpty
-        ? data.tags.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList()
+        ? data.tags
+              .split(',')
+              .map((t) => t.trim())
+              .where((t) => t.isNotEmpty)
+              .toList()
         : <String>[];
 
     // 预定义的标签颜色
@@ -186,10 +192,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               const SizedBox(width: 6),
               Text(
                 data.fullPosition,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B7280),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               ),
             ],
           ),
@@ -202,7 +205,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             children: tags.take(5).map((tag) {
               final colorIndex = tags.indexOf(tag) % tagColors.length;
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: tagColors[colorIndex],
                   borderRadius: BorderRadius.circular(6),
@@ -259,4 +265,3 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         userStore.user?.userData.domain == data.domain;
   }
 }
-
