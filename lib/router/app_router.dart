@@ -1,5 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:dinq_app/pages/auth/verify_code_page.dart';
 import 'package:go_router/go_router.dart';
+
+import '../pages/admin/admin_mydinq_page.dart';
+import '../pages/admin/admin_openings_page.dart';
+import '../pages/admin/admin_page.dart';
+import '../pages/admin/admin_search_page.dart';
+import '../pages/admin/inbox/admin_inbox_conversation_page.dart';
+import '../pages/admin/inbox/admin_inbox_notifications_page.dart';
+import '../pages/admin/inbox/admin_inbox_page.dart';
 import '../pages/analysis/analysis_page.dart';
 import '../pages/analysis/github_compare_page.dart';
 import '../pages/analysis/github_page.dart';
@@ -34,16 +42,10 @@ import '../pages/settings/settings_page.dart';
 import '../pages/settings/settings_profile_page.dart';
 import '../pages/settings/settings_subscription_page.dart';
 import '../pages/settings/settings_verification_page.dart';
-import '../pages/admin/admin_page.dart';
-import '../pages/admin/admin_mydinq_page.dart';
-import '../pages/admin/admin_openings_page.dart';
-import '../pages/admin/admin_search_page.dart';
-import '../pages/admin/inbox/admin_inbox_page.dart';
-import '../pages/admin/inbox/admin_inbox_conversation_page.dart';
-import '../pages/admin/inbox/admin_inbox_notifications_page.dart';
+import '../pages/web_view_page.dart';
 
 class AppRouter {
-  static GoRouter create(BuildContext context) {
+  static GoRouter create() {
     return GoRouter(
       initialLocation: '/',
       errorBuilder: (context, state) => const NotFoundPage(),
@@ -53,10 +55,8 @@ class AppRouter {
         GoRoute(path: '/signin', builder: (context, state) => const SignInPage()),
         GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
         GoRoute(path: '/reset', builder: (context, state) => const ResetPage()),
-        GoRoute(
-          path: '/reset/callback',
-          builder: (context, state) => const ResetCallbackPage(),
-        ),
+        GoRoute(path: '/verify', builder: (context, state) => const VerifyCodePage()),
+        GoRoute(path: '/reset/callback', builder: (context, state) => const ResetCallbackPage()),
         GoRoute(path: '/demo', builder: (context, state) => const DemoPage()),
         GoRoute(path: '/waiting-list', builder: (context, state) => const WaitingListPage()),
         GoRoute(path: '/generation', builder: (context, state) => const GenerationPage()),
@@ -70,9 +70,28 @@ class AppRouter {
         GoRoute(path: '/privacy', builder: (context, state) => const PrivacyPage()),
         GoRoute(path: '/guidelines', builder: (context, state) => const GuidelinesPage()),
         GoRoute(path: '/cookies', builder: (context, state) => const CookiesPage()),
+        GoRoute(
+          path: '/webview',
+          builder: (context, state) {
+            final url = state.uri.queryParameters['url'] ?? '';
+            final navTitle = state.uri.queryParameters['navTitle'];
+            final showAppBar = state.uri.queryParameters['showAppBar'] != 'false';
+            return WebViewPage(
+              url: Uri.decodeComponent(url),
+              navTitle: navTitle,
+              showAppBar: showAppBar,
+            );
+          },
+        ),
         GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
-        GoRoute(path: '/settings/profile', builder: (context, state) => const SettingsProfilePage()),
-        GoRoute(path: '/settings/account', builder: (context, state) => const SettingsAccountPage()),
+        GoRoute(
+          path: '/settings/profile',
+          builder: (context, state) => const SettingsProfilePage(),
+        ),
+        GoRoute(
+          path: '/settings/account',
+          builder: (context, state) => const SettingsAccountPage(),
+        ),
         GoRoute(
           path: '/settings/verification',
           builder: (context, state) => const SettingsVerificationPage(),
@@ -90,10 +109,7 @@ class AppRouter {
           path: '/payment/cancelled',
           builder: (context, state) => const PaymentCancelledPage(),
         ),
-        GoRoute(
-          path: '/social-callback',
-          builder: (context, state) => const SocialCallbackPage(),
-        ),
+        GoRoute(path: '/social-callback', builder: (context, state) => const SocialCallbackPage()),
         GoRoute(
           path: '/account-callback',
           builder: (context, state) => const AccountCallbackPage(),
@@ -137,11 +153,10 @@ class AppRouter {
         ),
         GoRoute(
           path: '/:username',
-          builder: (context, state) => ProfilePage(username: state.pathParameters['username'] ?? ''),
+          builder: (context, state) =>
+              ProfilePage(username: state.pathParameters['username'] ?? ''),
         ),
       ],
     );
   }
 }
-
-

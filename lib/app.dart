@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'router/app_router.dart';
 import 'stores/card_store.dart';
 import 'stores/messages_store.dart';
@@ -10,7 +11,9 @@ import 'stores/user_store.dart';
 import 'theme/app_theme.dart';
 
 class DinqApp extends StatelessWidget {
-  const DinqApp({super.key});
+  DinqApp({super.key});
+
+  final router = AppRouter.create();
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +28,6 @@ class DinqApp extends StatelessWidget {
       ],
       child: Builder(
         builder: (context) {
-          final router = AppRouter.create(context);
           return LayoutBuilder(
             builder: (context, constraints) {
               final settings = context.read<SettingsStore>();
@@ -49,5 +51,3 @@ class DinqApp extends StatelessWidget {
     );
   }
 }
-
-
