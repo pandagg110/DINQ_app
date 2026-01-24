@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../utils/color_util.dart';
 import '../../widgets/common/default_app_bar.dart';
+import 'verify_code_input.dart';
 
 class VerifyCodePage extends StatefulWidget {
-  const VerifyCodePage({super.key});
+  final String email;
+
+  const VerifyCodePage({super.key, required this.email});
 
   @override
   State<VerifyCodePage> createState() => _VerifyCodePageState();
 }
 
 class _VerifyCodePageState extends State<VerifyCodePage> {
-  String _email = "";
+  late final VerificationCodeInputController _codeInputController =
+      VerificationCodeInputController();
+  bool _isFormValid = false;
 
   @override
   void initState() {
-    // 获取参数
-    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
-    _email = extra?['email'];
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _codeInputController.dispose();
+    super.dispose();
   }
 
   @override
@@ -54,7 +61,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                       style: TextStyle(fontSize: 14, color: ColorUtil.sub1TextColor),
                     ),
                     TextSpan(
-                      text: _email,
+                      text: widget.email,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -64,7 +71,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Text(
                 "Not in your inbox? Check promotions or spam, and move it to your main inbox to receive future notifications.",
                 textAlign: TextAlign.center,
@@ -74,6 +81,21 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                   height: 1.6,
                   color: ColorUtil.sub1TextColor,
                 ),
+              ),
+              const SizedBox(height: 30),
+              VerificationCodeInput(
+                controller: _codeInputController,
+                maxLength: 6,
+                valueChanged: (code) {
+                  if (mounted) {
+                    setState(() {
+                      _isFormValid = code.length == 6;
+                      if (_isFormValid) {
+                        // _handleVerify();
+                      }
+                    });
+                  }
+                },
               ),
             ],
           ),

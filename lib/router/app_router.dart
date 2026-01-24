@@ -55,7 +55,14 @@ class AppRouter {
         GoRoute(path: '/signin', builder: (context, state) => const SignInPage()),
         GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
         GoRoute(path: '/reset', builder: (context, state) => const ResetPage()),
-        GoRoute(path: '/verify', builder: (context, state) => const VerifyCodePage()),
+        GoRoute(
+          path: '/verify',
+          builder: (context, state) {
+            // 获取路径参数
+            final email = (state.pathParameters['email'] ?? "").toString();
+            return VerifyCodePage(email: email);
+          },
+        ),
         GoRoute(path: '/reset/callback', builder: (context, state) => const ResetCallbackPage()),
         GoRoute(path: '/demo', builder: (context, state) => const DemoPage()),
         GoRoute(path: '/waiting-list', builder: (context, state) => const WaitingListPage()),
