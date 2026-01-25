@@ -37,8 +37,6 @@ class NoteCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    // debugPrint('params: ${params.editable}');
-    debugPrint('isSelected: ${params.isSelected}');
     final isSelected = params.isSelected;
     final text = params.card.data.metadata['text']?.toString() ??
         params.card.data.metadata['content']?.toString() ??

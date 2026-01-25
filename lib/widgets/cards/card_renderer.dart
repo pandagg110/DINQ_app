@@ -101,7 +101,7 @@ class _CardRendererState extends State<CardRenderer> {
     // 卡片内容
     final cardContent = Container(
       width: double.infinity,
-      // height: double.infinity,
+      height:widget.card.data.type.toUpperCase() == 'TITLE' ? 100 : null,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -210,13 +210,10 @@ class _CardRendererState extends State<CardRenderer> {
 
     return Listener(
       onPointerUp: (event) {
-        // 取消之前的延迟任务，防止连续点击导致状态异常
-        debugPrint('onPointerUp111111: $_dragEndTimer');
         _dragEndTimer?.cancel();
 
         // 延迟一下，确保不是拖拽过程中的短暂抬起
         _dragEndTimer = Timer(const Duration(milliseconds: 400), () {
-          debugPrint('onPointerUp222222: $mounted');
           if (mounted) {
             setState(() {
               _isDrag = false;
@@ -229,36 +226,67 @@ class _CardRendererState extends State<CardRenderer> {
         children: [
           // 卡片主体内容
           Column(
+            mainAxisSize: widget.card.data.type.toUpperCase() == 'TITLE'
+                ? MainAxisSize.min
+                : MainAxisSize.max,
             children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.deferToChild,
-                    onTapUp: (details) {
-                      setState(() {
-                        _isDrag = false;
-                      });
-                    },
-                    onTap: () {
-                      // 在编辑模式下，点击卡片切换选中状态
-                      if (widget.editable) {
-                        cardStore.toggleCardSelection(widget.card.id);
-                      } else {
-                        // 非编辑模式下，点击跳转链接
-                        if (jumpUrl != null && jumpUrl.isNotEmpty) {
-                          launchUrl(
-                            Uri.parse(jumpUrl),
-                            mode: LaunchMode.externalApplication,
-                          );
-                        }
-                      }
-                    },
-                    child: cardContent,
-                  ),
-                ),
-              ),
-              SizedBox(height: 24),
+              // 根据卡片类型决定是否使用 Expanded
+              widget.card.data.type.toUpperCase() == 'TITLE'
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.deferToChild,
+                        onTapUp: (details) {
+                          setState(() {
+                            _isDrag = false;
+                          });
+                        },
+                        onTap: () {
+                          // 在编辑模式下，点击卡片切换选中状态
+                          if (widget.editable) {
+                            cardStore.toggleCardSelection(widget.card.id);
+                          } else {
+                            // 非编辑模式下，点击跳转链接
+                            if (jumpUrl != null && jumpUrl.isNotEmpty) {
+                              launchUrl(
+                                Uri.parse(jumpUrl),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            }
+                          }
+                        },
+                        child: cardContent,
+                      ),
+                    )
+                  : Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.deferToChild,
+                          onTapUp: (details) {
+                            setState(() {
+                              _isDrag = false;
+                            });
+                          },
+                          onTap: () {
+                            // 在编辑模式下，点击卡片切换选中状态
+                            if (widget.editable) {
+                              cardStore.toggleCardSelection(widget.card.id);
+                            } else {
+                              // 非编辑模式下，点击跳转链接
+                              if (jumpUrl != null && jumpUrl.isNotEmpty) {
+                                launchUrl(
+                                  Uri.parse(jumpUrl),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              }
+                            }
+                          },
+                          child: cardContent,
+                        ),
+                      ),
+                    ),
+              const SizedBox(height: 24),
             ],
           ),
 
@@ -335,30 +363,6 @@ class _CardRendererState extends State<CardRenderer> {
                     ),
                   ),
 
-            // Positioned(
-            //   bottom: -1,
-            //   left: 0,
-            //   right: 0,
-            //   child: PortalTarget(
-            //     visible: true,
-            //     portalFollower: Material(
-            //       color: Colors.transparent, // 添加 Material widget
-            //       child: Transform.translate(
-            //         offset: const Offset(0, 0), // 偏移到卡片外部
-            //         child: Center(
-            //           child: _buildCardToolbar(context, cardStore, viewMode),
-            //         ),
-            //       ),
-            //     ),
-            //     anchor: const Aligned(
-            //       follower: Alignment.center,
-            //       target: Alignment.center,
-            //     ),
-
-            //     // offset: Offset(-20, -20),
-            //     child: const SizedBox(width: 1, height: 1),
-            //   ),
-            // ),
             Align(
               alignment: Alignment.bottomCenter,
               child: _buildCardToolbar(context, cardStore, viewMode),
@@ -379,18 +383,6 @@ class _CardRendererState extends State<CardRenderer> {
     final definition = registry.getDefinition(widget.card.data.type);
 
     return Container(
-      // padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      // decoration: BoxDecoration(
-      //   color: Colors.white,
-      //   borderRadius: BorderRadius.circular(8),
-      //   boxShadow: [
-      //     BoxShadow(
-      //       color: Colors.black.withOpacity(0.1),
-      //       blurRadius: 8,
-      //       offset: const Offset(0, 2),
-      //     ),
-      //   ],
-      // ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -431,7 +423,7 @@ class _CardRendererState extends State<CardRenderer> {
     final size = viewMode == ViewMode.mobile
         ? widget.card.layout.mobile.size
         : widget.card.layout.desktop.size;
-
+    debugPrint('typetypetype: $type');
     return _buildCardByType(
       type,
       size,

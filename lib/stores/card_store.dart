@@ -45,7 +45,7 @@ class CardStore extends ChangeNotifier {
     try {
       // Fetch latest data in background
       final result = await _cardService.getCardBoard(username);
-      
+
       // Smart merge: keep cached cards with data, use server data for others
       final cachedCardsMap = <String, CardItem>{};
       for (final card in cards) {
@@ -74,14 +74,6 @@ class CardStore extends ChangeNotifier {
 
       cards = mergedCards;
       isInitialized = true;
-      debugPrint('CardStore: Loaded ${cards.length} cards for user $username');
-      if (cards.isNotEmpty) {
-        final cardTypes = cards.map((c) => c.data.type).toSet();
-        debugPrint('CardStore: Card types: ${cardTypes.join(", ")}');
-      }
-      // for (final card in cards) {
-      //   debugPrint('card111: ${card.toJson().toString()}');
-      // }
       notifyListeners();
 
       // Start polling immediately
@@ -93,7 +85,10 @@ class CardStore extends ChangeNotifier {
     }
   }
 
-  Future<CardItem?> addCard({required String type, Map<String, dynamic>? metadata}) async {
+  Future<CardItem?> addCard({
+    required String type,
+    Map<String, dynamic>? metadata,
+  }) async {
     isAdding = true;
     notifyListeners();
 
@@ -123,8 +118,13 @@ class CardStore extends ChangeNotifier {
       });
 
       // Async call to create real card
-      final finalMetadata = Map<String, dynamic>.from(adaptedCard.data.metadata);
-      final created = await _cardService.addCardToBoard(type: type, metadata: finalMetadata);
+      final finalMetadata = Map<String, dynamic>.from(
+        adaptedCard.data.metadata,
+      );
+      final created = await _cardService.addCardToBoard(
+        type: type,
+        metadata: finalMetadata,
+      );
 
       // Update card info but preserve layout
       final index = cards.indexWhere((c) => c.id == adaptedCard.id);
@@ -188,7 +188,11 @@ class CardStore extends ChangeNotifier {
   void updateCardData(String cardId, CardData data) {
     final index = cards.indexWhere((card) => card.id == cardId);
     if (index >= 0) {
-      cards[index] = CardItem(id: cards[index].id, data: data, layout: cards[index].layout);
+      cards[index] = CardItem(
+        id: cards[index].id,
+        data: data,
+        layout: cards[index].layout,
+      );
       dirtyCardIds.add(cardId);
       _scheduleSave();
       notifyListeners();
@@ -198,7 +202,11 @@ class CardStore extends ChangeNotifier {
   void updateCardLayout(String cardId, CardLayout layout) {
     final index = cards.indexWhere((card) => card.id == cardId);
     if (index >= 0) {
-      cards[index] = CardItem(id: cards[index].id, data: cards[index].data, layout: layout);
+      cards[index] = CardItem(
+        id: cards[index].id,
+        data: cards[index].data,
+        layout: layout,
+      );
       dirtyCardIds.add(cardId);
       _scheduleSave();
       notifyListeners();
@@ -249,7 +257,6 @@ class CardStore extends ChangeNotifier {
         response = await _datasourceService.regenerateAllCards();
         results = (response['results'] as List<dynamic>?) ?? [];
         if (results.isEmpty) {
-          debugPrint('CardStore: No cards to regenerate');
           return;
         }
       } else {
@@ -259,7 +266,9 @@ class CardStore extends ChangeNotifier {
           orElse: () => throw Exception('Card not found'),
         );
 
-        response = await _datasourceService.regenerateCard(datasourceId: card.data.id);
+        response = await _datasourceService.regenerateCard(
+          datasourceId: card.data.id,
+        );
         final result = response['result'];
         if (result != null) {
           results = [result];
@@ -298,23 +307,6 @@ class CardStore extends ChangeNotifier {
 
       if (hasStarted) {
         _startPolling();
-        debugPrint('CardStore: Regeneration has started!');
-      } else {
-        // Check if all skipped or reused
-        final allSkipped = results.every((r) {
-          final status = (r as Map)['status']?.toString() ?? '';
-          return status == 'skipped';
-        });
-        final allReused = results.every((r) {
-          final status = (r as Map)['status']?.toString() ?? '';
-          return status == 'reused';
-        });
-
-        if (allSkipped) {
-          debugPrint('CardStore: Card is already being processed');
-        } else if (allReused) {
-          debugPrint('CardStore: Reusing existing card data');
-        }
       }
 
       notifyListeners();
@@ -339,8 +331,10 @@ class CardStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final dirty = cards.where((card) => dirtyCardIds.contains(card.id)).toList();
-      
+      final dirty = cards
+          .where((card) => dirtyCardIds.contains(card.id))
+          .toList();
+
       // Convert AI card types to "datasource" when saving
       final cardsToSave = dirty.map((card) {
         if (isAICard(card.data.type)) {
@@ -373,14 +367,16 @@ class CardStore extends ChangeNotifier {
   /// Analyze datasource status and update cards
   Future<bool> _analyzeDatasource() async {
     if (_currentUsername == null) return false;
-
     // Collect data_source_ids from existing cards
     final dataSourceIds = cards
-        .where((card) => isAICard(card.data.type) && card.data.status == 'PROCESSING')
+        .where(
+          (card) =>
+              isAICard(card.data.type) && card.data.status == 'PROCESSING',
+        )
         .map((card) => card.data.id)
         .toList();
 
-    if (dataSourceIds.isEmpty) return false;
+    // if (dataSourceIds.isEmpty) return false;
 
     bool hasPending = false;
 
@@ -389,14 +385,15 @@ class CardStore extends ChangeNotifier {
         _currentUsername!,
         dataSourceIds: dataSourceIds,
       );
-
       final datasources = (response['data_sources'] as List<dynamic>?) ?? [];
 
       for (final datasourceData in datasources) {
         final datasource = Map<String, dynamic>.from(datasourceData as Map);
         final datasourceId = datasource['id']?.toString() ?? '';
 
-        final cardIndex = cards.indexWhere((card) => card.data.id == datasourceId);
+        final cardIndex = cards.indexWhere(
+          (card) => card.data.id == datasourceId,
+        );
         if (cardIndex < 0) continue;
 
         final card = cards[cardIndex];
@@ -425,7 +422,8 @@ class CardStore extends ChangeNotifier {
             id: card.id,
             data: CardData(
               id: card.data.id,
-              type: (datasource['type']?.toString() ?? card.data.type).toUpperCase(),
+              type: (datasource['type']?.toString() ?? card.data.type)
+                  .toUpperCase(),
               title: card.data.title,
               description: card.data.description,
               metadata: finalMetadata,
@@ -458,7 +456,8 @@ class CardStore extends ChangeNotifier {
           id: updatedCard.id,
           data: CardData(
             id: updatedCard.data.id,
-            type: (datasource['type']?.toString() ?? updatedCard.data.type).toUpperCase(),
+            type: (datasource['type']?.toString() ?? updatedCard.data.type)
+                .toUpperCase(),
             title: updatedCard.data.title,
             description: updatedCard.data.description,
             metadata: updatedCard.data.metadata,
@@ -501,5 +500,3 @@ class CardStore extends ChangeNotifier {
     super.dispose();
   }
 }
-
-

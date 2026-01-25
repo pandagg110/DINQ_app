@@ -52,12 +52,6 @@ class _ImageCardWidget extends StatelessWidget {
     final renderWidth = (metadata['renderWidth'] as num?)?.toDouble();
     final renderHeight = (metadata['renderHeight'] as num?)?.toDouble();
 
-    // 打印图片路径和裁剪参数
-    if (imageUrl.isNotEmpty) {
-      debugPrint('ImageCard - 需要加载的图片路径: $imageUrl');
-      debugPrint('ImageCard - 裁剪参数: offsetX=$offsetX, offsetY=$offsetY, scale=$scale');
-      debugPrint('ImageCard - 渲染尺寸: renderWidth=$renderWidth, renderHeight=$renderHeight');
-    }
 
     return Container(
       decoration: BoxDecoration(

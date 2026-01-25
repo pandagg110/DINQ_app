@@ -191,7 +191,6 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
 
   void _loadData() {
     final metadata = widget.card.data.metadata;
-    debugPrint('MarkdownCard - 加载数据: $metadata');
     setState(() {
       _mediaUrl = metadata['url']?.toString() ?? '';
       _markdownContent =
