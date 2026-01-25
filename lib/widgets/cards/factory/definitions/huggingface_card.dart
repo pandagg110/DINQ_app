@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'huggingface/huggingface_widget.dart';
 
 class HuggingFaceCardDefinition extends CardDefinition {
   @override
   String get type => 'HUGGINGFACE';
 
   @override
-  String get icon => '/icons/social-icons/HuggingFace.svg';
+  String get icon => '/icons/logo/HuggingFace.png';
 
   @override
   String get name => 'Hugging Face';
@@ -70,6 +70,7 @@ class HuggingFaceCardDefinition extends CardDefinition {
     }
 
     return {
+      'username': data['username'] ?? '',
       'fullname': data['fullname'] ?? '',
       'avatarUrl': data['avatarUrl'] ?? '',
       'metrics': {
@@ -90,44 +91,9 @@ class HuggingFaceCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final fullname = params.card.data.metadata['fullname']?.toString() ?? 'Hugging Face';
-    final metrics = params.card.data.metadata['metrics'] as Map<String, dynamic>?;
-    final models = metrics?['models'] ?? 0;
-    final datasets = metrics?['datasets'] ?? 0;
-    final followers = metrics?['followers'] ?? 0;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/HuggingFace.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            fullname,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          if (models > 0)
-            Text(
-              'Models: $models',
-              style: const TextStyle(color: Color(0xFF6B7280)),
-            ),
-          if (datasets > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Datasets: $datasets',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-          if (followers > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Followers: $followers',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-        ],
-      ),
+    return HuggingFaceWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

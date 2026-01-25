@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'twitter/twitter_widget.dart';
 
 class TwitterCardDefinition extends CardDefinition {
   @override
   String get type => 'TWITTER';
 
   @override
-  String get icon => '/icons/social-icons/Twitter.svg';
+  String get icon => '/icons/logo/Twitter.png';
 
   @override
   String get name => 'Twitter';
@@ -69,35 +69,9 @@ class TwitterCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final username = params.card.data.metadata['username']?.toString() ?? '';
-    final followerCount = params.card.data.metadata['followerCount'] ?? 0;
-    final verified = params.card.data.metadata['verified'] ?? false;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const AssetIcon(asset: 'icons/social-icons/Twitter.svg', size: 32),
-              if (verified) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.verified, size: 16, color: Colors.blue),
-              ],
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            username.isNotEmpty ? '@$username' : 'Twitter',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Followers: $followerCount',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-        ],
-      ),
+    return TwitterWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

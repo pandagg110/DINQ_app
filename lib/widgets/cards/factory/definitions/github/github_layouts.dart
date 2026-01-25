@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../common/asset_icon.dart';
 import '../../../../common/metric_display.dart';
 import 'github_constants.dart';
@@ -56,15 +57,15 @@ class GitHubLayouts {
             SizedBox(
               width: 140,
               height: 101,
-              child: Image.network(
+              child: SvgPicture.network(
                 'https://ghchart.rshah.org/$username',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[200],
-                    child: const Center(child: Text('Chart unavailable')),
-                  );
-                },
+                placeholderBuilder: (context) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                semanticsLabel: 'GitHub Contribution Chart',
+                clipBehavior: Clip.antiAlias,
               ),
             ),
           
@@ -177,15 +178,15 @@ class GitHubLayouts {
             SizedBox(
               width: 140,
               height: 101,
-              child: Image.network(
+              child: SvgPicture.network(
                 'https://ghchart.rshah.org/$username',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[200],
-                    child: const Center(child: Text('Chart unavailable')),
-                  );
-                },
+                placeholderBuilder: (context) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                semanticsLabel: 'GitHub Contribution Chart',
+                clipBehavior: Clip.antiAlias,
               ),
             ),
         ],
@@ -205,7 +206,6 @@ class GitHubLayouts {
     final hasRepresentative = representativeProject != null &&
         (representativeProject['name'] as String?)?.isNotEmpty == true;
     final summaryText = summary.trim().isNotEmpty ? summary : 'No summary available.';
-    final summaryClampLines = hasRepresentative ? 2 : 4;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -265,35 +265,36 @@ class GitHubLayouts {
                 else if (username.isNotEmpty)
                   SizedBox(
                     height: 101,
-                    child: Image.network(
+                    child: SvgPicture.network(
                       'https://ghchart.rshah.org/$username',
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[200],
-                          child: const Center(child: Text('Chart unavailable')),
-                        );
-                      },
+                      placeholderBuilder: (context) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      semanticsLabel: 'GitHub Contribution Chart',
+                      clipBehavior: Clip.antiAlias,
                     ),
                   ),
                 
                 const SizedBox(height: 16),
                 
-                // Summary Section
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF6F6F6),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    summaryText,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF6B7280),
+                // Summary Section - adaptive height, no maxLines restriction
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF6F6F6),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    maxLines: summaryClampLines,
-                    overflow: TextOverflow.ellipsis,
+                    child: Text(
+                      summaryText,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6B7280),
+                        height: 1.5,
+                      ),
+                    ),
                   ),
                 ),
               ],

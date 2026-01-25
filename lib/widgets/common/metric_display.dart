@@ -74,7 +74,6 @@ class MetricDisplay extends StatelessWidget {
         );
         break;
       case MetricVariant.default_:
-      default:
         labelStyle = const TextStyle(
           fontSize: 14,
           height: 1.14,
@@ -103,7 +102,6 @@ class MetricDisplay extends StatelessWidget {
         textAlign = TextAlign.right;
         break;
       case MetricAlign.start:
-      default:
         crossAxisAlignment = CrossAxisAlignment.start;
         textAlign = TextAlign.left;
         break;
@@ -117,8 +115,10 @@ class MetricDisplay extends StatelessWidget {
           label,
           style: labelStyle,
           textAlign: textAlign,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 4), // gap-1 in TSX = 4px
         Text(
           formattedValue,
           style: valueStyle,

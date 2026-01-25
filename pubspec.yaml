@@ -29,6 +29,7 @@ dependencies:
   reorderable_grid: ^1.0.13
   flutter_portal: ^1.1.4
   webview_flutter: ^4.4.2
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:
@@ -43,6 +44,7 @@ flutter:
     - assets/icons/
     - assets/icons/avatar/
     - assets/icons/line-icons/
+    - assets/icons/logo/
     - assets/icons/search/
     - assets/icons/settings/
     - assets/icons/social-icons/

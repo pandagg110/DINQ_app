@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'linkedin_utils.dart';
 
 class LinkedInComponents {
@@ -289,29 +290,218 @@ class LinkedInComponents {
     );
   }
 
-  // Career Chart for 4x4 layout (simplified - just show list for now)
+  // Career Chart for 4x4 layout using fl_chart
   static Widget buildCareerChart({
     required List<Map<String, dynamic>> careerJourney,
   }) {
-    // For now, show a simple list view
-    // In a full implementation, this would use a chart library like fl_chart
-    return ListView.builder(
-      itemCount: careerJourney.length,
-      itemBuilder: (context, index) {
-        final item = careerJourney[index];
-        return ListTile(
-          leading: buildOrgLogo(
-            logo: item['logo']?.toString(),
-            name: item['name']?.toString() ?? '',
-            size: 'sm',
+    if (careerJourney.isEmpty) {
+      return const Center(child: Text('No career data'));
+    }
+
+    // Prepare chart data
+    final chartData = careerJourney.map((item) {
+      return {
+        'year': item['year'] as int,
+        'score': (item['score'] as num?)?.toDouble() ?? 0.0,
+        'name': item['name']?.toString() ?? '',
+        'position': item['position']?.toString() ?? '',
+        'duration': item['duration']?.toString() ?? '',
+        'logo': item['logo']?.toString(),
+      };
+    }).toList();
+
+    // Get min/max values for Y axis
+    final scores = chartData.map((d) => d['score'] as double).toList();
+    final minScore = scores.reduce((a, b) => a < b ? a : b);
+    final maxScore = scores.reduce((a, b) => a > b ? a : b);
+    final yMin = ((minScore - 5).clamp(0, double.infinity)).toDouble();
+    final yMax = (maxScore + 5).toDouble();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Add horizontal padding to ensure chart and logos are fully visible
+        const horizontalPadding = 20.0;
+        const marginBottom = 30.0; // Reserved for bottom titles
+        
+        final chartWidth = constraints.maxWidth;
+        final chartHeight = constraints.maxHeight;
+        final plotWidth = chartWidth - horizontalPadding * 2;
+        final plotHeight = chartHeight - marginBottom;
+        
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              LineChart(
+        LineChartData(
+          gridData: FlGridData(
+          show: true,
+          drawVerticalLine: true,
+          drawHorizontalLine: false,
+          horizontalInterval: 1,
+          verticalInterval: 1,
+          getDrawingVerticalLine: (value) {
+            return FlLine(
+              color: const Color(0xFFA5A5A5),
+              strokeWidth: 1,
+              dashArray: [3, 3],
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
           ),
-          title: Text(item['name']?.toString() ?? ''),
-          subtitle: Text(
-            '${item['position']} • ${formatDuration(item['duration']?.toString() ?? '')}',
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
           ),
-          trailing: Text(
-            '${item['year']}',
-            style: const TextStyle(color: Color(0xFF9CA3AF)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index >= 0 && index < chartData.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '${chartData[index]['year']}',
+                      style: const TextStyle(
+                        color: Color(0xFF9CA3AF),
+                        fontSize: 12,
+                      ),
+                    ),
+                  );
+                }
+                return const Text('');
+              },
+            ),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        minX: 0,
+        maxX: (chartData.length - 1).toDouble(),
+        minY: yMin,
+        maxY: yMax,
+        lineBarsData: [
+          LineChartBarData(
+            spots: chartData.asMap().entries.map((entry) {
+              return FlSpot(entry.key.toDouble(), entry.value['score'] as double);
+            }).toList(),
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF171717),
+            barWidth: 1,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFCCE5FF).withOpacity(1.0),
+                  const Color(0xFFCCE5FF).withOpacity(0.1),
+                ],
+                stops: const [0.05, 0.95],
+              ),
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (List<LineBarSpot> touchedSpots) {
+              return touchedSpots.map((LineBarSpot touchedSpot) {
+                final index = touchedSpot.x.toInt();
+                if (index >= 0 && index < chartData.length) {
+                  final item = chartData[index];
+                  return LineTooltipItem(
+                    '${item['name']}\n${item['position'] != null && item['position'].toString().isNotEmpty ? '${item['position']}\n' : ''}${formatDuration(item['duration'].toString())}',
+                    const TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  );
+                }
+                return null;
+              }).toList();
+            },
+            tooltipRoundedRadius: 8,
+            tooltipPadding: const EdgeInsets.all(12),
+            tooltipBorder: const BorderSide(
+              color: Color(0xFFE5E7EB),
+              width: 1,
+            ),
+          ),
+        ),
+        ),
+              ),
+              // Overlay company logos on chart dots
+              ...chartData.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final logo = item['logo']?.toString();
+                final score = item['score'] as double;
+                
+                // Calculate X position (based on index)
+                final xRatio = chartData.length > 1 
+                    ? index / (chartData.length - 1) 
+                    : 0.5;
+                final xPos = plotWidth * xRatio;
+                
+                // Calculate Y position (based on score, inverted because Y=0 is at top)
+                final yRatio = (score - yMin) / (yMax - yMin);
+                final yPos = plotHeight - (plotHeight * yRatio);
+                
+                return Positioned(
+                  left: xPos - 15, // Center the 30px logo
+                  top: yPos - 15, // Center the 30px logo
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFF3F4F6),
+                      border: Border.all(
+                        color: const Color(0xFF171717),
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: logo != null && logo.isNotEmpty
+                          ? Image.network(
+                              logo,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/defaultCompany.png',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(Icons.business, size: 16);
+                                  },
+                                );
+                              },
+                            )
+                          : Image.asset(
+                              'assets/images/defaultCompany.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.business, size: 16);
+                              },
+                            ),
+                    ),
+                  ),
+                );
+              }),
+            ],
           ),
         );
       },
