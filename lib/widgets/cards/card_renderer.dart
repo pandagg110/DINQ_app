@@ -1,4 +1,5 @@
-﻿import 'dart:convert';
+﻿import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -23,11 +24,18 @@ class CardRenderer extends StatefulWidget {
 class _CardRendererState extends State<CardRenderer> {
   bool _hasPrintedJson = false;
   bool _isDrag = false;
+  Timer? _dragEndTimer; // 用于跟踪延迟任务，防止连续点击导致状态异常
 
   @override
   void initState() {
     super.initState();
     _printCardJson();
+  }
+
+  @override
+  void dispose() {
+    _dragEndTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -202,8 +210,13 @@ class _CardRendererState extends State<CardRenderer> {
 
     return Listener(
       onPointerUp: (event) {
+        // 取消之前的延迟任务，防止连续点击导致状态异常
+        debugPrint('onPointerUp111111: $_dragEndTimer');
+        _dragEndTimer?.cancel();
+
         // 延迟一下，确保不是拖拽过程中的短暂抬起
-        Future.delayed(const Duration(milliseconds: 400), () {
+        _dragEndTimer = Timer(const Duration(milliseconds: 400), () {
+          debugPrint('onPointerUp222222: $mounted');
           if (mounted) {
             setState(() {
               _isDrag = false;
@@ -214,110 +227,145 @@ class _CardRendererState extends State<CardRenderer> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-        // 卡片主体内容
-        Column(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.deferToChild,
-                  onTapUp: (details) {
-                    setState(() {
-                      _isDrag = false;
-                    });
-                  },
-                  onTap: () {
-                    // 在编辑模式下，点击卡片切换选中状态
-                    if (widget.editable) {
-                      cardStore.toggleCardSelection(widget.card.id);
-                    } else {
-                      // 非编辑模式下，点击跳转链接
-                      if (jumpUrl != null && jumpUrl.isNotEmpty) {
-                        launchUrl(
-                          Uri.parse(jumpUrl),
-                          mode: LaunchMode.externalApplication,
-                        );
+          // 卡片主体内容
+          Column(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.deferToChild,
+                    onTapUp: (details) {
+                      setState(() {
+                        _isDrag = false;
+                      });
+                    },
+                    onTap: () {
+                      // 在编辑模式下，点击卡片切换选中状态
+                      if (widget.editable) {
+                        cardStore.toggleCardSelection(widget.card.id);
+                      } else {
+                        // 非编辑模式下，点击跳转链接
+                        if (jumpUrl != null && jumpUrl.isNotEmpty) {
+                          launchUrl(
+                            Uri.parse(jumpUrl),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
                       }
-                    }
-                  },
-                  child: cardContent,
+                    },
+                    child: cardContent,
+                  ),
                 ),
               ),
-            ),
-            SizedBox(height: 24),
-          ],
-        ),
+              SizedBox(height: 24),
+            ],
+          ),
 
-        // 编辑模式下的按钮 - 放在 Stack 外层，避免被 ClipRRect 裁剪
-        if (widget.editable && isSelected) ...[
-          _isDrag
-              ? const SizedBox.shrink()
-              : Positioned(
-                  top: -1,
-                  left: -1,
-                  child: PortalTarget(
-                    visible: true,
-                    portalFollower: Material(
-                      color: Colors.transparent, // 添加 Material widget
-                      child: Transform.translate(
-                        offset: const Offset(0, 0), // 偏移到卡片外部
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            debugPrint('删除按钮被点击');
-                            cardStore.removeCard(widget.card.id);
-                          },
-                          child: Image.asset(
-                            'assets/icons/delete-card-btn.png',
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.contain,
+          // 编辑模式下的按钮 - 放在 Stack 外层，避免被 ClipRRect 裁剪
+          if (widget.editable && isSelected) ...[
+            _isDrag
+                ? const SizedBox.shrink()
+                : Positioned(
+                    top: -1,
+                    left: -1,
+                    child: PortalTarget(
+                      visible: true,
+                      portalFollower: Material(
+                        color: Colors.transparent, // 添加 Material widget
+                        child: Transform.translate(
+                          offset: const Offset(0, 0), // 偏移到卡片外部
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              debugPrint('删除按钮被点击');
+                              cardStore.removeCard(widget.card.id);
+                            },
+                            child: Image.asset(
+                              'assets/icons/delete-card-btn.png',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    anchor: const Aligned(
-                      follower: Alignment.center,
-                      target: Alignment.center,
-                    ),
+                      anchor: const Aligned(
+                        follower: Alignment.center,
+                        target: Alignment.center,
+                      ),
 
-                    // offset: Offset(-20, -20),
-                    child: const SizedBox(width: 1, height: 1),
+                      // offset: Offset(-20, -20),
+                      child: const SizedBox(width: 1, height: 1),
+                    ),
                   ),
-                ),
+            _isDrag
+                ? const SizedBox.shrink()
+                : Positioned(
+                    top: -1,
+                    right: -1,
+                    child: PortalTarget(
+                      visible: true,
+                      portalFollower: Material(
+                        color: Colors.transparent, // 添加 Material widget
+                        child: Transform.translate(
+                          offset: const Offset(0, 0), // 偏移到卡片外部
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              debugPrint('编辑按钮被点击');
+                              // cardStore.removeCard(widget.card.id);
+                            },
+                            child: Image.asset(
+                              'assets/icons/edit.png',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                      anchor: const Aligned(
+                        follower: Alignment.center,
+                        target: Alignment.center,
+                      ),
 
-          // Positioned(
-          //   bottom: -1,
-          //   left: 0,
-          //   right: 0,
-          //   child: PortalTarget(
-          //     visible: true,
-          //     portalFollower: Material(
-          //       color: Colors.transparent, // 添加 Material widget
-          //       child: Transform.translate(
-          //         offset: const Offset(0, 0), // 偏移到卡片外部
-          //         child: Center(
-          //           child: _buildCardToolbar(context, cardStore, viewMode),
-          //         ),
-          //       ),
-          //     ),
-          //     anchor: const Aligned(
-          //       follower: Alignment.center,
-          //       target: Alignment.center,
-          //     ),
+                      // offset: Offset(-20, -20),
+                      child: const SizedBox(width: 1, height: 1),
+                    ),
+                  ),
 
-          //     // offset: Offset(-20, -20),
-          //     child: const SizedBox(width: 1, height: 1),
-          //   ),
-          // ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _buildCardToolbar(context, cardStore, viewMode),
-          ),
-          //   // 工具栏 - 底部居中，选中时显示
+            // Positioned(
+            //   bottom: -1,
+            //   left: 0,
+            //   right: 0,
+            //   child: PortalTarget(
+            //     visible: true,
+            //     portalFollower: Material(
+            //       color: Colors.transparent, // 添加 Material widget
+            //       child: Transform.translate(
+            //         offset: const Offset(0, 0), // 偏移到卡片外部
+            //         child: Center(
+            //           child: _buildCardToolbar(context, cardStore, viewMode),
+            //         ),
+            //       ),
+            //     ),
+            //     anchor: const Aligned(
+            //       follower: Alignment.center,
+            //       target: Alignment.center,
+            //     ),
+
+            //     // offset: Offset(-20, -20),
+            //     child: const SizedBox(width: 1, height: 1),
+            //   ),
+            // ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: _buildCardToolbar(context, cardStore, viewMode),
+            ),
+            //   // 工具栏 - 底部居中，选中时显示
+          ],
         ],
-      ],
       ),
     );
   }
@@ -352,12 +400,12 @@ class _CardRendererState extends State<CardRenderer> {
             GestureDetector(
               behavior: HitTestBehavior.deferToChild,
               onTapDown: (details) {
+                _dragEndTimer?.cancel();
                 setState(() {
                   _isDrag = true;
                 });
               },
               onTapUp: (details) {
-                debugPrint('onTapUp222222');
                 setState(() {
                   _isDrag = false;
                 });
@@ -427,7 +475,7 @@ class _CardRendererState extends State<CardRenderer> {
         CardRenderParams(
           card: adaptedCard,
           size: size,
-          editable: widget.editable,
+          editable: false,
           isSelected: isSelected,
           onUpdate: (data) {
             // 更新卡片数据
