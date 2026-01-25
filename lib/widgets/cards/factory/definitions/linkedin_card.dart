@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'linkedin/linkedin_widget.dart';
 
 class LinkedInCardDefinition extends CardDefinition {
   @override
@@ -63,48 +63,9 @@ class LinkedInCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final careerJourney = params.card.data.metadata['careerJourney'] as List<dynamic>? ?? [];
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/LinkedIn.svg', size: 32),
-          const SizedBox(height: 12),
-          if (careerJourney.isNotEmpty) ...[
-            Text(
-              'Career Journey',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            ...careerJourney.take(3).map((item) {
-              final itemMap = item as Map<String, dynamic>;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Text(
-                      '${itemMap['year']}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${itemMap['position']} @ ${itemMap['name']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ] else
-            const Text(
-              'LinkedIn',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-        ],
-      ),
+    return LinkedInWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

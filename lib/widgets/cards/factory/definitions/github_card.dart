@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'github/github_widget.dart';
 
 class GitHubCardDefinition extends CardDefinition {
   @override
@@ -40,28 +40,9 @@ class GitHubCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final username = params.card.data.metadata['username']?.toString() ?? '';
-    final stars = params.card.data.metadata['starCount'] ??
-        params.card.data.metadata['totalStars'] ??
-        0;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/Github.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            username.isNotEmpty ? '@$username' : 'GitHub',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Stars: $stars',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-        ],
-      ),
+    return GitHubWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

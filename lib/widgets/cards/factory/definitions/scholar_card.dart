@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'scholar/scholar_widget.dart';
 
 class ScholarCardDefinition extends CardDefinition {
   @override
@@ -41,42 +41,9 @@ class ScholarCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final name = params.card.data.metadata['name']?.toString() ?? 'Google Scholar';
-    final totalCitations = params.card.data.metadata['totalCitations'] ?? 0;
-    final totalPapers = params.card.data.metadata['totalPapers'] ?? 0;
-    final hIndex = params.card.data.metadata['hIndex'] ?? 0;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/GoogleScholar.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Citations: $totalCitations',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          if (totalPapers > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Papers: $totalPapers',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-          if (hIndex > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'H-index: $hIndex',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-        ],
-      ),
+    return ScholarWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }
