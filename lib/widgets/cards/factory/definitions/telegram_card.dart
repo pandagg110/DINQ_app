@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'telegram/telegram_widget.dart';
 
 class TelegramCardDefinition extends CardDefinition {
   @override
@@ -43,34 +43,9 @@ class TelegramCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final username = params.card.data.metadata['username']?.toString() ?? '';
-    final imageUrl = params.card.data.metadata['imageUrl']?.toString();
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/Telegram.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            username.isNotEmpty ? '@$username' : 'Telegram',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          if (imageUrl != null && imageUrl.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                imageUrl,
-                width: double.infinity,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return TelegramWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

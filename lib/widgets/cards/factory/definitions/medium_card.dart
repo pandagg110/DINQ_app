@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'medium/medium_widget.dart';
 
 class MediumCardDefinition extends CardDefinition {
   @override
@@ -50,51 +50,9 @@ class MediumCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final name = params.card.data.metadata['name']?.toString() ?? 'Medium';
-    final username = params.card.data.metadata['username']?.toString() ?? '';
-    final followers = params.card.data.metadata['followerCount'] ?? 0;
-    final topArticle = params.card.data.metadata['topArticle'] as Map<String, dynamic>?;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/Medium.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          if (username.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              '@$username',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            'Followers: $followers',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          if (topArticle?['title'] != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              topArticle!['title'],
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (topArticle['claps'] != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                '${topArticle['claps']} claps',
-                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 10),
-              ),
-            ],
-          ],
-        ],
-      ),
+    return MediumWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'substack/substack_widget.dart';
 
 class SubstackCardDefinition extends CardDefinition {
   @override
@@ -41,44 +41,9 @@ class SubstackCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final name = params.card.data.metadata['name']?.toString() ?? 'Substack';
-    final handle = params.card.data.metadata['handle']?.toString() ?? '';
-    final subscribers = params.card.data.metadata['subscriber_count'] ?? 0;
-    final latestPost = params.card.data.metadata['latest_post'] as Map<String, dynamic>?;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/Substack.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          if (handle.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              '@$handle',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            'Subscribers: $subscribers',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          if (latestPost != null && latestPost['title'] != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              latestPost['title'],
-              style: const TextStyle(fontSize: 12, color: Color(0xFF171717)),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ],
-      ),
+    return SubstackWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }
