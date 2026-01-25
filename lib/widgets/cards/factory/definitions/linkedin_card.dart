@@ -7,7 +7,7 @@ class LinkedInCardDefinition extends CardDefinition {
   String get type => 'LINKEDIN';
 
   @override
-  String get icon => '/icons/social-icons/LinkedIn.svg';
+  String get icon => '/icons/logo/LinkedIn.png';
 
   @override
   String get name => 'LinkedIn';

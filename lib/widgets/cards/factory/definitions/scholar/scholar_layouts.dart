@@ -14,7 +14,7 @@ class ScholarLayouts {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/GoogleScholar.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
           
           // Bottom Section: Citations
           Align(
@@ -42,7 +42,7 @@ class ScholarLayouts {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/GoogleScholar.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
           
           // Bottom Section: Metrics
           Column(
@@ -78,7 +78,7 @@ class ScholarLayouts {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/GoogleScholar.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
           
           // Bottom Section: Metrics
           Row(
@@ -119,7 +119,7 @@ class ScholarLayouts {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/GoogleScholar.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
           
           const SizedBox(height: 16),
           

@@ -7,7 +7,7 @@ class ScholarCardDefinition extends CardDefinition {
   String get type => 'SCHOLAR';
 
   @override
-  String get icon => '/icons/social-icons/GoogleScholar.svg';
+  String get icon => '/icons/logo/GoogleScholar.png';
 
   @override
   String get name => 'Google Scholar';

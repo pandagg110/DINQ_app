@@ -14,7 +14,7 @@ class LinkedInLayouts {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/LinkedIn.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/LinkedIn.png', size: 40),
           
           // Bottom Section: Organization Logos
           Align(
@@ -38,7 +38,7 @@ class LinkedInLayouts {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/LinkedIn.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/LinkedIn.png', size: 40),
           
           const SizedBox(height: 16),
           
@@ -64,7 +64,7 @@ class LinkedInLayouts {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/LinkedIn.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/LinkedIn.png', size: 40),
           
           // Timeline Section
           SizedBox(
@@ -88,7 +88,7 @@ class LinkedInLayouts {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/LinkedIn.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/LinkedIn.png', size: 40),
           
           const SizedBox(height: 16),
           

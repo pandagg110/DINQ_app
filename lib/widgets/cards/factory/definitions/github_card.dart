@@ -7,7 +7,7 @@ class GitHubCardDefinition extends CardDefinition {
   String get type => 'GITHUB';
 
   @override
-  String get icon => '/icons/social-icons/Github.svg';
+  String get icon => '/icons/logo/Github.png';
 
   @override
   String get name => 'GitHub';

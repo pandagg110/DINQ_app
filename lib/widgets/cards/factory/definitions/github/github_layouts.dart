@@ -19,7 +19,7 @@ class GitHubLayouts {
           // Top Section: Icon
           Row(
             children: [
-              const AssetIcon(asset: 'icons/social-icons/Github.svg', size: 40),
+              const AssetIcon(asset: 'icons/logo/Github.png', size: 40),
             ],
           ),
           // Bottom Section: Stars
@@ -49,7 +49,7 @@ class GitHubLayouts {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Top Section: Icon
-          const AssetIcon(asset: 'icons/social-icons/Github.svg', size: 40),
+          const AssetIcon(asset: 'icons/logo/Github.png', size: 40),
           
           // Middle Section: Contribution Chart
           if (username.isNotEmpty)
@@ -129,7 +129,7 @@ class GitHubLayouts {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Top: Icon
-                const AssetIcon(asset: 'icons/social-icons/Github.svg', size: 40),
+                const AssetIcon(asset: 'icons/logo/Github.png', size: 40),
                 
                 // Bottom: Stars/Username + Language Tags
                 Row(
@@ -217,7 +217,7 @@ class GitHubLayouts {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AssetIcon(asset: 'icons/social-icons/Github.svg', size: 40),
+              const AssetIcon(asset: 'icons/logo/Github.png', size: 40),
               MetricDisplay(
                 label: 'Stars',
                 value: starCount,
