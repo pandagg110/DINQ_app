@@ -3,10 +3,83 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../utils/toast_util.dart';
 import '../../../../services/upload_service.dart';
 import '../card_definition.dart';
+
+/// 自定义内联代码渲染器，匹配 TSX 版本的样式
+class InlineCodeBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final text = element.textContent;
+    if (text.isEmpty) return null;
+
+    return Container(
+      margin: const EdgeInsets.only(right: 8, top: 2, bottom: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: const Color(0xFFDFDFDF),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFF374151),
+          fontFamily: preferredStyle?.fontFamily,
+        ),
+      ),
+    );
+  }
+}
+
+/// 自定义链接渲染器，匹配 TSX 版本的样式
+class LinkBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final href = element.attributes['href'];
+    final text = element.textContent;
+    if (href == null || text.isEmpty) return null;
+
+    return GestureDetector(
+      onTap: () {
+        launchUrl(
+          Uri.parse(href),
+          mode: LaunchMode.externalApplication,
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8, top: 2, bottom: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: const Color(0xFFDFDFDF),
+            width: 0.5,
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF374151),
+            decoration: TextDecoration.none,
+            fontFamily: preferredStyle?.fontFamily,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class MarkdownCardDefinition extends CardDefinition {
   @override
@@ -438,47 +511,89 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                         child: MarkdownBody(
                           data: _markdownContent,
                           styleSheet: MarkdownStyleSheet(
+                            // 段落样式
                             p: const TextStyle(
                               fontSize: 14,
                               color: Color(0xFF374151),
                               height: 1.5,
                             ),
+                            pPadding: const EdgeInsets.only(bottom: 4, top: 4),
+                            // 移除最后一个段落的底部间距
+                            horizontalRuleDecoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: Colors.transparent,
+                                  width: 0,
+                                ),
+                              ),
+                            ),
+                            // 标题样式
                             h1: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF111827),
                             ),
+                            h1Padding: const EdgeInsets.only(bottom: 8, top: 8),
                             h2: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF111827),
                             ),
+                            h2Padding: const EdgeInsets.only(bottom: 8, top: 8),
                             h3: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF111827),
                             ),
+                            h3Padding: const EdgeInsets.only(bottom: 8, top: 8),
+                            // 粗体样式
                             strong: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF111827),
                             ),
+                            // 内联代码样式（会被 builder 覆盖，但保留作为后备）
                             code: const TextStyle(
-                              backgroundColor: Color(0xFFF3F4F6),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                               color: Color(0xFF374151),
+                              backgroundColor: Color(0xFFF3F4F6),
                             ),
+                            // 代码块样式
                             codeblockDecoration: BoxDecoration(
                               color: const Color(0xFF1F2937),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             codeblockPadding: const EdgeInsets.all(8),
+                            // 链接样式（会被 builder 覆盖，但保留作为后备）
                             a: const TextStyle(
-                              color: Color(0xFF1487FA),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF374151),
                               decoration: TextDecoration.none,
                             ),
+                            // 列表样式
                             listBullet: const TextStyle(
                               color: Color(0xFF374151),
                             ),
+                            listIndent: 24,
+                            // 移除最后一个元素的底部间距
+                            blockquotePadding: const EdgeInsets.only(left: 16),
+                            blockquoteDecoration: BoxDecoration(
+                              color: const Color(0xFFF3F4F6),
+                              border: Border(
+                                left: BorderSide(
+                                  color: const Color(0xFFDFDFDF),
+                                  width: 4,
+                                ),
+                              ),
+                            ),
                           ),
+                          builders: {
+                            // 自定义内联代码渲染 - 使用 'code' 作为键
+                            'code': InlineCodeBuilder(),
+                            // 自定义链接渲染 - 使用 'a' 作为键
+                            'a': LinkBuilder(),
+                          },
                           onTapLink: (text, href, title) {
                             if (href != null) {
                               launchUrl(
