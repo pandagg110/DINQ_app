@@ -271,66 +271,63 @@ class CareerTrajectorySegments {
         },
         child: Opacity(
           opacity: isActive ? 1.0 : 0.85,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (hasRepresentative)
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white,
-                    backgroundImage: (representative['avatarUrl'] as String?) != null
-                        ? NetworkImage(representative['avatarUrl'] as String)
-                        : null,
-                    child: (representative['avatarUrl'] as String?) == null
-                        ? const Icon(Icons.person, size: 28)
-                        : null,
-                  ),
-                if (hasRepresentative) const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (hasRepresentative)
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.white,
+                  backgroundImage: (representative['avatarUrl'] as String?) != null
+                      ? NetworkImage(representative['avatarUrl'] as String)
+                      : null,
+                  child: (representative['avatarUrl'] as String?) == null
+                      ? const Icon(Icons.person, size: 28)
+                      : null,
+                ),
+              if (hasRepresentative) const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.isEmpty
+                          ? ''
+                          : category.substring(0, 1).toUpperCase() + category.substring(1),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF171717),
+                      ),
+                    ),
+                    if (hasRepresentative) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        category.isEmpty
-                            ? ''
-                            : category.substring(0, 1).toUpperCase() + category.substring(1),
+                        (representative['name'] as String?) ?? '',
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                           color: Color(0xFF171717),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (hasRepresentative) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          (representative['name'] as String?) ?? '',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF171717),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      const SizedBox(height: 2),
+                      Text(
+                        (representative['dinq'] ?? representative['position'] ?? '') as String,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          (representative['dinq'] ?? representative['position'] ?? '') as String,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7280),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

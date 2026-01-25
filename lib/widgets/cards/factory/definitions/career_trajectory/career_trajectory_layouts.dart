@@ -315,7 +315,7 @@ class CareerTrajectoryLayouts {
                     ],
                   ),
                 ),
-                const SizedBox(width: 24),
+                // const SizedBox(width: 24),
                 
                 // Right Column: Flow Diagram Background + Annotations
                 Expanded(
@@ -332,23 +332,30 @@ class CareerTrajectoryLayouts {
                       ),
                       
                       // Annotations Overlay
-                      Column(
-                        children: [
-                          for (int index = 0; index < sortedSegments.length; index++)
-                            Expanded(
-                              flex: (sortedSegments[index]['percentage'] as num).toInt(),
-                              child: CareerTrajectorySegments.buildSegmentAnnotation(
-                                context: context,
-                                segment: sortedSegments[index],
-                                index: index,
-                                color: CareerTrajectoryConstants.colors[index],
-                                activeSegmentKey: activeSegmentKey,
-                                onHover: onHover,
-                                onHoverEnd: onHoverEnd,
-                                onOpenModal: onOpenModal,
-                              ),
-                            ),
-                        ],
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 36, right: 8),
+                          child: Column(
+                            children: [
+                              for (int index = 0; index < sortedSegments.length; index++)
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: CareerTrajectorySegments.buildSegmentAnnotation(
+                                      context: context,
+                                      segment: sortedSegments[index],
+                                      index: index,
+                                      color: CareerTrajectoryConstants.colors[index],
+                                      activeSegmentKey: activeSegmentKey,
+                                      onHover: onHover,
+                                      onHoverEnd: onHoverEnd,
+                                      onOpenModal: onOpenModal,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),

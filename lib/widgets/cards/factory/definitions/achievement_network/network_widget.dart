@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:provider/provider.dart';
+import '../../../../../stores/user_store.dart';
 import 'network_constants.dart';
 import 'network_hover_card.dart';
 import 'network_modal.dart';
@@ -150,9 +152,10 @@ class _NetworkWidgetState extends State<NetworkWidget> {
     final activeConnection = _getActiveConnection();
     final isTopRow = _isTopRow(_activeHoverKey);
 
-    // Get owner info (placeholder - should come from user store)
-    final ownerName = 'User'; // TODO: Get from user store
-    final ownerAvatar = '/images/default-avatar.svg'; // TODO: Get from user store
+    // Get owner info from user store
+    final userStore = context.watch<UserStore>();
+    final ownerName = userStore.cardOwner?.name ?? 'User';
+    final ownerAvatar = userStore.cardOwner?.avatarUrl ?? '/images/default-avatar.svg';
 
     return LayoutBuilder(
       builder: (context, constraints) {

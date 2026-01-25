@@ -176,10 +176,7 @@ class NetworkLayouts {
               child: Stack(
                 children: [
                   // Grid background
-                  CustomPaint(
-                    painter: _GridPainter(),
-                    size: Size.infinite,
-                  ),
+                  CustomPaint(painter: _GridPainter(), size: Size.infinite),
 
                   // Connection lines
                   CustomPaint(
@@ -258,7 +255,7 @@ class NetworkLayouts {
     required double size,
   }) {
     final avatarUrl = connection['avatarUrl']?.toString();
-    
+
     Widget avatar = Container(
       width: size,
       height: size,
@@ -430,70 +427,97 @@ class NetworkLayouts {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final height = constraints.maxHeight;
-        
+
         return Stack(
           children: [
-            // Top Row
+            // Top Row - positioned at 27% from top, connection point at bottom edge of name tag
+            // Connection point at 27%, name tag's bottom edge should align to this point
+            // Avatar center should align to X position, considering avatar width (44px)
+            // Move entire widget up by name tag height (~20px)
             ...topRow.asMap().entries.map((entry) {
               final index = entry.key;
               final connection = entry.value;
               final connectionKey = 'top-${connection['name']}-$index';
-              final xPosition = width * (NetworkConstants.connectionXPositions[index] / 100);
-              final yPosition = height * 0.27;
-              
+              final xPercent =
+                  NetworkConstants.connectionXPositions[index] / 100;
+              final connectionY = height * 0.27; // Connection point at 27%
+              final connectionX =
+                  width * xPercent; // Connection point X position
+              const avatarWidth = 44.0; // Avatar width
+              const nameTagHeight =
+                  36; // Name tag height (padding 4*2 + text 12)
+
               return Positioned(
-                left: xPosition,
-                top: yPosition,
-                child: Transform.translate(
-                  offset: const Offset(-50, -100),
-                  child: _buildTopRowItem(
-                    connection: connection,
-                    connectionKey: connectionKey,
-                    index: index,
-                    activeHoverKey: activeHoverKey,
-                    hoverCardOffset: hoverCardOffset,
-                    onHover: onHover,
-                    onHoverEnd: onHoverEnd,
-                    onOpenModal: onOpenModal,
-                  ),
+                left:
+                    connectionX -
+                    avatarWidth / 2, // Center avatar at connection X
+                bottom:
+                    height -
+                    connectionY +
+                    nameTagHeight, // Move up by name tag height
+                child: _buildTopRowItem(
+                  connection: connection,
+                  connectionKey: connectionKey,
+                  index: index,
+                  activeHoverKey: activeHoverKey,
+                  hoverCardOffset: hoverCardOffset,
+                  onHover: onHover,
+                  onHoverEnd: onHoverEnd,
+                  onOpenModal: onOpenModal,
                 ),
               );
             }),
 
-            // Center Avatar
+            // Center Avatar - positioned at center (50%, 50%)
+            // TSX: left: "50%", top: "50%", transform: "translate(-50%, -50%)"
             Positioned(
-              left: width * 0.5,
-              top: height * 0.5,
-              child: Transform.translate(
-                offset: const Offset(-28, -28),
-                child: _buildCenterAvatar(ownerName: ownerName, ownerAvatar: ownerAvatar),
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: Align(
+                alignment: Alignment.center,
+                child: _buildCenterAvatar(
+                  ownerName: ownerName,
+                  ownerAvatar: ownerAvatar,
+                ),
               ),
             ),
 
-            // Bottom Row
+            // Bottom Row - positioned at 73% from top (27% from bottom), connection point at top edge of name tag
+            // Connection point at 73%, name tag's top edge should align to this point
+            // Avatar center should align to X position, considering avatar width (44px)
+            // Move entire widget down by name tag height (~20px)
             ...bottomRow.asMap().entries.map((entry) {
               final index = entry.key;
               final connection = entry.value;
               final connectionKey = 'bottom-${connection['name']}-${index + 3}';
-              final xPosition = width * (NetworkConstants.connectionXPositions[index] / 100);
-              final yPosition = height * 0.73;
+              final xPercent =
+                  NetworkConstants.connectionXPositions[index] / 100;
+              final yPercent = 0.73;
+              final connectionX =
+                  width * xPercent; // Connection point X position
               final actualIndex = index + 3;
-              
+              const avatarWidth = 44.0; // Avatar width
+              final nameTagHeight =
+                  36; // Name tag height (padding 4*2 + text 12)
+
               return Positioned(
-                left: xPosition,
-                top: yPosition,
-                child: Transform.translate(
-                  offset: const Offset(-50, 0),
-                  child: _buildBottomRowItem(
-                    connection: connection,
-                    connectionKey: connectionKey,
-                    index: actualIndex,
-                    activeHoverKey: activeHoverKey,
-                    hoverCardOffset: hoverCardOffset,
-                    onHover: onHover,
-                    onHoverEnd: onHoverEnd,
-                    onOpenModal: onOpenModal,
-                  ),
+                left:
+                    connectionX -
+                    avatarWidth / 2, // Center avatar at connection X
+                top:
+                    height * yPercent +
+                    nameTagHeight, // Move down by name tag height
+                child: _buildBottomRowItem(
+                  connection: connection,
+                  connectionKey: connectionKey,
+                  index: actualIndex,
+                  activeHoverKey: activeHoverKey,
+                  hoverCardOffset: hoverCardOffset,
+                  onHover: onHover,
+                  onHoverEnd: onHoverEnd,
+                  onOpenModal: onOpenModal,
                 ),
               );
             }),
@@ -503,7 +527,7 @@ class NetworkLayouts {
     );
   }
 
-  // Helper: Top row item
+  // Helper: Top row item - avatar with name tag below
   static Widget _buildTopRowItem({
     required Map<String, dynamic> connection,
     required String connectionKey,
@@ -518,9 +542,13 @@ class NetworkLayouts {
     final avatarUrl = connection['avatarUrl']?.toString();
     final logoUrl = connection['institution_logo_url']?.toString();
 
-    Widget content = Column(
-      mainAxisSize: MainAxisSize.min,
+    // Stack: avatar on top, name tag below
+    // Connection point at bottom edge of name tag
+    Widget content = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
       children: [
+        // Avatar at top
         Stack(
           clipBehavior: Clip.none,
           children: [
@@ -558,24 +586,27 @@ class NetworkLayouts {
             CompanyLogoBadge(logoUrl: logoUrl, size: 'sm'),
           ],
         ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          decoration: BoxDecoration(
-            color: NetworkConstants.blueTagColor,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          constraints: const BoxConstraints(maxWidth: 100),
-          child: Text(
-            name,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF111827),
+        // Name tag below avatar - connection point at bottom edge
+        Positioned(
+          top: 44 + 4, // Avatar height (44) + gap (8)
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              color: NetworkConstants.blueTagColor,
+              borderRadius: BorderRadius.circular(999),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+            constraints: const BoxConstraints(maxWidth: 100),
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF111827),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       ],
@@ -615,7 +646,7 @@ class NetworkLayouts {
     );
   }
 
-  // Helper: Bottom row item
+  // Helper: Bottom row item - name tag above avatar
   static Widget _buildBottomRowItem({
     required Map<String, dynamic> connection,
     required String connectionKey,
@@ -630,29 +661,36 @@ class NetworkLayouts {
     final avatarUrl = connection['avatarUrl']?.toString();
     final logoUrl = connection['institution_logo_url']?.toString();
 
-    Widget content = Column(
-      mainAxisSize: MainAxisSize.min,
+    // Stack: name tag on top, avatar below
+    // Connection point at top edge of name tag
+    Widget content = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.bottomCenter,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          decoration: BoxDecoration(
-            color: NetworkConstants.purpleTagColor,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          constraints: const BoxConstraints(maxWidth: 100),
-          child: Text(
-            name,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF111827),
+        // Name tag at top - connection point at top edge
+        Positioned(
+          bottom: 44 + 4, // Avatar height (44) + gap (8)
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              color: NetworkConstants.purpleTagColor,
+              borderRadius: BorderRadius.circular(999),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+            constraints: const BoxConstraints(maxWidth: 100),
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF111827),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+        // Avatar at bottom
         Stack(
           clipBehavior: Clip.none,
           children: [
@@ -699,18 +737,18 @@ class NetworkLayouts {
           return MouseRegion(
             onEnter: (event) {
               final renderBox = context.findRenderObject() as RenderBox?;
-          if (renderBox != null) {
-            final localPosition = renderBox.globalToLocal(event.position);
-            onHover(connectionKey, localPosition);
-          }
-        },
+              if (renderBox != null) {
+                final localPosition = renderBox.globalToLocal(event.position);
+                onHover(connectionKey, localPosition);
+              }
+            },
             onHover: (event) {
               final renderBox = context.findRenderObject() as RenderBox?;
-          if (renderBox != null) {
-            final localPosition = renderBox.globalToLocal(event.position);
-            onHover(connectionKey, localPosition);
-          }
-        },
+              if (renderBox != null) {
+                final localPosition = renderBox.globalToLocal(event.position);
+                onHover(connectionKey, localPosition);
+              }
+            },
             onExit: (_) => onHoverEnd(),
             child: GestureDetector(
               onTap: () => onOpenModal(connection, index),
@@ -733,67 +771,102 @@ class NetworkLayouts {
     required String ownerAvatar,
   }) {
     return Stack(
+      clipBehavior: Clip.none,
       children: [
-        // Golden background circle
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: NetworkConstants.goldenBackground,
-            border: Border.all(color: const Color(0xFF171717), width: 0.56),
-          ),
-        ),
-        // Avatar
-        Positioned(
-          left: 4,
-          top: 4,
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF171717), width: 0.56),
-            ),
-            child: ClipOval(
-              child: ownerAvatar.isNotEmpty
-                  ? Image.network(
-                      ownerAvatar,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Text(
-                            ownerName.split(' ').map((n) => n.isNotEmpty ? n[0] : '').join(''),
-                            style: const TextStyle(fontSize: 20),
-                          ),
-                        );
-                      },
-                    )
-                  : Center(
-                      child: Text(
-                        ownerName.split(' ').map((n) => n.isNotEmpty ? n[0] : '').join(''),
-                        style: const TextStyle(fontSize: 20),
-                      ),
+        // Container to define the size (56x56 like TSX)
+        SizedBox(
+          width: 56,
+          height: 56,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Golden background circle - 64px, centered behind avatar
+              Positioned(
+                left: -4,
+                top: -4,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: NetworkConstants.goldenBackground,
+                    border: Border.all(
+                      color: const Color(0xFF171717),
+                      width: 0.56,
                     ),
-            ),
+                  ),
+                ),
+              ),
+              // Avatar with border
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFF171717),
+                    width: 0.56,
+                  ),
+                ),
+                child: ClipOval(
+                  child:
+                      ownerAvatar.isNotEmpty &&
+                          ownerAvatar != '/images/default-avatar.svg'
+                      ? Image.network(
+                          ownerAvatar,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Text(
+                                ownerName
+                                    .split(' ')
+                                    .map((n) => n.isNotEmpty ? n[0] : '')
+                                    .join(''),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Text(
+                            ownerName
+                                .split(' ')
+                                .map((n) => n.isNotEmpty ? n[0] : '')
+                                .join(''),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
         ),
-        // Name on left
+        // Name on left - TSX: right: "calc(100% + 16px)", so left: -(100 + 16) = -116
         Positioned(
-          right: 72,
-          top: 18,
-          child: SizedBox(
-            width: 100,
-            child: Text(
-              ownerName,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF111827),
+          left: -116,
+          top: 0,
+          bottom: 0,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              width: 100,
+              child: Text(
+                ownerName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                ),
+                textAlign: TextAlign.right,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.right,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -832,16 +905,17 @@ class _ConnectionLinesPainter extends CustomPainter {
   final List<Map<String, dynamic>> topRow;
   final List<Map<String, dynamic>> bottomRow;
 
-  _ConnectionLinesPainter({
-    required this.topRow,
-    required this.bottomRow,
-  });
+  _ConnectionLinesPainter({required this.topRow, required this.bottomRow});
 
   @override
   void paint(Canvas canvas, Size size) {
+    // TSX uses viewBox (0-100), so we need to scale coordinates
+    // For a typical 400px card, viewBox 100 = 400px, so scale factor = size.width / 100
+    final scale = size.width / NetworkConstants.viewBoxSize;
+
     final paint = Paint()
       ..color = Colors.black
-      ..strokeWidth = 0.25;
+      ..strokeWidth = 0.25 * scale; // Scale stroke width
 
     final centerX = size.width / 2;
     final centerY = size.height / 2;
@@ -849,11 +923,9 @@ class _ConnectionLinesPainter extends CustomPainter {
     final bottomJunctionY = centerY + (size.height * 0.15);
     final topConnectionY = size.height * 0.27;
     final bottomConnectionY = size.height * 0.73;
-    final xPositions = [
-      size.width * 0.2,
-      size.width * 0.5,
-      size.width * 0.8,
-    ];
+    final xPositions = NetworkConstants.connectionXPositions
+        .map((x) => size.width * (x / 100))
+        .toList();
 
     // Vertical line from center to top junction
     canvas.drawLine(
@@ -887,35 +959,50 @@ class _ConnectionLinesPainter extends CustomPainter {
       );
     }
 
-    // Draw junction dots
+    // Draw junction dots - scale radius from viewBox units to pixels
     final dotPaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.fill;
 
-    // Top junction background
+    // Top junction background (r=1.5 in viewBox)
     final topJunctionBgPaint = Paint()
       ..color = NetworkConstants.blueTagColor
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(centerX, topJunctionY), 1.5, topJunctionBgPaint);
-    canvas.drawCircle(Offset(centerX, topJunctionY), 0.75, dotPaint);
+    canvas.drawCircle(
+      Offset(centerX, topJunctionY),
+      1.5 * scale,
+      topJunctionBgPaint,
+    );
+    canvas.drawCircle(Offset(centerX, topJunctionY), 0.75 * scale, dotPaint);
 
-    // Bottom junction background
+    // Bottom junction background (r=1.5 in viewBox)
     final bottomJunctionBgPaint = Paint()
       ..color = NetworkConstants.purpleTagColor
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(centerX, bottomJunctionY), 1.5, bottomJunctionBgPaint);
-    canvas.drawCircle(Offset(centerX, bottomJunctionY), 0.75, dotPaint);
+    canvas.drawCircle(
+      Offset(centerX, bottomJunctionY),
+      1.5 * scale,
+      bottomJunctionBgPaint,
+    );
+    canvas.drawCircle(Offset(centerX, bottomJunctionY), 0.75 * scale, dotPaint);
 
-    // Connection dots
+    // Connection dots (r=0.75 in viewBox)
     for (int i = 0; i < topRow.length; i++) {
-      canvas.drawCircle(Offset(xPositions[i], topConnectionY), 0.75, dotPaint);
+      canvas.drawCircle(
+        Offset(xPositions[i], topConnectionY),
+        0.75 * scale,
+        dotPaint,
+      );
     }
     for (int i = 0; i < bottomRow.length; i++) {
-      canvas.drawCircle(Offset(xPositions[i], bottomConnectionY), 0.75, dotPaint);
+      canvas.drawCircle(
+        Offset(xPositions[i], bottomConnectionY),
+        0.75 * scale,
+        dotPaint,
+      );
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
