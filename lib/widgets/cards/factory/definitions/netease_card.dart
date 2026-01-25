@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'netease/netease_widget.dart';
 
 class NeteaseCardDefinition extends CardDefinition {
   @override
@@ -81,43 +81,9 @@ class NeteaseCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final title = params.card.data.metadata['title']?.toString() ?? 'Netease';
-    final artist = params.card.data.metadata['artist']?.toString() ?? '';
-    final coverImageUrl = params.card.data.metadata['coverImageUrl']?.toString();
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/Netease.svg', size: 32),
-          const SizedBox(height: 12),
-          if (title.isNotEmpty)
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          if (artist.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              artist,
-              style: const TextStyle(color: Color(0xFF6B7280)),
-            ),
-          ],
-          if (coverImageUrl != null && coverImageUrl.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                coverImageUrl,
-                width: double.infinity,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return NeteaseWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

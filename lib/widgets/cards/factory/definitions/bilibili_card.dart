@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'bilibili/bilibili_widget.dart';
 
 class BilibiliCardDefinition extends CardDefinition {
   @override
@@ -46,42 +46,9 @@ class BilibiliCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final name = params.card.data.metadata['name']?.toString() ?? 'Bilibili';
-    final followers = params.card.data.metadata['followers'] ?? 0;
-    final likes = params.card.data.metadata['likes'] ?? 0;
-    final level = params.card.data.metadata['level'] ?? 0;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/Bilibili.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Followers: $followers',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          if (likes > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Likes: $likes',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-          if (level > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Level: $level',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-        ],
-      ),
+    return BilibiliWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }
