@@ -118,6 +118,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
 
   void _loadData() {
     final metadata = widget.card.data.metadata;
+    debugPrint('MarkdownCard - 加载数据: $metadata');
     setState(() {
       _mediaUrl = metadata['url']?.toString() ?? '';
       _markdownContent =
@@ -128,10 +129,6 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
       _markdownController.text = _markdownContent;
       _tagController.text = _tag;
     });
-    // 打印图片URL用于调试
-    print('MarkdownCard - 图片URL: $_mediaUrl');
-    print('MarkdownCard - 是否为视频: $_isVideo');
-    print('MarkdownCard - URL是否为空: ${_mediaUrl.isEmpty}');
   }
 
   void _onMarkdownFocusChange() {
@@ -297,7 +294,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
 
   Widget _buildTagSection() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 4),
       child: widget.editable && _isEditingTag
           ? TextField(
               controller: _tagController,
@@ -651,14 +648,16 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildMediaSection(),
-          const SizedBox(height: 16),
+          
+          
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [_buildTagSection(), _buildMarkdownSection()],
             ),
           ),
+          const SizedBox(height: 12),
+          _buildMediaSection(),
         ],
       ),
     );
