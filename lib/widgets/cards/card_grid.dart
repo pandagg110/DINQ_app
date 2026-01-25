@@ -22,94 +22,16 @@ class CardGrid extends StatelessWidget {
     return {'w': w, 'h': h};
   }
 
-  /// 压缩布局：按输入顺序从上到下、从左到右填充
-  List<CardPosition> _compactLayout(
-    List<CardItem> cards,
-    int columns,
-    bool isMobile,
-  ) {
-    final grid = <int, Map<int, bool>>{};
-    int minY = 0;
-    const maxY = 10000;
-    final result = <CardPosition>[];
-
-    // 检查位置是否可用
-    bool canPlace(int x, int y, int w, int h) {
-      for (int dy = 0; dy < h; dy++) {
-        final row = grid[y + dy];
-        if (row != null) {
-          for (int dx = 0; dx < w; dx++) {
-            if (row[x + dx] == true) return false;
-          }
-        }
-      }
-      return true;
-    }
-
-    // 标记占用区域
-    void markOccupied(int x, int y, int w, int h) {
-      for (int dy = 0; dy < h; dy++) {
-        grid.putIfAbsent(y + dy, () => {});
-        for (int dx = 0; dx < w; dx++) {
-          grid[y + dy]![x + dx] = true;
-        }
-      }
-    }
-
-    // 按输入顺序逐个放置
-    for (final card in cards) {
-      final layout = isMobile ? card.layout.mobile : card.layout.desktop;
-      final dimensions = _getCardDimensions(layout.size);
-      final w = dimensions['w']!;
-      final h = dimensions['h']!;
-      final isTitle = card.data.type.toUpperCase() == 'TITLE';
-
-      // 安全检查
-      if (w > columns) {
-        debugPrint('[compactLayout] Card ${card.id} width ($w) exceeds columns ($columns)! Skipping.');
-        continue;
-      }
-
-      bool placed = false;
-
-      // 从 minY 开始搜索
-      for (int y = minY; !placed && y < maxY; y++) {
-        for (int x = 0; x <= columns - w; x++) {
-          if (canPlace(x, y, w, h)) {
-            markOccupied(x, y, w, h);
-            result.add(CardPosition(x: x, y: y, w: w, h: h));
-
-            // 如果是 TITLE，更新 minY
-            if (isTitle) {
-              minY = y + h;
-            }
-
-            placed = true;
-            break;
-          }
-        }
-      }
-
-      if (!placed) {
-        debugPrint('[compactLayout] Failed to place card ${card.id} after $maxY attempts!');
-      }
-    }
-
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     final cardStore = context.watch<CardStore>();
     final settings = context.watch<SettingsStore>();
     final cards = cardStore.cards;
-    final viewMode = cardStore.viewMode;
-    final isMobile = viewMode == ViewMode.mobile;
 
     final gridConfig = settings.gridConfig;
-    final columns = isMobile ? gridConfig.mobileColumns : gridConfig.desktopColumns;
-    final unitSize = isMobile ? gridConfig.mobileUnitSize : gridConfig.desktopUnitSize;
-    final gap = isMobile ? gridConfig.mobileGap : gridConfig.desktopGap;
+    final columns = gridConfig.mobileColumns;
+    final unitSize = gridConfig.mobileUnitSize;
+    final gap = gridConfig.mobileGap;
 
     // 计算网格总宽度
     final gridWidth = columns * unitSize + (columns - 1) * gap;
@@ -130,8 +52,8 @@ class CardGrid extends StatelessWidget {
     // 按位置排序卡片（先按 y，再按 x）
     final sortedCards = List<CardItem>.from(cards);
     sortedCards.sort((a, b) {
-      final layoutA = isMobile ? a.layout.mobile : a.layout.desktop;
-      final layoutB = isMobile ? b.layout.mobile : b.layout.desktop;
+      final layoutA = a.layout.mobile;
+      final layoutB = b.layout.mobile;
       if (layoutA.position.y != layoutB.position.y) {
         return layoutA.position.y.compareTo(layoutB.position.y);
       }
@@ -170,7 +92,7 @@ class CardGrid extends StatelessWidget {
                   key: ValueKey(sortedCards[i].id),
                   builder: (context) {
                     final card = sortedCards[i];
-                    final layout = isMobile ? card.layout.mobile : card.layout.desktop;
+                    final layout = card.layout.mobile;
                     final dimensions = _getCardDimensions(layout.size);
                     final h = dimensions['h']!;
 
@@ -193,8 +115,8 @@ class CardGrid extends StatelessWidget {
               
               // 按位置排序卡片（先按 y，再按 x）
               currentCards.sort((a, b) {
-                final layoutA = isMobile ? a.layout.mobile : a.layout.desktop;
-                final layoutB = isMobile ? b.layout.mobile : b.layout.desktop;
+                final layoutA = a.layout.mobile;
+                final layoutB = b.layout.mobile;
                 if (layoutA.position.y != layoutB.position.y) {
                   return layoutA.position.y.compareTo(layoutB.position.y);
                 }
@@ -212,7 +134,7 @@ class CardGrid extends StatelessWidget {
               // 在单列布局中，y 从 0 开始递增，x 保持为 0
               for (int i = 0; i < reorderedCards.length; i++) {
                 final card = reorderedCards[i];
-                final currentLayout = isMobile ? card.layout.mobile : card.layout.desktop;
+                final currentLayout = card.layout.mobile;
                 final newY = i;
                 final newX = 0; // 单列布局，x 始终为 0
 
@@ -234,58 +156,11 @@ class CardGrid extends StatelessWidget {
                 );
 
                 final newLayout = CardLayout(
-                  desktop: isMobile ? card.layout.desktop : newLayoutState,
-                  mobile: isMobile ? newLayoutState : card.layout.mobile,
+                  desktop: card.layout.desktop,
+                  mobile: newLayoutState,
                 );
 
                 cardStore.updateCardLayout(card.id, newLayout);
-              }
-
-              // 如果是 Desktop 模式，自动更新 Mobile 布局（压缩布局）
-              if (!isMobile) {
-                // 重新获取更新后的卡片列表
-                final updatedCards = List<CardItem>.from(cardStore.cards);
-                
-                // 按新的 Desktop 布局排序
-                updatedCards.sort((a, b) {
-                  final layoutA = a.layout.desktop;
-                  final layoutB = b.layout.desktop;
-                  if (layoutA.position.y != layoutB.position.y) {
-                    return layoutA.position.y.compareTo(layoutB.position.y);
-                  }
-                  return layoutA.position.x.compareTo(layoutB.position.x);
-                });
-
-                // 获取 Mobile 列数
-                final mobileColumns = settings.gridConfig.mobileColumns;
-
-                // 使用压缩布局
-                final compactedPositions = _compactLayout(
-                  updatedCards,
-                  mobileColumns,
-                  true, // isMobile
-                );
-
-                // 更新 Mobile 布局
-                for (int i = 0; i < updatedCards.length && i < compactedPositions.length; i++) {
-                  final card = updatedCards[i];
-                  final newPos = compactedPositions[i];
-                  final oldPos = card.layout.mobile.position;
-
-                  // 只有位置变化时才更新
-                  if (oldPos.x != newPos.x || oldPos.y != newPos.y) {
-                    final newMobileLayout = CardLayoutState(
-                      size: card.layout.mobile.size,
-                      position: newPos,
-                    );
-
-                    final newLayout = CardLayout(
-                      desktop: card.layout.desktop,
-                      mobile: newMobileLayout,
-                    );
-                    cardStore.updateCardLayout(card.id, newLayout);
-                  }
-                }
               }
             },
           ),
