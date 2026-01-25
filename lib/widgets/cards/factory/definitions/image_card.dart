@@ -164,28 +164,30 @@ class _ImageCardWidget extends StatelessWidget {
   }
 
   Widget _buildCaptionDisplay(BuildContext context, String caption) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Text(
-        caption,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF171717),
-          height: 1.5,
+    return IntrinsicWidth(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
+        child: Text(
+          caption,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF171717),
+            height: 1.5,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
