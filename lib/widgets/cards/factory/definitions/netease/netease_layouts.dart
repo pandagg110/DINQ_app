@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../common/asset_icon.dart';
 
 class NeteaseLayouts {
@@ -11,16 +10,7 @@ class NeteaseLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (link.isNotEmpty) {
-            final uri = Uri.parse(link);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -85,7 +75,6 @@ class NeteaseLayouts {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -98,16 +87,7 @@ class NeteaseLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (link.isNotEmpty) {
-            final uri = Uri.parse(link);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top Section: Icon
@@ -181,7 +161,6 @@ class NeteaseLayouts {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -194,16 +173,7 @@ class NeteaseLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (link.isNotEmpty) {
-            final uri = Uri.parse(link);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Row(
+      child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Left section
@@ -295,7 +265,6 @@ class NeteaseLayouts {
               ),
           ],
         ),
-      ),
     );
   }
 
@@ -308,16 +277,7 @@ class NeteaseLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (link.isNotEmpty) {
-            final uri = Uri.parse(link);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top: Icon and Play button
@@ -394,7 +354,6 @@ class NeteaseLayouts {
               ),
           ],
         ),
-      ),
     );
   }
 }

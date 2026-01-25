@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../common/asset_icon.dart';
 
 class SpotifyLayouts {
@@ -11,16 +10,7 @@ class SpotifyLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (url.isNotEmpty) {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -83,7 +73,6 @@ class SpotifyLayouts {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -96,16 +85,7 @@ class SpotifyLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (url.isNotEmpty) {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top Section: Icon
@@ -179,7 +159,6 @@ class SpotifyLayouts {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -192,16 +171,7 @@ class SpotifyLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (url.isNotEmpty) {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Row(
+      child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Left section
@@ -294,7 +264,6 @@ class SpotifyLayouts {
               ),
           ],
         ),
-      ),
     );
   }
 
@@ -307,16 +276,7 @@ class SpotifyLayouts {
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: InkWell(
-        onTap: () async {
-          if (url.isNotEmpty) {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top: Icon and Play button
@@ -393,7 +353,6 @@ class SpotifyLayouts {
               ),
           ],
         ),
-      ),
     );
   }
 }
