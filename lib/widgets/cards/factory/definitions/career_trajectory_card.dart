@@ -26,9 +26,10 @@ class CareerTrajectoryCardDefinition extends CardDefinition {
 
   @override
   Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+    
     // rawMetadata is an array of segments
     final segments = (rawMetadata is List ? rawMetadata : []) as List<dynamic>;
-    
+    debugPrint('CareerTrajectoryCardDefinition: segments: ${rawMetadata.toString()}');
     final adaptedSegments = segments.asMap().entries.map((entry) {
       final index = entry.key;
       final segment = entry.value as Map<String, dynamic>;

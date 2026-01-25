@@ -431,7 +431,8 @@ class CardStore extends ChangeNotifier {
             ),
             layout: card.layout,
           );
-
+          debugPrint('CardStore: updatedCard: ${updatedCard.toJson().toString()}');
+          debugPrint('CardStore: isRegistered: ${_registry.isRegistered(updatedCard.data.type)}');
           // Adapt the card
           final adaptedCard = _registry.isRegistered(updatedCard.data.type)
               ? _registry.adapt(updatedCard, viewMode)
