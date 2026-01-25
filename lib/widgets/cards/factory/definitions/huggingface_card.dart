@@ -25,7 +25,7 @@ class HuggingFaceCardDefinition extends CardDefinition {
       );
 
   @override
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+  Map<String, dynamic>? adapt(dynamic rawMetadata) {
     final data = rawMetadata['data'] ?? rawMetadata;
     final orgs = data['orgs'] as List<dynamic>? ?? [];
     final topOrgs = orgs.take(4).map((org) {

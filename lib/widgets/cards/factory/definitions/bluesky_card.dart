@@ -25,7 +25,7 @@ class BlueskyCardDefinition extends CardDefinition {
       );
 
   @override
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+  Map<String, dynamic>? adapt(dynamic rawMetadata) {
     final data = rawMetadata['data'] ?? rawMetadata;
     return {
       'handle': data['handle'] ?? '',

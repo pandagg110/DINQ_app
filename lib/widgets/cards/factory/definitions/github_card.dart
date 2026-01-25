@@ -25,7 +25,7 @@ class GitHubCardDefinition extends CardDefinition {
       );
 
   @override
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+  Map<String, dynamic>? adapt(dynamic rawMetadata) {
     // Handle both nested (.data) and flat structures
     final data = rawMetadata['data'] ?? rawMetadata;
     return {

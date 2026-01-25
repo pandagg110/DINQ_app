@@ -47,7 +47,7 @@ class CardGrid extends StatelessWidget {
     if (cards.isEmpty) {
       return const SizedBox.shrink();
     }
-
+    debugPrint('CardGrid: cards: ${cards.map((card) => card.toJson().toString()).join(', ')}');
     // 按位置排序卡片（先按 y，再按 x）
     final sortedCards = List<CardItem>.from(cards);
     sortedCards.sort((a, b) {

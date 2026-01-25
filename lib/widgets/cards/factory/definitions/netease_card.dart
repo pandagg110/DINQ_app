@@ -51,7 +51,7 @@ class NeteaseCardDefinition extends CardDefinition {
   }
 
   @override
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+  Map<String, dynamic>? adapt(dynamic rawMetadata) {
     final data = rawMetadata['data'] ?? rawMetadata;
     final playlist = data['playlist'] as List<dynamic>? ?? [];
     final firstTrack = playlist.isNotEmpty ? playlist[0] : null;

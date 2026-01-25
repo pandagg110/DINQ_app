@@ -56,7 +56,8 @@ abstract class CardDefinition {
 
   /// 数据适配器（可选）
   /// 将后端API返回的raw_metadata转换为Card的metadata格式
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) => null;
+  /// rawMetadata 可以是 Map 或 List（如 career_trajectory 的数组类型）
+  Map<String, dynamic>? adapt(dynamic rawMetadata) => null;
 
   /// 创建策略（可选）
   /// 构造默认的metadata数据

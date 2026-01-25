@@ -24,7 +24,7 @@ class ImageCardDefinition extends CardDefinition {
   );
 
   @override
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+  Map<String, dynamic>? adapt(dynamic rawMetadata) {
     return null; // No adaptation needed
   }
 

@@ -368,6 +368,7 @@ class CardStore extends ChangeNotifier {
   Future<bool> _analyzeDatasource() async {
     if (_currentUsername == null) return false;
     // Collect data_source_ids from existing cards
+    debugPrint('CardStore: _analyzeDatasource: ${cards.length}');
     final dataSourceIds = cards
         .where(
           (card) =>
@@ -403,44 +404,6 @@ class CardStore extends ChangeNotifier {
           hasPending = true;
         }
 
-        if (status == 'COMPLETED') {
-          // Preserve user settings (like displayMode)
-          final prevDisplayMode = card.data.metadata['displayMode'];
-
-          // Update card with raw_metadata from datasource
-          final rawMetadata = datasource['raw_metadata'];
-          Map<String, dynamic> finalMetadata;
-          if (rawMetadata is Map<String, dynamic>) {
-            finalMetadata = prevDisplayMode != null
-                ? {...rawMetadata, 'displayMode': prevDisplayMode}
-                : rawMetadata;
-          } else {
-            finalMetadata = {};
-          }
-
-          final updatedCard = CardItem(
-            id: card.id,
-            data: CardData(
-              id: card.data.id,
-              type: (datasource['type']?.toString() ?? card.data.type)
-                  .toUpperCase(),
-              title: card.data.title,
-              description: card.data.description,
-              metadata: finalMetadata,
-              status: status,
-            ),
-            layout: card.layout,
-          );
-          debugPrint('CardStore: updatedCard: ${updatedCard.toJson().toString()}');
-          debugPrint('CardStore: isRegistered: ${_registry.isRegistered(updatedCard.data.type)}');
-          // Adapt the card
-          final adaptedCard = _registry.isRegistered(updatedCard.data.type)
-              ? _registry.adapt(updatedCard, viewMode)
-              : updatedCard;
-
-          cards[cardIndex] = adaptedCard;
-        }
-
         // Update card state
         if (!cardStates.containsKey(card.id)) {
           cardStates[card.id] = CardState();
@@ -451,21 +414,92 @@ class CardStore extends ChangeNotifier {
           isNew: state.isNew,
         );
 
-        // Update card status and type
-        final updatedCard = cards[cardIndex];
-        cards[cardIndex] = CardItem(
-          id: updatedCard.id,
+        // Update card data
+        Map<String, dynamic> finalMetadata;
+        if (status == 'COMPLETED') {
+          // Preserve user settings (like displayMode) - only for object metadata, not arrays
+          // This is necessary because getDatasources returns raw_metadata which doesn't include
+          // user settings like displayMode, but getCardBoard does include them.
+          final prevDisplayMode = card.data.metadata['displayMode'];
+
+          // Update card with raw_metadata from datasource
+          final rawMetadata = datasource['raw_metadata'];
+          if (rawMetadata is Map<String, dynamic>) {
+            // For object metadata, preserve displayMode if it exists
+            finalMetadata = prevDisplayMode != null
+                ? {...rawMetadata, 'displayMode': prevDisplayMode}
+                : rawMetadata;
+          } else {
+            // For array metadata (like career_trajectory) or other types,
+            // use raw_metadata directly - the adapt method will handle conversion
+            // We need to wrap it in a Map to satisfy the type system
+            // The adapt method will extract and process it correctly
+            finalMetadata = rawMetadata is List
+                ? {'_raw_array': rawMetadata}
+                : (rawMetadata as dynamic ?? card.data.metadata);
+          }
+        } else {
+          // For non-COMPLETED status, keep existing metadata
+          finalMetadata = card.data.metadata;
+        }
+
+        // Update card with new data
+        CardItem updatedCard = CardItem(
+          id: card.id,
           data: CardData(
-            id: updatedCard.data.id,
-            type: (datasource['type']?.toString() ?? updatedCard.data.type)
-                .toUpperCase(),
-            title: updatedCard.data.title,
-            description: updatedCard.data.description,
-            metadata: updatedCard.data.metadata,
+            id: card.data.id,
+            type: (datasource['type']?.toString() ?? card.data.type).toUpperCase(),
+            title: card.data.title,
+            description: card.data.description,
+            metadata: finalMetadata,
             status: status,
           ),
-          layout: updatedCard.layout,
+          layout: card.layout,
         );
+
+        // For COMPLETED status, handle array raw_metadata specially
+        debugPrint('CardStore: status: ${status}');
+        if (status == 'COMPLETED') {
+          final rawMetadata = datasource['raw_metadata'];
+          if (rawMetadata is List) {
+            // For array metadata, we need to pass it directly to adapt
+            // Create a temporary card with the array as metadata (using dynamic cast)
+            // The adapt method will handle the conversion from array to Map
+            final definition = _registry.getDefinition(updatedCard.data.type);
+            if (definition != null) {
+              // Call adapt directly with the array - it can handle List internally
+              debugPrint('CardStore: rawMetadata: ${rawMetadata.toString()}');
+              final adaptedMetadata = definition.adapt(rawMetadata);
+              debugPrint('CardStore: adaptedMetadata: ${adaptedMetadata.toString()}');
+              if (adaptedMetadata != null) {
+                updatedCard = CardItem(
+                  id: updatedCard.id,
+                  data: CardData(
+                    id: updatedCard.data.id,
+                    type: updatedCard.data.type,
+                    title: updatedCard.data.title,
+                    description: updatedCard.data.description,
+                    metadata: adaptedMetadata,
+                    status: updatedCard.data.status,
+                  ),
+                  layout: updatedCard.layout,
+                );
+              }
+            }
+          } else {
+            // For Map metadata, adapt normally through CardRegistry
+            if (_registry.isRegistered(updatedCard.data.type)) {
+              updatedCard = _registry.adapt(updatedCard, viewMode);
+            }
+          }
+        } else {
+          // For non-COMPLETED status, adapt normally
+          if (_registry.isRegistered(updatedCard.data.type)) {
+            updatedCard = _registry.adapt(updatedCard, viewMode);
+          }
+        }
+
+        cards[cardIndex] = updatedCard;
       }
 
       // Filter out datasource type cards

@@ -465,7 +465,7 @@ class _CardRendererState extends State<CardRenderer> {
       // 使用注册表中的定义来渲染
       return definition.render(
         CardRenderParams(
-          card: adaptedCard,
+          card: widget.card,
           size: size,
           editable: false,
           isSelected: isSelected,

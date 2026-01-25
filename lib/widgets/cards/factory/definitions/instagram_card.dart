@@ -25,7 +25,7 @@ class InstagramCardDefinition extends CardDefinition {
       );
 
   @override
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+  Map<String, dynamic>? adapt(dynamic rawMetadata) {
     final data = rawMetadata['data'] ?? rawMetadata;
     final followersTrend = data['followers_trend'] as List<dynamic>? ?? [];
     final latestTrend = followersTrend.isNotEmpty ? followersTrend.last : null;

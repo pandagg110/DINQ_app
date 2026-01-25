@@ -25,7 +25,7 @@ class ThreadsCardDefinition extends CardDefinition {
       );
 
   @override
-  Map<String, dynamic>? adapt(Map<String, dynamic> rawMetadata) {
+  Map<String, dynamic>? adapt(dynamic rawMetadata) {
     final data = rawMetadata['data'] ?? rawMetadata;
     final latestPost = data['latest_post'];
     return {
