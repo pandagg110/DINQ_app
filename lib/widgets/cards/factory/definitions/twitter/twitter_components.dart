@@ -109,17 +109,23 @@ class TwitterComponents {
           ),
         ),
         SizedBox(height: compact ? 2.0 : 8.0),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: followers.asMap().entries.map((entry) {
-            final index = entry.key;
-            final follower = entry.value as Map<String, dynamic>;
-            final avatarSrc = follower['profile_image'] ?? follower['avatarUrl'] ?? '';
+        Wrap(
+          spacing: -8.0,
+          children: followers.map((follower) {
+            final followerData = follower as Map<String, dynamic>;
+            final avatarSrc = followerData['profile_image'] ?? followerData['avatarUrl'] ?? '';
+            final followerUsername = followerData['username'] as String? ?? '';
+            final followerUrl = 'https://x.com/$followerUsername';
             
-            return Padding(
-              padding: EdgeInsets.only(left: index > 0 ? -8.0 : 0.0),
-              child: TwitterHoverCard(
-                follower: follower,
+            return TwitterHoverCard(
+              follower: followerData,
+              child: InkWell(
+                onTap: () async {
+                  final uri = Uri.parse(followerUrl);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
@@ -153,6 +159,7 @@ class TwitterComponents {
   // Latest Tweet Component
   static Widget buildLatestTweet({
     required Map<String, dynamic> latestTweet,
+    bool pushImageToBottom = false,
   }) {
     final text = latestTweet['text'] as String? ?? '';
     final url = latestTweet['url'] as String? ?? '';
@@ -162,7 +169,7 @@ class TwitterComponents {
     if (ogImage != null && ogImage.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: pushImageToBottom ? MainAxisSize.max : MainAxisSize.min,
         children: [
           if (text.isNotEmpty)
             InkWell(
@@ -186,6 +193,7 @@ class TwitterComponents {
               ),
             ),
           if (text.isNotEmpty) const SizedBox(height: 4),
+          if (pushImageToBottom) const Spacer(),
           InkWell(
             onTap: () async {
               if (url.isNotEmpty) {

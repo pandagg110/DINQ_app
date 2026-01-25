@@ -124,11 +124,10 @@ class TwitterLayouts {
     Map<String, dynamic>? latestTweet,
     String? profileUrl,
   }) {
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           // Top Row: Icon + Followers
           Row(
@@ -173,7 +172,12 @@ class TwitterLayouts {
           const SizedBox(height: 4), // mb-1
           // Latest Tweet or Summary
           if (latestTweet != null) ...[
-            TwitterComponents.buildLatestTweet(latestTweet: latestTweet),
+            Expanded(
+              child: TwitterComponents.buildLatestTweet(
+                latestTweet: latestTweet,
+                pushImageToBottom: true,
+              ),
+            ),
           ] else if (summary.isNotEmpty) ...[
             Text(
               summary,

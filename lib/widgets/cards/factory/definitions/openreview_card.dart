@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'openreview/openreview_widget.dart';
 
 class OpenReviewCardDefinition extends CardDefinition {
   @override
   String get type => 'OPENREVIEW';
 
   @override
-  String get icon => '/icons/social-icons/OpenReview.svg';
+  String get icon => '/icons/logo/OpenReview.png';
 
   @override
   String get name => 'OpenReview';
@@ -42,30 +42,9 @@ class OpenReviewCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final totalPapers = params.card.data.metadata['totalPapers'] ?? 0;
-    final collaboratorCount = params.card.data.metadata['collaboratorCount'] ?? 0;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/OpenReview.svg', size: 32),
-          const SizedBox(height: 12),
-          const Text(
-            'OpenReview',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Papers: $totalPapers',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          Text(
-            'Collaborators: $collaboratorCount',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-        ],
-      ),
+    return OpenReviewWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }

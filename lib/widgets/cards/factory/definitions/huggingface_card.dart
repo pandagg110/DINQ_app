@@ -53,9 +53,10 @@ class HuggingFaceCardDefinition extends CardDefinition {
     }
 
     final bioTitle = 'AI ML Interests';
-    final bioContent = data['details']?.toString() ??
-        'Passionate about advancing AI and machine learning research.';
-
+    final details = data['details'] as String?;
+    final bioContent = (details != null && details.isNotEmpty)
+        ? details
+        : 'Passionate about advancing AI and machine learning research.';
     Map<String, dynamic>? featuredRepo;
     if (data['representative_work'] != null) {
       final work = data['representative_work'] as Map<String, dynamic>;

@@ -107,17 +107,23 @@ class InstagramComponents {
           ),
         ),
         SizedBox(height: compact ? 2.0 : 8.0),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: followers.asMap().entries.map((entry) {
-            final index = entry.key;
-            final follower = entry.value as Map<String, dynamic>;
-            final avatarSrc = follower['profile_image'] ?? follower['avatarUrl'] ?? '';
+        Wrap(
+          spacing: -8.0,
+          children: followers.map((follower) {
+            final followerData = follower as Map<String, dynamic>;
+            final avatarSrc = followerData['profile_image'] ?? followerData['avatarUrl'] ?? '';
+            final followerUsername = followerData['username'] as String? ?? '';
+            final followerUrl = 'https://www.instagram.com/$followerUsername';
             
-            return Padding(
-              padding: EdgeInsets.only(left: index > 0 ? -8.0 : 0.0),
-              child: InstagramHoverCard(
-                follower: follower,
+            return InstagramHoverCard(
+              follower: followerData,
+              child: InkWell(
+                onTap: () async {
+                  final uri = Uri.parse(followerUrl);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,

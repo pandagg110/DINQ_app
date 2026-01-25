@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../common/asset_icon.dart';
 import '../../../../common/metric_display.dart';
 import 'youtube_components.dart';
+import 'youtube_video_player.dart';
 
 class YouTubeLayouts {
   // 2x2 Size - Compact
@@ -50,30 +51,9 @@ class YouTubeLayouts {
           const Spacer(),
           // Video Embed Section - Square aspect ratio
           if (videoId != null)
-            AspectRatio(
+            YouTubeVideoPlayer(
+              videoId: videoId,
               aspectRatio: 1.0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.play_circle_outline, size: 48, color: Colors.grey[600]),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Video: $videoId',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             )
           else
             AspectRatio(
@@ -203,30 +183,9 @@ class YouTubeLayouts {
           const SizedBox(height: 16),
           // Video Embed Section
           if (videoId != null)
-            AspectRatio(
+            YouTubeVideoPlayer(
+              videoId: videoId,
               aspectRatio: 16 / 9,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.play_circle_outline, size: 48, color: Colors.grey[600]),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Video: $videoId',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             )
           else
             AspectRatio(
