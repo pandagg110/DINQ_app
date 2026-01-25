@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../common/asset_icon.dart';
 import '../card_definition.dart';
+import 'behance/behance_widget.dart';
 
 class BehanceCardDefinition extends CardDefinition {
   @override
@@ -29,49 +29,27 @@ class BehanceCardDefinition extends CardDefinition {
     final data = rawMetadata['data'] ?? rawMetadata;
     return {
       'username': data['username'] ?? '',
+      'name': data['name'] ?? data['display_name'] ?? '',
       'display_name': data['display_name'] ?? '',
       'bio': data['bio'] ?? '',
       'avatar': data['avatar'] ?? '',
+      'followers': data['followers'] ?? data['followers_count'] ?? 0,
       'followers_count': data['followers_count'] ?? 0,
       'following_count': data['following_count'] ?? 0,
+      'views': data['views'] ?? data['project_views'] ?? 0,
       'project_views': data['project_views'] ?? 0,
+      'likes': data['likes'] ?? data['appreciations'] ?? 0,
       'appreciations': data['appreciations'] ?? 0,
+      'newest_work': data['newest_work'],
       'latest_projects': data['latest_projects'] ?? [],
     };
   }
 
   @override
   Widget render(CardRenderParams params) {
-    final displayName = params.card.data.metadata['display_name']?.toString() ??
-        params.card.data.metadata['username']?.toString() ??
-        'Behance';
-    final followers = params.card.data.metadata['followers_count'] ?? 0;
-    final appreciations = params.card.data.metadata['appreciations'] ?? 0;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AssetIcon(asset: 'icons/social-icons/Behance.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            displayName,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Followers: $followers',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          if (appreciations > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Appreciations: $appreciations',
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-            ),
-          ],
-        ],
-      ),
+    return BehanceWidget(
+      card: params.card,
+      size: params.size,
     );
   }
 }
