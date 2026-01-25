@@ -115,12 +115,15 @@ class InstagramLayouts {
     required List<dynamic> topSmartFollowers,
     required String summary,
     Map<String, dynamic>? latestPost,
+    String? profileUrl,
   }) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
+          // Top Row: Icon + Followers
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,19 +136,23 @@ class InstagramLayouts {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 8), // mb-2
+          // Middle Row: User Profile + Top Smart Followers
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // User Profile Section
               Expanded(
                 child: InstagramComponents.buildUserProfile(
                   username: username,
                   fullName: fullName,
                   profileImage: profileImage,
                   verified: verified,
+                  profileUrl: profileUrl,
                 ),
               ),
+              // Top Smart Followers
               if (topSmartFollowers.isNotEmpty) ...[
                 const SizedBox(width: 12),
                 InstagramComponents.buildTopSmartFollowers(
@@ -156,7 +163,8 @@ class InstagramLayouts {
               ],
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 4), // mb-1
+          // Latest Post or Summary
           if (latestPost != null) ...[
             InstagramComponents.buildLatestPost(latestPost: latestPost),
           ] else if (summary.isNotEmpty) ...[

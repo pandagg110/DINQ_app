@@ -22,6 +22,8 @@ class InstagramWidget extends StatelessWidget {
     final smartFollowerCount = (metadata['smartFollowerCount'] as num?)?.toInt() ?? 0;
     final topSmartFollowers = (metadata['topSmartFollowers'] as List<dynamic>?) ?? [];
     final summary = (metadata['summary'] as String?) ?? '';
+    final profileUrl =
+        (metadata['url'] as String?) ?? 'https://www.instagram.com/$username';
     final latestPost = metadata['latestPost'] as Map<String, dynamic>?;
 
     switch (size) {
@@ -52,6 +54,7 @@ class InstagramWidget extends StatelessWidget {
           topSmartFollowers: topSmartFollowers,
           summary: summary,
           latestPost: latestPost,
+          profileUrl: profileUrl,
         );
       default:
         return const Center(child: Text('Unknown size'));

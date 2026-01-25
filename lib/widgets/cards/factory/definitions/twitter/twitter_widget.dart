@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'twitter_layouts.dart';
 
 class TwitterWidget extends StatelessWidget {
-  const TwitterWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const TwitterWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -16,20 +12,22 @@ class TwitterWidget extends StatelessWidget {
     final metadata = card.data.metadata;
     final username = (metadata['username'] as String?) ?? '';
     final fullName = (metadata['full_name'] as String?) ?? 'X user';
-    final profileImage = (metadata['profile_image'] as String?) ?? '/images/default-avatar.svg';
+    final profileImage =
+        (metadata['profile_image'] as String?) ?? '/images/default-avatar.svg';
     final verified = (metadata['verified'] as bool?) ?? false;
     final followerCount = (metadata['followerCount'] as num?)?.toInt() ?? 0;
-    final smartFollowerCount = (metadata['smartFollowerCount'] as num?)?.toInt() ?? 0;
-    final topSmartFollowers = (metadata['topSmartFollowers'] as List<dynamic>?) ?? [];
+    final smartFollowerCount =
+        (metadata['smartFollowerCount'] as num?)?.toInt() ?? 0;
+    final topSmartFollowers =
+        (metadata['topSmartFollowers'] as List<dynamic>?) ?? [];
     final summary = (metadata['summary'] as String?) ?? '';
-    final profileUrl = (metadata['url'] as String?) ?? 'https://x.com/$username';
+    final profileUrl =
+        (metadata['url'] as String?) ?? 'https://x.com/$username';
     final latestTweet = metadata['latestTweet'] as Map<String, dynamic>?;
 
     switch (size) {
       case '2x2':
-        return TwitterLayouts.build2x2Layout(
-          followerCount: followerCount,
-        );
+        return TwitterLayouts.build2x2Layout(followerCount: followerCount);
       case '2x4':
         return TwitterLayouts.build2x4Layout(
           followerCount: followerCount,
@@ -43,6 +41,7 @@ class TwitterWidget extends StatelessWidget {
           topSmartFollowers: topSmartFollowers,
         );
       case '4x4':
+      return Text('4x4');
         return TwitterLayouts.build4x4Layout(
           username: username,
           fullName: fullName,
@@ -60,4 +59,3 @@ class TwitterWidget extends StatelessWidget {
     }
   }
 }
-

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'instagram_hover_card.dart';
 
 class InstagramComponents {
@@ -9,8 +10,18 @@ class InstagramComponents {
     required String fullName,
     required String profileImage,
     required bool verified,
+    String? profileUrl,
   }) {
-    return Row(
+    final url = profileUrl ?? 'https://www.instagram.com/$username';
+    
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipOval(
@@ -71,6 +82,7 @@ class InstagramComponents {
           ),
         ),
       ],
+    ),
     );
   }
 
@@ -141,46 +153,94 @@ class InstagramComponents {
     required Map<String, dynamic> latestPost,
   }) {
     final text = latestPost['text'] as String? ?? '';
+    final url = latestPost['url'] as String? ?? '';
     final ogImage = latestPost['ogImage'] as String?;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (text.isNotEmpty)
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.33,
-              color: Color(0xFF0F1419),
+    // If there's an OG image, use Column with Spacer to push image to bottom
+    if (ogImage != null && ogImage.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (text.isNotEmpty)
+            InkWell(
+              onTap: () async {
+                if (url.isNotEmpty) {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                }
+              },
+              child: Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.33,
+                  color: Color(0xFF0F1419),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        if (ogImage != null && ogImage.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          const Spacer(),
-          AspectRatio(
-            aspectRatio: 1.9,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                ogImage,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Icon(Icons.image, color: Colors.grey),
-                    ),
-                  );
-                },
+          if (text.isNotEmpty) const SizedBox(height: 4),
+          InkWell(
+            onTap: () async {
+              if (url.isNotEmpty) {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              }
+            },
+            child: AspectRatio(
+              aspectRatio: 1.9, // 52.5% padding-bottom = ~1.9
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  ogImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: Icon(Icons.image, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),
         ],
-      ],
-    );
+      );
+    }
+    
+    // If only text, return simple text widget
+    if (text.isNotEmpty) {
+      return InkWell(
+        onTap: () async {
+          if (url.isNotEmpty) {
+            final uri = Uri.parse(url);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
+          }
+        },
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 15,
+            height: 1.33,
+            color: Color(0xFF0F1419),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+    
+    return const SizedBox.shrink();
   }
 
   static String _formatCount(int value) {
