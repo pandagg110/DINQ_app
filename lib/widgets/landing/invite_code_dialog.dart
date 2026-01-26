@@ -1,7 +1,10 @@
 import 'package:dinq_app/utils/color_util.dart';
+import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../services/auth_service.dart';
 
 class InviteCodeDialog extends StatefulWidget {
   const InviteCodeDialog({super.key});
@@ -12,6 +15,8 @@ class InviteCodeDialog extends StatefulWidget {
 
 class _InviteCodeDialogState extends State<InviteCodeDialog> {
   final _codeController = TextEditingController();
+
+  final _authService = AuthService();
 
   @override
   void dispose() {
@@ -167,5 +172,20 @@ class _InviteCodeDialogState extends State<InviteCodeDialog> {
     );
   }
 
-  Future<void> _clickClaimButton() async {}
+  Future<void> _clickClaimButton() async {
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      return;
+    }
+    try {
+      await ToastUtil.showLoading();
+      _authService.activate(inviteCode: code);
+      await ToastUtil.dismiss();
+      ToastUtil.show("Congratulations! You've received 5 bonus Credits! 🎉");
+    } catch (error) {
+      debugPrint('error9999: $error');
+      await ToastUtil.dismiss();
+      ToastUtil.show(error.toString());
+    }
+  }
 }
