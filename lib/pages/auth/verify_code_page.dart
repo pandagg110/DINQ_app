@@ -1,4 +1,4 @@
-import 'package:dinq_app/utils/toast_util.dart';
+import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
@@ -6,11 +6,14 @@ import 'package:provider/provider.dart';
 
 import '../../services/auth_service.dart';
 import '../../stores/user_store.dart';
+import '../../utils/cache_manager.dart';
 import '../../utils/color_util.dart';
-import '../../utils/loading_toast_util.dart';
 import '../../utils/timer_util.dart';
+import '../../utils/toast_util.dart';
 import '../../widgets/common/base_page.dart';
+import '../../widgets/common/common_dialog.dart';
 import '../../widgets/common/default_app_bar.dart';
+import '../../widgets/landing/invite_code_dialog.dart';
 import 'verify_code_input.dart';
 
 class VerifyCodePage extends StatefulWidget {
@@ -40,14 +43,22 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
   void initState() {
     super.initState();
 
-    _timer.setOnTimerTickCallback((millisUntilFinished) {
-      if (mounted) {
-        setState(() {
-          _millisUntilFinished = millisUntilFinished;
-        });
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      TopToastUtil.showSuccess(
+        context: context,
+        title: "Verification code sent to ${widget.email}",
+        description: "",
+      );
+
+      _timer.setOnTimerTickCallback((millisUntilFinished) {
+        if (mounted) {
+          setState(() {
+            _millisUntilFinished = millisUntilFinished;
+          });
+        }
+      });
+      _timer.startCountDown();
     });
-    _timer.startCountDown();
   }
 
   @override
@@ -126,7 +137,9 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
               ),
               const SizedBox(height: 16),
               NormalButton(
-                onTap: () => _handleVerify(context),
+                onTap: () {
+                  _handleVerify();
+                },
                 child: Container(
                   decoration: BoxDecoration(
                     color: _isFormValid ? ColorUtil.textColor : Color(0x1A343434),
@@ -156,7 +169,6 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                     style: TextStyle(
                       color: ColorUtil.sub1TextColor,
                       fontSize: 14,
-                      fontWeight: FontWeight.w500,
                       fontFamily: 'Tomato Grotesk',
                     ),
                   ),
@@ -192,9 +204,15 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
   Future<void> _resendCode() async {
     final email = widget.email;
     try {
-      await LoadingToastUtil.showLoading();
+      await ToastUtil.showLoading();
       await _authService.sendCode(email: email, type: 'register');
-
+      await ToastUtil.dismiss();
+      if (!mounted) return;
+      TopToastUtil.showSuccess(
+        context: context,
+        title: "Verification code sent to $email",
+        description: "",
+      );
       _millisUntilFinished = _maxMillis;
       _timer.mTotalTime = _maxMillis;
       _timer.startCountDown();
@@ -203,28 +221,39 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
       }
     } catch (error) {
       debugPrint('error9999: $error, $email');
+      await ToastUtil.dismiss();
+      await ToastUtil.show(error.toString());
     } finally {
-      await LoadingToastUtil.dismiss();
       // setState(() => _isSendingCode = false);
     }
   }
 
-  Future<void> _handleVerify(BuildContext context) async {
-    context.go('/generation');
-    return;
+  /// 验证注册，并自动登录
+  Future<void> _handleVerify() async {
     if (!_isFormValid) return;
     _codeInputController.focusNode.unfocus();
     final code = _codeInputController.code;
     try {
+      await ToastUtil.showLoading();
+      if (!mounted) return;
       await context.read<UserStore>().register(
         email: widget.email,
         password: widget.password,
         verificationCode: code,
       );
+      await ToastUtil.dismiss();
       if (!mounted) return;
-      context.go('/generation');
+      CacheManager.instance.signUpAccount = widget.email;
+      context.go('/');
+      Future.delayed(Duration(milliseconds: 800), () {
+        if (!mounted) return;
+        CommonDialog.showAlert(context: context, customAlert: InviteCodeDialog());
+        CacheManager.instance.signUpAccount = null;
+      });
     } catch (error) {
-      ToastUtil.showError(context: context, title: error.toString(), description: "");
+      await ToastUtil.dismiss();
+      if (!mounted) return;
+      TopToastUtil.showError(context: context, title: error.toString(), description: "");
     }
   }
 }

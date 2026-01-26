@@ -57,4 +57,7 @@ class CacheManager {
     bool res = CacheManager.preferences?.getBool('agree_privacy_status_key') ?? false;
     return res;
   }
+
+  /// 注册的账号，首次登录时需要弹出弹框
+  String? signUpAccount;
 }

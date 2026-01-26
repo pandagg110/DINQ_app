@@ -1,7 +1,12 @@
+import 'package:dinq_app/utils/cache_manager.dart';
+import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
+import 'package:dinq_app/widgets/common/common_dialog.dart';
+import 'package:dinq_app/widgets/landing/invite_code_dialog.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:github_oauth_signin/github_oauth_signin.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -178,9 +183,7 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       const SizedBox(height: 15),
                       NormalButton(
-                        onTap: (isLoading || !_isButtonEnabled)
-                            ? () {}
-                            : () => _handleSignIn(context),
+                        onTap: (isLoading || !_isButtonEnabled) ? () {} : () => _handleSignIn(),
                         child: Container(
                           decoration: BoxDecoration(
                             color: _isButtonEnabled ? ColorUtil.textColor : .new(0xFF1A343434),
@@ -188,25 +191,17 @@ class _SignInPageState extends State<SignInPage> {
                           ),
                           width: double.infinity,
                           height: 48,
-                          child: isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(),
-                                )
-                              : Center(
-                                  child: Text(
-                                    'Sign in',
-                                    style: TextStyle(
-                                      color: _isButtonEnabled
-                                          ? Colors.white
-                                          : ColorUtil.sub2TextColor,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 16,
-                                      fontFamily: 'Tomato Grotesk',
-                                    ),
-                                  ),
-                                ),
+                          child: Center(
+                            child: Text(
+                              'Sign in',
+                              style: TextStyle(
+                                color: _isButtonEnabled ? Colors.white : ColorUtil.sub2TextColor,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 16,
+                                fontFamily: 'Tomato Grotesk',
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -302,7 +297,9 @@ class _SignInPageState extends State<SignInPage> {
                       ),
                       const SizedBox(height: 10),
                       NormalButton(
-                        onTap: () => _oauthSignIn('github'),
+                        onTap: () {
+                          _githubSignIn();
+                        },
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -353,7 +350,13 @@ class _SignInPageState extends State<SignInPage> {
                           fontFamily: 'Tomato Grotesk',
                           decoration: TextDecoration.underline,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            context.push(
+                              '/webview',
+                              extra: {'url': '$appUrl/terms', 'navTitle': 'Terms of Service'},
+                            );
+                          },
                       ),
                       TextSpan(
                         text: ' and ',
@@ -371,7 +374,13 @@ class _SignInPageState extends State<SignInPage> {
                           fontFamily: 'Tomato Grotesk',
                           decoration: TextDecoration.underline,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            context.push(
+                              '/webview',
+                              extra: {'url': '$appUrl/privacy', 'navTitle': 'Privacy Policy'},
+                            );
+                          },
                       ),
                     ],
                   ),
@@ -385,7 +394,7 @@ class _SignInPageState extends State<SignInPage> {
     );
   }
 
-  Future<void> _handleSignIn(BuildContext context) async {
+  Future<void> _handleSignIn() async {
     setState(() => _error = null);
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -395,11 +404,16 @@ class _SignInPageState extends State<SignInPage> {
     }
 
     try {
-      await context.read<UserStore>().login(email: email, password: password);
+      await ToastUtil.showLoading();
       if (!mounted) return;
+      await context.read<UserStore>().login(email: email, password: password);
+      await ToastUtil.dismiss();
+      if (!mounted) return;
+
       final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
       if (redirect != null && redirect.isNotEmpty) {
         context.go(redirect);
+        _showInviteCodeDialog(email);
         return;
       }
       final flow = context.read<UserStore>().myFlow;
@@ -408,7 +422,9 @@ class _SignInPageState extends State<SignInPage> {
       } else {
         context.go('/');
       }
+      _showInviteCodeDialog(email);
     } catch (error) {
+      await ToastUtil.dismiss();
       setState(() => _error = 'Username or password is incorrect.');
     }
   }
@@ -420,5 +436,49 @@ class _SignInPageState extends State<SignInPage> {
       '$gatewayUrl/api/v1/auth/oauth/$provider?redirect_uri=${Uri.encodeComponent(nextUrl)}',
     );
     await launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _githubSignIn() async {
+    final GitHubSignIn gitHubSignIn = GitHubSignIn(
+      clientId: 'Ov23livoAOOYkvlzKccK',
+      clientSecret: '2cd66054c8c0659968925bcd9fec842636703bd6',
+      redirectUrl: 'https://api.dinq.me/auth/oauth/github/callback',
+    );
+
+    final result = await gitHubSignIn.signIn(context);
+    switch (result.status) {
+      case GitHubSignInResultStatus.ok:
+        print('✅ Sign in successful!');
+        print('🔑 Access Token: ${result.token}');
+        if (result.userData != null) {
+          final user = result.userData!;
+          print('👤 User: ${user['name']} (@${user['login']})');
+          print('📧 Email: ${user['email']}');
+          print('🏢 Company: ${user['company']}');
+          print('📍 Location: ${user['location']}');
+          print('📊 Public Repos: ${user['public_repos']}');
+          print('👥 Followers: ${user['followers']}');
+        }
+        break;
+
+      case GitHubSignInResultStatus.cancelled:
+        print('❌ Sign in cancelled');
+        break;
+
+      case GitHubSignInResultStatus.failed:
+        print('❌ Sign in failed: ${result.errorMessage}');
+        break;
+    }
+  }
+
+  void _showInviteCodeDialog(String email) {
+    Future.delayed(Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      // 注册后首次登录
+      if (CacheManager.instance.signUpAccount != email) {
+        CommonDialog.showAlert(context: context, customAlert: InviteCodeDialog());
+        CacheManager.instance.signUpAccount = null;
+      }
+    });
   }
 }

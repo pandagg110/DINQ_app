@@ -1,10 +1,12 @@
-import 'package:dinq_app/utils/loading_toast_util.dart';
+import 'package:dinq_app/utils/cache_manager.dart';
+import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
 import '../../widgets/common/base_page.dart';
@@ -284,7 +286,13 @@ class _SignUpPageState extends State<SignUpPage> {
                           fontFamily: 'Tomato Grotesk',
                           decoration: TextDecoration.underline,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            context.push(
+                              '/webview',
+                              extra: {'url': '$appUrl/terms', 'navTitle': 'Terms of Service'},
+                            );
+                          },
                       ),
                       TextSpan(
                         text: ' and ',
@@ -302,7 +310,13 @@ class _SignUpPageState extends State<SignUpPage> {
                           fontFamily: 'Tomato Grotesk',
                           decoration: TextDecoration.underline,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            context.push(
+                              '/webview',
+                              extra: {'url': '$appUrl/privacy', 'navTitle': 'Privacy Policy'},
+                            );
+                          },
                       ),
                     ],
                   ),
@@ -338,26 +352,19 @@ class _SignUpPageState extends State<SignUpPage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    context.push(
-      '/verify',
-      extra: {'email': email, 'password': password, 'nextPath': '/generation'},
-    );
-    return;
-
     try {
-      await LoadingToastUtil.showLoading();
+      await ToastUtil.showLoading();
       await _authService.sendCode(email: email, type: 'register');
+      await ToastUtil.dismiss();
+      CacheManager.instance.signUpAccount = email;
       // 进入验证码页面
       if (!mounted) return;
-      context.push(
-        '/verify',
-        extra: {'email': email, 'password': password, 'nextPath': '/generation'},
-      );
+      context.push('/verify', extra: {'email': email, 'password': password});
     } catch (error) {
       debugPrint('error9999: $error, $email');
+      await ToastUtil.dismiss();
       setState(() => _error = error.toString());
     } finally {
-      await LoadingToastUtil.dismiss();
       // setState(() => _isSendingCode = false);
     }
   }

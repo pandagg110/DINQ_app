@@ -4,12 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import 'base_page.dart';
 
-class CommonDialogGetxTool {
+class CommonDialog {
   static Future<bool?> showAlert({
     required BuildContext context,
     required Widget customAlert,
     Color? barrierColor,
-    bool barrierDismissible = true,
+    bool barrierDismissible = false,
     bool useSafeArea = true,
   }) {
     return showDialog(
@@ -69,7 +69,7 @@ class CommonDialogGetxTool {
             }
             return NormalButton(
               onTap: () {
-                CommonDialogGetxTool.closeDialog(context);
+                CommonDialog.closeDialog(context);
                 if (titles[index].$2 != null) {
                   titles[index].$2!();
                 }

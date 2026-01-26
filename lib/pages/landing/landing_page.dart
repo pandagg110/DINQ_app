@@ -84,28 +84,30 @@ class _LandingPageState extends State<LandingPage> {
     final ctaProgress = _sectionProgress(_ctaKey, viewportHeight);
 
     return Scaffold(
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              children: [
-                _buildHeroSection(context, isAuthenticated, hasFlow),
-                _buildTabsSection(tabsProgress),
-                _buildRolesSection(rolesProgress),
-                _buildCtaSection(context, isAuthenticated, hasFlow, ctaProgress),
-                _buildFaqSection(faqProgress),
-                _buildClosingSection(closingProgress),
-                const AppFooter(),
-              ],
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                children: [
+                  _buildHeroSection(context, isAuthenticated, hasFlow),
+                  _buildTabsSection(tabsProgress),
+                  _buildRolesSection(rolesProgress),
+                  _buildCtaSection(context, isAuthenticated, hasFlow, ctaProgress),
+                  _buildFaqSection(faqProgress),
+                  _buildClosingSection(closingProgress),
+                  const AppFooter(),
+                ],
+              ),
             ),
-          ),
-          AnimatedSlide(
-            offset: _showHeader ? Offset.zero : const Offset(0, -1),
-            duration: const Duration(milliseconds: 300),
-            child: const AppHeader(variant: HeaderVariant.glass),
-          ),
-        ],
+            AnimatedSlide(
+              offset: _showHeader ? Offset.zero : const Offset(0, -1),
+              duration: const Duration(milliseconds: 300),
+              child: const AppHeader(variant: HeaderVariant.glass),
+            ),
+          ],
+        ),
       ),
     );
   }

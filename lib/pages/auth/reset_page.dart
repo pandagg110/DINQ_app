@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
-import '../../utils/loading_toast_util.dart';
+import '../../utils/toast_util.dart';
 import '../../widgets/common/base_page.dart';
 
 class ResetPage extends StatefulWidget {
@@ -136,25 +136,17 @@ class _ResetPageState extends State<ResetPage> {
                         ),
                         width: double.infinity,
                         height: 48,
-                        child: _isSending
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(),
-                              )
-                            : Center(
-                                child: Text(
-                                  'Send Reset Email',
-                                  style: TextStyle(
-                                    color: _isButtonEnabled
-                                        ? Colors.white
-                                        : ColorUtil.sub2TextColor,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 16,
-                                    fontFamily: 'Tomato Grotesk',
-                                  ),
-                                ),
-                              ),
+                        child: Center(
+                          child: Text(
+                            'Send Reset Email',
+                            style: TextStyle(
+                              color: _isButtonEnabled ? Colors.white : ColorUtil.sub2TextColor,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
+                              fontFamily: 'Tomato Grotesk',
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -288,7 +280,7 @@ class _ResetPageState extends State<ResetPage> {
     try {
       // 构建重置密码回调 URL
       final redirectUrl = '${appUrl}/reset-callback';
-      await LoadingToastUtil.showLoading();
+      await ToastUtil.showLoading();
       await _authService.forgotPassword(email: email, redirectUrl: redirectUrl);
       if (mounted) {
         setState(() {
@@ -298,7 +290,7 @@ class _ResetPageState extends State<ResetPage> {
     } catch (error) {
       setState(() => _message = error.toString());
     } finally {
-      await LoadingToastUtil.dismiss();
+      await ToastUtil.dismiss();
       setState(() => _isSending = false);
     }
   }

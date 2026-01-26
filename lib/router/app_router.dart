@@ -58,9 +58,10 @@ class AppRouter {
         GoRoute(
           path: '/verify',
           builder: (context, state) {
+            final map = state.extra as Map<String, dynamic>;
             // 获取路径参数
-            final email = (state.pathParameters['email'] ?? "").toString();
-            final password = (state.pathParameters['password'] ?? "").toString();
+            final email = (map['email'] ?? "").toString();
+            final password = (map['password'] ?? "").toString();
             return VerifyCodePage(email: email, password: password);
           },
         ),
@@ -81,9 +82,10 @@ class AppRouter {
         GoRoute(
           path: '/webview',
           builder: (context, state) {
-            final url = state.uri.queryParameters['url'] ?? '';
-            final navTitle = state.uri.queryParameters['navTitle'];
-            final showAppBar = state.uri.queryParameters['showAppBar'] != 'false';
+            final map = state.extra as Map<String, dynamic>;
+            final url = map['url'] ?? '';
+            final navTitle = map['navTitle'];
+            final showAppBar = map['showAppBar'] != 'false';
             return WebViewPage(
               url: Uri.decodeComponent(url),
               navTitle: navTitle,

@@ -1,7 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../services/contact_request_service.dart';
-import '../../utils/toast_util.dart';
+import '../../utils/top_toast_util.dart';
 
 class DemoPage extends StatefulWidget {
   const DemoPage({super.key});
@@ -49,10 +50,7 @@ class _DemoPageState extends State<DemoPage> {
               const SizedBox(height: 8),
               const Text('Our team will be in touch shortly.'),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => context.go('/'),
-                child: const Text('Back to Home'),
-              ),
+              ElevatedButton(onPressed: () => context.go('/'), child: const Text('Back to Home')),
             ],
           ),
         ),
@@ -61,10 +59,7 @@ class _DemoPageState extends State<DemoPage> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/')),
         title: const Text('Request a Demo'),
       ),
       body: SingleChildScrollView(
@@ -139,9 +134,7 @@ class _DemoPageState extends State<DemoPage> {
                   onPressed: _testToast,
                   icon: const Icon(Icons.notifications),
                   label: const Text('测试 Toast 提示'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                  ),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
                 ),
               ],
             ),
@@ -159,7 +152,12 @@ class _DemoPageState extends State<DemoPage> {
     final reason = _reason ?? '';
     final details = _detailsController.text.trim();
 
-    if (email.isEmpty || name.isEmpty || jobTitle.isEmpty || affiliation.isEmpty || _country == null || reason.isEmpty) {
+    if (email.isEmpty ||
+        name.isEmpty ||
+        jobTitle.isEmpty ||
+        affiliation.isEmpty ||
+        _country == null ||
+        reason.isEmpty) {
       setState(() => _error = 'Please fill all required fields.');
       return;
     }
@@ -185,7 +183,7 @@ class _DemoPageState extends State<DemoPage> {
       );
       setState(() => _isSuccess = true);
       // 显示成功提示
-      ToastUtil.showSuccess(
+      TopToastUtil.showSuccess(
         context: context,
         title: '提交成功',
         description: '您的请求已成功提交，我们会尽快与您联系。',
@@ -193,7 +191,7 @@ class _DemoPageState extends State<DemoPage> {
       );
     } catch (error) {
       // 显示错误提示
-      ToastUtil.showError(
+      TopToastUtil.showError(
         context: context,
         title: '提交失败',
         description: error.toString(),
@@ -207,34 +205,18 @@ class _DemoPageState extends State<DemoPage> {
 
   void _testToast() {
     // 显示成功提示
-    ToastUtil.showSuccess(
-      context: context,
-      title: '成功提示',
-      description: '这是一个成功类型的 Toast 提示',
-    );
+    TopToastUtil.showSuccess(context: context, title: '成功提示', description: '这是一个成功类型的 Toast 提示');
 
     Future.delayed(const Duration(milliseconds: 500), () {
-      ToastUtil.showInfo(
-        context: context,
-        title: '信息提示',
-        description: '这是一个信息类型的 Toast 提示',
-      );
+      TopToastUtil.showInfo(context: context, title: '信息提示', description: '这是一个信息类型的 Toast 提示');
     });
 
     Future.delayed(const Duration(milliseconds: 1000), () {
-      ToastUtil.showWarning(
-        context: context,
-        title: '警告提示',
-        description: '这是一个警告类型的 Toast 提示',
-      );
+      TopToastUtil.showWarning(context: context, title: '警告提示', description: '这是一个警告类型的 Toast 提示');
     });
 
     Future.delayed(const Duration(milliseconds: 1500), () {
-      ToastUtil.showError(
-        context: context,
-        title: '错误提示',
-        description: '这是一个错误类型的 Toast 提示',
-      );
+      TopToastUtil.showError(context: context, title: '错误提示', description: '这是一个错误类型的 Toast 提示');
     });
   }
 }
@@ -247,11 +229,28 @@ class _ReasonOption {
 }
 
 const List<_ReasonOption> _reasons = [
-  _ReasonOption(value: 'screening_bottleneck', label: 'AI team expansion faces bottlenecks in screening qualified candidates'),
-  _ReasonOption(value: 'hiring_cost', label: 'High costs from incorrect hiring due to lack of professional assessment in technical recruitment'),
-  _ReasonOption(value: 'verification_time', label: 'Need to reduce time and cost of AI talent background verification'),
-  _ReasonOption(value: 'identify_talent', label: 'Looking for tools to identify top talent in specific AI specialty areas'),
-  _ReasonOption(value: 'evaluate_skills', label: 'Existing recruitment systems fail to effectively evaluate open-source contributions and practical skills'),
+  _ReasonOption(
+    value: 'screening_bottleneck',
+    label: 'AI team expansion faces bottlenecks in screening qualified candidates',
+  ),
+  _ReasonOption(
+    value: 'hiring_cost',
+    label:
+        'High costs from incorrect hiring due to lack of professional assessment in technical recruitment',
+  ),
+  _ReasonOption(
+    value: 'verification_time',
+    label: 'Need to reduce time and cost of AI talent background verification',
+  ),
+  _ReasonOption(
+    value: 'identify_talent',
+    label: 'Looking for tools to identify top talent in specific AI specialty areas',
+  ),
+  _ReasonOption(
+    value: 'evaluate_skills',
+    label:
+        'Existing recruitment systems fail to effectively evaluate open-source contributions and practical skills',
+  ),
   _ReasonOption(value: 'other', label: 'Other'),
 ];
 
@@ -267,4 +266,3 @@ const List<String> _countries = [
   'India',
   'Australia',
 ];
-
