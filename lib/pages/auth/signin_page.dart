@@ -337,7 +337,7 @@ class _SignInPageState extends State<SignInPage> {
                 padding: EdgeInsetsGeometry.symmetric(horizontal: 24),
                 child: RichText(
                   text: TextSpan(
-                    text: 'Login,you agree to our ',
+                    text: 'Login, you agree to our ',
                     style: TextStyle(
                       color: ColorUtil.sub2TextColor,
                       fontSize: 12,
@@ -364,7 +364,7 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       ),
                       TextSpan(
-                        text: 'privacy_policy.',
+                        text: 'Privacy Policy.',
                         style: TextStyle(
                           color: ColorUtil.textColor,
                           fontSize: 12,

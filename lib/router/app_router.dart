@@ -60,7 +60,8 @@ class AppRouter {
           builder: (context, state) {
             // 获取路径参数
             final email = (state.pathParameters['email'] ?? "").toString();
-            return VerifyCodePage(email: email);
+            final password = (state.pathParameters['password'] ?? "").toString();
+            return VerifyCodePage(email: email, password: password);
           },
         ),
         GoRoute(path: '/reset/callback', builder: (context, state) => const ResetCallbackPage()),

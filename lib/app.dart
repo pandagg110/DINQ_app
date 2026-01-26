@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:provider/provider.dart';
 
 import 'router/app_router.dart';
@@ -43,6 +44,7 @@ class DinqApp extends StatelessWidget {
                 routerConfig: router,
                 theme: AppTheme.lightTheme,
                 debugShowCheckedModeBanner: false,
+                builder: EasyLoading.init(),
               );
             },
           );

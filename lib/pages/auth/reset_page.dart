@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
+import '../../utils/loading_toast_util.dart';
 import '../../widgets/common/base_page.dart';
 
 class ResetPage extends StatefulWidget {
@@ -21,6 +22,7 @@ class _ResetPageState extends State<ResetPage> {
   bool _isSending = false;
   String? _message;
   bool _isButtonEnabled = false;
+  bool _isSent = false;
 
   @override
   void initState() {
@@ -50,100 +52,230 @@ class _ResetPageState extends State<ResetPage> {
         appBar: DefaultAppBar(context),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 18),
-              Text(
-                'Reset Password',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w600,
-                  color: ColorUtil.textColor,
-                  fontFamily: 'Editor Note',
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              RichText(
-                text: TextSpan(
+          child: _isSent
+              ? _buildSentView()
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextSpan(
-                      text:
-                          "Enter your email address and we'll send you a link to reset your password.",
-                      style: TextStyle(fontSize: 14, color: ColorUtil.sub1TextColor),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Reset Password',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w600,
+                        color: ColorUtil.textColor,
+                        fontFamily: 'Editor Note',
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  hintText: 'Enter your email',
-                  hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_message != null)
-                Row(
-                  children: [
-                    AssetImageView('signin_error_tip', width: 24, height: 24),
-                    const SizedBox(width: 4),
-                    Expanded(
+                    const SizedBox(height: 12),
+                    RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text:
+                                "Enter your email address and we'll send you a link to reset your password.",
+                            style: TextStyle(fontSize: 14, color: ColorUtil.sub1TextColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
-                        _message ?? '',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        'Email',
                         style: TextStyle(
-                          fontFamily: 'Tomato Grotesk',
-                          fontWeight: FontWeight.w500,
                           fontSize: 14,
-                          color: Color(0xFFC81E1D),
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              const SizedBox(height: 15),
-              NormalButton(
-                onTap: (_isSending || !_isButtonEnabled) ? () {} : () => _sendReset(),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _isButtonEnabled ? ColorUtil.textColor : .new(0xFF1A343434),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  width: double.infinity,
-                  height: 48,
-                  child: _isSending
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator())
-                      : Center(
-                          child: Text(
-                            'Send Reset Email',
-                            style: TextStyle(
-                              color: _isButtonEnabled ? Colors.white : ColorUtil.sub2TextColor,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                              fontFamily: 'Tomato Grotesk',
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintText: 'Enter your email',
+                        hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_message != null)
+                      Row(
+                        children: [
+                          AssetImageView('signin_error_tip', width: 24, height: 24),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _message ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Tomato Grotesk',
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                                color: Color(0xFFC81E1D),
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    const SizedBox(height: 15),
+                    NormalButton(
+                      onTap: (_isSending || !_isButtonEnabled) ? () {} : () => _sendEmailCode(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _isButtonEnabled ? ColorUtil.textColor : .new(0xFF1A343434),
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        width: double.infinity,
+                        height: 48,
+                        child: _isSending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(),
+                              )
+                            : Center(
+                                child: Text(
+                                  'Send Reset Email',
+                                  style: TextStyle(
+                                    color: _isButtonEnabled
+                                        ? Colors.white
+                                        : ColorUtil.sub2TextColor,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 16,
+                                    fontFamily: 'Tomato Grotesk',
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Remember your password?",
+                          style: TextStyle(
+                            color: ColorUtil.sub1TextColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Tomato Grotesk',
+                          ),
+                        ),
+                        NormalButton(
+                          child: Text(
+                            ' Sign In',
+                            style: TextStyle(
+                              color: ColorUtil.textColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Tomato Grotesk',
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          onTap: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 
-  Future<void> _sendReset() async {
-    context.push('/verify');
-    return;
+  Widget _buildSentView() {
+    return Column(
+      children: [
+        const SizedBox(height: 42),
+        Container(
+          height: 64,
+          width: 64,
+          decoration: BoxDecoration(
+            color: Color(0xFFDDFEBC),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Center(child: AssetImageView('reset_send_success_icon', width: 32, height: 32)),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Check your email',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: ColorUtil.textColor,
+            fontFamily: 'Geist',
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "We've sent a password reset link to",
+          style: TextStyle(fontSize: 14, color: ColorUtil.sub1TextColor, fontFamily: 'Geist'),
+        ),
+        Text(
+          _emailController.text.trim(),
+          style: TextStyle(
+            fontSize: 14,
+            color: ColorUtil.textColor,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Geist',
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          "Didn't receive the email? \nCheck your spam folder or try again.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 2,
+            color: ColorUtil.sub1TextColor,
+            fontFamily: 'Geist',
+          ),
+        ),
+        const SizedBox(height: 20),
+        NormalButton(
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: ColorUtil.textColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            width: double.infinity,
+            height: 48,
+            child: Center(
+              child: Text(
+                'Back to Sign In',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  fontFamily: 'Tomato Grotesk',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _sendEmailCode() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       setState(() => _message = 'Please enter your email.');
@@ -156,11 +288,17 @@ class _ResetPageState extends State<ResetPage> {
     try {
       // 构建重置密码回调 URL
       final redirectUrl = '${appUrl}/reset-callback';
+      await LoadingToastUtil.showLoading();
       await _authService.forgotPassword(email: email, redirectUrl: redirectUrl);
-      setState(() => _message = 'Reset link sent. Check your inbox.');
+      if (mounted) {
+        setState(() {
+          _isSent = true;
+        });
+      }
     } catch (error) {
       setState(() => _message = error.toString());
     } finally {
+      await LoadingToastUtil.dismiss();
       setState(() => _isSending = false);
     }
   }

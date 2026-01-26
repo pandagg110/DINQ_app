@@ -89,8 +89,8 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
         SizedBox(
           width: 0,
           height: 0,
-          child: Visibility(
-            visible: false,
+          child: Opacity(
+            opacity: 0,
             child: TextField(
               controller: widget.controller.tfController,
               focusNode: widget.controller.focusNode,
@@ -126,45 +126,43 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
           selection: TextSelection.collapsed(offset: controller.code.length),
         );
       },
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 50, maxHeight: 50),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(
-              color: controller.code.length == index ? ColorUtil.mainColor : Color(0xFFD8D8D8),
-              width: 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: controller.code.length == index ? ColorUtil.mainColor : Color(0xFFD8D8D8),
+            width: 1,
           ),
-          alignment: Alignment.center,
-          child: Theme(
-            data: Theme.of(context).copyWith(
-              textSelectionTheme: TextSelectionThemeData(
-                selectionColor: Colors.white,
-                cursorColor: ColorUtil.textColor,
-              ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            textSelectionTheme: TextSelectionThemeData(
+              selectionColor: Colors.white,
+              cursorColor: ColorUtil.textColor,
             ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Text(
-                  index < controller.code.length ? controller.code[index] : "",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: ColorUtil.textColor,
-                  ),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Text(
+                index < controller.code.length ? controller.code[index] : "",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: ColorUtil.textColor,
                 ),
-                if (index == controller.code.length && controller.focusNode.hasFocus)
-                  Container(width: 2, height: 20, color: ColorUtil.mainColor)
-                      .animate(onPlay: (c) => c.repeat())
-                      .fade(delay: 500.ms, duration: const Duration(milliseconds: 150))
-                      .then(delay: 500.ms)
-                      .fadeOut(duration: const Duration(milliseconds: 150)),
-              ],
-            ),
+              ),
+              if (index == controller.code.length && controller.focusNode.hasFocus)
+                Container(width: 2, height: 20, color: ColorUtil.mainColor)
+                    .animate(onPlay: (c) => c.repeat())
+                    .fade(delay: 500.ms, duration: const Duration(milliseconds: 150))
+                    .then(delay: 500.ms)
+                    .fadeOut(duration: const Duration(milliseconds: 150)),
+            ],
           ),
         ),
       ),
