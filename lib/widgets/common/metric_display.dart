@@ -34,56 +34,78 @@ class MetricDisplay extends StatelessWidget {
     if (value is int) {
       return formatCount(value as int);
     }
-    return value.toString();
+    // For non-int values, format with reasonable precision
+    if (value is double) {
+      final doubleVal = value as double;
+      // If it's a large number, format similar to int
+      if (doubleVal >= 1000000) {
+        return '${(doubleVal / 1000000).toStringAsFixed(1)}M';
+      } else if (doubleVal >= 1000) {
+        return '${(doubleVal / 1000).toStringAsFixed(1)}K';
+      }
+      // For smaller numbers, limit decimal places
+      return doubleVal.toStringAsFixed(doubleVal.truncateToDouble() == doubleVal ? 0 : 1);
+    }
+    // Fallback: limit string length
+    final str = value.toString();
+    return str.length > 15 ? '${str.substring(0, 12)}...' : str;
   }
 
   @override
   Widget build(BuildContext context) {
     final formattedValue = _formatValue();
     
+    // Use mobile/compact styles by default (matching TSX mobile version)
     TextStyle labelStyle;
     TextStyle valueStyle;
     
     switch (variant) {
       case MetricVariant.compact:
+        // text-xs leading-4 font-normal text-gray-500
         labelStyle = const TextStyle(
           fontSize: 12,
-          height: 1.33,
+          height: 1.0, // Use 1.0 to minimize extra space
           fontWeight: FontWeight.w400,
-          color: Color(0xFF6B7280),
+          color: Color(0xFF6B7280), // text-gray-500
         );
+        // text-xl leading-7 font-semibold text-[#171717]
         valueStyle = const TextStyle(
-          fontSize: 20,
-          height: 1.4,
-          fontWeight: FontWeight.w600,
+          fontSize: 20, // text-xl
+          height: 1.0, // Use 1.0 to minimize extra space
+          fontWeight: FontWeight.w600, // font-semibold
           color: Color(0xFF171717),
         );
         break;
       case MetricVariant.large:
+        // text-sm leading-[18px] font-normal text-gray-500
         labelStyle = const TextStyle(
           fontSize: 14,
-          height: 1.29,
+          height: 1.29, // leading-[18px] = 18px / 14px = 1.29
           fontWeight: FontWeight.w400,
           color: Color(0xFF6B7280),
         );
+        // text-[28px] leading-9 font-semibold text-[#171717]
         valueStyle = const TextStyle(
           fontSize: 28,
-          height: 1.29,
+          height: 1.29, // leading-9 = 36px / 28px = 1.29
           fontWeight: FontWeight.w600,
           color: Color(0xFF171717),
         );
         break;
       case MetricVariant.default_:
+        // Use compact style for mobile (matching TSX mobile version)
+        // text-xs leading-4 font-normal text-gray-500
         labelStyle = const TextStyle(
-          fontSize: 14,
-          height: 1.14,
+          fontSize: 12,
+          height: 1.0, // Use 1.0 to minimize extra space
           fontWeight: FontWeight.w400,
           color: Color(0xFF6B7280),
         );
+        // text-xl leading-7 font-semibold text-[#171717]
         valueStyle = const TextStyle(
-          fontSize: 24,
-          height: 1.33,
-          fontWeight: FontWeight.w500,
+          fontSize: 20,
+          height: 1.0, // Use 1.0 to minimize extra space
+          fontWeight: FontWeight.w600,
           color: Color(0xFF171717),
         );
         break;
@@ -117,12 +139,22 @@ class MetricDisplay extends StatelessWidget {
           textAlign: textAlign,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+          textHeightBehavior: const TextHeightBehavior(
+            applyHeightToFirstAscent: true,
+            applyHeightToLastDescent: false,
+          ),
         ),
         const SizedBox(height: 4), // gap-1 in TSX = 4px
         Text(
           formattedValue,
           style: valueStyle,
           textAlign: textAlign,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textHeightBehavior: const TextHeightBehavior(
+            applyHeightToFirstAscent: true,
+            applyHeightToLastDescent: false,
+          ),
         ),
       ],
     );

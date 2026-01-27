@@ -6,9 +6,10 @@ import '../../services/profile_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../widgets/cards/card_grid.dart';
-import '../../widgets/layout/app_header.dart';
+import '../../widgets/layout/nav_bar.dart';
 import '../../widgets/profile/profile_avatar.dart';
 import '../../widgets/profile/change_status_modal.dart';
+import '../../widgets/profile/floating_toolbar.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.username});
@@ -91,11 +92,25 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           Scaffold(
             body: Column(
               children: [
-                const AppHeader(showAuthButtons: true),
+                // const AppHeader(showAuthButtons: true),
+                NavBar(
+                  onBack: () {
+                    debugPrint('onBack');
+                  },
+                  title: const Text(
+                    'Profile',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF171717),
+                    ),
+                  ),
+                ),
                 Expanded(
-                  child: Portal(child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child:  Column(
+                  child: Portal(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           if (_userData != null) ...[
@@ -117,6 +132,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               isOpen: _isStatusModalOpen,
               onClose: _closeStatusModal,
               currentStatus: _userData!.jobStatus ?? '',
+            ),
+          // Floating Toolbar (only show when editable)
+          if (isEditable)
+            FloatingToolbar(
+              isMobile: true,
+              isSaving: cardStore.isSaving,
             ),
         ],
       ),
