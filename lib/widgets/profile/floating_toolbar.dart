@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../pages/add/add_page.dart';
 import '../../utils/asset_path.dart';
 import '../common/confirm_dialog.dart';
 
@@ -173,7 +174,11 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
               _buildImageIconButton(
                 iconPath: 'icons/mydinq/add.png',
                 onTap: () {
-                  // TODO: Handle add card
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AddPage(),
+                    ),
+                  );
                 },
               ),
 
