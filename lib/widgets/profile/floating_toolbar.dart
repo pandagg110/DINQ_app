@@ -170,25 +170,30 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
               const SizedBox(width: 16),
 
               // Middle Action Buttons (Central section)
-              _buildIconButton(
-                icon: Icons.add,
-                onPressed: () {
+              _buildImageIconButton(
+                iconPath: 'icons/mydinq/add.png',
+                onTap: () {
                   // TODO: Handle add card
                 },
               ),
 
               const SizedBox(width: 12),
 
-              _buildIconButton(
-                icon: Icons.link,
-                onPressed: () {
+              _buildImageIconButton(
+                iconPath: 'icons/mydinq/link.png',
+                onTap: () {
                   // TODO: Handle add link
                 },
               ),
 
               const SizedBox(width: 12),
 
-              _buildImageButton(),
+              _buildImageIconButton(
+                iconPath: 'icons/mydinq/img.png',
+                onTap: () {
+                  // TODO: Handle add link
+                },
+              ),
 
               const SizedBox(width: 16),
 
@@ -206,57 +211,43 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
   }
 
 
-  Widget _buildIconButton({
-    required IconData icon,
-    required VoidCallback onPressed,
+  Widget _buildImageIconButton({
+    required String iconPath,
+    required VoidCallback onTap,
   }) {
-    return Container(
+    return SizedBox(
       width: 32,
       height: 32,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD3D3D3)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(8),
-          child: Icon(
-            icon,
-            size: 20,
-            color: const Color(0xFF111827),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImageButton() {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            // TODO: Handle add image/video
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: ClipRRect(
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.antiAlias,
+        children: [
+          // 图片作为背景
+          ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: SvgPicture.asset(
-              assetPath('images/card/image.svg'),
+            child: Image.asset(
+              assetPath(iconPath),
               width: 32,
               height: 32,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
             ),
           ),
-        ),
+          // 透明 InkWell 覆盖在上层，点击效果可见
+          Material(
+            color: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              splashColor: Colors.white.withOpacity(0.25),
+              highlightColor: Colors.white.withOpacity(0.15),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ],
       ),
     );
   }
