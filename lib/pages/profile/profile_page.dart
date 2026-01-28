@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import '../../models/user_models.dart';
@@ -79,35 +79,35 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     final isEditable = _userData != null ? _isEditable(_userData!) : false;
     final cardStore = context.watch<CardStore>();
 
-    return GestureDetector(
-      onTap: () {
-        // 点击页面外部区域时，清除选中状态
-        if (isEditable && cardStore.selectedCardIds.isNotEmpty) {
-          cardStore.clearSelection();
-        }
-      },
-      behavior: HitTestBehavior.deferToChild,
-      child: Stack(
-        children: [
-          Scaffold(
-            body: Column(
-              children: [
-                // const AppHeader(showAuthButtons: true),
-                NavBar(
-                  onBack: () {
-                    debugPrint('onBack');
-                  },
-                  title: const Text(
-                    'Profile',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717),
+    return Portal(
+      child: GestureDetector(
+        onTap: () {
+          // 点击页面外部区域时，清除选中状态
+          if (isEditable && cardStore.selectedCardIds.isNotEmpty) {
+            cardStore.clearSelection();
+          }
+        },
+        behavior: HitTestBehavior.deferToChild,
+        child: Stack(
+          children: [
+            Scaffold(
+              body: Column(
+                children: [
+                  // const AppHeader(showAuthButtons: true),
+                  NavBar(
+                    onBack: () {
+                      debugPrint('onBack');
+                    },
+                    title: const Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF171717),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Portal(
+                  Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24),
                       child: Column(
@@ -122,24 +122,24 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Status Modal
-          if (_userData != null)
-            ChangeStatusModal(
-              isOpen: _isStatusModalOpen,
-              onClose: _closeStatusModal,
-              currentStatus: _userData!.jobStatus ?? '',
-            ),
-          // Floating Toolbar (only show when editable)
-          if (isEditable)
-            FloatingToolbar(
-              isMobile: true,
-              isSaving: cardStore.isSaving,
-            ),
-        ],
+            // Status Modal
+            if (_userData != null)
+              ChangeStatusModal(
+                isOpen: _isStatusModalOpen,
+                onClose: _closeStatusModal,
+                currentStatus: _userData!.jobStatus ?? '',
+              ),
+            // Floating Toolbar (only show when editable)
+            if (isEditable)
+              FloatingToolbar(
+                isMobile: true,
+                isSaving: cardStore.isSaving,
+              ),
+          ],
+        ),
       ),
     );
   }

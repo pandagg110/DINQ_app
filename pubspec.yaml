@@ -43,6 +43,7 @@ flutter:
     - assets/animations/
     - assets/blogs/
     - assets/icons/
+    - assets/icons/more-btns/
     - assets/icons/avatar/
     - assets/icons/line-icons/
     - assets/icons/logo/
