@@ -53,6 +53,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       okStyle: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFFA325),
         foregroundColor: Colors.white,
+        minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
@@ -62,6 +63,30 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       if (confirmed == true) {
         // TODO: Handle update all cards
         debugPrint('Yes, Update All clicked');
+      }
+    });
+  }
+
+  void _showRegenerateDialog() {
+    ConfirmDialog.show(
+      context: context,
+      title: 'Regenerate My DINQ?',
+      content:
+          'All current DINQ data will be lost. This action cannot be undone. Are you sure you want to continue?',
+      okText: 'Yes, Regenerate',
+      okStyle: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFE12C2C),
+        foregroundColor: Colors.white,
+        minimumSize: const Size(0, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        // TODO: Handle regenerate
+        debugPrint('Yes, Regenerate clicked');
       }
     });
   }
@@ -304,9 +329,8 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                   iconPath: 'icons/more-btns/regenerate.png',
                   label: 'Regenerate',
                   onTap: () {
-                    debugPrint('Regenerate clicked');
                     _closeMenu();
-                    // TODO: Handle regenerate
+                    _showRegenerateDialog();
                   },
                 ),
                 _buildMoreMenuItem(
