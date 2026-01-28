@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../utils/asset_path.dart';
+import '../common/confirm_dialog.dart';
 
 class FloatingToolbar extends StatefulWidget {
   const FloatingToolbar({
@@ -20,10 +21,48 @@ class FloatingToolbar extends StatefulWidget {
 
 class _FloatingToolbarState extends State<FloatingToolbar> {
   bool _moreMenuOpen = false;
+  bool _showBackdrop = false;
 
   void _closeMenu() {
     setState(() {
       _moreMenuOpen = false;
+    });
+    // 延迟隐藏 backdrop，等待动画完成
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        setState(() {
+          _showBackdrop = false;
+        });
+      }
+    });
+  }
+
+  void _openMenu() {
+    setState(() {
+      _moreMenuOpen = true;
+      _showBackdrop = true;
+    });
+  }
+
+  void _showUpdateDialog() {
+    ConfirmDialog.show(
+      context: context,
+      title: 'Update All Cards?',
+      content: 'This will update all card information. This may take a fewmoments.Do you want to continue?',
+      okText: 'Yes, Update All',
+      okStyle: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFFFA325),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        // TODO: Handle update all cards
+        debugPrint('Yes, Update All clicked');
+      }
     });
   }
 
@@ -32,7 +71,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
     return Stack(
       children: [
         // 👇 点外关闭层
-        if (_moreMenuOpen)
+        if (_showBackdrop)
           Positioned.fill(
             child: GestureDetector(
               onTap: _closeMenu,
@@ -213,12 +252,14 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            setState(() {
-              _moreMenuOpen = !_moreMenuOpen;
-            });
-          },
+          child: InkWell(
+            onTap: () {
+              if (_moreMenuOpen) {
+                _closeMenu();
+              } else {
+                _openMenu();
+              }
+            },
           borderRadius: BorderRadius.circular(8),
           child: const Icon(
             Icons.more_horiz,
@@ -233,6 +274,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
   Widget _buildMoreMenu() {
     return IgnorePointer(
       ignoring: !_moreMenuOpen,
+      // ignoring: false,
       child: Container(
         width: 268,
         height: 162,
@@ -258,33 +300,32 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildMoreMenuItem(
-                iconPath: 'icons/more-btns/regenerate.png',
-                label: 'Regenerate',
-                onTap: () {
-                  debugPrint('Regenerate clicked');
-                  setState(() => _moreMenuOpen = false);
-                  // TODO: Handle regenerate
-                },
-              ),
-              _buildMoreMenuItem(
-                iconPath: 'icons/more-btns/udpate.png',
-                label: 'Update',
-                onTap: () {
-                  debugPrint('Update clicked');
-                  setState(() => _moreMenuOpen = false);
-                  // TODO: Handle update
-                },
-              ),
-              _buildMoreMenuItem(
-                iconPath: 'icons/more-btns/setting.png',
-                label: 'Settings',
-                onTap: () {
-                  debugPrint('Settings clicked');
-                  setState(() => _moreMenuOpen = false);
-                  // TODO: Handle settings
-                },
-              ),
+                _buildMoreMenuItem(
+                  iconPath: 'icons/more-btns/regenerate.png',
+                  label: 'Regenerate',
+                  onTap: () {
+                    debugPrint('Regenerate clicked');
+                    _closeMenu();
+                    // TODO: Handle regenerate
+                  },
+                ),
+                _buildMoreMenuItem(
+                  iconPath: 'icons/more-btns/udpate.png',
+                  label: 'Update',
+                  onTap: () {
+                    _closeMenu();
+                    _showUpdateDialog();
+                  },
+                ),
+                _buildMoreMenuItem(
+                  iconPath: 'icons/more-btns/setting.png',
+                  label: 'Settings',
+                  onTap: () {
+                    debugPrint('Settings clicked');
+                    _closeMenu();
+                    // TODO: Handle settings
+                  },
+                ),
             ],
           ),
         ),
