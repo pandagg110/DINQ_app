@@ -1,20 +1,22 @@
-import 'dart:io';
-import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:file_picker/file_picker.dart';
+
 import '../../services/upload_service.dart';
-import '../../utils/toast_util.dart';
+import '../../utils/top_toast_util.dart';
 
 /// 表单字段类型
 enum FormFieldType {
   /// 文本输入框
   input,
+
   /// 多行文本输入框
   texture,
+
   /// 图片上传
   image,
+
   /// 自定义类型
   custom,
 }
@@ -23,37 +25,37 @@ enum FormFieldType {
 class FormFieldConfig {
   /// 字段名称（用于 form key）
   final String name;
-  
+
   /// 字段标签
   final String label;
-  
+
   /// 字段类型
   final FormFieldType type;
-  
+
   /// 初始值
   final dynamic initialValue;
-  
+
   /// 是否必填
   final bool required;
-  
+
   /// 验证器列表
   final List<FormFieldValidator>? validators;
-  
+
   /// 占位符文本
   final String? hintText;
-  
+
   /// 最大行数（用于 texture 类型）
   final int? maxLines;
-  
+
   /// 最小行数（用于 texture 类型）
   final int? minLines;
-  
+
   /// 图片上传配置
   final ImageUploadConfig? imageConfig;
-  
+
   /// 自定义字段构建器（用于 custom 类型）
   final Widget Function(FormFieldState<dynamic>)? customBuilder;
-  
+
   /// 输入框装饰配置
   final InputDecoration? decoration;
 
@@ -77,16 +79,16 @@ class FormFieldConfig {
 class ImageUploadConfig {
   /// 允许的文件扩展名
   final List<String> allowedExtensions;
-  
+
   /// 最大文件大小（字节）
   final int? maxFileSize;
-  
+
   /// 是否显示预览
   final bool showPreview;
-  
+
   /// 预览图片尺寸
   final double previewSize;
-  
+
   /// 上传提示文本
   final String? uploadHint;
 
@@ -103,22 +105,22 @@ class ImageUploadConfig {
 class FormBuilderWidget extends StatefulWidget {
   /// 表单字段配置列表
   final List<FormFieldConfig> fields;
-  
+
   /// 表单提交回调
   final Future<void> Function(Map<String, dynamic>)? onSubmit;
-  
+
   /// 提交按钮文本
   final String submitButtonText;
-  
+
   /// 提交按钮样式
   final ButtonStyle? submitButtonStyle;
-  
+
   /// 表单间距
   final double spacing;
-  
+
   /// 是否显示提交按钮
   final bool showSubmitButton;
-  
+
   /// 表单键（用于外部访问表单状态）
   final GlobalKey<FormBuilderState>? formKey;
 
@@ -147,7 +149,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
   void initState() {
     super.initState();
     _formKey = widget.formKey ?? GlobalKey<FormBuilderState>();
-    
+
     // 初始化图片字段的 URL
     for (final field in widget.fields) {
       if (field.type == FormFieldType.image && field.initialValue != null) {
@@ -159,24 +161,20 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
   Future<void> _handleSubmit() async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
       final formData = _formKey.currentState!.value;
-      
+
       // 合并图片 URL 到表单数据
       _imageUrls.forEach((key, value) {
         if (value != null) {
           formData[key] = value;
         }
       });
-      
+
       if (widget.onSubmit != null) {
         try {
           await widget.onSubmit!(formData);
         } catch (e) {
           if (mounted) {
-            ToastUtil.showError(
-              context: context,
-              title: '提交失败',
-              description: e.toString(),
-            );
+            TopToastUtil.showError(context: context, title: '提交失败', description: e.toString());
           }
         }
       }
@@ -200,11 +198,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
       // 检查文件大小
       if (config.maxFileSize != null && file.bytes!.length > config.maxFileSize!) {
         if (mounted) {
-          ToastUtil.showError(
-            context: context,
-            title: '上传失败',
-            description: '文件大小超过限制',
-          );
+          TopToastUtil.showError(context: context, title: '上传失败', description: '文件大小超过限制');
         }
         return;
       }
@@ -230,31 +224,19 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
         _formKey.currentState?.fields[fieldName]?.didChange(uploadedUrl);
 
         if (mounted) {
-          ToastUtil.showSuccess(
-            context: context,
-            title: '上传成功',
-            description: '图片已上传',
-          );
+          TopToastUtil.showSuccess(context: context, title: '上传成功', description: '图片已上传');
         }
       } catch (e) {
         setState(() {
           _uploadingStates[fieldName] = false;
         });
         if (mounted) {
-          ToastUtil.showError(
-            context: context,
-            title: '上传失败',
-            description: e.toString(),
-          );
+          TopToastUtil.showError(context: context, title: '上传失败', description: e.toString());
         }
       }
     } catch (e) {
       if (mounted) {
-        ToastUtil.showError(
-          context: context,
-          title: '选择文件失败',
-          description: e.toString(),
-        );
+        TopToastUtil.showError(context: context, title: '选择文件失败', description: e.toString());
       }
     }
   }
@@ -279,16 +261,15 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
     // 构建验证器列表
     final validators = <FormFieldValidator>[];
     if (config.required) {
-      validators.add(FormBuilderValidators.required(
-        errorText: '${config.label}不能为空',
-      ));
+      validators.add(FormBuilderValidators.required(errorText: '${config.label}不能为空'));
     }
     if (config.validators != null) {
       validators.addAll(config.validators!);
     }
 
     // 构建装饰
-    final decoration = config.decoration ??
+    final decoration =
+        config.decoration ??
         InputDecoration(
           labelText: config.label,
           hintText: config.hintText,
@@ -324,11 +305,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           initialValue: config.initialValue,
           decoration: decoration,
           validator: validators.isEmpty ? null : FormBuilderValidators.compose(validators),
-          style: const TextStyle(
-            fontFamily: 'Geist',
-            fontSize: 14,
-            color: Color(0xFF171717),
-          ),
+          style: const TextStyle(fontFamily: 'Geist', fontSize: 14, color: Color(0xFF171717)),
         );
 
       case FormFieldType.texture:
@@ -339,11 +316,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           maxLines: config.maxLines,
           minLines: config.minLines ?? 3,
           validator: validators.isEmpty ? null : FormBuilderValidators.compose(validators),
-          style: const TextStyle(
-            fontFamily: 'Geist',
-            fontSize: 14,
-            color: Color(0xFF171717),
-          ),
+          style: const TextStyle(fontFamily: 'Geist', fontSize: 14, color: Color(0xFF171717)),
         );
 
       case FormFieldType.image:
@@ -374,11 +347,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
               ),
               readOnly: true,
               validator: validators.isEmpty ? null : FormBuilderValidators.compose(validators),
-              style: const TextStyle(
-                fontFamily: 'Geist',
-                fontSize: 14,
-                color: Color(0xFF171717),
-              ),
+              style: const TextStyle(fontFamily: 'Geist', fontSize: 14, color: Color(0xFF171717)),
             ),
             if (imageConfig.showPreview && imageUrl != null && imageUrl.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -429,11 +398,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
               const SizedBox(height: 4),
               Text(
                 imageConfig.uploadHint!,
-                style: TextStyle(
-                  fontFamily: 'Geist',
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontFamily: 'Geist', fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ],
@@ -459,22 +424,23 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ...widget.fields.map((field) => Padding(
-                padding: EdgeInsets.only(bottom: widget.spacing),
-                child: _buildField(field),
-              )),
+          ...widget.fields.map(
+            (field) => Padding(
+              padding: EdgeInsets.only(bottom: widget.spacing),
+              child: _buildField(field),
+            ),
+          ),
           if (widget.showSubmitButton) ...[
             SizedBox(height: widget.spacing),
             ElevatedButton(
               onPressed: _handleSubmit,
-              style: widget.submitButtonStyle ??
+              style:
+                  widget.submitButtonStyle ??
                   ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     textStyle: const TextStyle(
                       fontFamily: 'Geist',
                       fontSize: 16,

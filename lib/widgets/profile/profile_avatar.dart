@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
-import '../../utils/toast_util.dart';
 import '../../utils/asset_path.dart';
+import '../../utils/top_toast_util.dart';
 
 class ProfileAvatar extends StatefulWidget {
   const ProfileAvatar({
@@ -68,12 +69,12 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
             contentType: file.extension == 'png'
                 ? 'image/png'
                 : file.extension == 'jpg' || file.extension == 'jpeg'
-                    ? 'image/jpeg'
-                    : file.extension == 'gif'
-                        ? 'image/gif'
-                        : file.extension == 'webp'
-                            ? 'image/webp'
-                            : 'image/jpeg',
+                ? 'image/jpeg'
+                : file.extension == 'gif'
+                ? 'image/gif'
+                : file.extension == 'webp'
+                ? 'image/webp'
+                : 'image/jpeg',
           );
 
           // 更新用户数据
@@ -85,30 +86,18 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
             _isUploading = false;
           });
 
-          ToastUtil.showSuccess(
-            context: context,
-            title: '上传成功',
-            description: '头像已更新',
-          );
+          TopToastUtil.showSuccess(context: context, title: '上传成功', description: '头像已更新');
 
           widget.onAvatarUpdated?.call();
         } catch (error) {
           setState(() {
             _isUploading = false;
           });
-          ToastUtil.showError(
-            context: context,
-            title: '上传失败',
-            description: error.toString(),
-          );
+          TopToastUtil.showError(context: context, title: '上传失败', description: error.toString());
         }
       }
     } catch (error) {
-      ToastUtil.showError(
-        context: context,
-        title: '选择文件失败',
-        description: error.toString(),
-      );
+      TopToastUtil.showError(context: context, title: '选择文件失败', description: error.toString());
     }
   }
 
@@ -136,19 +125,14 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
     final jobStatusCircleAsset = _getJobStatusCircleAsset();
 
     return MouseRegion(
-      onEnter: widget.editable && !_isUploading
-          ? (_) => setState(() => _isHovering = true)
-          : null,
+      onEnter: widget.editable && !_isUploading ? (_) => setState(() => _isHovering = true) : null,
       onExit: widget.editable ? (_) => setState(() => _isHovering = false) : null,
       child: Stack(
         children: [
           Container(
             width: widget.size,
             height: widget.size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFE5E5E5),
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFE5E5E5)),
             child: ClipOval(
               child: Stack(
                 children: [
@@ -166,11 +150,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                                 setState(() => _hasError = true);
                               }
                             });
-                            return Icon(
-                              Icons.person,
-                              size: widget.size * 0.5,
-                              color: Colors.grey,
-                            );
+                            return Icon(Icons.person, size: widget.size * 0.5, color: Colors.grey);
                           },
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
@@ -178,17 +158,13 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                               child: CircularProgressIndicator(
                                 value: loadingProgress.expectedTotalBytes != null
                                     ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
+                                          loadingProgress.expectedTotalBytes!
                                     : null,
                               ),
                             );
                           },
                         )
-                      : Icon(
-                          Icons.person,
-                          size: widget.size * 0.5,
-                          color: Colors.grey,
-                        ),
+                      : Icon(Icons.person, size: widget.size * 0.5, color: Colors.grey),
                   // 工作状态徽章 - 弧形背景（使用 PNG 图片）
                   if (jobStatusCircleAsset != null)
                     Positioned.fill(
@@ -216,9 +192,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                   shape: BoxShape.circle,
                   color: Colors.grey.withOpacity(0.3),
                 ),
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: const Center(child: CircularProgressIndicator()),
               ),
             ),
 
@@ -240,10 +214,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white.withOpacity(0.1),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                     ),
                     if (widget.onStatusEdit != null) ...[
@@ -255,10 +226,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white.withOpacity(0.1),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                       ),
                     ],
@@ -271,4 +239,3 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
     );
   }
 }
-

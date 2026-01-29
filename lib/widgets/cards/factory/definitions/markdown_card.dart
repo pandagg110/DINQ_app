@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../utils/toast_util.dart';
+
 import '../../../../services/upload_service.dart';
 import '../card_definition.dart';
 
@@ -22,10 +24,7 @@ class InlineCodeBuilder extends MarkdownElementBuilder {
       decoration: BoxDecoration(
         color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: const Color(0xFFDFDFDF),
-          width: 0.5,
-        ),
+        border: Border.all(color: const Color(0xFFDFDFDF), width: 0.5),
       ),
       child: Text(
         text,
@@ -50,10 +49,7 @@ class LinkBuilder extends MarkdownElementBuilder {
 
     return GestureDetector(
       onTap: () {
-        launchUrl(
-          Uri.parse(href),
-          mode: LaunchMode.externalApplication,
-        );
+        launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
       },
       child: Container(
         margin: const EdgeInsets.only(right: 8, top: 2, bottom: 2),
@@ -61,10 +57,7 @@ class LinkBuilder extends MarkdownElementBuilder {
         decoration: BoxDecoration(
           color: const Color(0xFFF3F4F6),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: const Color(0xFFDFDFDF),
-            width: 0.5,
-          ),
+          border: Border.all(color: const Color(0xFFDFDFDF), width: 0.5),
         ),
         child: Text(
           text,
@@ -273,7 +266,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
 
       if (!isImageFile && !isVideoFile) {
         if (mounted) {
-          ToastUtil.showError(
+          TopToastUtil.showError(
             context: context,
             title: 'Upload Failed',
             description: 'Please upload an image or video file',
@@ -285,11 +278,10 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
       final maxSize = isVideoFile ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
       if (fileBytes.length > maxSize) {
         if (mounted) {
-          ToastUtil.showError(
+          TopToastUtil.showError(
             context: context,
             title: 'Upload Failed',
-            description:
-                'File size should be less than ${isVideoFile ? "50MB" : "10MB"}',
+            description: 'File size should be less than ${isVideoFile ? "50MB" : "10MB"}',
           );
         }
         return;
@@ -305,9 +297,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
       setState(() => _mediaUrl = file.path!);
 
       try {
-        final contentType = isVideoFile
-            ? 'video/${file.extension}'
-            : 'image/${file.extension}';
+        final contentType = isVideoFile ? 'video/${file.extension}' : 'image/${file.extension}';
         final uploadedUrl = await _uploadService.uploadFile(
           bytes: Uint8List.fromList(fileBytes),
           filename: file.name,
@@ -324,7 +314,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
         });
       } catch (e) {
         if (mounted) {
-          ToastUtil.showError(
+          TopToastUtil.showError(
             context: context,
             title: 'Upload Failed',
             description: 'Failed to upload. Please try again.',
@@ -339,7 +329,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
       }
     } catch (e) {
       if (mounted) {
-        ToastUtil.showError(
+        TopToastUtil.showError(
           context: context,
           title: 'Upload Failed',
           description: 'Failed to pick file. Please try again.',
@@ -377,30 +367,18 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                 color: Color(0xFF171717),
               ),
               decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -452,24 +430,15 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                 contentPadding: const EdgeInsets.all(8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
                 ),
                 hintText:
                     "**This is your title**\n\nthis is your description content, and your **name**, and *more*\n\n`tag`[dinq.me](https://dinq.me)",
@@ -495,9 +464,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                 child: _markdownContent.isEmpty
                     ? Center(
                         child: Text(
-                          widget.editable
-                              ? 'Click to add content'
-                              : 'No content yet',
+                          widget.editable ? 'Click to add content' : 'No content yet',
                           style: const TextStyle(
                             color: Color(0xFF9CA3AF),
                             fontStyle: FontStyle.italic,
@@ -511,20 +478,11 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                           data: _markdownContent,
                           styleSheet: MarkdownStyleSheet(
                             // 段落样式
-                            p: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF374151),
-                              height: 1.5,
-                            ),
+                            p: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.5),
                             pPadding: const EdgeInsets.only(bottom: 4, top: 4),
                             // 移除最后一个段落的底部间距
                             horizontalRuleDecoration: BoxDecoration(
-                              border: Border(
-                                top: BorderSide(
-                                  color: Colors.transparent,
-                                  width: 0,
-                                ),
-                              ),
+                              border: Border(top: BorderSide(color: Colors.transparent, width: 0)),
                             ),
                             // 标题样式
                             h1: const TextStyle(
@@ -571,19 +529,14 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                               decoration: TextDecoration.none,
                             ),
                             // 列表样式
-                            listBullet: const TextStyle(
-                              color: Color(0xFF374151),
-                            ),
+                            listBullet: const TextStyle(color: Color(0xFF374151)),
                             listIndent: 24,
                             // 移除最后一个元素的底部间距
                             blockquotePadding: const EdgeInsets.only(left: 16),
                             blockquoteDecoration: BoxDecoration(
                               color: const Color(0xFFF3F4F6),
                               border: Border(
-                                left: BorderSide(
-                                  color: const Color(0xFFDFDFDF),
-                                  width: 4,
-                                ),
+                                left: BorderSide(color: const Color(0xFFDFDFDF), width: 4),
                               ),
                             ),
                           ),
@@ -595,10 +548,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                           },
                           onTapLink: (text, href, title) {
                             if (href != null) {
-                              launchUrl(
-                                Uri.parse(href),
-                                mode: LaunchMode.externalApplication,
-                              );
+                              launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
                             }
                           },
                         ),
@@ -617,11 +567,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
           decoration: BoxDecoration(
             color: const Color(0xFFF6F6F6),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: const Color(0xFFE2E2E2),
-              style: BorderStyle.solid,
-              width: 1,
-            ),
+            border: Border.all(color: const Color(0xFFE2E2E2), style: BorderStyle.solid, width: 1),
           ),
           child: Stack(
             children: [
@@ -672,9 +618,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                             ),
                             const SizedBox(width: 12),
                             _buildMediaActionButton(
-                              icon: _isVideo
-                                  ? Icons.videocam
-                                  : Icons.camera_alt,
+                              icon: _isVideo ? Icons.videocam : Icons.camera_alt,
                               color: const Color(0xFF3B82F6),
                               onTap: _handleMediaUpload,
                             ),
@@ -697,9 +641,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
     return SizedBox.expand(
       child: Container(
         color: Colors.black,
-        child: const Center(
-          child: Icon(Icons.play_circle_outline, color: Colors.white, size: 48),
-        ),
+        child: const Center(child: Icon(Icons.play_circle_outline, color: Colors.white, size: 48)),
       ),
     );
   }
@@ -716,9 +658,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
           ),
           const SizedBox(height: 12),
           Text(
-            _isUploading
-                ? 'Uploading...'
-                : (widget.editable ? 'Click to upload' : 'No media'),
+            _isUploading ? 'Uploading...' : (widget.editable ? 'Click to upload' : 'No media'),
             style: const TextStyle(
               color: Color(0xFF303030),
               fontSize: 14,
@@ -742,13 +682,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
         decoration: const BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
         ),
         child: Icon(icon, size: 16, color: color),
       ),
@@ -762,8 +696,6 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          
-          
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
