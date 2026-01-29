@@ -4,6 +4,8 @@ import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../pages/add/add_page.dart';
 import '../../utils/asset_path.dart';
+import '../cards/factory/card_definition.dart';
+import '../common/add_card_dialog.dart';
 import '../common/confirm_dialog.dart';
 
 class FloatingToolbar extends StatefulWidget {
@@ -173,12 +175,23 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
               // Middle Action Buttons (Central section)
               _buildImageIconButton(
                 iconPath: 'icons/mydinq/add.png',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
+                onTap: () async {
+                  final result = await Navigator.of(context).push<CardDefinition>(
+                    MaterialPageRoute<CardDefinition>(
                       builder: (_) => const AddPage(),
                     ),
                   );
+                  if (result != null && context.mounted) {
+                    AddCardDialog.show(
+                      context: context,
+                      definition: result,
+                    ).then((confirmed) {
+                      if (confirmed == true) {
+                        debugPrint('Add card: ${result.type}');
+                        // TODO: Handle add card with result.type
+                      }
+                    });
+                  }
                 },
               ),
 

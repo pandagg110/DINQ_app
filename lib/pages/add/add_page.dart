@@ -39,7 +39,7 @@ class AddPage extends StatelessWidget {
             'Add',
             style: TextStyle(
               fontFamily: 'Geist',
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Color(0xFF171717),
             ),
@@ -148,7 +148,9 @@ class AddCardBtn extends StatelessWidget {
                   ),
                 ),
                 child: InkWell(
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.of(context).pop(definition);
+                  },
                   borderRadius: BorderRadius.circular(8),
                   splashColor: Colors.black.withOpacity(0.06),
                   highlightColor: Colors.black.withOpacity(0.04),
