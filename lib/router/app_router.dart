@@ -25,6 +25,7 @@ import '../pages/callback/account_callback_page.dart';
 import '../pages/callback/social_callback_page.dart';
 import '../pages/generation/generation_page.dart';
 import '../pages/landing/landing_page.dart';
+import '../pages/main_tab/main_tab_page.dart';
 import '../pages/marketing/blog_detail_page.dart';
 import '../pages/marketing/blogs_page.dart';
 import '../pages/marketing/cookies_page.dart';
@@ -50,7 +51,7 @@ class AppRouter {
       initialLocation: '/',
       errorBuilder: (context, state) => const NotFoundPage(),
       routes: [
-        GoRoute(path: '/', builder: (context, state) => const LandingPage()),
+        GoRoute(path: '/', builder: (context, state) => const MainTabPage()),
         GoRoute(path: '/landing', builder: (context, state) => const LandingPage()),
         GoRoute(path: '/signin', builder: (context, state) => const SignInPage()),
         GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),

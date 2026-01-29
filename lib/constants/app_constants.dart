@@ -4,6 +4,10 @@ const String gatewayUrl = String.fromEnvironment(
   defaultValue: 'https://api.dinq.me',
 );
 
+class ConstantsTool {
+  static const bottomTabHeight = 66.0;
+}
+
 class ApiConfig {
   static const int requestTimeoutMs = 30000;
   static const int defaultPageSize = 50;

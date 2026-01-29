@@ -379,7 +379,9 @@ class _LandingPageState extends State<LandingPage> {
           label: const Text('My DINQ'),
         ),
         OutlinedButton.icon(
-          onPressed: () => context.go('/admin/search'),
+          onPressed: () {
+            context.push('/admin-search');
+          },
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF171717),
             side: const BorderSide(color: Color(0xFF171717)),
