@@ -8,6 +8,7 @@ class ProfileService {
   /// 获取用户数据 (通过 username)
   Future<UserData> getUserData(String username) async {
     final response = await _dio.get('/user-data', queryParameters: {'username': username});
+    // debugPrint(response.data.toString());
     return UserData.fromJson(Map<String, dynamic>.from(response.data as Map));
   }
 

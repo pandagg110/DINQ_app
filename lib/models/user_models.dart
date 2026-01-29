@@ -30,12 +30,26 @@ class UserData {
     required this.avatarUrl,
     required this.bio,
     required this.domain,
+    this.email = '',
+    this.fullPosition = '',
+    this.fullDegree = '',
+    this.location = '',
+    this.timezone,
+    this.tags = '',
+    this.jobStatus,
   });
 
   final String name;
   final String avatarUrl;
   final String bio;
   final String domain;
+  final String email;
+  final String fullPosition;
+  final String fullDegree;
+  final String location;
+  final String? timezone;
+  final String tags;
+  final String? jobStatus; // "Hiring" | "Open_to_work" | "Internship" | "Freelance" | "Hidden"
 
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
@@ -43,6 +57,13 @@ class UserData {
       avatarUrl: json['avatar_url']?.toString() ?? json['avatarUrl']?.toString() ?? '',
       bio: json['bio']?.toString() ?? '',
       domain: json['domain']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      fullPosition: json['full_position']?.toString() ?? '',
+      fullDegree: json['full_degree']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      timezone: json['timezone']?.toString(),
+      tags: json['tags']?.toString() ?? '',
+      jobStatus: json['job_status']?.toString(),
     );
   }
 
@@ -51,6 +72,13 @@ class UserData {
         'avatar_url': avatarUrl,
         'bio': bio,
         'domain': domain,
+        if (email.isNotEmpty) 'email': email,
+        if (fullPosition.isNotEmpty) 'full_position': fullPosition,
+        if (fullDegree.isNotEmpty) 'full_degree': fullDegree,
+        if (location.isNotEmpty) 'location': location,
+        if (timezone != null) 'timezone': timezone,
+        if (tags.isNotEmpty) 'tags': tags,
+        if (jobStatus != null) 'job_status': jobStatus,
       };
 }
 
