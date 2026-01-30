@@ -86,10 +86,10 @@ class MarkdownCardDefinition extends CardDefinition {
   String get type => 'MARKDOWN';
 
   @override
-  String get icon => '/icons/markdown.svg';
+  String get icon => '/icons/summary.png';
 
   @override
-  String get name => 'Markdown';
+  String get name => 'Summary';
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(

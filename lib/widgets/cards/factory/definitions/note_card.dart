@@ -7,7 +7,7 @@ class NoteCardDefinition extends CardDefinition {
   String get type => 'NOTE';
 
   @override
-  String get icon => '/icons/note.svg';
+  String get icon => '/icons/note.png';
 
   @override
   String get name => 'Note';

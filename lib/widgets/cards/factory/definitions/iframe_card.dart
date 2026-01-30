@@ -9,7 +9,7 @@ class IframeCardDefinition extends CardDefinition {
   String get type => 'IFRAME';
 
   @override
-  String get icon => 'i-mdi:iframe-brackets-outline';
+  String get icon => '/icons/iframe.png';
 
   @override
   String get name => 'Iframe';

@@ -7,7 +7,7 @@ class AchievementNetworkCardDefinition extends CardDefinition {
   String get type => 'ACHIEVEMENT_NETWORK';
 
   @override
-  String get icon => 'i-lucide-network';
+  String get icon => '/icons/network.png';
 
   @override
   String get name => 'Network';

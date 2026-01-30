@@ -263,18 +263,10 @@ class AddCardBtn extends StatelessWidget {
   }
 
   Widget _iconAsset(String finalAsset) {
-    return Container(
+    return SizedBox(
       width: _iconSize,
       height: _iconSize,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: AssetIcon(asset: finalAsset, size: 20),
-      ),
+      child: AssetIcon(asset: finalAsset, size: 32),
     );
   }
 

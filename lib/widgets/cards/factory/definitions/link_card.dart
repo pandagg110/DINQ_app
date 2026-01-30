@@ -7,7 +7,7 @@ class LinkCardDefinition extends CardDefinition {
   String get type => 'LINK';
 
   @override
-  String get icon => '/icons/link-image.svg';
+  String get icon => '/icons/link.png';
 
   @override
   String get name => 'Link';

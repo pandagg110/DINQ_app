@@ -6,7 +6,7 @@ class ImageCardDefinition extends CardDefinition {
   String get type => 'IMAGE';
 
   @override
-  String get icon => '/icons/image.svg';
+  String get icon => '/icons/img.png';
 
   @override
   String get name => 'Image';

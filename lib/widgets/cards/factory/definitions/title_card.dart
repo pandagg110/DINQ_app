@@ -6,7 +6,7 @@ class TitleCardDefinition extends CardDefinition {
   String get type => 'TITLE';
 
   @override
-  String get icon => 'i-lucide-heading';
+  String get icon => '/icons/title.png';
 
   @override
   String get name => 'Title';
