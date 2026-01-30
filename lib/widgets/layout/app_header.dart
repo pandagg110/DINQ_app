@@ -1,7 +1,7 @@
-﻿import 'dart:ui';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
 import '../../stores/user_store.dart';
 import '../logo.dart';
 
@@ -29,7 +29,9 @@ class _AppHeaderState extends State<AppHeader> {
     final headerContent = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: widget.variant == HeaderVariant.glass ? Colors.white.withOpacity(0.7) : const Color(0xFFF9F9F9),
+        color: widget.variant == HeaderVariant.glass
+            ? Colors.white.withOpacity(0.7)
+            : const Color(0xFFF9F9F9),
         border: Border(bottom: BorderSide(color: Colors.black.withOpacity(0.1))),
       ),
       child: Row(
@@ -42,7 +44,8 @@ class _AppHeaderState extends State<AppHeader> {
           const SizedBox(width: 24),
           if (isDesktop) _buildDesktopNav(context),
           const Spacer(),
-          if (widget.showAuthButtons) _buildAuthControls(context, isDesktop, isAuthenticated, userStore),
+          if (widget.showAuthButtons)
+            _buildAuthControls(context, isDesktop, isAuthenticated, userStore),
           if (!isDesktop) _buildMobileMenuButton(),
         ],
       ),
@@ -50,10 +53,7 @@ class _AppHeaderState extends State<AppHeader> {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        headerContent,
-        if (!isDesktop) _buildMobileMenu(context, isAuthenticated),
-      ],
+      children: [headerContent, if (!isDesktop) _buildMobileMenu(context, isAuthenticated)],
     );
   }
 
@@ -206,8 +206,14 @@ class _AppHeaderState extends State<AppHeader> {
               padding: const EdgeInsets.only(left: 16),
               child: Column(
                 children: [
-                  _MobileNavItem(label: 'My DINQ', onTap: () => _authNavigate(context, context.read<UserStore>(), '/admin/mydinq')),
-                  _MobileNavItem(label: 'Discover', onTap: () => _authNavigate(context, context.read<UserStore>(), '/admin/search')),
+                  _MobileNavItem(
+                    label: 'My DINQ',
+                    onTap: () => _authNavigate(context, context.read<UserStore>(), '/admin/mydinq'),
+                  ),
+                  _MobileNavItem(
+                    label: 'Discover',
+                    onTap: () => _authNavigate(context, context.read<UserStore>(), '/admin/search'),
+                  ),
                   _MobileNavItem(label: 'Analysis', onTap: () => _navigate(context, '/analysis')),
                 ],
               ),
@@ -216,11 +222,17 @@ class _AppHeaderState extends State<AppHeader> {
           _MobileNavItem(label: 'Blogs', onTap: () => _navigate(context, '/blogs')),
           const Divider(height: 1),
           if (isAuthenticated) ...[
-            _MobileNavItem(label: 'Settings', onTap: () => _authNavigate(context, context.read<UserStore>(), '/settings/profile')),
-            _MobileNavItem(label: 'Sign out', onTap: () {
-              context.read<UserStore>().logout();
-              _navigate(context, '/');
-            }),
+            _MobileNavItem(
+              label: 'Settings',
+              onTap: () => _authNavigate(context, context.read<UserStore>(), '/settings/profile'),
+            ),
+            _MobileNavItem(
+              label: 'Sign out',
+              onTap: () {
+                context.read<UserStore>().logout();
+                _navigate(context, '/');
+              },
+            ),
           ] else ...[
             _MobileNavItem(label: 'Sign up', onTap: () => _navigate(context, '/signup')),
             _MobileNavItem(label: 'Sign in', onTap: () => _navigate(context, '/signin')),
@@ -236,7 +248,7 @@ class _AppHeaderState extends State<AppHeader> {
       mobileMenuOpen = false;
       productExpanded = false;
     });
-    context.go(path);
+    context.push(path);
   }
 
   void _handleProductSelection(BuildContext context, String path) {
@@ -254,7 +266,8 @@ class _AppHeaderState extends State<AppHeader> {
       return;
     }
     final flow = userStore.myFlow;
-    if (path.startsWith('/admin') && (flow == null || flow.status != 'success' || flow.domain.isEmpty)) {
+    if (path.startsWith('/admin') &&
+        (flow == null || flow.status != 'success' || flow.domain.isEmpty)) {
       context.go('/generation');
       return;
     }
@@ -300,5 +313,3 @@ class _MobileNavItem extends StatelessWidget {
 }
 
 enum HeaderVariant { solid, glass }
-
-
