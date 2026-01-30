@@ -5,7 +5,7 @@ const String gatewayUrl = String.fromEnvironment(
 );
 
 class ConstantsTool {
-  static const bottomTabHeight = 66.0;
+  static const bottomTabHeight = 55.0;
 }
 
 class ApiConfig {

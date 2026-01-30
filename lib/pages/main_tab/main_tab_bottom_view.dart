@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:dinq_app/constants/app_constants.dart';
 import 'package:dinq_app/utils/color_util.dart';
@@ -58,8 +59,8 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
           bottom: max(16, MediaQuery.of(context).padding.bottom),
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          color: Colors.white,
+          borderRadius: BorderRadius.circular(55),
+          color: Color(0xFFF7F7F7), //Colors.white.withAlpha((0.8 * 255).toInt()),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha((255 * 0.16).toInt()),
@@ -68,62 +69,98 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
             ),
           ],
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: List.generate(buttonData.length, (index) {
-            bool isSelected = index == _currentTabType.pageIndex;
-            bool isTrade = index == 2;
-            return Expanded(
-              child: NormalButton(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(height: 2 + 24),
-                          Text(
-                            buttonData[index].title,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isSelected ? Color(0xFF1487FA) : ColorUtil.textColor,
-                              fontSize: 10,
-                              height: 1.0,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'Geist',
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final itemW = constraints.maxWidth / buttonData.length;
+            return Stack(
+              children: [
+                AnimatedPositioned(
+                  left: itemW * _currentTabType.pageIndex,
+                  top: 3,
+                  bottom: 3,
+                  duration: Duration(milliseconds: 200),
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: itemW - 6,
+                        margin: EdgeInsets.only(left: 3),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white, width: 1),
+                          color: Color(0xFFF7F7F7),
+                          borderRadius: BorderRadius.circular(55),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha((255 * 0.1).toInt()),
+                              blurRadius: 5,
+                              offset: Offset(0, 0),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      top: 13,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: AssetImageView(
-                          isSelected ? buttonData[index].selIconName : buttonData[index].iconName,
-                          width: 24,
-                          fit: BoxFit.contain,
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(40),
+                        child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20)),
+                      ),
+                    ],
+                  ),
                 ),
-                onTap: () {
-                  // if ((index == 4) && UserRepo.shared.currentUser == null) {
-                  //   CYGetRouter.pushRoute(Routes.signIn);
-                  //   return;
-                  // }
-                  MainTabType currentType = MainTabType.fromIndex(index);
-                  currentTabType = currentType;
-                  widget.onChanged.call(currentType);
-                },
-              ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: List.generate(buttonData.length, (index) {
+                    bool isSelected = index == _currentTabType.pageIndex;
+                    return Expanded(
+                      child: NormalButton(
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  SizedBox(height: 2 + 24),
+                                  Text(
+                                    buttonData[index].title,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: isSelected ? Color(0xFF1487FA) : ColorUtil.textColor,
+                                      fontSize: 10,
+                                      height: 1.0,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Geist',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              top: 10,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: AssetImageView(
+                                  isSelected
+                                      ? buttonData[index].selIconName
+                                      : buttonData[index].iconName,
+                                  width: 24,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          MainTabType currentType = MainTabType.fromIndex(index);
+                          currentTabType = currentType;
+                          widget.onChanged.call(currentType);
+                        },
+                      ),
+                    );
+                  }),
+                ),
+              ],
             );
-          }),
+          },
         ),
       ),
     );
