@@ -119,8 +119,6 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
   @override
   Widget build(BuildContext context) {
     final segments = (widget.card.data.metadata['segments'] as List<dynamic>?) ?? [];
-    debugPrint('CareerTrajectoryWidget: segments: ${segments.length}');
-    debugPrint('CareerTrajectoryWidget: segments: ${widget.card.toJson().toString()}');
     if (segments.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
