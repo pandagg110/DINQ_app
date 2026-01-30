@@ -101,50 +101,52 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
           20,
           20 + mq.padding.bottom,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 标题行：左侧标题，右侧 Add 按钮
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${def.name} Card',
-                    style: const TextStyle(
-                      fontFamily: 'Geist',
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 标题行：左侧标题，右侧 Add 按钮
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${def.name} Card',
+                      style: const TextStyle(
+                        fontFamily: 'Geist',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF171717),
+                      ),
                     ),
                   ),
-                ),
-                TextButton(
-                  onPressed: _onAdd,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF2563EB),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  child: const Text(
-                    'Add',
-                    style: TextStyle(
-                      fontFamily: 'Geist',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                  TextButton(
+                    onPressed: _onAdd,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF2563EB),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    child: const Text(
+                      'Add',
+                      style: TextStyle(
+                        fontFamily: 'Geist',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // 根据类型渲染不同的表单
-            if (typeUpper == 'LINK')
-              _buildLinkForm(def)
-            else if (typeUpper == 'MARKDOWN')
-              _buildMarkdownForm(def)
-            else
-              _buildNonLinkForm(def),
-          ],
+                ],
+              ),
+              const SizedBox(height: 16),
+              // 根据类型渲染不同的表单
+              if (typeUpper == 'LINK')
+                _buildLinkForm(def)
+              else if (typeUpper == 'MARKDOWN')
+                _buildMarkdownForm(def)
+              else
+                _buildNonLinkForm(def),
+            ],
+          ),
         ),
       ),
     );

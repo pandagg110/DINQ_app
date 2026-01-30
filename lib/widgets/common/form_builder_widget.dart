@@ -135,36 +135,27 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
 
   /// 选择图片后直接使用 getUploadUrl 上传，表单显示上传后的 URL
   Future<void> _handleImageUpload(String fieldName, ImageUploadConfig config) async {
-    debugPrint('[FormBuilder] _handleImageUpload 开始 fieldName=$fieldName');
     if (_uploadingStates[fieldName] == true) {
-      debugPrint('[FormBuilder] 正在上传中，忽略');
       return;
     }
     try {
-      debugPrint('[FormBuilder] 打开文件选择器 allowedExtensions=${config.allowedExtensions}');
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: config.allowedExtensions,
       );
-      debugPrint('[FormBuilder] pickFiles 返回 result=$result, filesCount=${result?.files.length ?? 0}');
       if (result == null || result.files.isEmpty) {
-        debugPrint('[FormBuilder] 未选择文件或结果为空');
         return;
       }
       final file = result.files.first;
-      debugPrint('[FormBuilder] 第一个文件 name=${file.name}, path=${file.path}, bytes=${file.bytes != null ? file.bytes!.length : null}, size=${file.size}');
 
       // 手机端常只返回 path，bytes 为 null，需从路径读取
       Uint8List bytes;
       if (file.bytes != null) {
         bytes = file.bytes!;
-        debugPrint('[FormBuilder] 使用 file.bytes 长度=${bytes.length}');
       } else if (!kIsWeb && file.path != null && file.path!.isNotEmpty) {
         try {
           bytes = await path_reader.readBytesFromPath(file.path!);
-          debugPrint('[FormBuilder] 从 path 读取成功 长度=${bytes.length}');
         } catch (e) {
-          debugPrint('[FormBuilder] 从 path 读取失败: $e');
           if (mounted) {
             ToastUtil.showError(
               context: context,
@@ -175,7 +166,6 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           return;
         }
       } else {
-        debugPrint('[FormBuilder] file.bytes 与 path 均不可用，无法上传');
         if (mounted) {
           ToastUtil.showError(
             context: context,
@@ -187,7 +177,6 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
       }
 
       if (config.maxFileSize != null && bytes.length > config.maxFileSize!) {
-        debugPrint('[FormBuilder] 文件过大 ${bytes.length} > ${config.maxFileSize}');
         if (mounted) {
           ToastUtil.showError(
             context: context,
@@ -204,12 +193,10 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
         _localImageFileNames[fieldName] = file.name;
         _uploadingStates[fieldName] = true;
       });
-      debugPrint('[FormBuilder] 开始上传 bytes.length=${bytes.length}');
 
       try {
         final contentType = _getContentType(file.extension ?? 'jpg');
 
-        debugPrint('[FormBuilder] 调用 getUploadUrl fileName=${file.name} fileSize=${bytes.length} contentType=$contentType');
         final uploadToken = await _uploadService.getUploadUrl(
           fileName: file.name,
           fileSize: bytes.length,
@@ -217,9 +204,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
         );
         final uploadUrl = uploadToken['upload_url'] as String;
         final fileUrl = uploadToken['file_url'] as String;
-        debugPrint('[FormBuilder] getUploadUrl 成功 fileUrl=$fileUrl');
 
-        debugPrint('[FormBuilder] 开始 PUT 到 OSS');
         final dio = Dio();
         await dio.put(
           uploadUrl,
@@ -228,7 +213,6 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
             headers: {'Content-Type': contentType},
           ),
         );
-        debugPrint('[FormBuilder] OSS 上传成功');
 
         setState(() {
           _imageUrls[fieldName] = fileUrl;
@@ -237,16 +221,8 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           _uploadingStates[fieldName] = false;
         });
         _formKey.currentState?.fields[fieldName]?.didChange(fileUrl);
-        if (mounted) {
-          ToastUtil.showSuccess(
-            context: context,
-            title: '上传成功',
-            description: '图片已上传',
-          );
-        }
-      } catch (e, st) {
-        debugPrint('[FormBuilder] 上传异常: $e');
-        debugPrint('[FormBuilder] stackTrace: $st');
+        
+      } catch (e) {
         setState(() {
           _uploadingStates[fieldName] = false;
           // 失败时保留本地预览，便于用户重试或清除
@@ -259,9 +235,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           );
         }
       }
-    } catch (e, st) {
-      debugPrint('[FormBuilder] _handleImageUpload 外层异常: $e');
-      debugPrint('[FormBuilder] stackTrace: $st');
+    } catch (e) {
       if (mounted) {
         ToastUtil.showError(
           context: context,
@@ -422,12 +396,9 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           builder: (field) {
             final isUploading = _uploadingStates[config.name] == true;
             final serverUrl = _imageUrls[config.name];
-            final localBytes = _localImageBytes[config.name];
-            final hasLocal = localBytes != null;
             final hasServer = serverUrl != null && serverUrl.isNotEmpty;
-            final hasImage = hasLocal || hasServer;
-            final String displayText = (hasServer ? serverUrl : null) ??
-                (isUploading ? '上传中...' : (hasLocal ? (_localImageFileNames[config.name] ?? '本地图片') : ''));
+            // 只展示上传后的图片，不展示本地预览
+            final String displayText = (hasServer ? serverUrl : null) ?? (isUploading ? '上传中...' : '');
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,7 +415,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                     ),
                     child: Stack(
                       children: [
-                        if (!hasImage || !imageConfig.showPreview)
+                        if (!hasServer || !imageConfig.showPreview)
                           CustomPaint(
                             painter: _DashedBorderPainter(
                               color: const Color(0xFFD1D5DB),
@@ -453,48 +424,24 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                             ),
                             child: Container(),
                           ),
-                        if (hasImage && imageConfig.showPreview)
+                        if (hasServer && imageConfig.showPreview)
                           Stack(
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: hasServer
-                                    ? Image.network(
-                                        serverUrl,
-                                        width: imageConfig.previewSize,
-                                        height: imageConfig.previewSize,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          width: imageConfig.previewSize,
-                                          height: imageConfig.previewSize,
-                                          color: Colors.grey[200],
-                                          child: const Icon(Icons.broken_image, color: Colors.grey),
-                                        ),
-                                      )
-                                    : hasLocal
-                                        ? Image.memory(
-                                            localBytes,
-                                            width: imageConfig.previewSize,
-                                            height: imageConfig.previewSize,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : const SizedBox.shrink(),
-                              ),
-                              if (isUploading)
-                                Container(
+                                child: Image.network(
+                                  serverUrl,
                                   width: imageConfig.previewSize,
                                   height: imageConfig.previewSize,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Center(
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: imageConfig.previewSize,
+                                    height: imageConfig.previewSize,
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.broken_image, color: Colors.grey),
                                   ),
                                 ),
+                              ),
                               if (!isUploading)
                                 Positioned(
                                   top: 4,
@@ -522,29 +469,49 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                             ],
                           )
                         else
-                          Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add, size: 32, color: Colors.grey[600]),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Upload',
-                                  style: TextStyle(
-                                    fontFamily: 'Geist',
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey[600],
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add, size: 32, color: Colors.grey[600]),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Upload',
+                                      style: TextStyle(
+                                        fontFamily: 'Geist',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isUploading)
+                                Container(
+                                  width: imageConfig.previewSize,
+                                  height: imageConfig.previewSize,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                            ],
                           ),
                       ],
                     ),
                   ),
                 ),
-                if (hasImage || isUploading) ...[
+                if (hasServer || isUploading) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -564,7 +531,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                   ),
                 ],
                 if (field.errorText != null) _buildErrorText(field.errorText)!,
-                if (imageConfig.uploadHint != null && !hasImage) ...[
+                if (imageConfig.uploadHint != null && !hasServer) ...[
                   const SizedBox(height: 8),
                   Text(
                     imageConfig.uploadHint!,
