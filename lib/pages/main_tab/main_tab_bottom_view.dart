@@ -54,13 +54,13 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
       child: Container(
         height: ConstantsTool.bottomTabHeight,
         margin: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          bottom: max(16, MediaQuery.of(context).padding.bottom),
+          left: 26,
+          right: 26,
+          bottom: max(26, MediaQuery.of(context).padding.bottom),
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(55),
-          color: Color(0xFFF7F7F7), //Colors.white.withAlpha((0.8 * 255).toInt()),
+          color: Color(0xFFF7F7F7),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha((255 * 0.16).toInt()),

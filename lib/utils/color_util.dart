@@ -13,6 +13,10 @@ abstract class ColorUtil {
     return const Color(0xFF171717);
   }
 
+  static Color get pageBgColor {
+    return const Color(0xFFF6F6F6);
+  }
+
   static Color get textColor {
     return const Color(0xFF171717);
   }

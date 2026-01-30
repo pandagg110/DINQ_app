@@ -1,11 +1,11 @@
 import 'package:dinq_app/pages/admin/admin_search_page.dart';
 import 'package:dinq_app/pages/admin/inbox/admin_inbox_page.dart';
 import 'package:dinq_app/pages/landing/landing_page.dart';
+import 'package:dinq_app/pages/me/me_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../widgets/common/keep_alive_wrapper.dart';
-import '../me/me_page.dart';
 import 'main_tab_bottom_view.dart';
 import 'main_tab_model.dart';
 
