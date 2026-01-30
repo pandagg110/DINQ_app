@@ -113,14 +113,19 @@ class _InviteCodeDialogState extends State<InviteCodeDialog> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    "Don't have an invite code? ",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: ColorUtil.textColor,
-                      fontFamily: 'Geist',
-                      decoration: TextDecoration.underline,
+                  NormalButton(
+                    onTap: () {
+                      context.push('/waiting-list');
+                    },
+                    child: Text(
+                      "Don't have an invite code? ",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: ColorUtil.textColor,
+                        fontFamily: 'Geist',
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),

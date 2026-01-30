@@ -9,9 +9,11 @@ import '../../constants/landing.dart';
 import '../../stores/user_store.dart';
 import '../../utils/asset_path.dart';
 import '../../widgets/common/badge.dart';
+import '../../widgets/common/common_dialog.dart';
 import '../../widgets/common/lottie_view.dart';
 import '../../widgets/landing/hand_decoration.dart';
 import '../../widgets/landing/hero_animation.dart';
+import '../../widgets/landing/invite_code_dialog.dart';
 import '../../widgets/landing/radiant_background.dart';
 import '../../widgets/landing/roles_marquee.dart';
 import '../../widgets/landing/tabs_media.dart';
@@ -337,6 +339,19 @@ class _LandingPageState extends State<LandingPage> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           ),
           child: const Text('Request a Demo'),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: () {
+            CommonDialog.showAlert(context: context, customAlert: InviteCodeDialog());
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF171717),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          ),
+          child: const Text('测试 Waiting List 弹框'),
         ),
       ],
     );
