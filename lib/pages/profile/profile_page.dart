@@ -26,6 +26,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   UserData? _userData;
   bool _isStatusModalOpen = false;
   CardStore? _cardStore;
+  /// true = Preview 模式，false = Edit 模式
+  bool _isPreviewMode = true;
 
   @override
   void initState() {
@@ -83,7 +85,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       child: GestureDetector(
         onTap: () {
           // 点击页面外部区域时，清除选中状态
-          if (isEditable && cardStore.selectedCardIds.isNotEmpty) {
+          if (!_isPreviewMode && isEditable && cardStore.selectedCardIds.isNotEmpty) {
             cardStore.clearSelection();
           }
         },
@@ -107,18 +109,34 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
+                  if (_userData != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                      child: _buildPreviewEditToggle(),
+                    ),
+                  ],
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (_userData != null) ...[
-                            _buildProfileHeader(context, _userData!),
-                            const SizedBox(height: 24),
-                            CardGrid(editable: isEditable),
+                    child: GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        final v = details.primaryVelocity ?? 0;
+                        if (v < -100 && _isPreviewMode) {
+                          setState(() => _isPreviewMode = false);
+                        } else if (v > 100 && !_isPreviewMode) {
+                          setState(() => _isPreviewMode = true);
+                        }
+                      },
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (_userData != null) ...[
+                              _buildProfileHeader(context, _userData!),
+                              const SizedBox(height: 24),
+                              CardGrid(editable: !_isPreviewMode && isEditable),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -132,8 +150,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                 onClose: _closeStatusModal,
                 currentStatus: _userData!.jobStatus ?? '',
               ),
-            // Floating Toolbar (only show when editable)
-            if (isEditable)
+            // Floating Toolbar (仅 Edit 模式且为本人时显示)
+            if (!_isPreviewMode && isEditable)
               FloatingToolbar(
                 isMobile: true,
                 isSaving: cardStore.isSaving,
@@ -141,6 +159,99 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           ],
         ),
       ),
+    );
+  }
+
+  /// Preview / Edit 滑动切换按钮（支持点击与左右滑动屏幕切换）
+  Widget _buildPreviewEditToggle() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        const inset = 4.0;
+        final segmentWidth = (w - inset * 2) / 2;
+        final sliderWidth = segmentWidth - inset;
+        return Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // 选中背景（白色滑块）
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                left: _isPreviewMode ? inset : segmentWidth + inset,
+                top: inset,
+                bottom: inset,
+                width: sliderWidth,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // 两个选项
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isPreviewMode = true),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: Text(
+                          'Preview',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: _isPreviewMode
+                                ? const Color(0xFF171717)
+                                : const Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isPreviewMode = false),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: !_isPreviewMode
+                                ? const Color(0xFF171717)
+                                : const Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -178,7 +289,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         ProfileAvatar(
           avatarUrl: data.avatarUrl,
           userName: data.name.isNotEmpty ? data.name : widget.username,
-          editable: isEditable,
+          editable: isEditable && !_isPreviewMode,
           size: 180,
           jobStatus: data.jobStatus,
           onAvatarUpdated: () {
