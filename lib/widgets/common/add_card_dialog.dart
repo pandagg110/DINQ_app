@@ -38,6 +38,15 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
   final GlobalKey<FormBuilderState> _markdownFormKey = GlobalKey<FormBuilderState>();
+  /// 键盘是否遮挡当前输入框；为 true 时顶起整个弹框，否则不顶起、让键盘覆盖下方内容
+  /// 默认 false：键盘刚弹出时先不顶起，等测量完成后再决定，避免“先顶起再回滚”的闪烁
+  bool _shouldLiftForKeyboard = false;
+  /// 键盘是否已处于激活状态（仅在其刚弹出时判断一次，避免重复判断导致闪烁）
+  bool _keyboardAlreadyActive = false;
+  /// 安全区域底部高度，仅在第一次初始化时设置
+  double? _safeAreaBottom;
+  /// 上一次的键盘高度，用于检测键盘关闭事件
+  double _lastKeyboardHeight = 0.0;
 
   @override
   void initState() {
@@ -51,6 +60,31 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _measureAndUpdateLift() {
+    if (!mounted) return;
+    final mq = MediaQuery.of(context);
+    if (mq.viewInsets.bottom == 0) {
+      // 键盘已关闭，状态已在 build 中重置，这里直接返回
+      return;
+    }
+    final focusNode = FocusManager.instance.primaryFocus;
+    bool shouldLift = false; // 默认不顶起，仅当输入框距底部 < 300 时才顶起
+    if (focusNode != null && focusNode.context != null) {
+      final box = focusNode.context!.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        final pos = box.localToGlobal(Offset.zero);
+        final screenHeight = MediaQuery.of(context).size.height;
+        // 计算输入框底部距离屏幕底部的距离
+        final distanceToBottom = screenHeight - (pos.dy + box.size.height);
+        // 如果距离底部小于300，则顶起弹框
+        shouldLift = distanceToBottom < 300;
+      }
+    }
+    if (shouldLift != _shouldLiftForKeyboard) {
+      setState(() => _shouldLiftForKeyboard = shouldLift);
+    }
   }
 
   String get _placeholder {
@@ -84,9 +118,28 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
     final type = def.type;
     final mq = MediaQuery.of(context);
     final typeUpper = type.toUpperCase();
+    // 仅在第一次初始化时设置 safeAreaBottom
+    _safeAreaBottom ??= mq.padding.bottom;
+    final safeAreaBottom = _safeAreaBottom!;
     
-    return Padding(
-      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+    // 检测键盘关闭事件：从 > 0 变为 0
+    final currentKeyboardHeight = mq.viewInsets.bottom;
+    if (_lastKeyboardHeight > 0 && currentKeyboardHeight == 0) {
+      // 键盘刚刚关闭，重置状态
+      _keyboardAlreadyActive = false;
+      _shouldLiftForKeyboard = false;
+    }
+    _lastKeyboardHeight = currentKeyboardHeight;
+    
+    if (currentKeyboardHeight > 0) {
+      if (!_keyboardAlreadyActive) {
+        _keyboardAlreadyActive = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _measureAndUpdateLift());
+      }
+    }
+    final bottomInset = _shouldLiftForKeyboard ? mq.viewInsets.bottom : 0.0;
+    Widget content = Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -99,7 +152,8 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
           20,
           20,
           20,
-          20 + mq.padding.bottom,
+          20 + safeAreaBottom,
+          // 20
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -150,6 +204,15 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
         ),
       ),
     );
+    // 当不需要顶起时，移除 viewInsets 的影响，防止弹框被键盘推下去
+    if (!_shouldLiftForKeyboard && mq.viewInsets.bottom > 0) {
+      return MediaQuery.removeViewInsets(
+        context: context,
+        removeBottom: true,
+        child: content,
+      );
+    }
+    return content;
   }
 
   /// 构建 Link 类型的表单（简单 URL 输入）
