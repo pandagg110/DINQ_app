@@ -96,6 +96,9 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
   final UploadService _uploadService = UploadService();
   final Map<String, bool> _uploadingStates = {};
   final Map<String, String?> _imageUrls = {};
+  /// 上传过程中暂存本地图片字节，用于先显示本地预览 + loading
+  final Map<String, Uint8List?> _localImageBytes = {};
+  final Map<String, String> _localImageFileNames = {};
 
   @override
   void initState() {
@@ -195,7 +198,12 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
         return;
       }
 
-      setState(() => _uploadingStates[fieldName] = true);
+      // 先存本地图片并显示 loading，再发起上传
+      setState(() {
+        _localImageBytes[fieldName] = bytes;
+        _localImageFileNames[fieldName] = file.name;
+        _uploadingStates[fieldName] = true;
+      });
       debugPrint('[FormBuilder] 开始上传 bytes.length=${bytes.length}');
 
       try {
@@ -224,6 +232,8 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
 
         setState(() {
           _imageUrls[fieldName] = fileUrl;
+          _localImageBytes[fieldName] = null;
+          _localImageFileNames.remove(fieldName);
           _uploadingStates[fieldName] = false;
         });
         _formKey.currentState?.fields[fieldName]?.didChange(fileUrl);
@@ -237,7 +247,10 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
       } catch (e, st) {
         debugPrint('[FormBuilder] 上传异常: $e');
         debugPrint('[FormBuilder] stackTrace: $st');
-        setState(() => _uploadingStates[fieldName] = false);
+        setState(() {
+          _uploadingStates[fieldName] = false;
+          // 失败时保留本地预览，便于用户重试或清除
+        });
         if (mounted) {
           ToastUtil.showError(
             context: context,
@@ -408,8 +421,13 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           validator: validators.isEmpty ? null : FormBuilderValidators.compose(validators),
           builder: (field) {
             final isUploading = _uploadingStates[config.name] == true;
-            final imageUrl = _imageUrls[config.name] ?? field.value ?? config.initialValue?.toString();
-            final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+            final serverUrl = _imageUrls[config.name];
+            final localBytes = _localImageBytes[config.name];
+            final hasLocal = localBytes != null;
+            final hasServer = serverUrl != null && serverUrl.isNotEmpty;
+            final hasImage = hasLocal || hasServer;
+            final String displayText = (hasServer ? serverUrl : null) ??
+                (isUploading ? '上传中...' : (hasLocal ? (_localImageFileNames[config.name] ?? '本地图片') : ''));
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,18 +458,27 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  imageUrl,
-                                  width: imageConfig.previewSize,
-                                  height: imageConfig.previewSize,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    width: imageConfig.previewSize,
-                                    height: imageConfig.previewSize,
-                                    color: Colors.grey[200],
-                                    child: const Icon(Icons.broken_image, color: Colors.grey),
-                                  ),
-                                ),
+                                child: hasServer
+                                    ? Image.network(
+                                        serverUrl,
+                                        width: imageConfig.previewSize,
+                                        height: imageConfig.previewSize,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          width: imageConfig.previewSize,
+                                          height: imageConfig.previewSize,
+                                          color: Colors.grey[200],
+                                          child: const Icon(Icons.broken_image, color: Colors.grey),
+                                        ),
+                                      )
+                                    : hasLocal
+                                        ? Image.memory(
+                                            localBytes,
+                                            width: imageConfig.previewSize,
+                                            height: imageConfig.previewSize,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : const SizedBox.shrink(),
                               ),
                               if (isUploading)
                                 Container(
@@ -477,7 +504,11 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                                     borderRadius: BorderRadius.circular(12),
                                     child: InkWell(
                                       onTap: () {
-                                        setState(() => _imageUrls[config.name] = null);
+                                        setState(() {
+                                          _imageUrls[config.name] = null;
+                                          _localImageBytes[config.name] = null;
+                                          _localImageFileNames.remove(config.name);
+                                        });
                                         field.didChange(null);
                                       },
                                       borderRadius: BorderRadius.circular(12),
@@ -513,7 +544,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                     ),
                   ),
                 ),
-                if (hasImage) ...[
+                if (hasImage || isUploading) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -523,7 +554,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
                       border: Border.all(color: const Color(0xFFD1D5DB)),
                     ),
                     child: SelectableText(
-                      imageUrl,
+                      displayText,
                       style: const TextStyle(
                         fontFamily: 'Geist',
                         fontSize: 12,
