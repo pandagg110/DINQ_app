@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import '../models/card_models.dart';
 import 'api_client.dart';
 
@@ -16,14 +16,26 @@ class CardService {
     return list.map((item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map))).toList();
   }
 
-  /// 更新 Card Board
+  /// 更新 Card Board（与 TS cardApi.updateCardBoard 一致：仅提交 dirty 卡片，AI 卡 type 转为 datasource）
+  /// 服务端可能返回空或无 board 字段，需空安全解析避免 type 'Null' is not a subtype of type 'Map'
   Future<List<CardItem>> updateCardBoard(List<CardItem> board) async {
     final response = await _dio.post('/card-board', data: {
       'board': board.map((card) => card.toJson()).toList(),
     });
-    final data = Map<String, dynamic>.from(response.data as Map);
+    final raw = response.data;
+    if (raw == null) return [];
+    final data = Map<String, dynamic>.from(raw as Map);
     final list = data['board'] as List<dynamic>? ?? [];
-    return list.map((item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    final result = <CardItem>[];
+    for (final item in list) {
+      if (item == null) continue;
+      try {
+        result.add(CardItem.fromJson(Map<String, dynamic>.from(item as Map)));
+      } catch (_) {
+        // 单条解析失败时跳过，不因一条坏数据导致整次保存报错
+      }
+    }
+    return result;
   }
 
   /// 删除数据源

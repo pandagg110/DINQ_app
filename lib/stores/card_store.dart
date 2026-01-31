@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/card_models.dart';
 import '../services/card_service.dart';
@@ -43,36 +43,19 @@ class CardStore extends ChangeNotifier {
     }
 
     try {
-      // Fetch latest data in background
       final result = await _cardService.getCardBoard(username);
 
-      // Smart merge: keep cached cards with data, use server data for others
-      final cachedCardsMap = <String, CardItem>{};
-      for (final card in cards) {
-        cachedCardsMap[card.id] = card;
-      }
-
-      final mergedCards = <CardItem>[];
+      // 每次都用服务端最新数据，不做缓存合并
+      final list = <CardItem>[];
       for (final serverCard in result) {
-        final cachedCard = cachedCardsMap[serverCard.id];
-        if (cachedCard != null &&
-            isAICard(cachedCard.data.type) &&
-            cachedCard.data.status == 'COMPLETED') {
-          // Keep cached card if it's a completed AI card
-          mergedCards.add(cachedCard);
-        } else {
-          // Adapt server card to ensure layout data is valid
-          CardItem adaptedCard = serverCard;
-          // debugPrint('serverCard: ${serverCard.toJson().toString()}');
-          if (_registry.isRegistered(serverCard.data.type)) {
-            adaptedCard = _registry.adapt(serverCard, ViewMode.desktop);
-            adaptedCard = _registry.adapt(adaptedCard, ViewMode.mobile);
-          }
-          mergedCards.add(adaptedCard);
+        CardItem adaptedCard = serverCard;
+        if (_registry.isRegistered(serverCard.data.type)) {
+          adaptedCard = _registry.adapt(serverCard, ViewMode.desktop);
+          adaptedCard = _registry.adapt(adaptedCard, ViewMode.mobile);
         }
+        list.add(adaptedCard);
       }
-
-      cards = mergedCards;
+      cards = list;
       isInitialized = true;
       notifyListeners();
 
@@ -323,35 +306,31 @@ class CardStore extends ChangeNotifier {
     });
   }
 
+  /// 与 TS saveDirtyCards 一致：仅保存 dirty 卡片，AI 卡 data.type 转为 "datasource"，不依赖接口返回的 board 结构
   Future<void> _saveDirtyCards() async {
-    // Don't save when isAdding
     if (isAdding || dirtyCardIds.isEmpty) return;
 
     isSaving = true;
     notifyListeners();
 
     try {
-      final dirty = cards
-          .where((card) => dirtyCardIds.contains(card.id))
-          .toList();
+      final dirty = cards.where((card) => dirtyCardIds.contains(card.id)).toList();
 
-      // Convert AI card types to "datasource" when saving
+      // 与 TS 一致：只覆盖 data.type，AI 卡改为 "datasource"，其余字段保持原样
       final cardsToSave = dirty.map((card) {
-        if (isAICard(card.data.type)) {
-          return CardItem(
-            id: card.id,
-            data: CardData(
-              id: card.data.id,
-              type: 'datasource',
-              title: card.data.title,
-              description: card.data.description,
-              metadata: card.data.metadata,
-              status: card.data.status,
-            ),
-            layout: card.layout,
-          );
-        }
-        return card;
+        final saveType = isAICard(card.data.type) ? 'datasource' : card.data.type;
+        return CardItem(
+          id: card.id,
+          data: CardData(
+            id: card.data.id,
+            type: saveType,
+            title: card.data.title,
+            description: card.data.description,
+            metadata: card.data.metadata,
+            status: card.data.status,
+          ),
+          layout: card.layout,
+        );
       }).toList();
 
       await _cardService.updateCardBoard(cardsToSave);

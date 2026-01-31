@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -290,78 +290,36 @@ class _CardRendererState extends State<CardRenderer> {
             ],
           ),
 
-          // 编辑模式下的按钮 - 放在 Stack 外层，避免被 ClipRRect 裁剪
+          // 编辑模式下的按钮 - 放在 Stack 外层，避免被 ClipRRect 裁剪；拖拽时不显示删除和编辑按钮
+          // 仅在存在 Portal 祖先时使用 PortalTarget（如 ReorderableStaggeredGridView 内部构建时无 Portal）
           if (widget.editable && isSelected) ...[
-            _isDrag
-                ? const SizedBox.shrink()
-                : Positioned(
-                    top: -1,
-                    left: -1,
-                    child: PortalTarget(
-                      visible: true,
-                      portalFollower: Material(
-                        color: Colors.transparent, // 添加 Material widget
-                        child: Transform.translate(
-                          offset: const Offset(0, 0), // 偏移到卡片外部
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              debugPrint('删除按钮被点击');
-                              cardStore.removeCard(widget.card.id);
-                            },
-                            child: Image.asset(
-                              'assets/icons/delete-card-btn.png',
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ),
-                      anchor: const Aligned(
-                        follower: Alignment.center,
-                        target: Alignment.center,
-                      ),
-
-                      // offset: Offset(-20, -20),
-                      child: const SizedBox(width: 1, height: 1),
-                    ),
-                  ),
-            _isDrag
-                ? const SizedBox.shrink()
-                : Positioned(
-                    top: -1,
-                    right: -1,
-                    child: PortalTarget(
-                      visible: true,
-                      portalFollower: Material(
-                        color: Colors.transparent, // 添加 Material widget
-                        child: Transform.translate(
-                          offset: const Offset(0, 0), // 偏移到卡片外部
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              debugPrint('编辑按钮被点击');
-                              // cardStore.removeCard(widget.card.id);
-                            },
-                            child: Image.asset(
-                              'assets/icons/edit.png',
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ),
-                      anchor: const Aligned(
-                        follower: Alignment.center,
-                        target: Alignment.center,
-                      ),
-
-                      // offset: Offset(-20, -20),
-                      child: const SizedBox(width: 1, height: 1),
-                    ),
-                  ),
+            if (!_isDrag) ...[
+              Positioned(
+                top: -1,
+                left: -1,
+                child: _buildEditButton(
+                  context: context,
+                  isPortal: context.findAncestorWidgetOfExactType<Portal>() != null,
+                  onTap: () {
+                    debugPrint('删除按钮被点击');
+                    cardStore.removeCard(widget.card.id);
+                  },
+                  asset: 'assets/icons/delete-card-btn.png',
+                ),
+              ),
+              Positioned(
+                top: -1,
+                right: -1,
+                child: _buildEditButton(
+                  context: context,
+                  isPortal: context.findAncestorWidgetOfExactType<Portal>() != null,
+                  onTap: () {
+                    debugPrint('编辑按钮被点击');
+                  },
+                  asset: 'assets/icons/edit.png',
+                ),
+              ),
+            ],
 
             Align(
               alignment: Alignment.bottomCenter,
@@ -372,6 +330,42 @@ class _CardRendererState extends State<CardRenderer> {
         ],
       ),
     );
+  }
+
+  Widget _buildEditButton({
+    required BuildContext context,
+    required bool isPortal,
+    required VoidCallback onTap,
+    required String asset,
+  }) {
+    final button = Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Image.asset(
+          asset,
+          width: 40,
+          height: 40,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+    if (isPortal) {
+      return PortalTarget(
+        visible: true,
+        portalFollower: Transform.translate(
+          offset: const Offset(0, 0),
+          child: button,
+        ),
+        anchor: const Aligned(
+          follower: Alignment.center,
+          target: Alignment.center,
+        ),
+        child: const SizedBox(width: 1, height: 1),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildCardToolbar(

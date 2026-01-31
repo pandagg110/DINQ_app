@@ -1,4 +1,4 @@
-﻿class CardItem {
+class CardItem {
   CardItem({
     required this.id,
     required this.data,
@@ -132,11 +132,31 @@ class CardState {
     this.loading = false,
     this.isUploading = false,
     this.isNew = false,
+    this.isEditingLink = false,
+    this.isEditingStyle = false,
   });
 
   bool loading;
   bool isUploading;
   bool isNew;
+  bool isEditingLink;
+  bool isEditingStyle;
+
+  CardState copyWith({
+    bool? loading,
+    bool? isUploading,
+    bool? isNew,
+    bool? isEditingLink,
+    bool? isEditingStyle,
+  }) {
+    return CardState(
+      loading: loading ?? this.loading,
+      isUploading: isUploading ?? this.isUploading,
+      isNew: isNew ?? this.isNew,
+      isEditingLink: isEditingLink ?? this.isEditingLink,
+      isEditingStyle: isEditingStyle ?? this.isEditingStyle,
+    );
+  }
 }
 
 

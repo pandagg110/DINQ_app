@@ -5,11 +5,12 @@ import '../../models/user_models.dart';
 import '../../services/profile_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
-import '../../widgets/cards/card_grid.dart';
+import '../../widgets/cards/card_grid_staggered.dart';
 import '../../widgets/layout/nav_bar.dart';
 import '../../widgets/profile/profile_avatar.dart';
 import '../../widgets/profile/change_status_modal.dart';
 import '../../widgets/profile/floating_toolbar.dart';
+import '../../widgets/profile/card_toolbar.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.username});
@@ -133,7 +134,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                             if (_userData != null) ...[
                               _buildProfileHeader(context, _userData!),
                               const SizedBox(height: 24),
-                              CardGrid(editable: !_isPreviewMode && isEditable),
+                              CardGridStaggered(editable: !_isPreviewMode && isEditable),
                             ],
                           ],
                         ),
@@ -150,12 +151,23 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                 onClose: _closeStatusModal,
                 currentStatus: _userData!.jobStatus ?? '',
               ),
-            // Floating Toolbar (仅 Edit 模式且为本人时显示)
-            if (!_isPreviewMode && isEditable)
-              FloatingToolbar(
-                isMobile: true,
-                isSaving: cardStore.isSaving,
-              ),
+            // 编辑模式下：有卡片选中时显示 CardToolbar，否则显示 FloatingToolbar
+            if (!_isPreviewMode && isEditable) ...[
+              if (cardStore.selectedCardIds.isNotEmpty) ...[
+                Builder(
+                  builder: (context) {
+                    final selectedId = cardStore.selectedCardIds.first;
+                    final idx = cardStore.cards.indexWhere((c) => c.id == selectedId);
+                    if (idx < 0) return const SizedBox.shrink();
+                    return CardToolbar(card: cardStore.cards[idx]);
+                  },
+                ),
+              ] else
+                FloatingToolbar(
+                  isMobile: true,
+                  isSaving: cardStore.isSaving,
+                ),
+            ],
           ],
         ),
       ),
