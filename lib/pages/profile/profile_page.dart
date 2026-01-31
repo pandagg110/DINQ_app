@@ -27,6 +27,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   UserData? _userData;
   bool _isStatusModalOpen = false;
   CardStore? _cardStore;
+
   /// true = Preview 模式，false = Edit 模式
   bool _isPreviewMode = true;
 
@@ -86,7 +87,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       child: GestureDetector(
         onTap: () {
           // 点击页面外部区域时，清除选中状态
-          if (!_isPreviewMode && isEditable && cardStore.selectedCardIds.isNotEmpty) {
+          if (!_isPreviewMode &&
+              isEditable &&
+              cardStore.selectedCardIds.isNotEmpty) {
             cardStore.clearSelection();
           }
         },
@@ -127,14 +130,32 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                         }
                       },
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             if (_userData != null) ...[
-                              _buildProfileHeader(context, _userData!),
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  left: 24,
+                                  right: 24,
+                                  top: 24,
+                                  bottom: 0,
+                                ),
+                                child: _buildProfileHeader(context, _userData!),
+                              ),
                               const SizedBox(height: 24),
-                              CardGridStaggered(editable: !_isPreviewMode && isEditable),
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  left: 12,
+                                  right: 12,
+                                  top: 0,
+                                  bottom: 0,
+                                ),
+                                child: CardGridStaggered(
+                                  editable: !_isPreviewMode && isEditable,
+                                ),
+                              ),
                             ],
                           ],
                         ),
@@ -157,16 +178,15 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                 Builder(
                   builder: (context) {
                     final selectedId = cardStore.selectedCardIds.first;
-                    final idx = cardStore.cards.indexWhere((c) => c.id == selectedId);
+                    final idx = cardStore.cards.indexWhere(
+                      (c) => c.id == selectedId,
+                    );
                     if (idx < 0) return const SizedBox.shrink();
                     return CardToolbar(card: cardStore.cards[idx]);
                   },
                 ),
               ] else
-                FloatingToolbar(
-                  isMobile: true,
-                  isSaving: cardStore.isSaving,
-                ),
+                FloatingToolbar(isMobile: true, isSaving: cardStore.isSaving),
             ],
           ],
         ),

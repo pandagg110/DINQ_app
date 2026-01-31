@@ -62,7 +62,7 @@ class CardGrid extends StatelessWidget {
 
     // 可编辑模式下，使用 ReorderableGridView 实现拖拽
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 0),
       child: GestureDetector(
         onTap: () {
           if (cardStore.selectedCardIds.isNotEmpty) {

@@ -105,7 +105,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     });
 
     // 包内 StaggeredGrid 无 mainAxisSpacing/crossAxisSpacing，用 Padding 包每个 item 实现 gap
-    final halfGap = spacing / 2;
+    final halfGap = 12.0;
     final gridItems = <ReorderableStaggeredScrollViewGridItem>[];
     for (final card in sortedCards) {
       final dims = _sizeFromString(card.layout.mobile.size);
@@ -119,9 +119,9 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
           widget: Padding(
             padding: EdgeInsets.only(
               left: halfGap,
-              top: halfGap,
+              top: 0,
               right: halfGap,
-              bottom: halfGap,
+              bottom: 0,
             ),
             child: widget.editable
                 ? GestureDetector(
@@ -136,7 +136,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 0),
       child: ReorderableStaggeredScrollView.grid(
         key: ValueKey(
           cards
@@ -149,7 +149,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         enable: widget.editable,
         crossAxisCount: columns,
         physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.all(halfGap),
+        padding: EdgeInsets.all(0),
         isLongPressDraggable: true,
         children: gridItems,
         onAccept: (draggedItem, targetItem, _) {
