@@ -235,7 +235,7 @@ class _CardRendererState extends State<CardRenderer> {
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(24),
                       child: GestureDetector(
-                        behavior: HitTestBehavior.deferToChild,
+                        behavior: HitTestBehavior.translucent,
                         onTapUp: (details) {
                           setState(() {
                             _isDrag = false;
@@ -262,7 +262,7 @@ class _CardRendererState extends State<CardRenderer> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(24),
                         child: GestureDetector(
-                          behavior: HitTestBehavior.deferToChild,
+                          behavior: HitTestBehavior.translucent,
                           onTapUp: (details) {
                             setState(() {
                               _isDrag = false;
@@ -414,10 +414,8 @@ class _CardRendererState extends State<CardRenderer> {
     bool isSelected,
   ) {
     final type = widget.card.data.type.toUpperCase();
-    final size = viewMode == ViewMode.mobile
-        ? widget.card.layout.mobile.size
-        : widget.card.layout.desktop.size;
-    debugPrint('typetypetype: $type');
+    final size = widget.card.layout.mobile.size;
+    // debugPrint('typetypetype: $type');
     return _buildCardByType(
       type,
       size,

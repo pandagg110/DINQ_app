@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:reorderable_staggered_grid_view/reorderable_staggered_grid_view.dart';
+import 'package:reorderable_staggered_scroll_view/reorderable_staggered_scroll_view.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
 import '../../stores/settings_store.dart';
 import 'card_renderer.dart';
 
-/// 使用 reorderable_staggered_grid_view 的卡片网格：按 layout.mobile 的 position/size 渲染，拖拽重排
+/// 使用 reorderable_staggered_scroll_view 的卡片网格：按 layout.mobile 的 position/size 渲染，拖拽重排
 class CardGridStaggered extends StatefulWidget {
   const CardGridStaggered({super.key, this.editable = false});
 
@@ -20,15 +20,6 @@ class CardGridStaggered extends StatefulWidget {
 }
 
 class _CardGridStaggeredState extends State<CardGridStaggered> {
-  final Map<String, GlobalKey<State<StatefulWidget>>> _animationKeys = {};
-
-  GlobalKey<State<StatefulWidget>> _keyFor(String cardId) {
-    return _animationKeys.putIfAbsent(
-      cardId,
-      () => GlobalKey<State<StatefulWidget>>(),
-    );
-  }
-
   static ({int w, int h}) _sizeFromString(String size) {
     final parts = size.toLowerCase().split('x');
     if (parts.length != 2) return (w: 2, h: 2);
@@ -42,10 +33,8 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     List<CardItem> ordered,
     int columns,
   ) {
-    // 第一遍：确定每张卡所在行及 (w,h)，行内顺序不变
-    final rowItems = <int, List<({int w, int h})>>{}; // y -> [(w,h), ...]
+    final rowItems = <int, List<({int w, int h})>>{};
     int y = 0, rowHeight = 0, rowUsed = 0;
-    final rowOrder = <int>[]; // 每行在 ordered 中的起始索引
     for (var i = 0; i < ordered.length; i++) {
       final card = ordered[i];
       final dims = _sizeFromString(card.layout.mobile.size);
@@ -57,19 +46,17 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         rowUsed = 0;
       }
       rowItems.putIfAbsent(y, () => []).add((w: w, h: h));
-      rowOrder.add(y);
       if (rowHeight < h) rowHeight = h;
       rowUsed += w;
     }
-    // 第二遍：按行右对齐算 x
     final positions = <CardPosition>[];
     var cardIndex = 0;
     final rowKeys = rowItems.keys.toList()..sort();
     for (final rowY in rowKeys) {
       final items = rowItems[rowY]!;
       final rowWidth = items.fold<int>(0, (s, e) => s + e.w);
-      int startX = columns - rowWidth; // 靠右：左侧留空
-      for (final item in items) {
+      int startX = columns - rowWidth;
+      for (final _ in items) {
         final card = ordered[cardIndex];
         final dims = _sizeFromString(card.layout.mobile.size);
         final w = dims.w.clamp(1, columns);
@@ -80,6 +67,11 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       }
     }
     return positions;
+  }
+
+  static String? _keyToCardId(Key key) {
+    if (key is ValueKey<Object?>) return key.value?.toString();
+    return null;
   }
 
   @override
@@ -103,7 +95,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       return const SizedBox.shrink();
     }
 
-    // 按数据中的 (y, x) 排序，与 JSON 的 position 一致
+    // 包不支持按 (x,y) 定位，只按「列表顺序 + 每项占格数」排布。用 (y,x) 排序使顺序=左上到右下的格子顺序，等价于用 xy 布局
     final sortedCards = List<CardItem>.from(cards);
     sortedCards.sort((a, b) {
       final pa = a.layout.mobile.position;
@@ -112,93 +104,89 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       return pa.x.compareTo(pb.x);
     });
 
-    final items = <ReorderableStaggeredGridViewItem<CardItem>>[];
+    // 包内 StaggeredGrid 无 mainAxisSpacing/crossAxisSpacing，用 Padding 包每个 item 实现 gap
+    final halfGap = spacing / 2;
+    final gridItems = <ReorderableStaggeredScrollViewGridItem>[];
     for (final card in sortedCards) {
       final dims = _sizeFromString(card.layout.mobile.size);
-      // w=列数(2 或 4)，h=行数；与数据 2x2 / 4x4 一致
       final crossCells = dims.w.clamp(1, columns);
       final mainCells = dims.h.clamp(1, 100);
-      items.add(
-        ReorderableStaggeredGridViewItem<CardItem>(
-          data: card,
-          animationKey: _keyFor(card.id),
-          crossAxisCellCount: crossCells,
+      gridItems.add(
+        ReorderableStaggeredScrollViewGridCountItem(
+          key: ValueKey(card.id),
           mainAxisCellCount: mainCells,
-          // proxyDecoratorBuilder: (child, index, animation) {
-          //   return Container(
-          //     color: Colors.transparent,
-          //     child: child,
-          //   );
-          // },
-          child: CardRenderer(card: card, editable: widget.editable),
-          // child: Text(
-          //   '${card.id}',
-          //   style: TextStyle(backgroundColor: Colors.transparent),
-          // ),
+          crossAxisCellCount: crossCells,
+          widget: Padding(
+            padding: EdgeInsets.only(
+              left: halfGap,
+              top: halfGap,
+              right: halfGap,
+              bottom: halfGap,
+            ),
+            child: widget.editable
+                ? GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => cardStore.toggleCardSelection(card.id),
+                    child: CardRenderer(card: card, editable: widget.editable),
+                  )
+                : CardRenderer(card: card, editable: widget.editable),
+          ),
         ),
       );
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: GestureDetector(
-        onTap: () {
-          if (cardStore.selectedCardIds.isNotEmpty) {
-            cardStore.clearSelection();
+      child: ReorderableStaggeredScrollView.grid(
+        key: ValueKey(
+          cards
+              .map(
+                (c) =>
+                    '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}',
+              )
+              .join('|'),
+        ),
+        enable: widget.editable,
+        crossAxisCount: columns,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.all(halfGap),
+        isLongPressDraggable: true,
+        children: gridItems,
+        onAccept: (draggedItem, targetItem, _) {
+          if (draggedItem == null) return;
+          final draggedId = _keyToCardId(draggedItem.key);
+          final targetId = _keyToCardId(targetItem.key);
+          if (draggedId == null || targetId == null) return;
+          final currentCards = List<CardItem>.from(cardStore.cards);
+          currentCards.sort((a, b) {
+            final pa = a.layout.mobile.position;
+            final pb = b.layout.mobile.position;
+            if (pa.y != pb.y) return pa.y.compareTo(pb.y);
+            return pa.x.compareTo(pb.x);
+          });
+          final oldIndex = currentCards.indexWhere((c) => c.id == draggedId);
+          final targetIndex = currentCards.indexWhere((c) => c.id == targetId);
+          if (oldIndex < 0 || targetIndex < 0) return;
+          final draggedCard = currentCards[oldIndex];
+          final reordered = List<CardItem>.from(currentCards);
+          reordered.removeAt(oldIndex);
+          final insertIndex = oldIndex < targetIndex
+              ? targetIndex - 1
+              : targetIndex;
+          reordered.insert(insertIndex.clamp(0, reordered.length), draggedCard);
+          final newPositions = _compactPositions(reordered, columns);
+          for (var i = 0; i < reordered.length; i++) {
+            final c = reordered[i];
+            final pos = newPositions[i];
+            final currentLayout = c.layout.mobile;
+            final newLayout = CardLayout(
+              desktop: c.layout.desktop,
+              mobile: CardLayoutState(size: currentLayout.size, position: pos),
+            );
+            debugPrint('newLayout: ${newLayout.toJson().toString()}');
+            cardStore.updateCardLayout(c.id, newLayout);
           }
         },
-        behavior: HitTestBehavior.translucent,
-        child: ReorderableStaggeredGridView(
-          key: ValueKey(
-            cards
-                .map(
-                  (c) =>
-                      '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}',
-                )
-                .join('|'),
-          ),
-          crossAxisCount: columns,
-          mainAxisSpacing: spacing,
-          crossAxisSpacing: spacing,
-          enable: widget.editable,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          items: items,
-
-          onAcceptWithDetails: (details, newIndex) {
-            final card = details.data as CardItem?;
-            if (card == null) return;
-            final currentCards = List<CardItem>.from(cardStore.cards);
-            currentCards.sort((a, b) {
-              final pa = a.layout.mobile.position;
-              final pb = b.layout.mobile.position;
-              if (pa.y != pb.y) return pa.y.compareTo(pb.y);
-              return pa.x.compareTo(pb.x);
-            });
-            final oldIndex = currentCards.indexWhere((c) => c.id == card.id);
-            if (oldIndex < 0) return;
-            final reordered = List<CardItem>.from(currentCards);
-            reordered.removeAt(oldIndex);
-            final insertIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
-            reordered.insert(insertIndex.clamp(0, reordered.length), card);
-
-            // 按新顺序算出每个卡片的实际网格 (x,y,w,h)，全部写回 store 以触发保存
-            final newPositions = _compactPositions(reordered, columns);
-            for (var i = 0; i < reordered.length; i++) {
-              final c = reordered[i];
-              final pos = newPositions[i];
-              final currentLayout = c.layout.mobile;
-              final newLayout = CardLayout(
-                desktop: c.layout.desktop,
-                mobile: CardLayoutState(
-                  size: currentLayout.size,
-                  position: pos,
-                ),
-              );
-              cardStore.updateCardLayout(c.id, newLayout);
-            }
-          },
-        ),
       ),
     );
   }

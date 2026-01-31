@@ -621,14 +621,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.13"
-  reorderable_staggered_grid_view:
+  reorderable_staggered_scroll_view:
     dependency: "direct main"
     description:
-      name: reorderable_staggered_grid_view
-      sha256: aa39f46066b6856007e518060d37e348e872d4639e293c8bd21894efea867653
+      name: reorderable_staggered_scroll_view
+      sha256: "2d4d23be9e2bf833d765b256d2527e74e37957bc623ce13db7a7f507793ba6dc"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.1"
+    version: "0.0.2"
   rxdart:
     dependency: transitive
     description:
@@ -754,14 +754,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.12.1"
-  staggered_grid_view:
-    dependency: transitive
-    description:
-      name: staggered_grid_view
-      sha256: f8f5d5a6ca4bb07778fcbe556969ba79a16893fd97813260045a9c76a5ab9136
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.1"
   stream_channel:
     dependency: transitive
     description:

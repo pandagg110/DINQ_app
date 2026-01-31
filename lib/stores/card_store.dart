@@ -17,7 +17,7 @@ class CardStore extends ChangeNotifier {
   late final DatasourceService _datasourceService;
   late final CardRegistry _registry;
 
-  ViewMode viewMode = ViewMode.desktop;
+  ViewMode viewMode = ViewMode.mobile;
   List<CardItem> cards = [];
   Map<String, CardState> cardStates = {};
   Set<String> dirtyCardIds = {};
