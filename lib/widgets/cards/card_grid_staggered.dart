@@ -95,8 +95,18 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       return const SizedBox.shrink();
     }
 
+    // 只显示 size 为 2x2、2x4、4x2、4x4 的卡片
+    const allowedSizes = {'2x2', '2x4', '4x2', '4x4'};
+    final filteredCards = cards.where((c) {
+      final size = c.layout.mobile.size.toLowerCase().trim();
+      return allowedSizes.contains(size);
+    }).toList();
+    if (filteredCards.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     // 包不支持按 (x,y) 定位，只按「列表顺序 + 每项占格数」排布。用 (y,x) 排序使顺序=左上到右下的格子顺序，等价于用 xy 布局
-    final sortedCards = List<CardItem>.from(cards);
+    final sortedCards = List<CardItem>.from(filteredCards);
     sortedCards.sort((a, b) {
       final pa = a.layout.mobile.position;
       final pb = b.layout.mobile.position;

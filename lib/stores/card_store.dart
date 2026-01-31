@@ -35,7 +35,10 @@ class CardStore extends ChangeNotifier {
 
   Future<void> loadCards(String username) async {
     _currentUsername = username;
-
+    cards.clear();
+    notifyListeners();
+    debugPrint('CardStore: loadCards: ${cards.length}');
+    
     // If we have cached cards, mark as initialized immediately (no blocking)
     if (cards.isNotEmpty) {
       isInitialized = true;
@@ -58,8 +61,6 @@ class CardStore extends ChangeNotifier {
       cards = list;
       isInitialized = true;
       notifyListeners();
-
-      // Start polling immediately
       _startPolling();
     } catch (e) {
       debugPrint('CardStore: Error loading cards: $e');
