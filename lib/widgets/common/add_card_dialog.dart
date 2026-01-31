@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../stores/card_store.dart';
 import '../cards/factory/card_definition.dart';
 import 'add_card_forms/form_factory.dart';
 import 'add_card_forms/card_form_base.dart';
@@ -96,10 +98,13 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
 
   Future<void> _onAdd() async {
     final formData = await _form.getFormData();
-    if (formData != null) {
-      debugPrint('AddCardDialog Add: ${widget.definition.type} -> $formData');
-      if (mounted) Navigator.of(context).pop(true);
-    }
+    if (formData == null || !mounted) return;
+    final cardStore = context.read<CardStore>();
+    await cardStore.addCard(
+      type: widget.definition.type,
+      metadata: formData,
+    );
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   @override

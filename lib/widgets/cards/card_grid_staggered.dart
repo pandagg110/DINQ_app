@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:reorderable_staggered_scroll_view/reorderable_staggered_scroll_view.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
-import '../../stores/settings_store.dart';
+import '../../utils/card_layout_utils.dart';
 import 'card_renderer.dart';
 
 /// 使用 reorderable_staggered_scroll_view 的卡片网格：按 layout.mobile 的 position/size 渲染，拖拽重排
@@ -20,54 +20,6 @@ class CardGridStaggered extends StatefulWidget {
 }
 
 class _CardGridStaggeredState extends State<CardGridStaggered> {
-  static ({int w, int h}) _sizeFromString(String size) {
-    final parts = size.toLowerCase().split('x');
-    if (parts.length != 2) return (w: 2, h: 2);
-    final w = int.tryParse(parts[0].trim()) ?? 2;
-    final h = int.tryParse(parts[1].trim()) ?? 2;
-    return (w: w, h: h);
-  }
-
-  /// 按新顺序紧凑放置，得到每个卡片的 (x,y)；每行内靠右排布，左侧为空
-  static List<CardPosition> _compactPositions(
-    List<CardItem> ordered,
-    int columns,
-  ) {
-    final rowItems = <int, List<({int w, int h})>>{};
-    int y = 0, rowHeight = 0, rowUsed = 0;
-    for (var i = 0; i < ordered.length; i++) {
-      final card = ordered[i];
-      final dims = _sizeFromString(card.layout.mobile.size);
-      final w = dims.w.clamp(1, columns);
-      final h = dims.h.clamp(1, 100);
-      if (rowUsed + w > columns) {
-        y += rowHeight;
-        rowHeight = 0;
-        rowUsed = 0;
-      }
-      rowItems.putIfAbsent(y, () => []).add((w: w, h: h));
-      if (rowHeight < h) rowHeight = h;
-      rowUsed += w;
-    }
-    final positions = <CardPosition>[];
-    var cardIndex = 0;
-    final rowKeys = rowItems.keys.toList()..sort();
-    for (final rowY in rowKeys) {
-      final items = rowItems[rowY]!;
-      final rowWidth = items.fold<int>(0, (s, e) => s + e.w);
-      int startX = columns - rowWidth;
-      for (final _ in items) {
-        final card = ordered[cardIndex];
-        final dims = _sizeFromString(card.layout.mobile.size);
-        final w = dims.w.clamp(1, columns);
-        final h = dims.h.clamp(1, 100);
-        positions.add(CardPosition(x: startX, y: rowY, w: w, h: h));
-        startX += w;
-        cardIndex++;
-      }
-    }
-    return positions;
-  }
 
   static String? _keyToCardId(Key key) {
     if (key is ValueKey<Object?>) return key.value?.toString();
@@ -77,12 +29,8 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
   @override
   Widget build(BuildContext context) {
     final cardStore = context.watch<CardStore>();
-    final settings = context.watch<SettingsStore>();
     final cards = cardStore.cards;
-
-    final gridConfig = settings.gridConfig;
     final columns = CardGridStaggered.gridColumns;
-    final spacing = gridConfig.mobileGap;
 
     if (!cardStore.isInitialized) {
       return const SizedBox(
@@ -118,7 +66,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     final halfGap = 12.0;
     final gridItems = <ReorderableStaggeredScrollViewGridItem>[];
     for (final card in sortedCards) {
-      final dims = _sizeFromString(card.layout.mobile.size);
+      final dims = CardLayoutUtils.parseSizeString(card.layout.mobile.size);
       final crossCells = dims.w.clamp(1, columns);
       final mainCells = dims.h.clamp(1, 100);
       gridItems.add(
@@ -184,7 +132,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
               ? targetIndex - 1
               : targetIndex;
           reordered.insert(insertIndex.clamp(0, reordered.length), draggedCard);
-          final newPositions = _compactPositions(reordered, columns);
+          final newPositions = CardLayoutUtils.compactPositions(reordered, columns);
           for (var i = 0; i < reordered.length; i++) {
             final c = reordered[i];
             final pos = newPositions[i];

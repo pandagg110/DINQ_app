@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import '../../pages/add/add_page.dart';
+import '../../stores/card_store.dart';
 import '../../utils/asset_path.dart';
 import '../cards/factory/card_definition.dart';
+import '../cards/factory/definitions/index.dart' show isSocialCard;
 import '../common/add_card_dialog.dart';
 import '../common/confirm_dialog.dart';
 
@@ -181,16 +184,18 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                       builder: (_) => const AddPage(),
                     ),
                   );
-                  if (result != null && context.mounted) {
-                    AddCardDialog.show(
-                      context: context,
-                      definition: result,
-                    ).then((confirmed) {
-                      if (confirmed == true) {
-                        debugPrint('Add card: ${result.type}');
-                        // TODO: Handle add card with result.type
-                      }
-                    });
+                  if (result == null || !context.mounted) return;
+                  final cardStore = context.read<CardStore>();
+                  final type = result.type.toUpperCase();
+                  // 与 TSX handleCardSelect 一致：ACHIEVEMENT_NETWORK / Social/LINK/IFRAME 先弹输入框，其余直接 addCard
+                  if (type == 'ACHIEVEMENT_NETWORK') {
+                    AddCardDialog.show(context: context, definition: result);
+                  } else if (isSocialCard(result.type) ||
+                      type == 'LINK' ||
+                      type == 'IFRAME') {
+                    AddCardDialog.show(context: context, definition: result);
+                  } else {
+                    await cardStore.addCard(type: result.type);
                   }
                 },
               ),

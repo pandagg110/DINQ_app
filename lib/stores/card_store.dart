@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/card_models.dart';
 import '../services/card_service.dart';
 import '../services/datasource_service.dart';
+import '../utils/card_layout_utils.dart';
 import '../widgets/cards/factory/card_registry.dart';
 import '../widgets/cards/factory/definitions/index.dart' show isAICard;
 
@@ -32,6 +33,7 @@ class CardStore extends ChangeNotifier {
 
   static const Duration _saveDelay = Duration(milliseconds: 1000);
   static const Duration _pollingInterval = Duration(seconds: 3);
+  static const int _gridColumns = 4;
 
   Future<void> loadCards(String username) async {
     _currentUsername = username;
@@ -81,12 +83,33 @@ class CardStore extends ChangeNotifier {
       final mockCard = await _registry.create(type, metadata ?? {}, cards);
       final adaptedCard = _registry.adapt(mockCard, viewMode);
 
-      // Add mock card to UI immediately
-      cards.add(adaptedCard);
+      // Add mock card to UI immediately at the beginning (新增卡片放到最前面)
+      cards.insert(0, adaptedCard);
+      
+      // 重新计算所有卡片的 position（紧凑布局）
+      final newPositions = CardLayoutUtils.compactPositions(cards, _gridColumns);
+      for (var i = 0; i < cards.length; i++) {
+        final card = cards[i];
+        final pos = newPositions[i];
+        cards[i] = CardItem(
+          id: card.id,
+          data: card.data,
+          layout: CardLayout(
+            desktop: card.layout.desktop,
+            mobile: CardLayoutState(
+              size: card.layout.mobile.size,
+              position: pos,
+            ),
+          ),
+        );
+        dirtyCardIds.add(card.id);
+      }
+      
       cardStates[adaptedCard.id] = CardState(
         loading: isAICard(type),
         isNew: true,
       );
+      _scheduleSave();
       notifyListeners();
 
       // Remove isNew flag after animation completes

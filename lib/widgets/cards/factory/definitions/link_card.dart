@@ -20,7 +20,7 @@ class LinkCardDefinition extends CardDefinition {
         ),
         mobile: CardSizeConfig(
           supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '2x2',
+          defaultSize: '4x4',
         ),
       );
 
