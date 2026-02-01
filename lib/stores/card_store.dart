@@ -17,6 +17,7 @@ class CardStore extends ChangeNotifier {
   late final CardService _cardService;
   late final DatasourceService _datasourceService;
   late final CardRegistry _registry;
+  int updateCount = 0;
 
   ViewMode viewMode = ViewMode.mobile;
   List<CardItem> cards = [];
@@ -202,6 +203,7 @@ class CardStore extends ChangeNotifier {
         layout: cards[index].layout,
       );
       dirtyCardIds.add(cardId);
+      updateCount++;
       _scheduleSave();
       notifyListeners();
     }

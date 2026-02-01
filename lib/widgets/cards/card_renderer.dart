@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
 import '../common/asset_icon.dart';
+import '../common/edit_card_dialog.dart';
 import 'factory/card_registry.dart';
 import 'factory/card_definition.dart';
 import 'factory/definitions/index.dart';
@@ -316,7 +317,9 @@ class _CardRendererState extends State<CardRenderer> {
                   context: context,
                   isPortal: context.findAncestorWidgetOfExactType<Portal>() != null,
                   onTap: () {
-                    debugPrint('编辑按钮被点击');
+                    if (widget.card.data.type.toUpperCase() == 'TITLE') {
+                      EditCardDialog.show(context: context, card: widget.card);
+                    }
                   },
                   asset: 'assets/icons/edit.png',
                 ),

@@ -30,7 +30,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     final cardStore = context.watch<CardStore>();
     final cards = cardStore.cards;
     final columns = CardGridStaggered.gridColumns;
-
+    final updateCount = cardStore.updateCount;
     if (!cardStore.isInitialized) {
       return const SizedBox(
         height: 200,
@@ -99,7 +99,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
           cards
               .map(
                 (c) =>
-                    '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}',
+                    '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
               )
               .join('|'),
         ),
