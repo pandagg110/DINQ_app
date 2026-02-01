@@ -5,8 +5,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../pages/add/add_page.dart';
 import '../../stores/card_store.dart';
+import '../../utils/add_image_card.dart';
 import '../../utils/asset_path.dart';
 import '../cards/factory/card_definition.dart';
+import '../cards/factory/card_registry.dart';
 import '../cards/factory/definitions/index.dart' show isSocialCard;
 import '../common/add_card_dialog.dart';
 import '../common/confirm_dialog.dart';
@@ -179,12 +181,14 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
               _buildImageIconButton(
                 iconPath: 'icons/mydinq/add.png',
                 onTap: () async {
-                  final result = await Navigator.of(context).push<CardDefinition>(
-                    MaterialPageRoute<CardDefinition>(
+                  // AddPage 对 IMAGE 会先选图上传再创建并 pop(true)，其他类型 pop(definition)
+                  final result = await Navigator.of(context).push<Object?>(
+                    MaterialPageRoute<Object?>(
                       builder: (_) => const AddPage(),
                     ),
                   );
                   if (result == null || !context.mounted) return;
+                  if (result is! CardDefinition) return; // true 表示 IMAGE 已在 AddPage 内处理
                   final cardStore = context.read<CardStore>();
                   final type = result.type.toUpperCase();
                   // 与 TSX handleCardSelect 一致：ACHIEVEMENT_NETWORK / Social/LINK/IFRAME 先弹输入框，其余直接 addCard
@@ -205,7 +209,10 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
               _buildImageIconButton(
                 iconPath: 'icons/mydinq/link.png',
                 onTap: () {
-                  // TODO: Handle add link
+                  final definition = CardRegistry().getDefinition('LINK');
+                  if (definition != null) {
+                    AddCardDialog.show(context: context, definition: definition);
+                  }
                 },
               ),
 
@@ -213,9 +220,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
 
               _buildImageIconButton(
                 iconPath: 'icons/mydinq/img.png',
-                onTap: () {
-                  // TODO: Handle add link
-                },
+                onTap: () => addImageCard(context),
               ),
 
               const SizedBox(width: 16),

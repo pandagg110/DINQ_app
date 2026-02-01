@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
+import '../../utils/add_image_card.dart';
 import '../../widgets/cards/factory/card_definition.dart';
 import '../../widgets/cards/factory/definitions/index.dart'
     show generalCards, isAICard, socialCards;
@@ -9,6 +10,7 @@ import '../../widgets/common/asset_icon.dart';
 import '../../utils/icon_mapping.dart' as icon_mapping;
 
 /// Add 页：仅渲染卡片类型按钮（与 TSX CardListModal 内容一致），无弹框、无添加逻辑。
+/// IMAGE 类型：调用 [addImageCard] 选图上传后创建图片 card。
 class AddPage extends StatelessWidget {
   const AddPage({super.key});
 
@@ -148,8 +150,15 @@ class AddCardBtn extends StatelessWidget {
                   ),
                 ),
                 child: InkWell(
-                  onTap: () {
-                    Navigator.of(context).pop(definition);
+                  onTap: () async {
+                    if (definition.type.toUpperCase() == 'IMAGE') {
+                      final ok = await addImageCard(context);
+                      if (ok && context.mounted) {
+                        Navigator.of(context).pop(true);
+                      }
+                    } else {
+                      Navigator.of(context).pop(definition);
+                    }
                   },
                   borderRadius: BorderRadius.circular(8),
                   splashColor: Colors.black.withOpacity(0.06),
