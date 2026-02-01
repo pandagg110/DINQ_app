@@ -4,6 +4,7 @@ import '../../models/user_models.dart';
 import '../../stores/user_store.dart';
 import 'profile_avatar.dart';
 import 'profile_edit_dialog.dart';
+import 'preview_edit_toggle.dart';
 
 /// Profile 页头部：仅展示内容；编辑态通过弹框修改（与 AddCardDialog 风格一致）。
 /// 编辑/浏览切换使用 !_isPreviewMode && isEditable（isEditMode）。
@@ -58,9 +59,13 @@ class ProfileHeader extends StatelessWidget {
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Preview / Edit 切换（仅当可编辑时显示）
+        // Preview / Edit 切换（仅当可编辑时显示，key 写死以保留滑块动画 State）
         if (isEditable) ...[
-          _buildPreviewEditToggle(context),
+          PreviewEditToggle(
+            key: const ValueKey('preview_edit_toggle'),
+            isPreviewMode: isPreviewMode,
+            onPreviewModeChanged: onPreviewModeChanged,
+          ),
           const SizedBox(height: 24),
         ],
         // 头像
@@ -182,110 +187,19 @@ class ProfileHeader extends StatelessWidget {
         const SizedBox(height: 8),
       ],
     );
-    // 仅在编辑模式（已切到 Edit）下点击头部才打开编辑弹框；Preview 时不响应
-    if (isEditMode) {
-      return GestureDetector(
-        onTap: () {
-          ProfileEditDialog.show(
-            context: context,
-            initialData: data,
-            onSaved: onDataUpdated,
-          );
-        },
-        behavior: HitTestBehavior.opaque,
-        child: content,
-      );
-    }
-    return content;
-  }
-
-  Widget _buildPreviewEditToggle(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        const inset = 4.0;
-        final segmentWidth = (w - inset * 2) / 2;
-        final sliderWidth = segmentWidth - inset;
-        return Container(
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                left: isPreviewMode ? inset : segmentWidth + inset,
-                top: inset,
-                bottom: inset,
-                width: sliderWidth,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => onPreviewModeChanged?.call(true),
-                      behavior: HitTestBehavior.opaque,
-                      child: Center(
-                        child: Text(
-                          'Preview',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: isPreviewMode
-                                ? const Color(0xFF171717)
-                                : const Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => onPreviewModeChanged?.call(false),
-                      behavior: HitTestBehavior.opaque,
-                      child: Center(
-                        child: Text(
-                          'Edit',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: !isPreviewMode
-                                ? const Color(0xFF171717)
-                                : const Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+    // 根结构固定为 GestureDetector > content，避免切换 Preview/Edit 时整棵子树重建、打断 AnimatedPositioned
+    return GestureDetector(
+      onTap: isEditMode
+          ? () {
+              ProfileEditDialog.show(
+                context: context,
+                initialData: data,
+                onSaved: onDataUpdated,
+              );
+            }
+          : null,
+      behavior: HitTestBehavior.opaque,
+      child: content,
     );
   }
 
