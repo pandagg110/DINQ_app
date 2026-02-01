@@ -34,24 +34,23 @@ class TitleCardDefinition extends CardDefinition {
     final placeholderText = 'Add a title...';
     final displayText = title.isEmpty ? placeholderText : title;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Text(
-            displayText,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: title.isEmpty
-                  ? const Color(0xFF9CA3AF)
-                  : const Color(0xFF111827),
-              height: 1.2,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Text(
+          displayText,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: title.isEmpty
+                ? const Color(0xFF9CA3AF)
+                : const Color(0xFF111827),
+            height: 1.2,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

@@ -100,10 +100,17 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
     final formData = await _form.getFormData();
     if (formData == null || !mounted) return;
     final cardStore = context.read<CardStore>();
-    await cardStore.addCard(
-      type: widget.definition.type,
-      metadata: formData,
-    );
+    if(widget.definition.type == 'ACHIEVEMENT_NETWORK') {
+      await cardStore.addCard(
+        type: widget.definition.type,
+        metadata: {'metadata': formData},
+      );
+    }else{
+      await cardStore.addCard(
+        type: widget.definition.type,
+        metadata: formData,
+      );
+    }
     if (mounted) Navigator.of(context).pop(true);
   }
 

@@ -20,7 +20,6 @@ class CardGridStaggered extends StatefulWidget {
 }
 
 class _CardGridStaggeredState extends State<CardGridStaggered> {
-
   static String? _keyToCardId(Key key) {
     if (key is ValueKey<Object?>) return key.value?.toString();
     return null;
@@ -44,7 +43,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     }
 
     // 只显示 size 为 2x2、2x4、4x2、4x4 的卡片
-    const allowedSizes = {'2x2', '2x4', '4x2', '4x4'};
+    const allowedSizes = {'2x2', '2x4', '4x2', '4x4', "4x1"};
     final filteredCards = cards.where((c) {
       final size = c.layout.mobile.size.toLowerCase().trim();
       return allowedSizes.contains(size);
@@ -100,7 +99,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
           cards
               .map(
                 (c) =>
-                    '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}',
+                    '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}',
               )
               .join('|'),
         ),
@@ -132,7 +131,10 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
               ? targetIndex - 1
               : targetIndex;
           reordered.insert(insertIndex.clamp(0, reordered.length), draggedCard);
-          final newPositions = CardLayoutUtils.compactPositions(reordered, columns);
+          final newPositions = CardLayoutUtils.compactPositions(
+            reordered,
+            columns,
+          );
           for (var i = 0; i < reordered.length; i++) {
             final c = reordered[i];
             final pos = newPositions[i];

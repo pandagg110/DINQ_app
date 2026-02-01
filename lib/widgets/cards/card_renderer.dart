@@ -230,9 +230,10 @@ class _CardRendererState extends State<CardRenderer> {
                 ? MainAxisSize.min
                 : MainAxisSize.max,
             children: [
-              // 根据卡片类型决定是否使用 Expanded
+              // 根据卡片类型决定是否使用 Expanded（TITLE 用 Expanded 约束高度，避免 4x1 格子溢出）
               widget.card.data.type.toUpperCase() == 'TITLE'
-                  ? ClipRRect(
+                  ? Expanded(
+                      child: ClipRRect(
                       borderRadius: BorderRadius.circular(24),
                       child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
@@ -257,7 +258,8 @@ class _CardRendererState extends State<CardRenderer> {
                         },
                         child: cardContent,
                       ),
-                    )
+                    ),
+                  )
                   : Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(24),

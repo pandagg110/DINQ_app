@@ -77,12 +77,10 @@ class CardStore extends ChangeNotifier {
   }) async {
     isAdding = true;
     notifyListeners();
-
     try {
       // Create mock card using CardRegistry
       final mockCard = await _registry.create(type, metadata ?? {}, cards);
       final adaptedCard = _registry.adapt(mockCard, viewMode);
-
       // Add mock card to UI immediately at the beginning (新增卡片放到最前面)
       cards.insert(0, adaptedCard);
 
@@ -430,13 +428,11 @@ class CardStore extends ChangeNotifier {
           // Preserve user settings (like displayMode) - only for object metadata, not arrays
           // This is necessary because getDatasources returns raw_metadata which doesn't include
           // user settings like displayMode, but getCardBoard does include them.
-          debugPrint('COMPLETED1111 ${card.data.type.toString()}');
           final prevDisplayMode = card.data.metadata['displayMode'];
 
           // Update card with raw_metadata from datasource
           final rawMetadata = datasource['raw_metadata'];
           if (rawMetadata is Map<String, dynamic>) {
-            debugPrint('COMPLETED22222');
             // For object metadata, preserve displayMode if it exists
             finalMetadata = prevDisplayMode != null
                 ? {...rawMetadata, 'displayMode': prevDisplayMode}
