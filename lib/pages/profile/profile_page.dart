@@ -160,6 +160,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                   onAvatarUpdated: _loadData,
                                   onStatusEdit: () => _showStatusModal(context, _userData!),
                                   onDataUpdated: _loadData,
+                                  onShare: () {
+                                    // TODO: 打开分享
+                                  },
                                 ),
                               ),
                               const SizedBox(height: 24),

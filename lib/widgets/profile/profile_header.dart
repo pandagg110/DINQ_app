@@ -18,6 +18,7 @@ class ProfileHeader extends StatelessWidget {
     this.onAvatarUpdated,
     this.onStatusEdit,
     this.onDataUpdated,
+    this.onShare,
   });
 
   final UserData data;
@@ -27,6 +28,8 @@ class ProfileHeader extends StatelessWidget {
   final VoidCallback? onAvatarUpdated;
   final VoidCallback? onStatusEdit;
   final VoidCallback? onDataUpdated;
+  /// 右上角 Share 按钮点击
+  final VoidCallback? onShare;
 
   static const _tagColors = [
     Color(0xFFFDE277),
@@ -68,15 +71,40 @@ class ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: 24),
         ],
-        // 头像
-        ProfileAvatar(
-          avatarUrl: data.avatarUrl,
-          userName: data.name.isNotEmpty ? data.name : username,
-          editable: isEditMode,
-          size: 180,
-          jobStatus: data.jobStatus,
-          onAvatarUpdated: onAvatarUpdated,
-          onStatusEdit: isEditable ? onStatusEdit : null,
+        // 头像行：左侧头像，Preview 时右侧显示 Share 按钮（与图片顶部对齐）
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ProfileAvatar(
+              avatarUrl: data.avatarUrl,
+              userName: data.name.isNotEmpty ? data.name : username,
+              editable: isEditMode,
+              size: 180,
+              jobStatus: data.jobStatus,
+              onAvatarUpdated: onAvatarUpdated,
+              onStatusEdit: isEditable ? onStatusEdit : null,
+            ),
+            if (isPreviewMode) ...[
+              const Spacer(),
+              TextButton.icon(
+                onPressed: onShare,
+                icon: const Icon(Icons.share_outlined, size: 20, color: Color(0xFF171717)),
+                label: const Text(
+                  'Share',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF171717),
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 8),
         // 姓名（编辑态空时显示占位）
