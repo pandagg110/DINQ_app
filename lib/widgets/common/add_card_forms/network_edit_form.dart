@@ -397,16 +397,20 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
       children: [
         if (!widget.hideHeader) _buildHeader(disabled),
         _buildTabs(),
+        SizedBox(height: 16),
         Flexible(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildAvatarSection(),
                 const SizedBox(height: 24),
+                _buildNameField(),
+                const SizedBox(height: 20),
                 _buildFormFields(),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -418,28 +422,7 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
     if (widget.asBottomSheet) {
       return content;
     }
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: 680,
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF171717)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: content,
-      ),
-    );
+    return content;
   }
 
   Widget _buildHeader(bool disabled) {
@@ -482,104 +465,129 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
   }
 
   Widget _buildTabs() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          ...List.generate(_connections.length, (i) {
-            final selected = _activeIndex == i;
-            return GestureDetector(
-              onTap: () => setState(() {
-                _activeIndex = i;
-                _syncControllers();
-              }),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFF0C0C0C)
-                      : const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${i + 1}',
+    const perRow = 6;
+    const gap = 8.0;
+
+    final items = <Widget>[
+      ...List.generate(_connections.length, (i) {
+        final selected = _activeIndex == i;
+        return GestureDetector(
+          onTap: () => setState(() {
+            _activeIndex = i;
+            _syncControllers();
+          }),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? const Color(0xFF0C0C0C)
+                  : const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '${i + 1}',
+              style: TextStyle(
+                fontFamily: 'Geist',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: selected ? Colors.white : const Color(0xFF6B7280),
+              ),
+            ),
+          ),
+        );
+      }),
+      if (_connections.length < 6)
+        GestureDetector(
+          onTap: _handleAddPerson,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0C0C),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add, size: 16, color: Colors.white),
+                SizedBox(width: 4),
+                Text(
+                  'Add',
                   style: TextStyle(
                     fontFamily: 'Geist',
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: selected ? Colors.white : const Color(0xFF6B7280),
+                    color: Colors.white,
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        final rows = <Widget>[];
+        for (var i = 0; i < items.length; i += perRow) {
+          final rowItems = items.skip(i).take(perRow).toList();
+          final count = rowItems.length;
+          final itemWidth = (totalWidth - (count - 1) * gap) / count;
+          rows.add(
+            Padding(
+              padding: EdgeInsets.only(
+                bottom: i + perRow < items.length ? gap : 0,
               ),
-            );
-          }),
-          if (_connections.length < 6)
-            GestureDetector(
-              onTap: _handleAddPerson,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0C0C0C),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.add, size: 16, color: Colors.white),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Add',
-                      style: const TextStyle(
-                        fontFamily: 'Geist',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
+              child: Row(
+                children: [
+                  for (var j = 0; j < rowItems.length; j++) ...[
+                    if (j > 0) SizedBox(width: gap),
+                    SizedBox(
+                      width: itemWidth,
+                      child: rowItems[j],
                     ),
                   ],
-                ),
+                ],
               ),
             ),
-        ],
-      ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: rows,
+        );
+      },
     );
   }
 
   Widget _buildAvatarSection() {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildLabel('* Avatar'),
+        const SizedBox(height: 12),
         GestureDetector(
           onTap: _isUploadingAvatar ? null : _handleAvatarUpload,
           child: Stack(
             alignment: Alignment.center,
             children: [
               Container(
-                width: 144,
-                height: 144,
+                width: 90,
+                height: 90,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFF3F4F6), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFD1D5DB),
+                    width: 2,
+                  ),
+                  color: const Color(0xFFF9FAFB),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child:
-                      _current.avatarUrl.isNotEmpty &&
+                child: ClipOval(
+                  child: _current.avatarUrl.isNotEmpty &&
                           _current.avatarUrl.startsWith('http')
                       ? Image.network(_current.avatarUrl, fit: BoxFit.cover)
                       : SvgPicture.asset(
@@ -590,73 +598,42 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
                         ),
                 ),
               ),
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: _isUploadingAvatar
-                        ? Colors.black54
-                        : Colors.transparent,
-                  ),
-                  child: _isUploadingAvatar
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Icon(
-                          Icons.upload,
-                          size: 32,
-                          color: _isUploadingAvatar
-                              ? Colors.white
-                              : Colors.transparent,
-                        ),
-                ),
-              ),
-              if (!_isUploadingAvatar)
+              if (_isUploadingAvatar)
                 Positioned.fill(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.transparent,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black54,
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF171717),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Image.asset(
+                        'assets/profile/img-add-icon.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildLabel('Name *'),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _nameController,
-                onChanged: (v) => _updateField('name', v),
-                decoration: _inputDecoration.copyWith(hintText: 'Enter name'),
-                style: const TextStyle(
-                  fontFamily: 'Geist',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildLabel('Relationship'),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _relationshipController,
-                onChanged: (v) => _updateField('relationshipType', v),
-                decoration: _inputDecoration.copyWith(
-                  hintText: 'e.g., Colleague, Collaborator',
-                ),
-                style: const TextStyle(fontFamily: 'Geist', fontSize: 14),
-              ),
             ],
           ),
         ),
@@ -677,6 +654,26 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
     );
   }
 
+  Widget _buildNameField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('* Name'),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _nameController,
+          onChanged: (v) => _updateField('name', v),
+          decoration: _inputDecoration.copyWith(hintText: 'Enter Name'),
+          style: const TextStyle(
+            fontFamily: 'Geist',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFormFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -692,28 +689,60 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
           style: const TextStyle(fontFamily: 'Geist', fontSize: 14),
         ),
         const SizedBox(height: 20),
+        _buildLabel('Relationship'),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _relationshipController,
+          onChanged: (v) => _updateField('relationshipType', v),
+          decoration: _inputDecoration.copyWith(
+            hintText: 'e.g., Colleague, Collaborator',
+          ),
+          style: const TextStyle(fontFamily: 'Geist', fontSize: 14),
+        ),
+        const SizedBox(height: 20),
         _buildLabel('Affiliation'),
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: Stack(
+                alignment: Alignment.centerRight,
                 children: [
                   TextField(
                     controller: _affiliationController,
                     onChanged: (v) => _updateField('affiliation', v),
                     decoration: _inputDecoration.copyWith(
                       hintText: 'Company or Organization',
-                      contentPadding: const EdgeInsets.only(
+                      contentPadding: EdgeInsets.only(
                         left: 16,
-                        right: 48,
+                        right: (_current.institutionLogoUrl != null &&
+                                    _current.institutionLogoUrl!.isNotEmpty) ||
+                                _isRefreshingLogo
+                            ? 56
+                            : 16,
                         top: 12,
                         bottom: 12,
                       ),
                     ),
                     style: const TextStyle(fontFamily: 'Geist', fontSize: 14),
                   ),
-                  if (_current.institutionLogoUrl != null &&
+                  if (_isRefreshingLogo)
+                    Positioned(
+                      right: 12,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (_current.institutionLogoUrl != null &&
                       _current.institutionLogoUrl!.isNotEmpty)
                     Positioned(
                       right: 12,
@@ -724,8 +753,8 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
                           borderRadius: BorderRadius.circular(4),
                           child: Image.network(
                             _current.institutionLogoUrl!,
-                            width: 32,
-                            height: 32,
+                            width: 40,
+                            height: 40,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -735,27 +764,23 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
               ),
             ),
             const SizedBox(width: 8),
-            IconButton(
-              onPressed:
-                  _isRefreshingLogo || _current.affiliation.trim().isEmpty
-                  ? null
-                  : _handleRefreshLogo,
-              icon: _isRefreshingLogo
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(
-                      Icons.refresh,
-                      size: 20,
-                      color: Color(0xFF6B7280),
-                    ),
-              style: IconButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            Material(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(8),
+              child: IconButton(
+                onPressed:
+                    _isRefreshingLogo || _current.affiliation.trim().isEmpty
+                        ? null
+                        : _handleRefreshLogo,
+                icon: const Icon(
+                  Icons.refresh,
+                  size: 20,
+                  color: Color(0xFF6B7280),
                 ),
-                side: const BorderSide(color: Color(0xFFE5E7EB)),
+                style: IconButton.styleFrom(
+                  padding: const EdgeInsets.all(10),
+                  minimumSize: const Size(40, 40),
+                ),
               ),
             ),
           ],
@@ -780,38 +805,31 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
   Widget _buildFooter(bool disabled) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
-      ),
-      child: Row(
+      
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextButton.icon(
-            onPressed: disabled ? null : _handleDeletePerson,
-            icon: const Icon(
-              Icons.delete_outline,
-              size: 18,
-              color: Color(0xFFDC2626),
-            ),
-            label: const Text(
-              'Delete Person',
-              style: TextStyle(
-                fontFamily: 'Geist',
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFFDC2626),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: disabled ? null : _handleDeletePerson,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
               ),
-            ),
-          ),
-          const Spacer(),
-          TextButton(
-            onPressed: disabled ? null : widget.onCancel,
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                fontFamily: 'Geist',
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF374151),
+              icon: const Icon(Icons.delete_outline, size: 20),
+              label: const Text(
+                'Delete Person',
+                style: TextStyle(
+                  fontFamily: 'Geist',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
