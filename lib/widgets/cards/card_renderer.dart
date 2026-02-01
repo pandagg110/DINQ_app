@@ -317,6 +317,8 @@ class _CardRendererState extends State<CardRenderer> {
                   context: context,
                   isPortal: context.findAncestorWidgetOfExactType<Portal>() != null,
                   onTap: () {
+                    debugPrint('type: ${widget.card.data.type.toUpperCase()}');
+                    debugPrint('type33333: ${EditCardDialog.supports(widget.card.data.type)}');
                     if (EditCardDialog.supports(widget.card.data.type)) {
                       EditCardDialog.show(context: context, card: widget.card);
                     }

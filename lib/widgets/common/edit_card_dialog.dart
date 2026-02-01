@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../models/card_models.dart';
 import 'add_card_forms/network_edit_form.dart';
+import 'add_card_forms/note_edit_form.dart';
 import 'add_card_forms/title_edit_form.dart';
 
 /// 编辑卡片底部弹框：TITLE / ACHIEVEMENT_NETWORK 及后续扩展类型统一使用。
 class EditCardDialog {
   static final _handlers = <String, CardEditHandler>{
+    'NOTE': CardEditHandler(
+      title: 'Edit Note',
+      useScrollableLayout: true,
+      buildContent: _buildNoteContent,
+    ),
     'TITLE': CardEditHandler(
       title: 'Edit Title Card',
       useScrollableLayout: true,
@@ -16,6 +22,7 @@ class EditCardDialog {
       useScrollableLayout: false,
       buildContent: _buildNetworkContent,
     ),
+    
   };
 
   /// 注册新的编辑类型，扩展时调用
@@ -24,14 +31,20 @@ class EditCardDialog {
   }
 
   /// 是否支持该类型
-  static bool supports(String type) => _handlers.containsKey(type.toUpperCase());
+  static bool supports(String type) {
+    final key = type.trim().toUpperCase();
+    return key.isNotEmpty && _handlers.containsKey(key);
+  }
+
+  /// 已注册的卡片类型（调试用）
+  static Set<String> get supportedTypes => _handlers.keys.toSet();
 
   /// 根据卡片类型弹出对应编辑表单
   static Future<void> show({
     required BuildContext context,
     required CardItem card,
   }) {
-    final type = card.data.type.toUpperCase();
+    final type = card.data.type.trim().toUpperCase();
     final handler = _handlers[type];
     if (handler == null) return Future.value();
     return showModalBottomSheet<void>(
@@ -75,6 +88,14 @@ Widget _buildNetworkContent(
   void Function(Future<void> Function() save) onSaveReady,
 ) {
   return NetworkEditFormWithSave(card: card, onSaveReady: onSaveReady);
+}
+
+Widget _buildNoteContent(
+  BuildContext context,
+  CardItem card,
+  void Function(Future<void> Function() save) onSaveReady,
+) {
+  return NoteEditFormWithSave(card: card, onSaveReady: onSaveReady);
 }
 
 class _EditCardBottomSheet extends StatefulWidget {
