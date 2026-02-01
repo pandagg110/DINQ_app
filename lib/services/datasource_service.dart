@@ -58,9 +58,9 @@ class DatasourceService {
   }
 
   /// 更新 Achievement Network 数据
-  Future<Map<String, dynamic>> updateAchievementNetwork(Map<String, dynamic> data) async {
-    final response = await _dio.post('/achievement-network-update', data: data);
-    return Map<String, dynamic>.from(response.data as Map);
+  Future<void> updateAchievementNetwork(Map<String, dynamic> data) async {
+     await _dio.post('/achievement-network-update', data: data);
+    // return Map<String, dynamic>.from(response.data as Map);
   }
 }
 

@@ -1,60 +1,102 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../models/card_models.dart';
-import '../../stores/card_store.dart';
-import '../cards/factory/card_registry.dart';
+import 'add_card_forms/network_edit_form.dart';
 import 'add_card_forms/title_edit_form.dart';
 
-/// 编辑卡片底部框：效果与添加弹框一致，先支持 TITLE 编辑；其他类型暂不操作。
+/// 编辑卡片底部弹框：TITLE / ACHIEVEMENT_NETWORK 及后续扩展类型统一使用。
 class EditCardDialog {
-  /// 以底部弹框形式弹出编辑表单。仅 TITLE 类型会打开弹框，其他类型直接返回。
+  static final _handlers = <String, CardEditHandler>{
+    'TITLE': CardEditHandler(
+      title: 'Edit Title Card',
+      useScrollableLayout: true,
+      buildContent: _buildTitleContent,
+    ),
+    'ACHIEVEMENT_NETWORK': CardEditHandler(
+      title: 'Edit Network',
+      useScrollableLayout: false,
+      buildContent: _buildNetworkContent,
+    ),
+  };
+
+  /// 注册新的编辑类型，扩展时调用
+  static void register(String type, CardEditHandler handler) {
+    _handlers[type.toUpperCase()] = handler;
+  }
+
+  /// 是否支持该类型
+  static bool supports(String type) => _handlers.containsKey(type.toUpperCase());
+
+  /// 根据卡片类型弹出对应编辑表单
   static Future<void> show({
     required BuildContext context,
     required CardItem card,
   }) {
-    if (card.data.type.toUpperCase() != 'TITLE') return Future.value();
+    final type = card.data.type.toUpperCase();
+    final handler = _handlers[type];
+    if (handler == null) return Future.value();
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (BuildContext sheetContext) {
-        return _EditCardBottomSheet(card: card);
-      },
+      builder: (_) => _EditCardBottomSheet(card: card, handler: handler),
     );
   }
 }
 
+/// 卡片编辑处理器，扩展新类型时实现此接口并 register
+class CardEditHandler {
+  const CardEditHandler({
+    required this.title,
+    required this.useScrollableLayout,
+    required this.buildContent,
+  });
+
+  final String title;
+  /// true: 简单表单，SingleChildScrollView 布局；false: 复杂表单，maxHeight + Flexible
+  final bool useScrollableLayout;
+  final Widget Function(
+    BuildContext context,
+    CardItem card,
+    void Function(Future<void> Function() save) onSaveReady,
+  ) buildContent;
+}
+
+Widget _buildTitleContent(
+  BuildContext context,
+  CardItem card,
+  void Function(Future<void> Function() save) onSaveReady,
+) {
+  return TitleEditFormWithSave(card: card, onSaveReady: onSaveReady);
+}
+
+Widget _buildNetworkContent(
+  BuildContext context,
+  CardItem card,
+  void Function(Future<void> Function() save) onSaveReady,
+) {
+  return NetworkEditFormWithSave(card: card, onSaveReady: onSaveReady);
+}
+
 class _EditCardBottomSheet extends StatefulWidget {
-  const _EditCardBottomSheet({required this.card});
+  const _EditCardBottomSheet({
+    required this.card,
+    required this.handler,
+  });
 
   final CardItem card;
+  final CardEditHandler handler;
 
   @override
   State<_EditCardBottomSheet> createState() => _EditCardBottomSheetState();
 }
 
 class _EditCardBottomSheetState extends State<_EditCardBottomSheet> {
-  late final TextEditingController _controller;
-  late final TitleEditForm _form;
+  Future<void> Function()? _saveFn;
 
   bool _shouldLiftForKeyboard = false;
   bool _keyboardAlreadyActive = false;
   double? _safeAreaBottom;
   double _lastKeyboardHeight = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    final initialTitle = widget.card.data.metadata['title']?.toString() ?? '';
-    _controller = TextEditingController(text: initialTitle);
-    _form = TitleEditForm(controller: _controller, currentData: widget.card.data);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   void _measureAndUpdateLift() {
     if (!mounted) return;
@@ -76,14 +118,6 @@ class _EditCardBottomSheetState extends State<_EditCardBottomSheet> {
     }
   }
 
-  Future<void> _onSave() async {
-    final formData = await _form.getFormData();
-    if (formData == null || !mounted) return;
-    final cardStore = context.read<CardStore>();
-    cardStore.updateCardData(widget.card.id, CardData.fromJson(formData));
-    if (mounted) Navigator.of(context).pop();
-  }
-
   @override
   Widget build(BuildContext context) {
     _safeAreaBottom ??= MediaQuery.of(context).padding.bottom;
@@ -101,8 +135,11 @@ class _EditCardBottomSheetState extends State<_EditCardBottomSheet> {
     }
     final bottomInset = _shouldLiftForKeyboard ? mq.viewInsets.bottom : 0.0;
 
-    final definition = CardRegistry().getDefinition('TITLE');
-    if (definition == null) return const SizedBox.shrink();
+    final body = widget.handler.buildContent(
+      context,
+      widget.card,
+      (save) => _saveFn = save,
+    );
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
@@ -115,47 +152,63 @@ class _EditCardBottomSheetState extends State<_EditCardBottomSheet> {
           ),
         ),
         padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + safeAreaBottom),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        constraints: widget.handler.useScrollableLayout
+            ? null
+            : BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+        child: widget.handler.useScrollableLayout
+            ? SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 16),
+                    body,
+                  ],
+                ),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Edit Title Card',
-                      style: const TextStyle(
-                        fontFamily: 'Geist',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF171717),
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _onSave,
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF2563EB),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    child: const Text(
-                      'Save',
-                      style: TextStyle(
-                        fontFamily: 'Geist',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
+                  _buildHeader(),
+                  Flexible(child: body),
                 ],
               ),
-              const SizedBox(height: 16),
-              _form.build(context, definition),
-            ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            widget.handler.title,
+            style: const TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF171717),
+            ),
           ),
         ),
-      ),
+        TextButton(
+          onPressed: () => _saveFn?.call(),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF2563EB),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          child: const Text(
+            'Save',
+            style: TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

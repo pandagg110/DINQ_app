@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../models/card_models.dart';
+import '../../../stores/card_store.dart';
 import '../../cards/factory/card_definition.dart';
+import '../../cards/factory/card_registry.dart';
 import '../asset_icon.dart';
 import '../../../utils/icon_mapping.dart' as icon_mapping;
 import 'card_form_base.dart';
@@ -110,5 +113,58 @@ class TitleEditForm extends CardFormBase {
       ),
       child: Icon(Icons.title, size: 24, color: Colors.grey.shade700),
     );
+  }
+}
+
+/// Title 编辑表单（含 save 逻辑），供 EditCardDialog 使用
+class TitleEditFormWithSave extends StatefulWidget {
+  const TitleEditFormWithSave({
+    super.key,
+    required this.card,
+    required this.onSaveReady,
+  });
+
+  final CardItem card;
+  final void Function(Future<void> Function() save) onSaveReady;
+
+  @override
+  State<TitleEditFormWithSave> createState() => _TitleEditFormWithSaveState();
+}
+
+class _TitleEditFormWithSaveState extends State<TitleEditFormWithSave> {
+  late final TextEditingController _controller;
+  late final TitleEditForm _form;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.card.data.metadata['title']?.toString() ?? '',
+    );
+    _form = TitleEditForm(
+      controller: _controller,
+      currentData: widget.card.data,
+    );
+    widget.onSaveReady(_performSave);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _performSave() async {
+    final formData = await _form.getFormData();
+    if (formData == null || !mounted) return;
+    context.read<CardStore>().updateCardData(widget.card.id, CardData.fromJson(formData));
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final definition = CardRegistry().getDefinition('TITLE');
+    if (definition == null) return const SizedBox.shrink();
+    return _form.build(context, definition);
   }
 }
