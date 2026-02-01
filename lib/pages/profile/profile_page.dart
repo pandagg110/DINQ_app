@@ -7,10 +7,11 @@ import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../widgets/cards/card_grid_staggered.dart';
 import '../../widgets/layout/nav_bar.dart';
-import '../../widgets/profile/profile_avatar.dart';
+import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/change_status_modal.dart';
 import '../../widgets/profile/floating_toolbar.dart';
 import '../../widgets/profile/card_toolbar.dart';
+import '../../widgets/profile/profile_edit_dialog.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.username});
@@ -112,13 +113,21 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                         color: Color(0xFF171717),
                       ),
                     ),
+                    actions: isEditable && _userData != null
+                        ? [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                color: Color(0xFF111827),
+                                size: 24,
+                              ),
+                              onPressed: () => _openProfileEditDialog(context),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ]
+                        : null,
                   ),
-                  if (_userData != null) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                      child: _buildPreviewEditToggle(),
-                    ),
-                  ],
                   Expanded(
                     child: GestureDetector(
                       onHorizontalDragEnd: (details) {
@@ -142,7 +151,16 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                   top: 24,
                                   bottom: 0,
                                 ),
-                                child: _buildProfileHeader(context, _userData!),
+                                child: ProfileHeader(
+                                  data: _userData!,
+                                  username: widget.username,
+                                  isPreviewMode: _isPreviewMode,
+                                  onPreviewModeChanged: (isPreview) =>
+                                      setState(() => _isPreviewMode = isPreview),
+                                  onAvatarUpdated: _loadData,
+                                  onStatusEdit: () => _showStatusModal(context, _userData!),
+                                  onDataUpdated: _loadData,
+                                ),
                               ),
                               const SizedBox(height: 24),
                               Padding(
@@ -194,225 +212,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     );
   }
 
-  /// Preview / Edit 滑动切换按钮（支持点击与左右滑动屏幕切换）
-  Widget _buildPreviewEditToggle() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        const inset = 4.0;
-        final segmentWidth = (w - inset * 2) / 2;
-        final sliderWidth = segmentWidth - inset;
-        return Container(
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // 选中背景（白色滑块）
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                left: _isPreviewMode ? inset : segmentWidth + inset,
-                top: inset,
-                bottom: inset,
-                width: sliderWidth,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // 两个选项
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isPreviewMode = true),
-                      behavior: HitTestBehavior.opaque,
-                      child: Center(
-                        child: Text(
-                          'Preview',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: _isPreviewMode
-                                ? const Color(0xFF171717)
-                                : const Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isPreviewMode = false),
-                      behavior: HitTestBehavior.opaque,
-                      child: Center(
-                        child: Text(
-                          'Edit',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: !_isPreviewMode
-                                ? const Color(0xFF171717)
-                                : const Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildProfileHeader(BuildContext context, UserData data) {
-    final userStore = context.watch<UserStore>();
-    final isEditable =
-        userStore.isLoggedIn() &&
-        userStore.user?.userData.domain == data.domain;
-
-    // 解析标签（逗号分隔，取第一个）
-    final tags = data.tags.isNotEmpty
-        ? data.tags
-              .split(',')
-              .map((t) => t.trim())
-              .where((t) => t.isNotEmpty)
-              .toList()
-        : <String>[];
-
-    // 预定义的标签颜色
-    const tagColors = [
-      Color(0xFFFDE277), // 黄色
-      Color(0xFFFED7D7), // 粉色
-      Color(0xFFD6F995), // 绿色
-      Color(0xFFC6E2FF), // 蓝色
-      Color(0xFFE2C6FF), // 紫色
-      Color(0xFFFFE4CC), // 橙色
-      Color(0xFFD4F4DD), // 浅绿色
-      Color(0xFFFFD6E8), // 浅粉色
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 头像
-        ProfileAvatar(
-          avatarUrl: data.avatarUrl,
-          userName: data.name.isNotEmpty ? data.name : widget.username,
-          editable: isEditable && !_isPreviewMode,
-          size: 180,
-          jobStatus: data.jobStatus,
-          onAvatarUpdated: () {
-            _loadData();
-          },
-          onStatusEdit: isEditable
-              ? () {
-                  _showStatusModal(context, data);
-                }
-              : null,
-        ),
-        const SizedBox(height: 16),
-        // 用户名
-        Text(
-          data.name.isNotEmpty ? data.name : widget.username,
-          style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF171717),
-          ),
-        ),
-        const SizedBox(height: 8),
-        // 职位信息（图标 + 文本）
-        if (data.fullPosition.isNotEmpty)
-          Row(
-            children: [
-              const Icon(
-                Icons.work_outline,
-                size: 16,
-                color: Color(0xFF6B7280),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                data.fullPosition,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-              ),
-            ],
-          ),
-        // 标签
-        if (tags.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: tags.take(5).map((tag) {
-              final colorIndex = tags.indexOf(tag) % tagColors.length;
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: tagColors[colorIndex],
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  tag,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF171717),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-        // 底部信息
-        if (data.bio.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            data.bio,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF6B7280),
-              height: 1.5,
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
-        // Text(
-        //   'dinq.me/${data.domain.isNotEmpty ? data.domain : widget.username}',
-        //   style: const TextStyle(
-        //     fontSize: 14,
-        //     color: Color(0xFF6B7280),
-        //   ),
-        // ),
-      ],
-    );
-  }
-
   void _showStatusModal(BuildContext context, UserData data) {
     setState(() => _isStatusModalOpen = true);
   }
@@ -421,6 +220,15 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     setState(() => _isStatusModalOpen = false);
     // 刷新用户数据
     _loadData();
+  }
+
+  Future<void> _openProfileEditDialog(BuildContext context) async {
+    if (_userData == null) return;
+    await ProfileEditDialog.show(
+      context: context,
+      initialData: _userData!,
+      onSaved: _loadData,
+    );
   }
 
   bool _isEditable(UserData data) {

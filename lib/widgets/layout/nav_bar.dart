@@ -5,10 +5,13 @@ class NavBar extends StatelessWidget {
     super.key,
     required this.onBack,
     required this.title,
+    this.actions,
   });
 
   final VoidCallback onBack;
   final Widget title;
+  /// 右侧操作按钮（如编辑），显示在返回键对侧
+  final List<Widget>? actions;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +45,17 @@ class NavBar extends StatelessWidget {
                 iconSize: 24,
               ),
             ),
+            // 右侧 actions（如 Edit profile）
+            if (actions != null && actions!.isNotEmpty)
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: actions!,
+                ),
+              ),
           ],
         ),
       ),

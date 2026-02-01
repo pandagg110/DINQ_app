@@ -62,6 +62,7 @@ flutter:
     - assets/images/openings/
     - assets/images/widgets/
     - assets/logo/
+    - assets/profile/
     - assets/favicon.ico
   fonts:
     - family: Tomato Grotesk
