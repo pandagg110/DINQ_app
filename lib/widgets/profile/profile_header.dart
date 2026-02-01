@@ -230,7 +230,7 @@ class ProfileHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(left: 8, bottom: 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 16, color: iconColor.withValues(alpha: 0.64)),
           const SizedBox(width: 6),

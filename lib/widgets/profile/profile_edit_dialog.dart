@@ -1,7 +1,17 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:crop_your_image/crop_your_image.dart';
+
 import '../../models/user_models.dart';
+import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
+import '../../utils/toast_util.dart';
+import '../common/read_bytes_from_path_stub.dart'
+    if (dart.library.io) '../common/read_bytes_from_path_io.dart' as path_reader;
 
 /// 编辑 Profile 的底部弹框，样式与 AddCardDialog 一致；修改后点 Save 保存并关闭。
 class ProfileEditDialog {
@@ -70,12 +80,18 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
   String _jobStatus = '';
   String? _timezone;
   List<String> _tags = [];
+  String? _avatarUrl;
+  bool _isAvatarUploading = false;
+
+  final UploadService _uploadService = UploadService();
 
   bool _shouldLiftForKeyboard = false;
   bool _keyboardAlreadyActive = false;
   double? _safeAreaBottom;
   double _lastKeyboardHeight = 0.0;
   final ScrollController _scrollController = ScrollController();
+
+  String get _displayAvatarUrl => _avatarUrl ?? widget.initialData.avatarUrl;
 
   @override
   void initState() {
@@ -160,6 +176,59 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
     setState(() => _tags = [..._tags]..removeAt(index));
   }
 
+  Future<void> _pickCropAndUploadAvatar() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    );
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final file = result.files.single;
+    Uint8List? imageBytes = file.bytes;
+    if (imageBytes == null && !kIsWeb && file.path != null && file.path!.isNotEmpty) {
+      try {
+        imageBytes = await path_reader.readBytesFromPath(file.path!);
+      } catch (e) {
+        if (mounted) {
+          ToastUtil.showError(context: context, title: '读取失败', description: e.toString());
+        }
+        return;
+      }
+    }
+    if (imageBytes == null || !mounted) {
+      if (mounted) {
+        ToastUtil.showError(context: context, title: '无法读取图片', description: '请重试');
+      }
+      return;
+    }
+    final croppedBytes = await Navigator.of(context).push<Uint8List>(
+      MaterialPageRoute<Uint8List>(
+        builder: (context) => _AvatarCropPage(imageBytes: imageBytes!),
+      ),
+    );
+    if (croppedBytes == null || !mounted) return;
+    setState(() => _isAvatarUploading = true);
+    try {
+      final fileUrl = await _uploadService.uploadFile(
+        bytes: croppedBytes,
+        filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        contentType: 'image/jpeg',
+      );
+      if (!mounted) return;
+      await context.read<UserStore>().updateUserData({'avatar_url': fileUrl});
+      setState(() {
+        _avatarUrl = fileUrl;
+        _isAvatarUploading = false;
+      });
+      ToastUtil.showSuccess(context: context, title: '头像已更新', description: '');
+      widget.onSaved?.call();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isAvatarUploading = false);
+        ToastUtil.showError(context: context, title: '上传失败', description: e.toString());
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     _safeAreaBottom ??= MediaQuery.of(context).padding.bottom;
@@ -238,18 +307,19 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                // 头像区：圆形头像 + 右下角相机图标
-                Center(
+                // 头像区：左对齐，仅展示；右下角 icon 保留，图片修改功能暂隐藏
+                Align(
+                  alignment: Alignment.centerLeft,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
                       CircleAvatar(
                         radius: 48,
                         backgroundColor: const Color(0xFFE5E7EB),
-                        backgroundImage: widget.initialData.avatarUrl.isNotEmpty
-                            ? NetworkImage(widget.initialData.avatarUrl)
+                        backgroundImage: _displayAvatarUrl.isNotEmpty
+                            ? NetworkImage(_displayAvatarUrl)
                             : null,
-                        child: widget.initialData.avatarUrl.isEmpty
+                        child: _displayAvatarUrl.isEmpty
                             ? const Icon(Icons.person, size: 48, color: Color(0xFF9CA3AF))
                             : null,
                       ),
@@ -259,12 +329,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                         child: Container(
                           width: 32,
                           height: 32,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6B7280),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                          child: Image.asset(
+                            'assets/profile/img-add-icon.png',
+                            fit: BoxFit.contain,
                           ),
-                          child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
                         ),
                       ),
                     ],
@@ -592,6 +660,56 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 头像裁剪页：crop_your_image 圆形裁剪，完成后返回裁剪后的字节
+class _AvatarCropPage extends StatefulWidget {
+  const _AvatarCropPage({required this.imageBytes});
+
+  final Uint8List imageBytes;
+
+  @override
+  State<_AvatarCropPage> createState() => _AvatarCropPageState();
+}
+
+class _AvatarCropPageState extends State<_AvatarCropPage> {
+  final CropController _cropController = CropController();
+
+  void _onCrop(CropResult result) {
+    switch (result) {
+      case CropSuccess(:final croppedImage):
+        Navigator.of(context).pop(croppedImage);
+      case CropFailure():
+        Navigator.of(context).pop<Uint8List?>(null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('裁剪头像', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        actions: [
+          TextButton(
+            onPressed: () => _cropController.crop(),
+            child: const Text('完成', style: TextStyle(color: Colors.white, fontSize: 16)),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Crop(
+          controller: _cropController,
+          image: widget.imageBytes,
+          withCircleUi: true,
+          interactive: true,
+          onCropped: _onCrop,
+        ),
+      ),
     );
   }
 }
