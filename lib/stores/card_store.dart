@@ -40,7 +40,7 @@ class CardStore extends ChangeNotifier {
     cards.clear();
     notifyListeners();
     debugPrint('CardStore: loadCards: ${cards.length}');
-    
+
     // If we have cached cards, mark as initialized immediately (no blocking)
     if (cards.isNotEmpty) {
       isInitialized = true;
@@ -85,9 +85,12 @@ class CardStore extends ChangeNotifier {
 
       // Add mock card to UI immediately at the beginning (新增卡片放到最前面)
       cards.insert(0, adaptedCard);
-      
+
       // 重新计算所有卡片的 position（紧凑布局）
-      final newPositions = CardLayoutUtils.compactPositions(cards, _gridColumns);
+      final newPositions = CardLayoutUtils.compactPositions(
+        cards,
+        _gridColumns,
+      );
       for (var i = 0; i < cards.length; i++) {
         final card = cards[i];
         final pos = newPositions[i];
@@ -104,7 +107,7 @@ class CardStore extends ChangeNotifier {
         );
         dirtyCardIds.add(card.id);
       }
-      
+
       cardStates[adaptedCard.id] = CardState(
         loading: isAICard(type),
         isNew: true,
@@ -338,11 +341,15 @@ class CardStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final dirty = cards.where((card) => dirtyCardIds.contains(card.id)).toList();
+      final dirty = cards
+          .where((card) => dirtyCardIds.contains(card.id))
+          .toList();
 
       // 与 TS 一致：只覆盖 data.type，AI 卡改为 "datasource"，其余字段保持原样
       final cardsToSave = dirty.map((card) {
-        final saveType = isAICard(card.data.type) ? 'datasource' : card.data.type;
+        final saveType = isAICard(card.data.type)
+            ? 'datasource'
+            : card.data.type;
         return CardItem(
           id: card.id,
           data: CardData(
@@ -423,16 +430,19 @@ class CardStore extends ChangeNotifier {
           // Preserve user settings (like displayMode) - only for object metadata, not arrays
           // This is necessary because getDatasources returns raw_metadata which doesn't include
           // user settings like displayMode, but getCardBoard does include them.
+          debugPrint('COMPLETED1111 ${card.data.type.toString()}');
           final prevDisplayMode = card.data.metadata['displayMode'];
 
           // Update card with raw_metadata from datasource
           final rawMetadata = datasource['raw_metadata'];
           if (rawMetadata is Map<String, dynamic>) {
+            debugPrint('COMPLETED22222');
             // For object metadata, preserve displayMode if it exists
             finalMetadata = prevDisplayMode != null
                 ? {...rawMetadata, 'displayMode': prevDisplayMode}
                 : rawMetadata;
           } else {
+            debugPrint('COMPLETED333333');
             // For array metadata (like career_trajectory) or other types,
             // use raw_metadata directly - the adapt method will handle conversion
             // We need to wrap it in a Map to satisfy the type system
@@ -446,12 +456,20 @@ class CardStore extends ChangeNotifier {
           finalMetadata = card.data.metadata;
         }
 
+        // 与 TS 一致：card.data.url = datasource.url（Flutter 无顶层 url，存入 metadata）
+        final datasourceUrl = datasource['url']?.toString();
+        if (datasourceUrl != null && datasourceUrl.isNotEmpty) {
+          finalMetadata = Map<String, dynamic>.from(finalMetadata)
+            ..['url'] = datasourceUrl;
+        }
+
         // Update card with new data
         CardItem updatedCard = CardItem(
           id: card.id,
           data: CardData(
             id: card.data.id,
-            type: (datasource['type']?.toString() ?? card.data.type).toUpperCase(),
+            type: (datasource['type']?.toString() ?? card.data.type)
+                .toUpperCase(),
             title: card.data.title,
             description: card.data.description,
             metadata: finalMetadata,
@@ -473,7 +491,9 @@ class CardStore extends ChangeNotifier {
               // Call adapt directly with the array - it can handle List internally
               debugPrint('CardStore: rawMetadata: ${rawMetadata.toString()}');
               final adaptedMetadata = definition.adapt(rawMetadata);
-              debugPrint('CardStore: adaptedMetadata: ${adaptedMetadata.toString()}');
+              debugPrint(
+                'CardStore: adaptedMetadata: ${adaptedMetadata.toString()}',
+              );
               if (adaptedMetadata != null) {
                 updatedCard = CardItem(
                   id: updatedCard.id,
@@ -501,7 +521,9 @@ class CardStore extends ChangeNotifier {
             updatedCard = _registry.adapt(updatedCard, viewMode);
           }
         }
-
+        // debugPrint(
+        //   'CardStore: updatedCard: ${updatedCard.data.toJson().toString()}',
+        // );
         cards[cardIndex] = updatedCard;
       }
 

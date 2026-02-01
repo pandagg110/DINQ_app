@@ -130,8 +130,9 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
         WidgetsBinding.instance.addPostFrameCallback((_) => _measureAndUpdateLift());
       }
     }
+    // 仅用 padding 控制是否顶起，不移除 viewInsets，否则子树会认为键盘已关闭导致键盘被收起
     final bottomInset = _shouldLiftForKeyboard ? mq.viewInsets.bottom : 0.0;
-    Widget content = Padding(
+    return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
         decoration: const BoxDecoration(
@@ -146,14 +147,12 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
           20,
           20,
           20 + safeAreaBottom,
-          // 20
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 标题行：左侧标题，右侧 Add 按钮
               Row(
                 children: [
                   Expanded(
@@ -185,21 +184,11 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              // 使用表单工厂创建的表单组件
               _form.build(context, def),
             ],
           ),
         ),
       ),
     );
-    // 当不需要顶起时，移除 viewInsets 的影响，防止弹框被键盘推下去
-    if (!_shouldLiftForKeyboard && mq.viewInsets.bottom > 0) {
-      return MediaQuery.removeViewInsets(
-        context: context,
-        removeBottom: true,
-        child: content,
-      );
-    }
-    return content;
   }
 }

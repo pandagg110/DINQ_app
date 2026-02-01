@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../cards/factory/card_definition.dart';
 import '../form_builder_widget.dart';
 import 'card_form_base.dart';
 import 'link_form.dart';
 import 'markdown_form.dart';
+import 'network_form.dart';
 import 'default_form.dart';
 
 /// 表单工厂：根据卡片类型创建对应的表单组件
@@ -16,8 +16,10 @@ class CardFormFactory {
     GlobalKey<State<FormBuilderWidget>>? markdownFormKey,
   }) {
     final typeUpper = type.toUpperCase();
-    
-    if (typeUpper == 'LINK') {
+
+    if (typeUpper == 'ACHIEVEMENT_NETWORK') {
+      return NetworkForm();
+    } else if (typeUpper == 'LINK') {
       if (controller == null || focusNode == null) {
         throw ArgumentError('LinkForm requires controller and focusNode');
       }

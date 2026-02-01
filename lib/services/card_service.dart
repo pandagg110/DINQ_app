@@ -100,8 +100,9 @@ class CardService {
       'datasource_id': datasourceId,
       'type': type,
       if (url != null) 'url': url,
-      if (extraMetadata != null) ...extraMetadata,
+      if (extraMetadata != null) "metadata":extraMetadata,
     };
+    print('generatedata: ${data.toString()}');
     final response = await _dio.post('/card/generate', data: data);
     return Map<String, dynamic>.from(response.data as Map);
   }
