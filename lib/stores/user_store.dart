@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_models.dart';
 import '../services/api_client.dart';
@@ -255,6 +255,7 @@ class UserStore extends ChangeNotifier {
         creditsBalance: 3,
         monthlyCredits: 3,
         cancelAtPeriodEnd: false,
+        currentPeriodEnd: null,
       );
       return subscription;
     } finally {

@@ -59,9 +59,13 @@ class _SignInPageState extends State<SignInPage> {
     final userStore = context.watch<UserStore>();
     final isLoading = userStore.isLoading;
 
+    // 判断是否可以返回（如果不能返回则不显示后退按钮）
+    // 使用 go_router 的 canPop() 而非 Navigator.canPop()
+    final canGoBack = context.canPop();
+
     return KeyboardDismissOnTap(
       child: Scaffold(
-        appBar: DefaultAppBar(context),
+        appBar: DefaultAppBar(context, isShowBack: canGoBack),
         body: SafeArea(
           child: Column(
             children: [
@@ -105,10 +109,6 @@ class _SignInPageState extends State<SignInPage> {
                         child: TextField(
                           controller: _emailController,
                           decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
                             hintText: 'Enter your email',
                             hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
                           ),

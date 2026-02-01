@@ -1,19 +1,22 @@
-﻿class User {
+class User {
   User({
     required this.id,
     required this.email,
     required this.name,
+    this.hasPassword = false,
   });
 
   final String id;
   final String email;
   final String name;
+  final bool hasPassword;
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       name: json['name']?.toString() ?? 'User',
+      hasPassword: json['has_password'] == true,
     );
   }
 
@@ -21,6 +24,7 @@
         'id': id,
         'email': email,
         'name': name,
+        'has_password': hasPassword,
       };
 }
 
@@ -37,6 +41,8 @@ class UserData {
     this.timezone,
     this.tags = '',
     this.jobStatus,
+    this.dateOfBirth,
+    this.gender,
   });
 
   final String name;
@@ -50,6 +56,8 @@ class UserData {
   final String? timezone;
   final String tags;
   final String? jobStatus; // "Hiring" | "Open_to_work" | "Internship" | "Freelance" | "Hidden"
+  final String? dateOfBirth; // 生日，格式: "YYYY-MM-DD"
+  final String? gender; // "Male" | "Female" | "Non-binary" | "Prefer not to say"
 
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
@@ -64,6 +72,8 @@ class UserData {
       timezone: json['timezone']?.toString(),
       tags: json['tags']?.toString() ?? '',
       jobStatus: json['job_status']?.toString(),
+      dateOfBirth: json['date_of_birth']?.toString(),
+      gender: json['gender']?.toString(),
     );
   }
 
@@ -79,6 +89,8 @@ class UserData {
         if (timezone != null) 'timezone': timezone,
         if (tags.isNotEmpty) 'tags': tags,
         if (jobStatus != null) 'job_status': jobStatus,
+        if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+        if (gender != null) 'gender': gender,
       };
 }
 
@@ -130,6 +142,7 @@ class Subscription {
     required this.creditsBalance,
     required this.monthlyCredits,
     required this.cancelAtPeriodEnd,
+    this.currentPeriodEnd,
   });
 
   final String plan;
@@ -137,6 +150,7 @@ class Subscription {
   final int creditsBalance;
   final int monthlyCredits;
   final bool cancelAtPeriodEnd;
+  final String? currentPeriodEnd; // ISO 8601 日期字符串，如 "2026-12-25T00:00:00Z"
 
   factory Subscription.fromJson(Map<String, dynamic> json) {
     return Subscription(
@@ -149,6 +163,7 @@ class Subscription {
           ? json['monthly_credits'] as int
           : int.tryParse(json['monthly_credits']?.toString() ?? '0') ?? 0,
       cancelAtPeriodEnd: json['cancel_at_period_end'] == true,
+      currentPeriodEnd: json['current_period_end']?.toString(),
     );
   }
 
@@ -158,7 +173,25 @@ class Subscription {
         'credits_balance': creditsBalance,
         'monthly_credits': monthlyCredits,
         'cancel_at_period_end': cancelAtPeriodEnd,
+        if (currentPeriodEnd != null) 'current_period_end': currentPeriodEnd,
       };
+
+  /// 从完整 plan 类型中提取基础 plan（不含周期）
+  String get basePlan {
+    if (plan == 'free') return 'free';
+    return plan.replaceAll(RegExp(r'_monthly|_yearly'), '');
+  }
+
+  /// 从完整 plan 类型中提取周期
+  String? get billingPeriod {
+    if (plan == 'free') return null;
+    if (plan.endsWith('_yearly')) return 'yearly';
+    if (plan.endsWith('_monthly')) return 'monthly';
+    return null;
+  }
+
+  /// 是否是免费计划
+  bool get isFree => plan == 'free';
 }
 
 

@@ -406,6 +406,18 @@ class _LandingPageState extends State<LandingPage> {
           icon: SvgPicture.asset(assetPath('images/card/discover.svg'), width: 24, height: 24),
           label: const Text('Discover'),
         ),
+        ElevatedButton(
+          onPressed: () {
+            CommonDialog.showAlert(context: context, customAlert: InviteCodeDialog());
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF171717),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          ),
+          child: const Text('测试 Waiting List 弹框'),
+        ),
       ],
     );
   }

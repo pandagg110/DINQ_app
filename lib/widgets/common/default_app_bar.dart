@@ -31,7 +31,12 @@ class DefaultAppBar extends AppBar {
                titleString ?? "",
                style:
                    titleStyle ??
-                   TextStyle(color: ColorUtil.textColor, fontSize: 16, fontWeight: FontWeight.w600),
+                   TextStyle(
+                     color: ColorUtil.textColor,
+                     fontSize: 16,
+                     fontWeight: FontWeight.w600,
+                     fontFamily: 'Geist',
+                   ),
              ),
          leading:
              leading ??

@@ -27,7 +27,7 @@ class TopToastUtil {
       builder: (context, cancel) {
         return Center(
           child: Container(
-            margin: const EdgeInsets.only(top: 8),
+            margin: const EdgeInsets.only(top: 8, left: 20, right: 20),
             constraints: const BoxConstraints(maxWidth: 400),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -85,7 +85,7 @@ class TopToastUtil {
   static void showSuccess({
     required BuildContext context,
     required String title,
-    required String description,
+    String description = '',
     Duration duration = const Duration(seconds: 3),
   }) {
     showCustom(
