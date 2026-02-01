@@ -1,4 +1,4 @@
-﻿class User {
+class User {
   User({
     required this.id,
     required this.email,
@@ -24,6 +24,61 @@
       };
 }
 
+/// 分享卡片主题配置，对应 Web UserData.theme
+class ShareCardTheme {
+  ShareCardTheme({
+    this.mode = 'classic',
+    this.color = 'default',
+    this.logo,
+    this.leftCard,
+    this.rightCard,
+  });
+
+  /// classic | card
+  final String mode;
+  /// default | colorful
+  final String color;
+  final String? logo;
+  /// LINKEDIN | GITHUB | SCHOLAR | BIO
+  final String? leftCard;
+  /// ACHIEVEMENT_NETWORK | CAREER_TRAJECTORY
+  final String? rightCard;
+
+  factory ShareCardTheme.fromJson(Map<String, dynamic>? json) {
+    if (json == null || json.isEmpty) return ShareCardTheme();
+    return ShareCardTheme(
+      mode: json['mode']?.toString() ?? 'classic',
+      color: json['color']?.toString() ?? 'default',
+      logo: json['logo']?.toString(),
+      leftCard: json['left_card']?.toString() ?? json['leftCard']?.toString(),
+      rightCard: json['right_card']?.toString() ?? json['rightCard']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'mode': mode,
+        'color': color,
+        if (logo != null && logo!.isNotEmpty) 'logo': logo,
+        if (leftCard != null && leftCard!.isNotEmpty) 'left_card': leftCard,
+        if (rightCard != null && rightCard!.isNotEmpty) 'right_card': rightCard,
+      };
+
+  ShareCardTheme copyWith({
+    String? mode,
+    String? color,
+    String? logo,
+    String? leftCard,
+    String? rightCard,
+  }) =>
+      ShareCardTheme(
+        mode: mode ?? this.mode,
+        color: color ?? this.color,
+        logo: logo ?? this.logo,
+        leftCard: leftCard ?? this.leftCard,
+        rightCard: rightCard ?? this.rightCard,
+      );
+}
+
 class UserData {
   UserData({
     required this.name,
@@ -37,6 +92,7 @@ class UserData {
     this.timezone,
     this.tags = '',
     this.jobStatus,
+    this.theme,
   });
 
   final String name;
@@ -50,6 +106,7 @@ class UserData {
   final String? timezone;
   final String tags;
   final String? jobStatus; // "Hiring" | "Open_to_work" | "Internship" | "Freelance" | "Hidden"
+  final ShareCardTheme? theme;
 
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
@@ -64,6 +121,7 @@ class UserData {
       timezone: json['timezone']?.toString(),
       tags: json['tags']?.toString() ?? '',
       jobStatus: json['job_status']?.toString(),
+      theme: ShareCardTheme.fromJson(json['theme'] as Map<String, dynamic>?),
     );
   }
 
@@ -79,6 +137,7 @@ class UserData {
         if (timezone != null) 'timezone': timezone,
         if (tags.isNotEmpty) 'tags': tags,
         if (jobStatus != null) 'job_status': jobStatus,
+        if (theme != null) 'theme': theme!.toJson(),
       };
 }
 

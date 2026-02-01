@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -12,16 +11,28 @@ import '../cards/factory/card_registry.dart';
 import '../cards/factory/definitions/index.dart' show isSocialCard;
 import '../common/add_card_dialog.dart';
 import '../common/confirm_dialog.dart';
+import '../../models/card_models.dart';
+import '../../models/user_models.dart';
+import 'share_profile_dialog.dart';
 
 class FloatingToolbar extends StatefulWidget {
   const FloatingToolbar({
     super.key,
     this.isMobile = false,
     this.isSaving = false,
+    this.username,
+    this.userData,
+    this.cards,
   });
 
   final bool isMobile;
   final bool isSaving;
+  /// 当前 Profile 的 username，用于分享弹框
+  final String? username;
+  /// 当前 Profile 的 userData，用于分享弹框
+  final UserData? userData;
+  /// 当前 Profile 的卡片列表，用于分享弹框中的 Card 预览
+  final List<CardItem>? cards;
 
   @override
   State<FloatingToolbar> createState() => _FloatingToolbarState();
@@ -440,6 +451,18 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
   }
 
 
+  void _showShareDialog() {
+    final username = widget.username;
+    final userData = widget.userData;
+    if (username == null || username.isEmpty || userData == null) return;
+    ShareProfileDialog.show(
+      context: context,
+      username: username,
+      userData: userData,
+      cards: widget.cards,
+    );
+  }
+
   Widget _buildShareButton() {
     return Container(
       width: 48,
@@ -450,9 +473,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            // TODO: Handle share
-          },
+          onTap: _showShareDialog,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(0,0,0,0),
