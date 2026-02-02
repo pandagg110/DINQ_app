@@ -173,20 +173,22 @@ class _EditCardBottomSheetState extends State<_EditCardBottomSheet> {
           ),
         ),
         padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + safeAreaBottom),
-        constraints: widget.handler.useScrollableLayout
-            ? null
-            : BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         child: widget.handler.useScrollableLayout
-            ? SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 16),
-                    body,
-                  ],
-                ),
+            ? Column(
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: body,
+                    ),
+                  ),
+                ],
               )
             : Column(
                 mainAxisSize: MainAxisSize.min,
