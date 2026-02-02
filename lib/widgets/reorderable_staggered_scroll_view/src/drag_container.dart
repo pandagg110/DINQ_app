@@ -33,7 +33,8 @@ class DragContainer<T extends ReorderableStaggeredScrollViewListItem>
   final void Function(DragUpdateDetails details, T data)? onDragUpdate;
   final void Function(Velocity velocity, Offset offset, T data)?
   onDraggableCanceled;
-  final void Function(DraggableDetails details, T data)? onDragEnd;
+  final void Function(
+      DraggableDetails details, T data, List<T> orderedDataList)? onDragEnd;
   final void Function(T data)? onDragCompleted;
   final ScrollController? scrollController;
   final bool isDragNotification;
@@ -89,6 +90,10 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
     _timer?.cancel();
   }
 
+  List<T> _getOrderedDataList() {
+    return List<T>.from(widget.dataList);
+  }
+
   void _debugPrintDataList(T draggedData) {
     final list = widget.dataList;
     final buf = StringBuffer(
@@ -100,8 +105,8 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
       final sizeStr = item is ReorderableStaggeredScrollViewGridCountItem
           ? '${item.mainAxisCellCount}x${item.crossAxisCellCount}'
           : (item is ReorderableStaggeredScrollViewGridExtentItem
-              ? '${item.mainAxisExtent}x${item.crossAxisCellCount}'
-              : '-');
+                ? '${item.mainAxisExtent}x${item.crossAxisCellCount}'
+                : '-');
       final dataStr = _formatData(item.data);
       buf.writeln('  [$i] key=$keyVal size=$sizeStr$dataStr');
     }
@@ -171,6 +176,20 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
     }
   }
 
+  void _reorderDataList(T moveData, T data, bool isFront) {
+    if (moveData == data) return;
+    final int index = widget.dataList.indexOf(data);
+    if (index < 0) return;
+    widget.dataList.remove(moveData);
+    if (isFront) {
+      widget.dataList.insert(index, moveData);
+    } else {
+      final insertIdx =
+          index + 1 < widget.dataList.length ? index + 1 : index;
+      widget.dataList.insert(insertIdx, moveData);
+    }
+  }
+
   void setWillAccept(T? moveData, T data, {bool isFront = true}) {
     if (moveData == data) {
       return;
@@ -182,20 +201,7 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
           if (widget.onWillAccept != null) {
             widget.onWillAccept?.call(moveData, data, isFront);
           } else if (moveData != null) {
-            setState(() {
-              final int index = widget.dataList.indexOf(data);
-              if (isFront) {
-                widget.dataList.remove(moveData);
-                widget.dataList.insert(index, moveData);
-              } else {
-                widget.dataList.remove(moveData);
-                if (index + 1 < widget.dataList.length) {
-                  widget.dataList.insert(index + 1, moveData);
-                } else {
-                  widget.dataList.insert(index, moveData);
-                }
-              }
-            });
+            setState(() => _reorderDataList(moveData, data, isFront));
           }
         }
       });
@@ -254,8 +260,10 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
                     },
                     onAcceptWithDetails: widget.onAccept == null
                         ? null
-                        : (DragTargetDetails<T> details) =>
-                              widget.onAccept?.call(details.data, data, true),
+                        : (DragTargetDetails<T> details) {
+                            _reorderDataList(details.data, data, true);
+                            widget.onAccept?.call(details.data, data, true);
+                          },
                     onLeave: widget.onLeave == null
                         ? null
                         : (T? moveData) =>
@@ -284,8 +292,10 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
                     },
                     onAcceptWithDetails: widget.onAccept == null
                         ? null
-                        : (DragTargetDetails<T> details) =>
-                              widget.onAccept?.call(details.data, data, false),
+                        : (DragTargetDetails<T> details) {
+                            _reorderDataList(details.data, data, false);
+                            widget.onAccept?.call(details.data, data, false);
+                          },
                     onLeave: widget.onLeave == null
                         ? null
                         : (T? moveData) =>
@@ -339,7 +349,7 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
             onDragEnd: (details) {
               setDragStart(isDragStart: false);
               _debugPrintDataList(data);
-              widget.onDragEnd?.call(details, data);
+              widget.onDragEnd?.call(details, data, _getOrderedDataList());
             },
             onDragCompleted: () {
               setDragStart(isDragStart: false);
@@ -370,7 +380,7 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
             onDragEnd: (DraggableDetails details) {
               setDragStart(isDragStart: false);
               _debugPrintDataList(data);
-              widget.onDragEnd?.call(details, data);
+              widget.onDragEnd?.call(details, data, _getOrderedDataList());
             },
             onDragCompleted: () {
               setDragStart(isDragStart: false);

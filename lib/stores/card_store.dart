@@ -224,6 +224,31 @@ class CardStore extends ChangeNotifier {
     }
   }
 
+  /// 批量更新多张卡片的布局，只触发一次 notifyListeners
+  void updateCardLayouts(Map<String, CardLayout> layouts) {
+    if (layouts.isEmpty) return;
+    bool hasChange = false;
+    for (final entry in layouts.entries) {
+      final cardId = entry.key;
+      final layout = entry.value;
+      final index = cards.indexWhere((card) => card.id == cardId);
+      if (index >= 0) {
+        cards[index] = CardItem(
+          id: cards[index].id,
+          data: cards[index].data,
+          layout: layout,
+        );
+        dirtyCardIds.add(cardId);
+        hasChange = true;
+      }
+    }
+    if (hasChange) {
+      updateCount++;
+      _scheduleSave();
+      notifyListeners();
+    }
+  }
+
   /// 与网格一致：4 列；仅对 allowedSizes 的卡片做紧凑重排并写回 position，改尺寸后占位会整体下移
   static const Set<String> _allowedSizesForCompact = {'2x2', '2x4', '4x2', '4x4', '4x1'};
 

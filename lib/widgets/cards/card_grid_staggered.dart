@@ -32,11 +32,6 @@ class CardGridStaggered extends StatefulWidget {
 }
 
 class _CardGridStaggeredState extends State<CardGridStaggered> {
-  static String? _keyToCardId(Key key) {
-    if (key is ValueKey<Object?>) return key.value?.toString();
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final cardStore = context.watch<CardStore>();
@@ -263,60 +258,40 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                   onDragCompleted: (draggedItem) {
                     print('onDragCompleted: $draggedItem');
                   },
-                  onDragEnd: (draggedItem, item) {
-                    debugPrint('item: key=${item.key}, mainAxisSize=${item.mainAxisSize}, crossAxisSize=${item.crossAxisSize}');
-                    print('onDragEnd: $draggedItem, $draggedItem');
-                  },
-                  onAccept: (draggedItem, targetItem, isFront) {
-                    if (draggedItem == null) return;
-                    final draggedId = _keyToCardId(draggedItem.key);
-                    final targetId = _keyToCardId(targetItem.key);
-                    if (draggedId == null || targetId == null) return;
-                    if (draggedId == targetId) return; // 拖到自己身上，忽略
-                    // 与 gridItems 顺序一致：用 filteredCards 按 (y,x) 排序
-                    final ordered = List<CardItem>.from(filteredCards);
-                    ordered.sort((a, b) {
-                      final pa = a.layout.mobile.position;
-                      final pb = b.layout.mobile.position;
-                      if (pa.y != pb.y) return pa.y.compareTo(pb.y);
-                      return pa.x.compareTo(pb.x);
-                    });
-                    final oldIndex = ordered.indexWhere(
-                      (c) => c.id == draggedId,
-                    );
-                    final targetIndex = ordered.indexWhere(
-                      (c) => c.id == targetId,
-                    );
-                    if (oldIndex < 0 || targetIndex < 0) return;
-                    final draggedCard = ordered[oldIndex];
-                    final reordered = List<CardItem>.from(ordered);
-                    reordered.removeAt(oldIndex);
-                    // 使用包提供的 isFront：落在 target 前半=插到 target 前，后半=插到 target 后
-                    // remove 后 target 的索引会前移（若 target 在 dragged 之后）
-                    final insertIndex = isFront
-                        ? (oldIndex < targetIndex ? targetIndex - 1 : targetIndex)
-                        : (oldIndex < targetIndex ? targetIndex : targetIndex + 1);
-                    reordered.insert(
-                      insertIndex.clamp(0, reordered.length),
-                      draggedCard,
-                    );
+                  onDragEnd: (details, item, orderedDataList) {
+                    // 根据 orderedDataList 的顺序和每张 card 的 size，计算 x,y 并更新布局
+                    final orderedCards = <CardItem>[];
+                    for (final elem in orderedDataList) {
+                      if (elem.data is CardItem) {
+                        orderedCards.add(elem.data as CardItem);
+                      }
+                    }
+                    if (orderedCards.isEmpty) return;
                     final newPositions = CardLayoutUtils.compactPositions(
-                      reordered,
+                      orderedCards,
                       columns,
                     );
-                    for (var i = 0; i < reordered.length; i++) {
-                      final c = reordered[i];
+                    // 收集位置有变化的卡片，批量更新
+                    final changedLayouts = <String, CardLayout>{};
+                    for (var i = 0; i < orderedCards.length; i++) {
+                      final c = orderedCards[i];
                       final pos = newPositions[i];
+                      final oldPos = c.layout.mobile.position;
+                      // 位置无变化则跳过
+                      if (oldPos.x == pos.x && oldPos.y == pos.y) continue;
                       final currentLayout = c.layout.mobile;
-                      final newLayout = CardLayout(
+                      changedLayouts[c.id] = CardLayout(
                         desktop: c.layout.desktop,
                         mobile: CardLayoutState(
                           size: currentLayout.size,
                           position: pos,
                         ),
                       );
-                      cardStore.updateCardLayout(c.id, newLayout);
                     }
+                    cardStore.updateCardLayouts(changedLayouts);
+                  },
+                  onAccept: (draggedItem, targetItem, isFront) {
+                    // 由 onDragEnd 根据 orderedDataList 统一计算并更新布局
                   },
                 ),
                 if (placeholderPositions.isNotEmpty)

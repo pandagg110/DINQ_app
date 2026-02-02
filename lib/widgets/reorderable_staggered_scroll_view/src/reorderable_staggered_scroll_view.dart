@@ -123,8 +123,10 @@ class ReorderableStaggeredScrollView extends StatefulWidget {
       DragUpdateDetails, ReorderableStaggeredScrollViewListItem)? onDragUpdate;
   final void Function(Velocity, Offset, ReorderableStaggeredScrollViewListItem)?
       onDraggableCanceled;
-  final void Function(DraggableDetails, ReorderableStaggeredScrollViewListItem)?
-      onDragEnd;
+  final void Function(
+      DraggableDetails,
+      ReorderableStaggeredScrollViewListItem,
+      List<ReorderableStaggeredScrollViewListItem> orderedDataList)? onDragEnd;
   final void Function(ReorderableStaggeredScrollViewListItem)? onDragCompleted;
   final ScrollController? scrollController;
   final bool isDragNotification;
@@ -222,7 +224,10 @@ class ReorderableStaggeredScrollView extends StatefulWidget {
         onDragUpdate,
     void Function(Velocity, Offset, ReorderableStaggeredScrollViewGridItem)?
         onDraggableCanceled,
-    void Function(DraggableDetails, ReorderableStaggeredScrollViewGridItem)?
+    void Function(
+            DraggableDetails,
+            ReorderableStaggeredScrollViewGridItem,
+            List<ReorderableStaggeredScrollViewListItem> orderedDataList)?
         onDragEnd,
     void Function(ReorderableStaggeredScrollViewGridItem)? onDragCompleted,
     this.scrollController,
@@ -311,9 +316,10 @@ class ReorderableStaggeredScrollView extends StatefulWidget {
         onDragEnd = (onDragEnd == null
             ? null
             : (DraggableDetails details,
-                    ReorderableStaggeredScrollViewListItem item) =>
-                onDragEnd(
-                    details, item as ReorderableStaggeredScrollViewGridItem)),
+                    ReorderableStaggeredScrollViewListItem item,
+                    List<ReorderableStaggeredScrollViewListItem> orderedDataList) =>
+                onDragEnd(details, item as ReorderableStaggeredScrollViewGridItem,
+                    orderedDataList)),
         onDragCompleted = (onDragCompleted == null
             ? null
             : (ReorderableStaggeredScrollViewListItem item) => onDragCompleted(
