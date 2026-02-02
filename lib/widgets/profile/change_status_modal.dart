@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../stores/user_store.dart';
-import '../../utils/toast_util.dart';
+import '../../utils/top_toast_util.dart';
 
 class ChangeStatusModal extends StatefulWidget {
   const ChangeStatusModal({
@@ -57,17 +58,9 @@ class _ChangeStatusModalState extends State<ChangeStatusModal> {
       final userStore = context.read<UserStore>();
       await userStore.updateUserData({'job_status': _selectedStatus});
       widget.onClose();
-      ToastUtil.showSuccess(
-        context: context,
-        title: '更新成功',
-        description: '工作状态已更新',
-      );
+      TopToastUtil.showSuccess(context: context, title: '更新成功', description: '工作状态已更新');
     } catch (error) {
-      ToastUtil.showError(
-        context: context,
-        title: '更新失败',
-        description: error.toString(),
-      );
+      TopToastUtil.showError(context: context, title: '更新失败', description: error.toString());
     } finally {
       if (mounted) {
         setState(() => _isUpdating = false);
@@ -75,15 +68,12 @@ class _ChangeStatusModalState extends State<ChangeStatusModal> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     if (!widget.isOpen) return const SizedBox.shrink();
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         padding: const EdgeInsets.all(24),
         width: 400,
@@ -140,15 +130,9 @@ class _ChangeStatusModalState extends State<ChangeStatusModal> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF171717)),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
-                  hint: const Text(
-                    'Not set',
-                    style: TextStyle(color: Color(0x66303030)),
-                  ),
+                  hint: const Text('Not set', style: TextStyle(color: Color(0x66303030))),
                   items: _jobStatuses.map((status) {
                     return DropdownMenuItem<String>(
                       value: status['value']!.isEmpty ? null : status['value'],
@@ -181,9 +165,7 @@ class _ChangeStatusModalState extends State<ChangeStatusModal> {
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFF171717)),
                       padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text(
                       'Cancel',
@@ -202,9 +184,7 @@ class _ChangeStatusModalState extends State<ChangeStatusModal> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF171717),
                       padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isUpdating
                         ? const SizedBox(
@@ -233,4 +213,3 @@ class _ChangeStatusModalState extends State<ChangeStatusModal> {
     );
   }
 }
-

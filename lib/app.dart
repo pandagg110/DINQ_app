@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:provider/provider.dart';
+
 import 'router/app_router.dart';
 import 'stores/card_store.dart';
 import 'stores/messages_store.dart';
@@ -10,14 +12,17 @@ import 'stores/user_store.dart';
 import 'theme/app_theme.dart';
 
 class DinqApp extends StatelessWidget {
-  const DinqApp({super.key});
+  DinqApp({super.key}) : _userStore = UserStore();
+
+  final UserStore _userStore;
+  late final _router = AppRouter.create(_userStore);
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsStore()),
-        ChangeNotifierProvider(create: (_) => UserStore()),
+        ChangeNotifierProvider.value(value: _userStore),
         ChangeNotifierProvider(create: (_) => CardStore()),
         ChangeNotifierProvider(create: (_) => MessagesStore()),
         ChangeNotifierProvider(create: (_) => NotificationsStore()),
@@ -25,7 +30,6 @@ class DinqApp extends StatelessWidget {
       ],
       child: Builder(
         builder: (context) {
-          final router = AppRouter.create(context);
           return LayoutBuilder(
             builder: (context, constraints) {
               final settings = context.read<SettingsStore>();
@@ -38,9 +42,10 @@ class DinqApp extends StatelessWidget {
 
               return MaterialApp.router(
                 title: 'DINQ',
-                routerConfig: router,
+                routerConfig: _router,
                 theme: AppTheme.lightTheme,
                 debugShowCheckedModeBanner: false,
+                builder: EasyLoading.init(),
               );
             },
           );
@@ -49,5 +54,3 @@ class DinqApp extends StatelessWidget {
     );
   }
 }
-
-

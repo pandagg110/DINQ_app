@@ -1,5 +1,12 @@
-﻿const String appUrl = String.fromEnvironment('APP_URL', defaultValue: 'http://dinq.me');
-const String gatewayUrl = String.fromEnvironment('GATEWAY_URL', defaultValue: 'https://api.dinq.me');
+﻿const String appUrl = String.fromEnvironment('APP_URL', defaultValue: 'https://dinq.me');
+const String gatewayUrl = String.fromEnvironment(
+  'GATEWAY_URL',
+  defaultValue: 'https://api.dinq.me',
+);
+
+class ConstantsTool {
+  static const bottomTabHeight = 55.0;
+}
 
 class ApiConfig {
   static const int requestTimeoutMs = 30000;
@@ -30,5 +37,3 @@ class WsMessageType {
   static const String messageStatusUpdate = 'message_status_update';
   static const String recall = 'recall';
 }
-
-

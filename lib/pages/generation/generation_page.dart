@@ -2,11 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../services/upload_service.dart';
-import '../../services/flow_service.dart';
+
 import '../../models/user_models.dart';
+import '../../services/flow_service.dart';
+import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
-import '../../utils/toast_util.dart';
+import '../../utils/top_toast_util.dart';
 
 class GenerationPage extends StatefulWidget {
   const GenerationPage({super.key});
@@ -52,9 +53,7 @@ class _GenerationPageState extends State<GenerationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isResult =
-        _currentStep == GenerationStep.success ||
-        _currentStep == GenerationStep.error;
+    final isResult = _currentStep == GenerationStep.success || _currentStep == GenerationStep.error;
     final progress = _progressValue();
 
     return Scaffold(
@@ -128,19 +127,12 @@ class _GenerationPageState extends State<GenerationPage> {
         const SizedBox(height: 24),
         TextField(
           controller: _domainController,
-          decoration: const InputDecoration(
-            prefixText: 'dinq.me/',
-            labelText: 'Domain',
-          ),
+          decoration: const InputDecoration(prefixText: 'dinq.me/', labelText: 'Domain'),
         ),
         const SizedBox(height: 16),
-        if (_error != null)
-          Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+        if (_error != null) Text(_error!, style: const TextStyle(color: Colors.redAccent)),
         const SizedBox(height: 12),
-        ElevatedButton(
-          onPressed: _nextFromDomain,
-          child: const Text('Continue'),
-        ),
+        ElevatedButton(onPressed: _nextFromDomain, child: const Text('Continue')),
       ],
     );
   }
@@ -176,17 +168,13 @@ class _GenerationPageState extends State<GenerationPage> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () =>
-                    setState(() => _currentStep = GenerationStep.domain),
+                onPressed: () => setState(() => _currentStep = GenerationStep.domain),
                 child: const Text('Back'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: ElevatedButton(
-                onPressed: _nextFromResume,
-                child: const Text('Continue'),
-              ),
+              child: ElevatedButton(onPressed: _nextFromResume, child: const Text('Continue')),
             ),
           ],
         ),
@@ -230,15 +218,13 @@ class _GenerationPageState extends State<GenerationPage> {
           decoration: const InputDecoration(labelText: 'Google Scholar'),
         ),
         const SizedBox(height: 16),
-        if (_error != null)
-          Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+        if (_error != null) Text(_error!, style: const TextStyle(color: Colors.redAccent)),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () =>
-                    setState(() => _currentStep = GenerationStep.resume),
+                onPressed: () => setState(() => _currentStep = GenerationStep.resume),
                 child: const Text('Back'),
               ),
             ),
@@ -247,11 +233,7 @@ class _GenerationPageState extends State<GenerationPage> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submitGeneration,
                 child: _isSubmitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(),
-                      )
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator())
                     : const Text('Generate DINQ'),
               ),
             ),
@@ -352,10 +334,7 @@ class _GenerationPageState extends State<GenerationPage> {
       final file = result.files.single;
       _resumeController.text = file.name;
       try {
-        await _uploadService.uploadFile(
-          bytes: file.bytes!,
-          filename: file.name,
-        );
+        await _uploadService.uploadFile(bytes: file.bytes!, filename: file.name);
       } catch (error) {
         setState(() => _error = error.toString());
       }
@@ -384,33 +363,19 @@ class _GenerationPageState extends State<GenerationPage> {
       // 2. 收集社交链接
       final socialLinks = <Map<String, dynamic>>[];
       if (_twitterController.text.trim().isNotEmpty) {
-        socialLinks.add({
-          'type': 'twitter',
-          'url': _twitterController.text.trim(),
-        });
+        socialLinks.add({'type': 'twitter', 'url': _twitterController.text.trim()});
       }
       if (_linkedinController.text.trim().isNotEmpty) {
-        socialLinks.add({
-          'type': 'linkedin',
-          'url': _linkedinController.text.trim(),
-        });
+        socialLinks.add({'type': 'linkedin', 'url': _linkedinController.text.trim()});
       }
       if (_githubController.text.trim().isNotEmpty) {
-        socialLinks.add({
-          'type': 'github',
-          'url': _githubController.text.trim(),
-        });
+        socialLinks.add({'type': 'github', 'url': _githubController.text.trim()});
       }
       if (_scholarController.text.trim().isNotEmpty) {
-        socialLinks.add({
-          'type': 'scholar',
-          'url': _scholarController.text.trim(),
-        });
+        socialLinks.add({'type': 'scholar', 'url': _scholarController.text.trim()});
       }
       // 3. 调用生成 API
-      final response = await _flowService.generate({
-        'social_links': socialLinks,
-      });
+      final response = await _flowService.generate({'social_links': socialLinks});
 
       // 4. 更新用户流程状态
       final userStore = context.read<UserStore>();
@@ -424,7 +389,7 @@ class _GenerationPageState extends State<GenerationPage> {
       }
       await userStore.getCurrentUser();
       // 5. 显示成功提示
-      ToastUtil.showSuccess(
+      TopToastUtil.showSuccess(
         context: context,
         title: '生成成功',
         description: '您的 DINQ Card 正在准备中...',
@@ -438,11 +403,7 @@ class _GenerationPageState extends State<GenerationPage> {
         _error = error.toString();
         _currentStep = GenerationStep.error;
       });
-      ToastUtil.showError(
-        context: context,
-        title: '生成失败',
-        description: error.toString(),
-      );
+      TopToastUtil.showError(context: context, title: '生成失败', description: error.toString());
     } finally {
       setState(() => _isSubmitting = false);
     }

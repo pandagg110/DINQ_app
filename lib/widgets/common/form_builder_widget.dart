@@ -1,14 +1,15 @@
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'read_bytes_from_path_stub.dart' if (dart.library.io) 'read_bytes_from_path_io.dart' as path_reader;
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:file_picker/file_picker.dart';
+
 import '../../services/upload_service.dart';
-import '../../utils/toast_util.dart';
+import '../../utils/top_toast_util.dart';
 
 /// 表单字段类型
 enum FormFieldType {
@@ -122,11 +123,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           await widget.onSubmit!(formData);
         } catch (e) {
           if (mounted) {
-            ToastUtil.showError(
-              context: context,
-              title: '提交失败',
-              description: e.toString(),
-            );
+            TopToastUtil.showError(context: context, title: '提交失败', description: e.toString());
           }
         }
       }
@@ -157,7 +154,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           bytes = await path_reader.readBytesFromPath(file.path!);
         } catch (e) {
           if (mounted) {
-            ToastUtil.showError(
+            TopToastUtil.showError(
               context: context,
               title: '读取文件失败',
               description: e.toString(),
@@ -167,7 +164,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
         }
       } else {
         if (mounted) {
-          ToastUtil.showError(
+          TopToastUtil.showError(
             context: context,
             title: '无法读取图片',
             description: '请重试或换一张图片',
@@ -178,11 +175,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
 
       if (config.maxFileSize != null && bytes.length > config.maxFileSize!) {
         if (mounted) {
-          ToastUtil.showError(
-            context: context,
-            title: '上传失败',
-            description: '文件大小超过限制',
-          );
+          TopToastUtil.showError(context: context, title: '上传失败', description: '文件大小超过限制');
         }
         return;
       }
@@ -228,20 +221,12 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
           // 失败时保留本地预览，便于用户重试或清除
         });
         if (mounted) {
-          ToastUtil.showError(
-            context: context,
-            title: '上传失败',
-            description: e.toString(),
-          );
+          TopToastUtil.showError(context: context, title: '上传失败', description: e.toString());
         }
       }
     } catch (e) {
       if (mounted) {
-        ToastUtil.showError(
-          context: context,
-          title: '选择文件失败',
-          description: e.toString(),
-        );
+        TopToastUtil.showError(context: context, title: '选择文件失败', description: e.toString());
       }
     }
   }
@@ -574,15 +559,18 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ...widget.fields.map((field) => Padding(
-                padding: EdgeInsets.only(bottom: widget.spacing),
-                child: _buildField(field),
-              )),
+          ...widget.fields.map(
+            (field) => Padding(
+              padding: EdgeInsets.only(bottom: widget.spacing),
+              child: _buildField(field),
+            ),
+          ),
           if (widget.showSubmitButton) ...[
             SizedBox(height: widget.spacing),
             ElevatedButton(
               onPressed: _handleSubmit,
-              style: widget.submitButtonStyle ??
+              style:
+                  widget.submitButtonStyle ??
                   ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,

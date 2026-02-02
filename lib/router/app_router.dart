@@ -1,5 +1,15 @@
-﻿import 'package:flutter/material.dart';
+import 'package:dinq_app/pages/auth/verify_code_page.dart';
+import 'package:dinq_app/pages/settings/settings_set_email_page.dart';
+import 'package:dinq_app/pages/settings/settings_set_password_page.dart';
 import 'package:go_router/go_router.dart';
+
+import '../pages/admin/admin_mydinq_page.dart';
+import '../pages/admin/admin_openings_page.dart';
+import '../pages/admin/admin_page.dart';
+import '../pages/admin/admin_search_page.dart';
+import '../pages/admin/inbox/admin_inbox_conversation_page.dart';
+import '../pages/admin/inbox/admin_inbox_notifications_page.dart';
+import '../pages/admin/inbox/admin_inbox_page.dart';
 import '../pages/analysis/analysis_page.dart';
 import '../pages/analysis/github_compare_page.dart';
 import '../pages/analysis/github_page.dart';
@@ -17,6 +27,7 @@ import '../pages/callback/account_callback_page.dart';
 import '../pages/callback/social_callback_page.dart';
 import '../pages/generation/generation_page.dart';
 import '../pages/landing/landing_page.dart';
+import '../pages/main_tab/main_tab_page.dart';
 import '../pages/marketing/blog_detail_page.dart';
 import '../pages/marketing/blogs_page.dart';
 import '../pages/marketing/cookies_page.dart';
@@ -28,35 +39,102 @@ import '../pages/not_found_page.dart';
 import '../pages/payment/payment_cancelled_page.dart';
 import '../pages/payment/payment_success_page.dart';
 import '../pages/profile/profile_page.dart';
+import '../pages/settings/edit_profile_page.dart';
 import '../pages/settings/settings_account_page.dart';
 import '../pages/settings/settings_dinqcard_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/settings/settings_profile_page.dart';
 import '../pages/settings/settings_subscription_page.dart';
 import '../pages/settings/settings_verification_page.dart';
-import '../pages/admin/admin_page.dart';
-import '../pages/admin/admin_mydinq_page.dart';
-import '../pages/admin/admin_openings_page.dart';
-import '../pages/admin/admin_search_page.dart';
-import '../pages/admin/inbox/admin_inbox_page.dart';
-import '../pages/admin/inbox/admin_inbox_conversation_page.dart';
-import '../pages/admin/inbox/admin_inbox_notifications_page.dart';
+import '../pages/splash_page.dart';
+import '../pages/web_view_page.dart';
+import '../stores/user_store.dart';
 
 class AppRouter {
-  static GoRouter create(BuildContext context) {
+  // 不需要登录就能访问的公开路由
+  static const _publicRoutes = [
+    '/splash',
+    '/signin',
+    '/signup',
+    '/reset',
+    '/reset/callback',
+    '/verify',
+    '/landing',
+    '/demo',
+    '/waiting-list',
+    '/terms',
+    '/privacy',
+    '/guidelines',
+    '/cookies',
+    '/pricing',
+    '/blogs',
+    '/social-callback',
+    '/account-callback',
+  ];
+
+  static bool _isPublicRoute(String location) {
+    // 精确匹配公开路由
+    if (_publicRoutes.contains(location)) return true;
+    // 匹配 /blogs/:slug 路由
+    if (location.startsWith('/blogs/')) return true;
+    // 匹配用户资料页 /:username（排除其他路由前缀）
+    if (location.startsWith('/') && !location.contains('/') && location.length > 1) return true;
+    return false;
+  }
+
+  static GoRouter create(UserStore userStore) {
     return GoRouter(
-      initialLocation: '/',
+      initialLocation: '/splash',
       errorBuilder: (context, state) => const NotFoundPage(),
+      refreshListenable: userStore,
+      redirect: (context, state) {
+        final isLoggedIn = userStore.isLoggedIn();
+        final isInitialized = userStore.isInitialized;
+        final location = state.matchedLocation;
+
+        // 如果还未初始化完成，停留在启动页
+        if (!isInitialized) {
+          return location == '/splash' ? null : '/splash';
+        }
+
+        // 初始化完成后，如果还在启动页，根据登录状态跳转
+        if (location == '/splash') {
+          return isLoggedIn ? '/' : '/signin';
+        }
+
+        // 判断当前是否在登录/注册页
+        final isOnAuthPage = location == '/signin' || location == '/signup';
+
+        // 如果已登录且在登录/注册页，跳转到首页
+        if (isLoggedIn && isOnAuthPage) {
+          return '/';
+        }
+
+        // 如果未登录且不在公开路由，跳转到登录页
+        if (!isLoggedIn && !_isPublicRoute(location)) {
+          return '/signin';
+        }
+
+        return null;
+      },
       routes: [
-        GoRoute(path: '/', builder: (context, state) => const LandingPage()),
+        GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
+        GoRoute(path: '/', builder: (context, state) => const MainTabPage()),
         GoRoute(path: '/landing', builder: (context, state) => const LandingPage()),
         GoRoute(path: '/signin', builder: (context, state) => const SignInPage()),
         GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
         GoRoute(path: '/reset', builder: (context, state) => const ResetPage()),
         GoRoute(
-          path: '/reset/callback',
-          builder: (context, state) => const ResetCallbackPage(),
+          path: '/verify',
+          builder: (context, state) {
+            final map = state.extra as Map<String, dynamic>;
+            // 获取路径参数
+            final email = (map['email'] ?? "").toString();
+            final password = (map['password'] ?? "").toString();
+            return VerifyCodePage(email: email, password: password);
+          },
         ),
+        GoRoute(path: '/reset/callback', builder: (context, state) => const ResetCallbackPage()),
         GoRoute(path: '/demo', builder: (context, state) => const DemoPage()),
         GoRoute(path: '/waiting-list', builder: (context, state) => const WaitingListPage()),
         GoRoute(path: '/generation', builder: (context, state) => const GenerationPage()),
@@ -70,9 +148,52 @@ class AppRouter {
         GoRoute(path: '/privacy', builder: (context, state) => const PrivacyPage()),
         GoRoute(path: '/guidelines', builder: (context, state) => const GuidelinesPage()),
         GoRoute(path: '/cookies', builder: (context, state) => const CookiesPage()),
+        GoRoute(
+          path: '/webview',
+          builder: (context, state) {
+            final map = state.extra as Map<String, dynamic>;
+            final url = map['url'] ?? '';
+            final navTitle = map['navTitle'];
+            final showAppBar = map['showAppBar'] != 'false';
+            return WebViewPage(
+              url: Uri.decodeComponent(url),
+              navTitle: navTitle,
+              showAppBar: showAppBar,
+            );
+          },
+        ),
         GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
-        GoRoute(path: '/settings/profile', builder: (context, state) => const SettingsProfilePage()),
-        GoRoute(path: '/settings/account', builder: (context, state) => const SettingsAccountPage()),
+        GoRoute(
+          path: '/settings/profile',
+          builder: (context, state) => const SettingsProfilePage(),
+        ),
+        GoRoute(
+          path: '/settings/profile/edit',
+          builder: (context, state) => const EditProfilePage(),
+        ),
+        GoRoute(
+          path: '/settings/account',
+          builder: (context, state) => const SettingsAccountPage(),
+        ),
+        GoRoute(
+          path: '/settings/account/password',
+          builder: (context, state) {
+            final map = state.extra as Map<String, dynamic>;
+            // 获取路径参数
+            final hasPassword = map['hasPassword'];
+            return SettingsSetPasswordPage(hasPassword: hasPassword);
+          },
+        ),
+        GoRoute(
+          path: '/settings/account/email',
+          builder: (context, state) {
+            final map = state.extra as Map<String, dynamic>;
+            // 获取路径参数
+            final currentEmail = map['currentEmail'].toString();
+            final onSuccess = map['onSuccess'];
+            return SettingsSetEmailPage(currentEmail: currentEmail, onSuccess: onSuccess);
+          },
+        ),
         GoRoute(
           path: '/settings/verification',
           builder: (context, state) => const SettingsVerificationPage(),
@@ -90,10 +211,7 @@ class AppRouter {
           path: '/payment/cancelled',
           builder: (context, state) => const PaymentCancelledPage(),
         ),
-        GoRoute(
-          path: '/social-callback',
-          builder: (context, state) => const SocialCallbackPage(),
-        ),
+        GoRoute(path: '/social-callback', builder: (context, state) => const SocialCallbackPage()),
         GoRoute(
           path: '/account-callback',
           builder: (context, state) => const AccountCallbackPage(),
@@ -137,11 +255,10 @@ class AppRouter {
         ),
         GoRoute(
           path: '/:username',
-          builder: (context, state) => ProfilePage(username: state.pathParameters['username'] ?? ''),
+          builder: (context, state) =>
+              ProfilePage(username: state.pathParameters['username'] ?? ''),
         ),
       ],
     );
   }
 }
-
-

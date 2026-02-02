@@ -1,6 +1,9 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:dinq_app/widgets/common/default_app_bar.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../services/waiting_list_service.dart';
+import '../../utils/color_util.dart';
 
 class WaitingListPage extends StatefulWidget {
   const WaitingListPage({super.key});
@@ -35,22 +38,43 @@ class _WaitingListPageState extends State<WaitingListPage> {
   Widget build(BuildContext context) {
     if (_isSuccess) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Waiting List')),
+        appBar: DefaultAppBar(context),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
+              Spacer(flex: 1),
+              Text(
                 'Thank you for your interest.',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  color: ColorUtil.textColor,
+                  fontFamily: 'Editor Note',
+                ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
-              const Text('Our team will be in touch shortly.'),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Text(
+                'Our team will be in touch shortly.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: ColorUtil.sub1TextColor,
+                  fontFamily: 'Tomato Grotesk',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () => context.go('/'),
-                child: const Text('Back to Home'),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  }
+                },
+                child: const Text('Back'),
               ),
+              Spacer(flex: 2),
             ],
           ),
         ),
@@ -58,77 +82,157 @@ class _WaitingListPageState extends State<WaitingListPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
-        title: const Text('Join the Waiting List'),
-      ),
+      appBar: DefaultAppBar(context),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Join waiting list',
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.w600,
+                fontFamily: "Editor Note",
+                color: ColorUtil.textColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              "Submit your application. After approval, you will receive an invite code sent to your email.",
+              style: TextStyle(
+                fontSize: 14,
+                fontFamily: "Tomato Grotesk",
+                color: ColorUtil.sub1TextColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            _buildTextField(
+              title: 'Email Address',
+              isRequired: true,
+              controller: _emailController,
+              hintText: "name@example.com",
+            ),
+            const SizedBox(height: 10),
+            _buildTextField(
+              title: 'Full Name',
+              isRequired: true,
+              controller: _nameController,
+              hintText: "Your full name",
+            ),
+            const SizedBox(height: 10),
+            Row(
               children: [
-                const Text(
-                  'Get early access to DINQ',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
+                Text(
+                  "Country/Region",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: ColorUtil.textColor,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Tomato Grotesk',
+                  ),
                 ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Full name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _country,
-                  decoration: const InputDecoration(labelText: 'Country'),
-                  items: _countries
-                      .map((country) => DropdownMenuItem(
-                            value: country,
-                            child: Text(country),
-                          ))
-                      .toList(),
-                  onChanged: (value) => setState(() => _country = value),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _jobController,
-                  decoration: const InputDecoration(labelText: 'Job title'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _institutionController,
-                  decoration: const InputDecoration(labelText: 'Institution'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _schoolController,
-                  decoration: const InputDecoration(labelText: 'School (optional)'),
-                ),
-                const SizedBox(height: 12),
-                if (_error != null) Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator())
-                      : const Text('Submit'),
-                ),
+                Text(' *', style: TextStyle(color: Color(0xFFC81E1D))),
               ],
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _country,
+              decoration: const InputDecoration(labelText: 'Country'),
+              items: _countries
+                  .map((country) => DropdownMenuItem(value: country, child: Text(country)))
+                  .toList(),
+              onChanged: (value) => setState(() => _country = value),
+            ),
+            const SizedBox(height: 10),
+            _buildTextField(
+              title: 'Title/Position',
+              isRequired: true,
+              controller: _jobController,
+              hintText: "e.g.Product Manager",
+            ),
+            const SizedBox(height: 10),
+            _buildTextField(
+              title: 'Institution/Organization',
+              isRequired: true,
+              controller: _institutionController,
+              hintText: "Your company or organization",
+            ),
+            const SizedBox(height: 10),
+            _buildTextField(
+              title: 'School/University',
+              isRequired: true,
+              controller: _schoolController,
+              hintText: "Your school or university",
+            ),
+            const SizedBox(height: 10),
+            if (_error != null) Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+            const SizedBox(height: 10),
+            Text(
+              "Your information is secure and will only be used to notify you about our launch. Werespect your privacy and won't share your details with third parties.",
+              style: TextStyle(
+                fontSize: 12,
+                color: ColorUtil.sub1TextColor,
+                fontFamily: 'Tomato Grotesk',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: _isSubmitting ? null : _submit,
+              child: _isSubmitting
+                  ? Center(
+                      child: const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String title,
+    required bool isRequired,
+    required TextEditingController controller,
+    required String hintText,
+  }) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                color: ColorUtil.textColor,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Tomato Grotesk',
+              ),
+            ),
+            if (isRequired) const Text(' *', style: TextStyle(color: Color(0xFFC81E1D))),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 48,
+          child: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -138,7 +242,11 @@ class _WaitingListPageState extends State<WaitingListPage> {
     final jobTitle = _jobController.text.trim();
     final institution = _institutionController.text.trim();
 
-    if (email.isEmpty || fullName.isEmpty || jobTitle.isEmpty || institution.isEmpty || _country == null) {
+    if (email.isEmpty ||
+        fullName.isEmpty ||
+        jobTitle.isEmpty ||
+        institution.isEmpty ||
+        _country == null) {
       setState(() => _error = 'Please fill all required fields.');
       return;
     }
@@ -177,4 +285,3 @@ const List<String> _countries = [
   'India',
   'Australia',
 ];
-
