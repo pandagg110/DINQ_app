@@ -120,5 +120,7 @@ flutter:
       fonts:
         - asset: assets/fonts/geist/Geist-Regular.ttf
           weight: 400
+        - asset: assets/fonts/geist/Geist-Medium.ttf
+          weight: 500
         - asset: assets/fonts/geist/Geist-SemiBold.ttf
           weight: 600
