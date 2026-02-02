@@ -222,6 +222,35 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         final minHeight = placeholderPositions.isNotEmpty && totalGridHeight > 0
             ? totalGridHeight
             : 0.0;
+
+        final updateLayout = (orderedDataList) {
+          final orderedCards = <CardItem>[];
+          for (final elem in orderedDataList) {
+            if (elem.data is CardItem) {
+              orderedCards.add(elem.data as CardItem);
+            }
+          }
+          if (orderedCards.isEmpty) return;
+          final newPositions = CardLayoutUtils.compactPositions(
+            orderedCards,
+            columns,
+          );
+          // 收集位置有变化的卡片，批量更新
+          final changedLayouts = <String, CardLayout>{};
+          for (var i = 0; i < orderedCards.length; i++) {
+            final c = orderedCards[i];
+            final pos = newPositions[i];
+            final oldPos = c.layout.mobile.position;
+            // 位置无变化则跳过
+            if (oldPos.x == pos.x && oldPos.y == pos.y) continue;
+            final currentLayout = c.layout.mobile;
+            changedLayouts[c.id] = CardLayout(
+              desktop: c.layout.desktop,
+              mobile: CardLayoutState(size: currentLayout.size, position: pos),
+            );
+          }
+          cardStore.updateCardLayouts(changedLayouts);
+        };
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 0),
           child: ConstrainedBox(
@@ -234,7 +263,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                     cards
                         .map(
                           (c) =>
-                              '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
+                              '${c.id}_${c.layout.mobile.size}_${widget.editable}_${c.data.status}_${updateCount}',
                         )
                         .join('|'),
                   ),
@@ -244,40 +273,12 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                   padding: EdgeInsets.all(0),
                   isLongPressDraggable: true,
                   children: gridItems,
-                  onDragCompleted: (draggedItem) {
-                    print('onDragCompleted: $draggedItem');
+                  onCompleted: (orderedDataList) {
+                    updateLayout(orderedDataList);
                   },
                   onDragEnd: (details, item, orderedDataList) {
                     // 根据 orderedDataList 的顺序和每张 card 的 size，计算 x,y 并更新布局
-                    final orderedCards = <CardItem>[];
-                    for (final elem in orderedDataList) {
-                      if (elem.data is CardItem) {
-                        orderedCards.add(elem.data as CardItem);
-                      }
-                    }
-                    if (orderedCards.isEmpty) return;
-                    final newPositions = CardLayoutUtils.compactPositions(
-                      orderedCards,
-                      columns,
-                    );
-                    // 收集位置有变化的卡片，批量更新
-                    final changedLayouts = <String, CardLayout>{};
-                    for (var i = 0; i < orderedCards.length; i++) {
-                      final c = orderedCards[i];
-                      final pos = newPositions[i];
-                      final oldPos = c.layout.mobile.position;
-                      // 位置无变化则跳过
-                      if (oldPos.x == pos.x && oldPos.y == pos.y) continue;
-                      final currentLayout = c.layout.mobile;
-                      changedLayouts[c.id] = CardLayout(
-                        desktop: c.layout.desktop,
-                        mobile: CardLayoutState(
-                          size: currentLayout.size,
-                          position: pos,
-                        ),
-                      );
-                    }
-                    cardStore.updateCardLayouts(changedLayouts);
+                    updateLayout(orderedDataList);
                   },
                   onAccept: (draggedItem, targetItem, isFront) {
                     // 由 onDragEnd 根据 orderedDataList 统一计算并更新布局
@@ -291,14 +292,14 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                       width: w,
                       height: totalGridHeight > 0 ? totalGridHeight : null,
                       child: PlaceholderGrid(
-                        key: ValueKey(
-                          cards
-                              .map(
-                                (c) =>
-                                    '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
-                              )
-                              .join('|'),
-                        ),
+                        // key: ValueKey(
+                        //   cards
+                        //       .map(
+                        //         (c) =>
+                        //             '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
+                        //       )
+                        //       .join('|'),
+                        // ),
                         width: w,
                         positions: placeholderPositions,
                         contentSlotWidth: contentSlotWidth,

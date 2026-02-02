@@ -33,13 +33,15 @@ class PlaceholderGrid extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           for (final pos in positions) ...[
-            Positioned(
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOut,
+              key: ValueKey('placeholder_${pos.config.type}'),
               left: pos.x * cellWidth,
               top: pos.y * cellWidth,
               width: pos.config.size.w * cellWidth,
               height: pos.config.size.h * cellWidth,
               child: Container(
-                // decoration: BoxDecoration(color: Colors.red),
                 padding: EdgeInsets.fromLTRB(12, 0, 12, 24),
                 child: PlaceholderCard(
                   config: pos.config,

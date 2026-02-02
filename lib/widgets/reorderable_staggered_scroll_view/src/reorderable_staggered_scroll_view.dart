@@ -101,6 +101,19 @@ class ReorderableStaggeredScrollViewGridExtentItem
 }
 
 /// A scrollable list or grid with reordering and drag-and-drop support.
+///
+/// 如需获取当前 dataList 顺序，可使用 GlobalKey:
+/// ```dart
+/// final _gridKey = GlobalKey<ReorderableStaggeredScrollViewState>();
+/// 
+/// ReorderableStaggeredScrollView.grid(
+///   key: _gridKey,
+///   ...
+/// )
+/// 
+/// // 获取当前顺序
+/// final dataList = _gridKey.currentState?.getCurrentDataList();
+/// ```
 class ReorderableStaggeredScrollView extends StatefulWidget {
   final bool enable;
   final bool isList;
@@ -128,6 +141,9 @@ class ReorderableStaggeredScrollView extends StatefulWidget {
       ReorderableStaggeredScrollViewListItem,
       List<ReorderableStaggeredScrollViewListItem> orderedDataList)? onDragEnd;
   final void Function(ReorderableStaggeredScrollViewListItem)? onDragCompleted;
+  /// 初始化完成时回调（首帧渲染后），参数为当前 dataList 顺序
+  final void Function(
+      List<ReorderableStaggeredScrollViewListItem> dataListOrder)? onCompleted;
   final ScrollController? scrollController;
   final bool isDragNotification;
   final double draggingWidgetOpacity;
@@ -176,6 +192,7 @@ class ReorderableStaggeredScrollView extends StatefulWidget {
     this.onDraggableCanceled,
     this.onDragEnd,
     this.onDragCompleted,
+    this.onCompleted,
     this.scrollController,
     this.isDragNotification = false,
     this.draggingWidgetOpacity = 0.5,
@@ -230,6 +247,9 @@ class ReorderableStaggeredScrollView extends StatefulWidget {
             List<ReorderableStaggeredScrollViewListItem> orderedDataList)?
         onDragEnd,
     void Function(ReorderableStaggeredScrollViewGridItem)? onDragCompleted,
+    void Function(
+            List<ReorderableStaggeredScrollViewListItem> dataListOrder)?
+        onCompleted,
     this.scrollController,
     this.isDragNotification = false,
     this.draggingWidgetOpacity = 0.5,
@@ -237,6 +257,7 @@ class ReorderableStaggeredScrollView extends StatefulWidget {
     this.edgeScrollSpeedMilliseconds = 100,
     List<ReorderableStaggeredScrollViewGridItem>? this.isNotDragList,
   })  : isList = false,
+        onCompleted = onCompleted,
         shrinkWrap = false,
         buildFeedback = (buildFeedback == null
             ? null
@@ -338,6 +359,14 @@ class _ReorderableStaggeredScrollViewState
   void initState() {
     super.initState();
     _children = widget.children;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onCompleted?.call(getCurrentDataList());
+    });
+  }
+
+  /// 获取当前 dataList 的顺序（可能已被拖拽重排）
+  List<ReorderableStaggeredScrollViewListItem> getCurrentDataList() {
+    return List<ReorderableStaggeredScrollViewListItem>.from(_children);
   }
 
   Widget buildContainer({
