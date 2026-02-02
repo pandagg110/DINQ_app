@@ -125,11 +125,36 @@ class CardToolbar extends StatelessWidget {
     required bool isEditingLink,
     required VoidCallback onToggleLink,
   }) {
+    // 整体高度 36px（2+32+2），padding 2px，内部按钮 32x32，滑块动画参考 PreviewEditToggle
+    const toolbarHeight = 36.0;
+    const toolbarPadding = 2.0;
+    const selectedButtonSize = 32.0;
+    const iconSize = 16.0;
+    const innerRadius = 6.0;
+
+    final numSegments = (availableSizes.length > 1 ? availableSizes.length : 0) + (linkable ? 1 : 0);
+    // 每段等宽，与滑块对齐：segmentWidth = 按钮宽 + 间距
+    const segmentWidth = selectedButtonSize + toolbarPadding; // 34
+    final totalWidth = numSegments == 0
+        ? 0.0
+        : toolbarPadding * 2 + numSegments * segmentWidth;
+
+    int selectedIndex = 0;
+    if (linkable && isEditingLink) {
+      selectedIndex = availableSizes.length > 1 ? availableSizes.length : 0;
+    } else if (availableSizes.length > 1) {
+      final idx = availableSizes.indexOf(currentSize);
+      selectedIndex = idx >= 0 ? idx : 0;
+    }
+
+    final sliderWidth = segmentWidth - toolbarPadding; // 32，与按钮同宽
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      height: toolbarHeight,
+      padding: const EdgeInsets.all(toolbarPadding),
       decoration: BoxDecoration(
         color: const Color(0xFF171717).withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: Colors.white.withOpacity(0.15),
           width: 1,
@@ -142,81 +167,111 @@ class CardToolbar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (availableSizes.length > 1) ...[
-            ...availableSizes.map((size) {
-              final isActive = currentSize == size;
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      final currentLayout = card.layout.mobile;
-                      final newLayout = CardLayout(
-                        desktop: card.layout.desktop,
-                        mobile: CardLayoutState(
-                          size: size,
-                          position: currentLayout.position,
-                        ),
-                      );
-                      cardStore.updateCardLayout(card.id, newLayout);
-                    },
-                    borderRadius: BorderRadius.circular(6),
+      child: numSegments == 0
+          ? const SizedBox.shrink()
+          : SizedBox(
+              width: totalWidth,
+              child: Stack(
+                children: [
+                  // 滑块动画（与 PreviewEditToggle 一致）
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    left: toolbarPadding + selectedIndex * segmentWidth,
+                    top: toolbarPadding,
+                    bottom: toolbarPadding,
+                    width: sliderWidth,
                     child: Container(
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isActive ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(innerRadius),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
-                      child: _SizeIcon(size: size, active: isActive),
                     ),
                   ),
-                ),
-              );
-            }),
-            if (linkable) const SizedBox(width: 8),
-          ],
-          if (linkable)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onToggleLink,
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isEditingLink ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
+                  // 按钮层：每段等宽 segmentWidth，与滑块对齐
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: toolbarPadding),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (availableSizes.length > 1) ...[
+                          ...availableSizes.map((size) {
+                            final isActive = currentSize == size;
+                            return SizedBox(
+                              width: segmentWidth,
+                              height: selectedButtonSize,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    final currentLayout = card.layout.mobile;
+                                    final newLayout = CardLayout(
+                                      desktop: card.layout.desktop,
+                                      mobile: CardLayoutState(
+                                        size: size,
+                                        position: currentLayout.position,
+                                      ),
+                                    );
+                                    cardStore.updateCardLayout(card.id, newLayout);
+                                  },
+                                  borderRadius: BorderRadius.circular(innerRadius),
+                                  child: Center(
+                                    child: _SizeIcon(
+                                      size: size,
+                                      active: isActive,
+                                      iconSize: iconSize,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                        if (linkable)
+                          SizedBox(
+                            width: segmentWidth,
+                            height: selectedButtonSize,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: onToggleLink,
+                                borderRadius: BorderRadius.circular(innerRadius),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.link,
+                                    size: iconSize,
+                                    color: isEditingLink
+                                        ? const Color(0xFF171717)
+                                        : Colors.white.withOpacity(0.7),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  child: Icon(
-                    Icons.link,
-                    size: 14,
-                    color: isEditingLink
-                        ? const Color(0xFF171717)
-                        : Colors.white.withOpacity(0.7),
-                  ),
-                ),
+                ],
               ),
             ),
-        ],
-      ),
     );
   }
 }
 
 /// 尺寸图标：按 2x2 / 4x4 / 2x4 / 4x2 画小矩形
 class _SizeIcon extends StatelessWidget {
-  const _SizeIcon({required this.size, this.active = false});
+  const _SizeIcon({required this.size, this.active = false, this.iconSize = 14});
 
   final String size;
   final bool active;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -225,8 +280,8 @@ class _SizeIcon extends StatelessWidget {
     final h = (parts.length >= 2 ? int.tryParse(parts[1].trim()) : null) ?? 2;
     final color = active ? const Color(0xFF171717) : Colors.white.withOpacity(0.7);
     return SizedBox(
-      width: 14,
-      height: 14,
+      width: iconSize,
+      height: iconSize,
       child: CustomPaint(
         painter: _SizeIconPainter(w: w, h: h, color: color),
       ),
