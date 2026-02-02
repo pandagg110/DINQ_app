@@ -218,6 +218,49 @@ class CardStore extends ChangeNotifier {
         layout: layout,
       );
       dirtyCardIds.add(cardId);
+      updateCount++;
+      _scheduleSave();
+      notifyListeners();
+    }
+  }
+
+  /// 与网格一致：4 列；仅对 allowedSizes 的卡片做紧凑重排并写回 position，改尺寸后占位会整体下移
+  static const Set<String> _allowedSizesForCompact = {'2x2', '2x4', '4x2', '4x4', '4x1'};
+
+  void compactLayoutAfterSizeChange() {
+    final ordered = cards
+        .where((c) => _allowedSizesForCompact
+            .contains(c.layout.mobile.size.toLowerCase().trim()))
+        .toList();
+    if (ordered.isEmpty) return;
+    ordered.sort((a, b) {
+      final pa = a.layout.mobile.position;
+      final pb = b.layout.mobile.position;
+      if (pa.y != pb.y) return pa.y.compareTo(pb.y);
+      return pa.x.compareTo(pb.x);
+    });
+    final newPositions =
+        CardLayoutUtils.compactPositions(ordered, _gridColumns);
+    var changed = false;
+    for (var i = 0; i < ordered.length; i++) {
+      final c = ordered[i];
+      final pos = newPositions[i];
+      final current = c.layout.mobile;
+      if (current.position.x != pos.x || current.position.y != pos.y) {
+        cards[cards.indexWhere((card) => card.id == c.id)] = CardItem(
+          id: c.id,
+          data: c.data,
+          layout: CardLayout(
+            desktop: c.layout.desktop,
+            mobile: CardLayoutState(size: current.size, position: pos),
+          ),
+        );
+        dirtyCardIds.add(c.id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      updateCount++;
       _scheduleSave();
       notifyListeners();
     }

@@ -10,6 +10,7 @@ import 'stores/search_store.dart';
 import 'stores/settings_store.dart';
 import 'stores/user_store.dart';
 import 'theme/app_theme.dart';
+import 'widgets/cards/placeholder/use_placeholders.dart';
 
 class DinqApp extends StatelessWidget {
   DinqApp({super.key}) : _userStore = UserStore();
@@ -27,6 +28,7 @@ class DinqApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MessagesStore()),
         ChangeNotifierProvider(create: (_) => NotificationsStore()),
         ChangeNotifierProvider(create: (_) => SearchStore()),
+        ChangeNotifierProvider(create: (_) => PlaceholderNotifier()),
       ],
       child: Builder(
         builder: (context) {

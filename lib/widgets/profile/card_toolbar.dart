@@ -220,6 +220,7 @@ class CardToolbar extends StatelessWidget {
                                       ),
                                     );
                                     cardStore.updateCardLayout(card.id, newLayout);
+                                    cardStore.compactLayoutAfterSizeChange();
                                   },
                                   borderRadius: BorderRadius.circular(innerRadius),
                                   child: Center(

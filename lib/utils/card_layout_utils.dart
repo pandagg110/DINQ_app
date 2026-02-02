@@ -11,40 +11,39 @@ class CardLayoutUtils {
     return (w: w, h: h);
   }
 
-  /// 按新顺序紧凑放置，得到每个卡片的 (x,y)；每行内靠右排布，左侧为空
+  /// 按新顺序紧凑放置，得到每个卡片的 (x,y)；每行内从左往右排布（startX = 0）
   static List<CardPosition> compactPositions(
     List<CardItem> ordered,
     int columns,
   ) {
     final rowItems = <int, List<({int w, int h})>>{};
     int y = 0, rowHeight = 0, rowUsed = 0;
-    
+
     for (var i = 0; i < ordered.length; i++) {
       final card = ordered[i];
       final dims = parseSizeString(card.layout.mobile.size);
       final w = dims.w.clamp(1, columns);
       final h = dims.h.clamp(1, 100);
-      
+
       if (rowUsed + w > columns) {
         y += rowHeight;
         rowHeight = 0;
         rowUsed = 0;
       }
-      
+
       rowItems.putIfAbsent(y, () => []).add((w: w, h: h));
       if (rowHeight < h) rowHeight = h;
       rowUsed += w;
     }
-    
+
     final positions = <CardPosition>[];
     var cardIndex = 0;
     final rowKeys = rowItems.keys.toList()..sort();
-    
+
     for (final rowY in rowKeys) {
       final items = rowItems[rowY]!;
-      final rowWidth = items.fold<int>(0, (s, e) => s + e.w);
-      int startX = columns - rowWidth;
-      
+      int startX = 0;
+
       for (final _ in items) {
         final card = ordered[cardIndex];
         final dims = parseSizeString(card.layout.mobile.size);
@@ -55,7 +54,7 @@ class CardLayoutUtils {
         cardIndex++;
       }
     }
-    
+
     return positions;
   }
 }
