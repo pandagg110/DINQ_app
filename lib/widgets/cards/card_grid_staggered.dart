@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:reorderable_staggered_scroll_view/reorderable_staggered_scroll_view.dart';
+import '../reorderable_staggered_scroll_view/reorderable_staggered_scroll_view.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
 import '../../stores/settings_store.dart';
@@ -102,8 +102,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     }
     // 与 TSX 一致：totalGridHeight = totalMaxY * unitSize + (totalMaxY - 1) * gap（行间有 gap，最后一行下无 gap）
     final mainRowHeight = unitSize + gap;
-    debugPrint('unitSize: $unitSize');
-    debugPrint('mainRowHeight: $mainRowHeight');
     final totalGridHeight = maxGridY > 0
         ? maxGridY * unitSize + (maxGridY - 1) * gap
         : 0.0;
@@ -124,14 +122,12 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                 if (placeholderPositions.isNotEmpty)
                   PlaceholderGrid(
                     key: ValueKey(
-                      placeholderPositions
-                          .map((p) => '${p.config.type}_${p.x}_${p.y}')
-                          .join(','),
+                      '${updateCount}_${placeholderPositions.map((p) => '${p.config.type}_${p.x}_${p.y}').join(',')}',
                     ),
+                    width: w,
                     positions: placeholderPositions,
                     contentSlotWidth: contentSlotWidth,
                     mainRowHeight: mainRowHeight,
-                    gap: gap,
                     onPlaceholderClick: (pos) =>
                         widget.onPlaceholderClick?.call(pos.config),
                     onPlaceholderDelete: (type) =>
@@ -161,14 +157,12 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                 if (placeholderPositions.isNotEmpty)
                   PlaceholderGrid(
                     key: ValueKey(
-                      placeholderPositions
-                          .map((p) => '${p.config.type}_${p.x}_${p.y}')
-                          .join(','),
+                      '${updateCount}_${placeholderPositions.map((p) => '${p.config.type}_${p.x}_${p.y}').join(',')}',
                     ),
+                    width: w,
                     positions: placeholderPositions,
                     contentSlotWidth: contentSlotWidth,
                     mainRowHeight: mainRowHeight,
-                    gap: gap,
                     onPlaceholderClick: (pos) =>
                         widget.onPlaceholderClick?.call(pos.config),
                     onPlaceholderDelete: (type) =>
@@ -202,6 +196,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
           key: ValueKey(card.id),
           mainAxisCellCount: mainCells,
           crossAxisCellCount: crossCells,
+          data: card,
           widget: Padding(
             padding: EdgeInsets.only(
               left: halfGap,
@@ -209,6 +204,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
               right: halfGap,
               bottom: 0,
             ),
+
             child: widget.editable
                 ? GestureDetector(
                     behavior: HitTestBehavior.opaque,
@@ -223,7 +219,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final w = constraints.maxWidth-32;
+        final w = constraints.maxWidth;
 
         final contentSlotWidth = w > 0
             ? (w - (columns - 1) * gap) / columns
@@ -231,9 +227,17 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         debugPrint('wwwwwwwwww: $w');
         debugPrint('columns: $columns');
         debugPrint('contentSlotWidth: $contentSlotWidth');
+        debugPrint('mainRowHeight: $mainRowHeight');
         final minHeight = placeholderPositions.isNotEmpty && totalGridHeight > 0
             ? totalGridHeight
             : 0.0;
+        final key = cards
+            .map(
+              (c) =>
+                  '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
+            )
+            .join('|');
+        print('keykeykeykeykey: $key');
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 0),
           child: ConstrainedBox(
@@ -256,12 +260,20 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                   padding: EdgeInsets.all(0),
                   isLongPressDraggable: true,
                   children: gridItems,
-                  onAccept: (draggedItem, targetItem, _) {
+                  onDragCompleted: (draggedItem) {
+                    print('onDragCompleted: $draggedItem');
+                  },
+                  onDragEnd: (draggedItem, item) {
+                    debugPrint('item: key=${item.key}, mainAxisSize=${item.mainAxisSize}, crossAxisSize=${item.crossAxisSize}');
+                    print('onDragEnd: $draggedItem, $draggedItem');
+                  },
+                  onAccept: (draggedItem, targetItem, isFront) {
                     if (draggedItem == null) return;
                     final draggedId = _keyToCardId(draggedItem.key);
                     final targetId = _keyToCardId(targetItem.key);
                     if (draggedId == null || targetId == null) return;
-                    // 与 gridItems 顺序一致：只用参与网格的 filteredCards，按 (y,x) 排序
+                    if (draggedId == targetId) return; // 拖到自己身上，忽略
+                    // 与 gridItems 顺序一致：用 filteredCards 按 (y,x) 排序
                     final ordered = List<CardItem>.from(filteredCards);
                     ordered.sort((a, b) {
                       final pa = a.layout.mobile.position;
@@ -279,11 +291,11 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                     final draggedCard = ordered[oldIndex];
                     final reordered = List<CardItem>.from(ordered);
                     reordered.removeAt(oldIndex);
-                    // 向下拖：目标在下方，插入后拖拽项在 target 前 → insertIndex = targetIndex - 1
-                    // 向上拖：目标在上方，插入后拖拽项在 target 前 → insertIndex = targetIndex
-                    final insertIndex = oldIndex < targetIndex
-                        ? targetIndex - 1
-                        : targetIndex;
+                    // 使用包提供的 isFront：落在 target 前半=插到 target 前，后半=插到 target 后
+                    // remove 后 target 的索引会前移（若 target 在 dragged 之后）
+                    final insertIndex = isFront
+                        ? (oldIndex < targetIndex ? targetIndex - 1 : targetIndex)
+                        : (oldIndex < targetIndex ? targetIndex : targetIndex + 1);
                     reordered.insert(
                       insertIndex.clamp(0, reordered.length),
                       draggedCard,
@@ -296,9 +308,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                       final c = reordered[i];
                       final pos = newPositions[i];
                       final currentLayout = c.layout.mobile;
-                      if (currentLayout.position.x == pos.x &&
-                          currentLayout.position.y == pos.y)
-                        continue;
                       final newLayout = CardLayout(
                         desktop: c.layout.desktop,
                         mobile: CardLayoutState(
@@ -313,20 +322,23 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                 if (placeholderPositions.isNotEmpty)
                   Positioned(
                     left: 0,
-                    top: -26,
+                    top: 0,
                     child: SizedBox(
                       width: w,
                       height: totalGridHeight > 0 ? totalGridHeight : null,
                       child: PlaceholderGrid(
                         key: ValueKey(
-                          placeholderPositions
-                              .map((p) => '${p.config.type}_${p.x}_${p.y}')
-                              .join(','),
+                          cards
+                              .map(
+                                (c) =>
+                                    '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
+                              )
+                              .join('|'),
                         ),
+                        width: w,
                         positions: placeholderPositions,
                         contentSlotWidth: contentSlotWidth,
                         mainRowHeight: mainRowHeight,
-                        gap: gap,
                         onPlaceholderClick: (pos) =>
                             widget.onPlaceholderClick?.call(pos.config),
                         onPlaceholderDelete: (type) =>

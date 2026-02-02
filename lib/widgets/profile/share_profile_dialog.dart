@@ -9,6 +9,7 @@ import '../../models/card_models.dart';
 import '../../models/user_models.dart';
 import '../share_card/export_qr_card.dart';
 import 'export_card_preview.dart';
+import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../utils/asset_path.dart';
 import '../../utils/toast_util.dart';
@@ -221,14 +222,19 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Preview area: ExportCard/ShareCard 布局同步
+                  // Preview area: ExportCard/ShareCard 布局同步；watch CardStore 使移动卡片时预览同步更新
                   SizedBox(
                     height: 240,
                     child: _viewModeCard
-                        ? ExportCardPreview(
-                            userData: widget.userData,
-                            cards: widget.cards,
-                            height: 240,
+                        ? Builder(
+                            builder: (context) {
+                              final cardStore = context.watch<CardStore>();
+                              return ExportCardPreview(
+                                userData: widget.userData,
+                                cards: cardStore.cards,
+                                height: 240,
+                              );
+                            },
                           )
                         : Container(
                             
