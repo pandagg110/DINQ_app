@@ -18,8 +18,6 @@ class MainTabBottomView extends StatefulWidget {
 }
 
 class _MainTabBottomViewState extends State<MainTabBottomView> {
-  // int selectedButtonIndex = 0;
-
   MainTabType _currentTabType = MainTabType.myDinq;
 
   set currentTabType(MainTabType value) {
@@ -60,7 +58,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(55),
-          color: Color(0xFFF7F7F7),
+          color: Color(0xC7FFFFFF), //Color(0xFFF7F7F7),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha((255 * 0.16).toInt()),
@@ -86,7 +84,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
                         margin: EdgeInsets.only(left: 3),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white, width: 1),
-                          color: Color(0xFFF7F7F7),
+                          color: Color(0xC7FFFFFF), //Color(0xFFF7F7F7),
                           borderRadius: BorderRadius.circular(55),
                           boxShadow: [
                             BoxShadow(
