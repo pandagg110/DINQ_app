@@ -312,7 +312,7 @@ class _CardRendererState extends State<CardRenderer> {
                   height: 55,
                 ),
               ),
-              !EditCardDialog.supports(widget.card.data.type)
+              EditCardDialog.supports(widget.card.data.type)
                   ? Positioned(
                       top: 10,
                       right: 10,

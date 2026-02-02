@@ -125,19 +125,13 @@ class CardToolbar extends StatelessWidget {
     required bool isEditingLink,
     required VoidCallback onToggleLink,
   }) {
-    // 整体高度 36px（2+32+2），padding 2px，内部按钮 32x32，滑块动画参考 PreviewEditToggle
-    const toolbarHeight = 36.0;
-    const toolbarPadding = 2.0;
-    const selectedButtonSize = 32.0;
+    // 每个按钮 32x32，最外层不设宽高
+    const optionSize = 32.0;
     const iconSize = 16.0;
     const innerRadius = 6.0;
+    const padding = 2.0;
 
     final numSegments = (availableSizes.length > 1 ? availableSizes.length : 0) + (linkable ? 1 : 0);
-    // 每段等宽，与滑块对齐：segmentWidth = 按钮宽 + 间距
-    const segmentWidth = selectedButtonSize + toolbarPadding; // 34
-    final totalWidth = numSegments == 0
-        ? 0.0
-        : toolbarPadding * 2 + numSegments * segmentWidth;
 
     int selectedIndex = 0;
     if (linkable && isEditingLink) {
@@ -147,11 +141,8 @@ class CardToolbar extends StatelessWidget {
       selectedIndex = idx >= 0 ? idx : 0;
     }
 
-    final sliderWidth = segmentWidth - toolbarPadding; // 32，与按钮同宽
-
     return Container(
-      height: toolbarHeight,
-      padding: const EdgeInsets.all(toolbarPadding),
+      padding: const EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: const Color(0xFF171717).withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(10),
@@ -169,18 +160,17 @@ class CardToolbar extends StatelessWidget {
       ),
       child: numSegments == 0
           ? const SizedBox.shrink()
-          : SizedBox(
-              width: totalWidth,
-              child: Stack(
-                children: [
-                  // 滑块动画（与 PreviewEditToggle 一致）
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOutCubic,
-                    left: toolbarPadding + selectedIndex * segmentWidth,
-                    top: toolbarPadding,
-                    bottom: toolbarPadding,
-                    width: sliderWidth,
+          : Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 滑块：32x32
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  left: selectedIndex * optionSize,
+                  top: 0,
+                  width: optionSize,
+                  height: optionSize,
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -195,18 +185,16 @@ class CardToolbar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // 按钮层：每段等宽 segmentWidth，与滑块对齐
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: toolbarPadding),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                // 按钮层：每个 32x32
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                         if (availableSizes.length > 1) ...[
                           ...availableSizes.map((size) {
                             final isActive = currentSize == size;
                             return SizedBox(
-                              width: segmentWidth,
-                              height: selectedButtonSize,
+                              width: optionSize,
+                              height: optionSize,
                               child: Material(
                                 color: Colors.transparent,
                                 child: InkWell(
@@ -237,8 +225,8 @@ class CardToolbar extends StatelessWidget {
                         ],
                         if (linkable)
                           SizedBox(
-                            width: segmentWidth,
-                            height: selectedButtonSize,
+                            width: optionSize,
+                            height: optionSize,
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
@@ -256,11 +244,9 @@ class CardToolbar extends StatelessWidget {
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
     );
   }
