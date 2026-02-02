@@ -1,3 +1,4 @@
+import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -86,7 +87,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   Future<void> _copyLink() async {
     await Clipboard.setData(ClipboardData(text: widget.profileUrl));
     if (mounted) {
-      ToastUtil.showSuccess(
+      TopToastUtil.showSuccess(
         context: context,
         title: 'Link copied to clipboard',
         description: '',
@@ -132,7 +133,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
         _isDownloading = false;
         _showMoreMenu = false;
       });
-      ToastUtil.showCustom(
+      TopToastUtil.showCustom(
         context: context,
         icon: Icons.info_outline,
         iconColor: Colors.blue,

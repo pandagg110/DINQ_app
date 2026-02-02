@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -189,14 +190,14 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
         imageBytes = await path_reader.readBytesFromPath(file.path!);
       } catch (e) {
         if (mounted) {
-          ToastUtil.showError(context: context, title: '读取失败', description: e.toString());
+          TopToastUtil.showError(context: context, title: '读取失败', description: e.toString());
         }
         return;
       }
     }
     if (imageBytes == null || !mounted) {
       if (mounted) {
-        ToastUtil.showError(context: context, title: '无法读取图片', description: '请重试');
+        TopToastUtil.showError(context: context, title: '无法读取图片', description: '请重试');
       }
       return;
     }
@@ -219,12 +220,12 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
         _avatarUrl = fileUrl;
         _isAvatarUploading = false;
       });
-      ToastUtil.showSuccess(context: context, title: '头像已更新', description: '');
+      TopToastUtil.showSuccess(context: context, title: '头像已更新', description: '');
       widget.onSaved?.call();
     } catch (e) {
       if (mounted) {
         setState(() => _isAvatarUploading = false);
-        ToastUtil.showError(context: context, title: '上传失败', description: e.toString());
+        TopToastUtil.showError(context: context, title: '上传失败', description: e.toString());
       }
     }
   }

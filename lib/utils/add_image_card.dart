@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -28,7 +29,7 @@ Future<bool> addImageCard(BuildContext context) async {
       bytes = await path_reader.readBytesFromPath(file.path!);
     } catch (e) {
       if (context.mounted) {
-        ToastUtil.showError(
+        TopToastUtil.showError(
           context: context,
           title: '读取文件失败',
           description: e.toString(),
@@ -38,7 +39,7 @@ Future<bool> addImageCard(BuildContext context) async {
     }
   } else {
     if (context.mounted) {
-      ToastUtil.showError(
+      TopToastUtil.showError(
         context: context,
         title: '无法读取图片',
         description: '请重试或换一张图片',
@@ -103,7 +104,7 @@ Future<bool> addImageCard(BuildContext context) async {
   } catch (e) {
     if (context.mounted) {
       Navigator.of(context).pop(); // 关闭 loading
-      ToastUtil.showError(
+      TopToastUtil.showError(
         context: context,
         title: '上传失败',
         description: e.toString(),

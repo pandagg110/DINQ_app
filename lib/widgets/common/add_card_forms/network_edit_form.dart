@@ -3,6 +3,7 @@
  * ACHIEVEMENT_NETWORK 卡片编辑表单：connections 增删改、头像上传、机构 logo 刷新
  */
 
+import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -243,14 +244,14 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
       );
       _updateField('avatarUrl', url);
       if (mounted)
-        ToastUtil.showSuccess(
+        TopToastUtil.showSuccess(
           context: context,
           title: 'Uploaded',
           description: '',
         );
     } catch (e) {
       if (mounted)
-        ToastUtil.showError(
+        TopToastUtil.showError(
           context: context,
           title: 'Upload failed',
           description: e.toString(),
@@ -269,7 +270,7 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
       if (url != null) {
         _updateField('institution_logo_url', url);
         if (mounted)
-          ToastUtil.showSuccess(
+          TopToastUtil.showSuccess(
             context: context,
             title: 'Logo updated',
             description: '',
@@ -280,7 +281,7 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
     } catch (e) {
       _updateField('institution_logo_url', null);
       if (mounted)
-        ToastUtil.showError(
+        TopToastUtil.showError(
           context: context,
           title: 'Failed to fetch logo',
           description: e.toString(),
@@ -366,7 +367,7 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
       widget.onSaved();
     } catch (e) {
       if (mounted)
-        ToastUtil.showError(
+        TopToastUtil.showError(
           context: context,
           title: 'Save failed',
           description: e.toString(),
