@@ -12,6 +12,7 @@ import '../../widgets/profile/change_status_modal.dart';
 import '../../widgets/profile/floating_toolbar.dart';
 import '../../widgets/profile/card_toolbar.dart';
 import '../../widgets/profile/profile_edit_dialog.dart';
+import 'package:go_router/go_router.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.username});
@@ -103,7 +104,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                   // const AppHeader(showAuthButtons: true),
                   NavBar(
                     onBack: () {
-                      debugPrint('onBack');
+                      context.go('/');
                     },
                     title: const Text(
                       'Profile',
@@ -113,20 +114,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                         color: Color(0xFF171717),
                       ),
                     ),
-                    actions: isEditable && _userData != null
-                        ? [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit_outlined,
-                                color: Color(0xFF111827),
-                                size: 24,
-                              ),
-                              onPressed: () => _openProfileEditDialog(context),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ]
-                        : null,
+                    
                   ),
                   Expanded(
                     child: GestureDetector(

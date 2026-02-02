@@ -18,7 +18,7 @@ class CareerTrajectoryLayouts {
                                      largestRepresentative['name'] != 'Unknown';
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -196,7 +196,7 @@ class CareerTrajectoryLayouts {
     required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
   }) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
