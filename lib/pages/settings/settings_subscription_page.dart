@@ -18,11 +18,7 @@ class PlanStyle {
   final Color textColor;
   final String? icon;
 
-  const PlanStyle({
-    required this.backgroundColor,
-    required this.textColor,
-    this.icon,
-  });
+  const PlanStyle({required this.backgroundColor, required this.textColor, this.icon});
 }
 
 /// 获取计划显示名称
@@ -47,10 +43,7 @@ String getPlanLabel(String basePlan) {
 PlanStyle getPlanStyle(String basePlan) {
   switch (basePlan) {
     case 'free':
-      return const PlanStyle(
-        backgroundColor: Colors.white,
-        textColor: Color(0xFF171717),
-      );
+      return const PlanStyle(backgroundColor: Colors.white, textColor: Color(0xFF171717));
     case 'basic':
       return const PlanStyle(
         backgroundColor: Color(0xFFFAF5EB), // 浅棕/奶油色
@@ -76,10 +69,7 @@ PlanStyle getPlanStyle(String basePlan) {
         icon: '⭐',
       );
     default:
-      return const PlanStyle(
-        backgroundColor: Colors.white,
-        textColor: Color(0xFF171717),
-      );
+      return const PlanStyle(backgroundColor: Colors.white, textColor: Color(0xFF171717));
   }
 }
 
@@ -131,7 +121,9 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
                   const SizedBox(height: 12),
 
                   // Cancel Subscription 按钮（非 Free 且未设置取消时显示）
-                  if (subscription != null && !subscription.isFree && !subscription.cancelAtPeriodEnd)
+                  if (subscription != null &&
+                      !subscription.isFree &&
+                      !subscription.cancelAtPeriodEnd)
                     _buildCancelSubscriptionButton(),
 
                   const SizedBox(height: 16),
@@ -275,11 +267,7 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.bolt,
-              size: 16,
-              color: isDarkBg ? const Color(0xFF171717) : Colors.white,
-            ),
+            Icon(Icons.bolt, size: 16, color: isDarkBg ? const Color(0xFF171717) : Colors.white),
             const SizedBox(width: 6),
             Text(
               isFree ? 'Upgrade Plan' : 'Change Plan',
@@ -318,11 +306,7 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
             children: [
               Text(
                 'Credits this month',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: ColorUtil.textColor,
-                  fontFamily: 'Geist',
-                ),
+                style: TextStyle(fontSize: 14, color: ColorUtil.textColor, fontFamily: 'Geist'),
               ),
               Text(
                 '$creditBalance / $monthlyCredits remaining',
@@ -360,11 +344,7 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
           // 提示文字
           Text(
             'Credits reset monthly',
-            style: TextStyle(
-              fontSize: 12,
-              color: ColorUtil.sub3TextColor,
-              fontFamily: 'Geist',
-            ),
+            style: TextStyle(fontSize: 12, color: ColorUtil.sub3TextColor, fontFamily: 'Geist'),
           ),
         ],
       ),
@@ -410,11 +390,7 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
       children: [
         Text(
           'Need help? ',
-          style: TextStyle(
-            fontSize: 12,
-            color: ColorUtil.sub3TextColor,
-            fontFamily: 'Geist',
-          ),
+          style: TextStyle(fontSize: 12, color: ColorUtil.sub3TextColor, fontFamily: 'Geist'),
         ),
         NormalButton(
           onTap: _handleContactSupport,
@@ -449,7 +425,7 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
         'September',
         'October',
         'November',
-        'December'
+        'December',
       ];
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     } catch (e) {
@@ -485,8 +461,9 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
     setState(() => _isLoadingAutoRenew = true);
 
     try {
+      final userStore = context.read<UserStore>();
       await _paymentService.setAutoRenew(autoRenew: enable);
-      await context.read<UserStore>().refreshSubscription();
+      await userStore.refreshSubscription();
 
       if (!mounted) return;
       TopToastUtil.showSuccess(
@@ -536,10 +513,7 @@ class _CancelSubscriptionDialog extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 32),
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

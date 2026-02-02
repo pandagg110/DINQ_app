@@ -60,7 +60,9 @@ class SettingsPage extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 16),
       child: NormalButton(
         onTap: () {
-          context.push(path);
+          if (!showBasic) {
+            context.push(path);
+          }
         },
         child: Row(
           children: [
