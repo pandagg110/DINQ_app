@@ -219,20 +219,9 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         final contentSlotWidth = w > 0
             ? (w - (columns - 1) * gap) / columns
             : unitSize;
-        debugPrint('wwwwwwwwww: $w');
-        debugPrint('columns: $columns');
-        debugPrint('contentSlotWidth: $contentSlotWidth');
-        debugPrint('mainRowHeight: $mainRowHeight');
         final minHeight = placeholderPositions.isNotEmpty && totalGridHeight > 0
             ? totalGridHeight
             : 0.0;
-        final key = cards
-            .map(
-              (c) =>
-                  '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
-            )
-            .join('|');
-        print('keykeykeykeykey: $key');
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 0),
           child: ConstrainedBox(
