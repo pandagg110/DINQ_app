@@ -445,7 +445,7 @@ class NetworkLayouts {
                   width * xPercent; // Connection point X position
               const avatarWidth = 44.0; // Avatar width
               const nameTagHeight =
-                  36; // Name tag height (padding 4*2 + text 12)
+                  28; // Name tag height (padding 4*2 + text 12)
 
               return Positioned(
                 left:
@@ -500,7 +500,7 @@ class NetworkLayouts {
               final actualIndex = index + 3;
               const avatarWidth = 44.0; // Avatar width
               final nameTagHeight =
-                  36; // Name tag height (padding 4*2 + text 12)
+                  28; // Name tag height (padding 4*2 + text 12)
 
               return Positioned(
                 left:

@@ -24,26 +24,36 @@ class NetworkModal extends StatelessWidget {
     final avatarUrl = connection['avatarUrl']?.toString();
     final reason = connection['reason']?.toString();
 
+    const modalRadius = 16.0;
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        width: 400,
-        constraints: const BoxConstraints(maxHeight: 600),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF171717), width: 1),
-        ),
-        child: Column(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(modalRadius),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(modalRadius),
+        child: Container(
+          width: 400,
+          constraints: const BoxConstraints(maxHeight: 600),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(modalRadius),
+            border: Border.all(color: const Color(0xFF171717), width: 1),
+          ),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header - 顶部圆角与弹框一致，border 显示完整
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F5F5),
-                border: Border(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(modalRadius),
+                  topRight: Radius.circular(modalRadius),
+                ),
+                border: const Border(
                   bottom: BorderSide(color: Color(0xFF171717), width: 1),
                 ),
               ),
@@ -148,9 +158,16 @@ class NetworkModal extends StatelessWidget {
                 ),
               ),
 
-            // Action Buttons
-            Padding(
+            // Action Buttons - 底部圆角与弹框一致，border 显示完整
+            Container(
               padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(modalRadius),
+                  bottomRight: Radius.circular(modalRadius),
+                ),
+              ),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -174,6 +191,7 @@ class NetworkModal extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
