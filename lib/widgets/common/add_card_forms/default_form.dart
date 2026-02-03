@@ -8,10 +8,11 @@ import 'card_form_base.dart';
 class DefaultForm extends CardFormBase {
   final TextEditingController controller;
   final FocusNode focusNode;
-
+  final CardDefinition definition;
   DefaultForm({
     required this.controller,
     required this.focusNode,
+    required this.definition,
   });
 
   @override
@@ -63,7 +64,7 @@ class DefaultForm extends CardFormBase {
   Future<Map<String, dynamic>?> getFormData() async {
     final value = controller.text.trim();
     if (value.isEmpty) return null;
-    return {'value': value};
+    return {'url': value,'type':definition.type};
   }
 
   String _getPlaceholder(CardDefinition def) {

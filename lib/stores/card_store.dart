@@ -491,7 +491,7 @@ class CardStore extends ChangeNotifier {
           loading: status == 'PROCESSING',
           isNew: state.isNew,
         );
-
+       debugPrint('CardStore: status: ${status}');
         // Update card data
         Map<String, dynamic> finalMetadata;
         if (status == 'COMPLETED') {

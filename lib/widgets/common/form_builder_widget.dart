@@ -383,7 +383,7 @@ class _FormBuilderWidgetState extends State<FormBuilderWidget> {
             final serverUrl = _imageUrls[config.name];
             final hasServer = serverUrl != null && serverUrl.isNotEmpty;
             // 只展示上传后的图片，不展示本地预览
-            final String displayText = (hasServer ? serverUrl : null) ?? (isUploading ? '上传中...' : '');
+            final String displayText = (hasServer ? serverUrl : null) ?? (isUploading ? 'Uploading...' : '');
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
