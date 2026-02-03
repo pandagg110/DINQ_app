@@ -59,13 +59,10 @@ class _SignInPageState extends State<SignInPage> {
     final userStore = context.watch<UserStore>();
     final isLoading = userStore.isLoading;
 
-    // 判断是否可以返回（如果不能返回则不显示后退按钮）
-    // 使用 go_router 的 canPop() 而非 Navigator.canPop()
-    final canGoBack = context.canPop();
-
     return KeyboardDismissOnTap(
       child: Scaffold(
-        appBar: DefaultAppBar(context, isShowBack: canGoBack),
+        // 登录页不需要返回按钮，避免用户误返回到空白或历史页
+        appBar: DefaultAppBar(context, isShowBack: false),
         body: SafeArea(
           child: Column(
             children: [
