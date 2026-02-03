@@ -52,7 +52,6 @@ class _ImageCardWidget extends StatelessWidget {
     final renderWidth = (metadata['renderWidth'] as num?)?.toDouble();
     final renderHeight = (metadata['renderHeight'] as num?)?.toDouble();
 
-
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
@@ -70,12 +69,15 @@ class _ImageCardWidget extends StatelessWidget {
                   // 获取容器尺寸
                   final containerWidth = constraints.maxWidth;
                   final containerHeight = constraints.maxHeight;
-                  
+
                   // 计算图片尺寸
                   double? imageWidth;
                   double? imageHeight;
-                  
-                  if (renderWidth != null && renderWidth > 0 && renderHeight != null && renderHeight > 0) {
+
+                  if (renderWidth != null &&
+                      renderWidth > 0 &&
+                      renderHeight != null &&
+                      renderHeight > 0) {
                     imageWidth = renderWidth;
                     imageHeight = renderHeight;
                   } else {
@@ -83,39 +85,17 @@ class _ImageCardWidget extends StatelessWidget {
                     imageWidth = containerWidth;
                     imageHeight = containerHeight;
                   }
-                  
                   return Center(
-                    child: Transform.translate(
-                      // TSX: translate(calc(-50% - offsetX), calc(-50% + offsetY))
-                      // Flutter: Center 已经将中心点对齐，translate 只需要应用 offsetX 和 offsetY
-                      offset: Offset(-offsetX, offsetY),
-                      child: Transform.scale(
-                        scale: scale,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
+                    child: OverflowBox(
+                      maxHeight: imageHeight,
+                      maxWidth: imageWidth + 1000,
+                      child: Transform.translate(
+                        offset: Offset(-offsetX, offsetY),
+                        child: Transform.scale(
+                          scale: scale,
                           child: SizedBox(
-                            width: imageWidth,
                             height: imageHeight,
-                            child: Image.network(
-                              imageUrl,
-                              fit: renderWidth != null && renderHeight != null
-                                  ? BoxFit.contain
-                                  : BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                debugPrint('ImageCard - 图片加载失败: $imageUrl');
-                                debugPrint('ImageCard - 错误: $error');
-                                return Container(
-                                  color: const Color(0xFFF3F4F6),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.broken_image,
-                                      size: 48,
-                                      color: Color(0xFF9CA3AF),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                            child: Image.network(imageUrl, fit: BoxFit.contain),
                           ),
                         ),
                       ),
