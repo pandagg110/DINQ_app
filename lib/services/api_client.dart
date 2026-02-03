@@ -24,6 +24,7 @@ class ApiClient {
         },
         onResponse: (response, handler) {
           final data = response.data;
+          print('gatewayUrlgatewayUrl: $gatewayUrl');
           if (data is Map<String, dynamic> && data.containsKey('code')) {
             if (data['code'] == 0) {
               return handler.next(response..data = data['data']);
