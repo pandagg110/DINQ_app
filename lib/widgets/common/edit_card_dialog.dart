@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/card_models.dart';
+import 'add_card_forms/image_edit_form.dart';
 import 'add_card_forms/network_edit_form.dart';
 import 'add_card_forms/note_edit_form.dart';
 import 'add_card_forms/title_edit_form.dart';
@@ -22,7 +23,11 @@ class EditCardDialog {
       useScrollableLayout: false,
       buildContent: _buildNetworkContent,
     ),
-    
+    'IMAGE': CardEditHandler(
+      title: 'Edit Image/video Card',
+      useScrollableLayout: true,
+      buildContent: _buildImageContent,
+    ),
   };
 
   /// 注册新的编辑类型，扩展时调用
@@ -96,6 +101,14 @@ Widget _buildNoteContent(
   void Function(Future<void> Function() save) onSaveReady,
 ) {
   return NoteEditFormWithSave(card: card, onSaveReady: onSaveReady);
+}
+
+Widget _buildImageContent(
+  BuildContext context,
+  CardItem card,
+  void Function(Future<void> Function() save) onSaveReady,
+) {
+  return ImageEditFormWithSave(card: card, onSaveReady: onSaveReady);
 }
 
 class _EditCardBottomSheet extends StatefulWidget {
