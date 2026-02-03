@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../form_builder_widget.dart';
+import '../../cards/factory/card_definition.dart';
 import 'card_form_base.dart';
 import 'link_form.dart';
 import 'markdown_form.dart';
@@ -11,6 +12,7 @@ class CardFormFactory {
   /// 根据卡片类型创建表单
   static CardFormBase createForm({
     required String type,
+    required CardDefinition definition,
     TextEditingController? controller,
     FocusNode? focusNode,
     GlobalKey<State<FormBuilderWidget>>? markdownFormKey,
@@ -33,7 +35,7 @@ class CardFormFactory {
       if (controller == null || focusNode == null) {
         throw ArgumentError('DefaultForm requires controller and focusNode');
       }
-      return DefaultForm(controller: controller, focusNode: focusNode);
+      return DefaultForm(controller: controller, focusNode: focusNode, definition: definition);
     }
   }
 }

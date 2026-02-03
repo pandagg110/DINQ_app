@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../pages/add/add_page.dart';
 import '../../stores/card_store.dart';
+import '../../stores/user_store.dart';
 import '../../utils/add_image_card.dart';
 import '../../utils/asset_path.dart';
+import '../../utils/top_toast_util.dart';
 import '../cards/factory/card_definition.dart';
 import '../cards/factory/card_registry.dart';
 import '../cards/factory/definitions/index.dart' show isSocialCard;
@@ -27,10 +30,13 @@ class FloatingToolbar extends StatefulWidget {
 
   final bool isMobile;
   final bool isSaving;
+
   /// 当前 Profile 的 username，用于分享弹框
   final String? username;
+
   /// 当前 Profile 的 userData，用于分享弹框
   final UserData? userData;
+
   /// 当前 Profile 的卡片列表，用于分享弹框中的 Card 预览
   final List<CardItem>? cards;
 
@@ -67,21 +73,28 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
     ConfirmDialog.show(
       context: context,
       title: 'Update All Cards?',
-      content: 'This will update all card information. This may take a fewmoments.Do you want to continue?',
+      content:
+          'This will update all card information. This may take a few moments. Do you want to continue?',
       okText: 'Yes, Update All',
       okStyle: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFFA325),
         foregroundColor: Colors.white,
         minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-    ).then((confirmed) {
-      if (confirmed == true) {
-        // TODO: Handle update all cards
-        debugPrint('Yes, Update All clicked');
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      try {
+        await context.read<CardStore>().regenerateCard();
+      } catch (e) {
+        if (mounted) {
+          TopToastUtil.showError(
+            context: context,
+            title: 'Update failed',
+            description: 'Please try again.',
+          );
+        }
       }
     });
   }
@@ -98,14 +111,28 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
         foregroundColor: Colors.white,
         minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-    ).then((confirmed) {
-      if (confirmed == true) {
-        // TODO: Handle regenerate
-        debugPrint('Yes, Regenerate clicked');
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      try {
+        await context.read<UserStore>().resetFlow();
+        if (mounted) {
+          TopToastUtil.showSuccess(
+            context: context,
+            title: 'Regenerate successful',
+            description: 'Redirecting...',
+          );
+          context.go('/generation');
+        }
+      } catch (e) {
+        if (mounted) {
+          TopToastUtil.showError(
+            context: context,
+            title: 'Failed to regenerate',
+            description: 'Please try again.',
+          );
+        }
       }
     });
   }
@@ -120,9 +147,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
             child: GestureDetector(
               onTap: _closeMenu,
               behavior: HitTestBehavior.translucent,
-              child: Container(
-                color: Colors.transparent,
-              ),
+              child: Container(color: Colors.transparent),
             ),
           ),
         // Toolbar
@@ -134,9 +159,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Center(
-                child: _buildToolbar(),
-              ),
+              child: Center(child: _buildToolbar()),
             ),
           ),
         ),
@@ -160,10 +183,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
           color: const Color(0xFF171717),
           borderRadius: BorderRadius.circular(16),
           border: Border(
-            bottom: BorderSide(
-              width: 1,
-              color: Colors.white.withOpacity(0.15),
-            ),
+            bottom: BorderSide(width: 1, color: Colors.white.withOpacity(0.15)),
           ),
           boxShadow: [
             BoxShadow(
@@ -194,12 +214,11 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                 onTap: () async {
                   // AddPage 对 IMAGE 会先选图上传再创建并 pop(true)，其他类型 pop(definition)
                   final result = await Navigator.of(context).push<Object?>(
-                    MaterialPageRoute<Object?>(
-                      builder: (_) => const AddPage(),
-                    ),
+                    MaterialPageRoute<Object?>(builder: (_) => const AddPage()),
                   );
                   if (result == null || !context.mounted) return;
-                  if (result is! CardDefinition) return; // true 表示 IMAGE 已在 AddPage 内处理
+                  if (result is! CardDefinition)
+                    return; // true 表示 IMAGE 已在 AddPage 内处理
                   final cardStore = context.read<CardStore>();
                   final type = result.type.toUpperCase();
                   // 与 TSX handleCardSelect 一致：ACHIEVEMENT_NETWORK / Social/LINK/IFRAME 先弹输入框，其余直接 addCard
@@ -222,7 +241,10 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                 onTap: () {
                   final definition = CardRegistry().getDefinition('LINK');
                   if (definition != null) {
-                    AddCardDialog.show(context: context, definition: definition);
+                    AddCardDialog.show(
+                      context: context,
+                      definition: definition,
+                    );
                   }
                 },
               ),
@@ -248,7 +270,6 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       ),
     );
   }
-
 
   Widget _buildImageIconButton({
     required String iconPath,
@@ -303,24 +324,22 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: _moreMenuOpen ? Colors.white.withOpacity(0.15) : Colors.transparent,
+        color: _moreMenuOpen
+            ? Colors.white.withOpacity(0.15)
+            : Colors.transparent,
       ),
       child: Material(
         color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              if (_moreMenuOpen) {
-                _closeMenu();
-              } else {
-                _openMenu();
-              }
-            },
+        child: InkWell(
+          onTap: () {
+            if (_moreMenuOpen) {
+              _closeMenu();
+            } else {
+              _openMenu();
+            }
+          },
           borderRadius: BorderRadius.circular(8),
-          child: const Icon(
-            Icons.more_horiz,
-            size: 20,
-            color: Colors.white,
-          ),
+          child: const Icon(Icons.more_horiz, size: 20, color: Colors.white),
         ),
       ),
     );
@@ -330,77 +349,75 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
     return IgnorePointer(
       ignoring: !_moreMenuOpen,
       // ignoring: false,
-      child: Container(
-        width: 268,
-        height: 162,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            width: 1,
-            color: Colors.black.withOpacity(0.1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-                _buildMoreMenuItem(
-                  iconPath: 'icons/more-btns/regenerate.png',
-                  label: 'Regenerate',
-                  onTap: () {
-                    _closeMenu();
-                    _showRegenerateDialog();
-                  },
+      child:
+          Container(
+                width: 268,
+                height: 162,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    width: 1,
+                    color: Colors.black.withOpacity(0.1),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                _buildMoreMenuItem(
-                  iconPath: 'icons/more-btns/udpate.png',
-                  label: 'Update',
-                  onTap: () {
-                    _closeMenu();
-                    _showUpdateDialog();
-                  },
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMoreMenuItem(
+                        iconPath: 'icons/more-btns/regenerate.png',
+                        label: 'Regenerate',
+                        onTap: () {
+                          _closeMenu();
+                          _showRegenerateDialog();
+                        },
+                      ),
+                      _buildMoreMenuItem(
+                        iconPath: 'icons/more-btns/udpate.png',
+                        label: 'Update',
+                        onTap: () {
+                          _closeMenu();
+                          _showUpdateDialog();
+                        },
+                      ),
+                      _buildMoreMenuItem(
+                        iconPath: 'icons/more-btns/setting.png',
+                        label: 'Settings',
+                        onTap: () {
+                          debugPrint('Settings clicked');
+                          _closeMenu();
+                          // TODO: Handle settings
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                _buildMoreMenuItem(
-                  iconPath: 'icons/more-btns/setting.png',
-                  label: 'Settings',
-                  onTap: () {
-                    debugPrint('Settings clicked');
-                    _closeMenu();
-                    // TODO: Handle settings
-                  },
-                ),
-            ],
-          ),
-        ),
-      )
-          .animate(target: _moreMenuOpen ? 1 : 0)
-          .fade(
-            duration: 200.ms,
-            curve: Curves.easeOut,
-          )
-          .scale(
-            begin: const Offset(0.95, 0.95),
-            end: const Offset(1.0, 1.0),
-            duration: 200.ms,
-            curve: Curves.easeOut,
-          )
-          .slideY(
-            begin: 0.1,
-            end: 0.0,
-            duration: 200.ms,
-            curve: Curves.easeOut,
-          ),
+              )
+              .animate(target: _moreMenuOpen ? 1 : 0)
+              .fade(duration: 200.ms, curve: Curves.easeOut)
+              .scale(
+                begin: const Offset(0.95, 0.95),
+                end: const Offset(1.0, 1.0),
+                duration: 200.ms,
+                curve: Curves.easeOut,
+              )
+              .slideY(
+                begin: 0.1,
+                end: 0.0,
+                duration: 200.ms,
+                curve: Curves.easeOut,
+              ),
     );
   }
 
@@ -412,9 +429,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
     return Container(
       width: 252,
       height: 48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -450,7 +465,6 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
     );
   }
 
-
   void _showShareDialog() {
     final username = widget.username;
     final userData = widget.userData;
@@ -467,16 +481,14 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
     return Container(
       width: 48,
       height: 32,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: _showShareDialog,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(0,0,0,0),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
             child: const Center(
               child: Text(
                 'Share',
@@ -502,4 +514,3 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
     );
   }
 }
-

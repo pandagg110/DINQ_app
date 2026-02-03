@@ -101,6 +101,20 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
     }
   }
 
+  Widget _buildDefaultAvatar() {
+    return Image.asset(
+      assetPath('profile/default-avator.png'),
+      width: widget.size,
+      height: widget.size,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Center(
+          child: Icon(Icons.person, size: widget.size * 0.5, color: Colors.grey),
+        );
+      },
+    );
+  }
+
   String? _getJobStatusCircleAsset() {
     if (widget.jobStatus == null || widget.jobStatus == 'Hidden') {
       return null;
@@ -144,13 +158,13 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                           height: widget.size,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            // 如果图片加载失败，显示默认图标
+                            // 图片加载失败时显示默认头像
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (mounted && !_hasError) {
                                 setState(() => _hasError = true);
                               }
                             });
-                            return Icon(Icons.person, size: widget.size * 0.5, color: Colors.grey);
+                            return _buildDefaultAvatar();
                           },
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
@@ -164,7 +178,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                             );
                           },
                         )
-                      : Icon(Icons.person, size: widget.size * 0.5, color: Colors.grey),
+                      : _buildDefaultAvatar(),
                   // 工作状态徽章 - 弧形背景（使用 PNG 图片）
                   if (jobStatusCircleAsset != null)
                     Positioned.fill(

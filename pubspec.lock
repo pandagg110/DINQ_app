@@ -129,6 +129,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+  dotted_border:
+    dependency: "direct main"
+    description:
+      name: dotted_border
+      sha256: "99b091ec6891ba0c5331fdc2b502993c7c108f898995739a73c6845d71dad70c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.0"
   equatable:
     dependency: transitive
     description:
@@ -685,14 +693,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.13"
-  reorderable_staggered_scroll_view:
-    dependency: "direct main"
-    description:
-      name: reorderable_staggered_scroll_view
-      sha256: "2d4d23be9e2bf833d765b256d2527e74e37957bc623ce13db7a7f507793ba6dc"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.2"
   rxdart:
     dependency: transitive
     description:

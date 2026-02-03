@@ -5,7 +5,12 @@ import '../../models/user_models.dart';
 import '../../services/profile_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
+import '../../utils/add_image_card.dart';
 import '../../widgets/cards/card_grid_staggered.dart';
+import '../../widgets/cards/factory/card_registry.dart';
+import '../../widgets/cards/factory/definitions/index.dart' show isSocialCard;
+import '../../widgets/cards/placeholder/placeholder_config.dart';
+import '../../widgets/common/add_card_dialog.dart';
 import '../../widgets/layout/nav_bar.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/change_status_modal.dart';
@@ -163,6 +168,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                 ),
                                 child: CardGridStaggered(
                                   editable: !_isPreviewMode && isEditable,
+                                  onPlaceholderClick: _handlePlaceholderClick,
                                 ),
                               ),
                             ],
@@ -232,5 +238,29 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     final userStore = context.read<UserStore>();
     return userStore.isLoggedIn() &&
         userStore.user?.userData.domain == data.domain;
+  }
+
+  void _handlePlaceholderClick(PlaceholderCardConfig config) {
+    final cardStore = context.read<CardStore>();
+    final definition = CardRegistry().getDefinition(config.type);
+    final type = config.type.toUpperCase();
+    if (type == 'ACHIEVEMENT_NETWORK' && definition != null) {
+      AddCardDialog.show(context: context, definition: definition);
+      return;
+    }
+    if (type == 'CAREER_TRAJECTORY' && definition != null) {
+      AddCardDialog.show(context: context, definition: definition);
+      return;
+    }
+    if (type == 'IMAGE') {
+      addImageCard(context);
+      return;
+    }
+    if (definition != null &&
+        (isSocialCard(config.type) || type == 'LINK' || type == 'IFRAME')) {
+      AddCardDialog.show(context: context, definition: definition);
+      return;
+    }
+    cardStore.addCard(type: config.type);
   }
 }

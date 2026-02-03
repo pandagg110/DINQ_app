@@ -102,7 +102,7 @@ class _CardRendererState extends State<CardRenderer> {
     // 卡片内容
     final cardContent = Container(
       width: double.infinity,
-      height:widget.card.data.type.toUpperCase() == 'TITLE' ? 100 : null,
+      height: widget.card.data.type.toUpperCase() == 'TITLE' ? 100 : null,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -235,32 +235,32 @@ class _CardRendererState extends State<CardRenderer> {
               widget.card.data.type.toUpperCase() == 'TITLE'
                   ? Expanded(
                       child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTapUp: (details) {
-                          setState(() {
-                            _isDrag = false;
-                          });
-                        },
-                        onTap: () {
-                          // 在编辑模式下，点击卡片切换选中状态
-                          if (widget.editable) {
-                            cardStore.toggleCardSelection(widget.card.id);
-                          } else {
-                            // 非编辑模式下，点击跳转链接
-                            if (jumpUrl != null && jumpUrl.isNotEmpty) {
-                              launchUrl(
-                                Uri.parse(jumpUrl),
-                                mode: LaunchMode.externalApplication,
-                              );
+                        borderRadius: BorderRadius.circular(24),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onTapUp: (details) {
+                            setState(() {
+                              _isDrag = false;
+                            });
+                          },
+                          onTap: () {
+                            // 在编辑模式下，点击卡片切换选中状态
+                            if (widget.editable) {
+                              cardStore.toggleCardSelection(widget.card.id);
+                            } else {
+                              // 非编辑模式下，点击跳转链接
+                              if (jumpUrl != null && jumpUrl.isNotEmpty) {
+                                launchUrl(
+                                  Uri.parse(jumpUrl),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              }
                             }
-                          }
-                        },
-                        child: cardContent,
+                          },
+                          child: cardContent,
+                        ),
                       ),
-                    ),
-                  )
+                    )
                   : Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(24),
@@ -298,34 +298,41 @@ class _CardRendererState extends State<CardRenderer> {
           if (widget.editable && isSelected) ...[
             if (!_isDrag) ...[
               Positioned(
-                top: -1,
-                left: -1,
+                top: 10,
+                left: 10,
                 child: _buildEditButton(
                   context: context,
-                  isPortal: context.findAncestorWidgetOfExactType<Portal>() != null,
+                  isPortal:
+                      context.findAncestorWidgetOfExactType<Portal>() != null,
                   onTap: () {
-                    debugPrint('删除按钮被点击');
                     cardStore.removeCard(widget.card.id);
                   },
-                  asset: 'assets/icons/delete-card-btn.png',
+                  asset: 'assets/profile/delete-card-btn.png',
+                  width: 55,
+                  height: 55,
                 ),
               ),
-              Positioned(
-                top: -1,
-                right: -1,
-                child: _buildEditButton(
-                  context: context,
-                  isPortal: context.findAncestorWidgetOfExactType<Portal>() != null,
-                  onTap: () {
-                    debugPrint('type: ${widget.card.data.type.toUpperCase()}');
-                    debugPrint('type33333: ${EditCardDialog.supports(widget.card.data.type)}');
-                    if (EditCardDialog.supports(widget.card.data.type)) {
-                      EditCardDialog.show(context: context, card: widget.card);
-                    }
-                  },
-                  asset: 'assets/icons/edit.png',
-                ),
-              ),
+              EditCardDialog.supports(widget.card.data.type)
+                  ? Positioned(
+                      top: 10,
+                      right: 10,
+                      child: _buildEditButton(
+                        context: context,
+                        isPortal:
+                            context.findAncestorWidgetOfExactType<Portal>() !=
+                            null,
+                        onTap: () {
+                          if (EditCardDialog.supports(widget.card.data.type)) {
+                            EditCardDialog.show(
+                              context: context,
+                              card: widget.card,
+                            );
+                          }
+                        },
+                        asset: 'assets/icons/edit.png',
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ],
 
             Align(
@@ -344,6 +351,8 @@ class _CardRendererState extends State<CardRenderer> {
     required bool isPortal,
     required VoidCallback onTap,
     required String asset,
+    double? width,
+    double? height,
   }) {
     final button = Material(
       color: Colors.transparent,
@@ -352,8 +361,8 @@ class _CardRendererState extends State<CardRenderer> {
         onTap: onTap,
         child: Image.asset(
           asset,
-          width: 40,
-          height: 40,
+          width: width ?? 40,
+          height: height ?? 40,
           fit: BoxFit.contain,
         ),
       ),
