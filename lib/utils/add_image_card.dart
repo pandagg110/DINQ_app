@@ -78,7 +78,7 @@ Future<bool> addImageCard(BuildContext context) async {
               CircularProgressIndicator(),
               SizedBox(height: 16),
               Text(
-                '上传中...',
+                'Uploading...',
                 style: TextStyle(fontFamily: 'Geist', fontSize: 14),
               ),
             ],

@@ -10,7 +10,6 @@ import 'package:crop_your_image/crop_your_image.dart';
 import '../../models/user_models.dart';
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
-import '../../utils/toast_util.dart';
 import '../common/read_bytes_from_path_stub.dart'
     if (dart.library.io) '../common/read_bytes_from_path_io.dart' as path_reader;
 
@@ -308,34 +307,60 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                // 头像区：左对齐，仅展示；右下角 icon 保留，图片修改功能暂隐藏
+                // 头像区：左对齐，支持点击修改
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      CircleAvatar(
-                        radius: 48,
-                        backgroundColor: const Color(0xFFE5E7EB),
-                        backgroundImage: _displayAvatarUrl.isNotEmpty
-                            ? NetworkImage(_displayAvatarUrl)
-                            : null,
-                        child: _displayAvatarUrl.isEmpty
-                            ? const Icon(Icons.person, size: 48, color: Color(0xFF9CA3AF))
-                            : null,
+                      GestureDetector(
+                        onTap: _isAvatarUploading ? null : _pickCropAndUploadAvatar,
+                        child: CircleAvatar(
+                          radius: 48,
+                          backgroundColor: const Color(0xFFE5E7EB),
+                          backgroundImage: _displayAvatarUrl.isNotEmpty
+                              ? NetworkImage(_displayAvatarUrl)
+                              : null,
+                          child: _displayAvatarUrl.isEmpty
+                              ? const Icon(Icons.person, size: 48, color: Color(0xFF9CA3AF))
+                              : null,
+                        ),
                       ),
                       Positioned(
                         right: 0,
                         bottom: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          child: Image.asset(
-                            'assets/profile/img-add-icon.png',
-                            fit: BoxFit.contain,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _isAvatarUploading ? null : _pickCropAndUploadAvatar,
+                            borderRadius: BorderRadius.circular(16),
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: Image.asset(
+                                'assets/profile/img-add-icon.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                           ),
                         ),
                       ),
+                      if (_isAvatarUploading)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black.withOpacity(0.2),
+                            ),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -692,13 +717,13 @@ class _AvatarCropPageState extends State<_AvatarCropPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('裁剪头像', style: TextStyle(color: Colors.white)),
+        title: const Text('Crop Avatar', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: () => _cropController.crop(),
-            child: const Text('完成', style: TextStyle(color: Colors.white, fontSize: 16)),
+            child: const Text('Done', style: TextStyle(color: Colors.white, fontSize: 16)),
           ),
         ],
       ),
@@ -709,6 +734,10 @@ class _AvatarCropPageState extends State<_AvatarCropPage> {
           withCircleUi: true,
           interactive: true,
           onCropped: _onCrop,
+          fixCropRect:true,
+          willUpdateScale: (scale) {
+            return scale <= 3;
+          },
         ),
       ),
     );

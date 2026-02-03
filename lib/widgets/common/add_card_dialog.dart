@@ -58,6 +58,7 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
     _focusNode = FocusNode();
     _form = CardFormFactory.createForm(
       type: widget.definition.type,
+      definition: widget.definition,
       controller: _controller,
       focusNode: _focusNode,
       markdownFormKey: _markdownFormKey,
@@ -106,6 +107,7 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
         metadata: {'metadata': formData},
       );
     }else{
+      debugPrint('addCardaddCardaddCard: ${formData.toString()}');
       await cardStore.addCard(
         type: widget.definition.type,
         metadata: formData,
