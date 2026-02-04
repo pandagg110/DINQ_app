@@ -303,25 +303,27 @@ class _ImageEditFormWithSaveState extends State<ImageEditFormWithSave> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Preview Section
-        _buildPreviewSection(),
-        const SizedBox(height: 24),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Preview Section
+          _buildPreviewSection(),
+          const SizedBox(height: 24),
 
-        // Upload and Crop Section
-        _buildUploadSection(),
-        const SizedBox(height: 24),
+          // Upload and Crop Section
+          _buildUploadSection(),
+          const SizedBox(height: 24),
 
-        // Caption Section
-        _buildCaptionSection(),
-        const SizedBox(height: 20),
+          // Caption Section
+          _buildCaptionSection(),
+          const SizedBox(height: 20),
 
-        // Link URL Section
-        _buildLinkSection(),
-      ],
+          // Link URL Section
+          _buildLinkSection(),
+        ],
+      ),
     );
   }
 
