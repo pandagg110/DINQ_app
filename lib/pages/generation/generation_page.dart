@@ -65,9 +65,9 @@ class _GenerationPageState extends State<GenerationPage> {
   final UploadService _uploadService = UploadService();
   final FlowService _flowService = FlowService();
   
-  // Success 步骤倒计时 - 已暂停
-  // int _redirectCountdown = 3;
-  // Timer? _redirectTimer;
+  // Success 步骤倒计时
+  int _redirectCountdown = 3;
+  Timer? _redirectTimer;
   
   // Confetti 控制器
   late ConfettiController _confettiController;
@@ -170,11 +170,11 @@ class _GenerationPageState extends State<GenerationPage> {
         _loadSocialLinksFromFlow(myFlow);
       }
       
-      // 启动倒计时（成功步骤）- 已暂停
-      // if (_currentStep == GenerationStep.success) {
-      //   _redirectTimer?.cancel();
-      //   _startRedirectCountdown();
-      // }
+      // 启动倒计时（成功步骤）
+      if (_currentStep == GenerationStep.success) {
+        _redirectTimer?.cancel();
+        _startRedirectCountdown();
+      }
     }
     
     // 从 URL query 参数获取 domain（优先级更高）
@@ -185,34 +185,33 @@ class _GenerationPageState extends State<GenerationPage> {
     }
   }
 
-  // 倒计时功能已暂停
-  // void _startRedirectCountdown() {
-  //   _redirectTimer?.cancel();
-  //   setState(() {
-  //     _redirectCountdown = 3;
-  //   });
-  //   _redirectTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-  //     if (!mounted) {
-  //       timer.cancel();
-  //       return;
-  //     }
-  //     setState(() {
-  //       _redirectCountdown--;
-  //     });
-  //     // 当倒计时到0时跳转（显示完1后跳转）
-  //     if (_redirectCountdown <= 0) {
-  //       timer.cancel();
-  //       if (mounted) {
-  //         context.go('/admin/mydinq');
-  //       }
-  //     }
-  //   });
-  // }
+  void _startRedirectCountdown() {
+    _redirectTimer?.cancel();
+    setState(() {
+      _redirectCountdown = 3;
+    });
+    _redirectTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _redirectCountdown--;
+      });
+      // 当倒计时到0时跳转（显示完1后跳转）
+      if (_redirectCountdown <= 0) {
+        timer.cancel();
+        if (mounted) {
+          context.go('/admin/mydinq');
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
     _domainCheckTimer?.cancel();
-    // _redirectTimer?.cancel(); // 已暂停
+    _redirectTimer?.cancel();
     _confettiController.dispose();
     _domainController.removeListener(_onDomainChanged);
     _domainController.dispose();
@@ -232,20 +231,24 @@ class _GenerationPageState extends State<GenerationPage> {
     final myFlow = userStore.myFlow;
     if (myFlow != null) {
       final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
+      // 允许用户手动跳转到 social 步骤（即使 flow status 是 'resume'）
+      // 只有在步骤不匹配且不是 error 步骤，且不是从 resume 手动跳转到 social 的情况下才强制更新
       if (_currentStep != stepFromFlow && 
-          _currentStep != GenerationStep.error) {
+          _currentStep != GenerationStep.error &&
+          !(_currentStep == GenerationStep.social && stepFromFlow == GenerationStep.resume)) {
         // 使用 postFrameCallback 避免在 build 中直接 setState
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _currentStep != stepFromFlow) {
-            // final wasSuccess = _currentStep == GenerationStep.success; // 已暂停
+          if (mounted && _currentStep != stepFromFlow &&
+              !(_currentStep == GenerationStep.social && stepFromFlow == GenerationStep.resume)) {
+            final wasSuccess = _currentStep == GenerationStep.success;
             setState(() {
               _currentStep = stepFromFlow;
             });
-            // 如果步骤变为 success，启动倒计时 - 已暂停
-            // if (stepFromFlow == GenerationStep.success && !wasSuccess) {
-            //   _redirectTimer?.cancel();
-            //   _startRedirectCountdown();
-            // }
+            // 如果步骤变为 success，启动倒计时
+            if (stepFromFlow == GenerationStep.success && !wasSuccess) {
+              _redirectTimer?.cancel();
+              _startRedirectCountdown();
+            }
           }
         });
       }
@@ -1169,10 +1172,10 @@ class _GenerationPageState extends State<GenerationPage> {
     // 确保倒计时启动并触发 confetti 动画
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _currentStep == GenerationStep.success) {
-        // 如果倒计时未启动或已结束，重新启动 - 已暂停
-        // if (_redirectTimer == null) {
-        //   _startRedirectCountdown();
-        // }
+        // 如果倒计时未启动或已结束，重新启动
+        if (_redirectTimer == null) {
+          _startRedirectCountdown();
+        }
         // 触发 confetti 动画
         _confettiController.play();
       }
@@ -1313,30 +1316,30 @@ class _GenerationPageState extends State<GenerationPage> {
               ),
               ),
               const SizedBox(height: 16),
-              // 倒计时提示 - 已暂停
-              // if (_redirectCountdown > 0)
-              //   RichText(
-              //     textAlign: TextAlign.center,
-              //     text: TextSpan(
-              //       style: const TextStyle(
-              //         fontSize: 14,
-              //         fontWeight: FontWeight.w400,
-              //         color: Color(0xFF6B7280),
-              //       ),
-              //       children: [
-              //         const TextSpan(text: 'Automatically redirecting in '),
-              //         TextSpan(
-              //           text: '$_redirectCountdown',
-              //           style: const TextStyle(
-              //             fontSize: 16,
-              //             fontWeight: FontWeight.w600,
-              //             color: Color(0xFF171717),
-              //           ),
-              //         ),
-              //         const TextSpan(text: ' seconds...'),
-              //       ],
-              //     ),
-              //   ),
+              // 倒计时提示
+              if (_redirectCountdown > 0)
+                RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF6B7280),
+                    ),
+                    children: [
+                      const TextSpan(text: 'Automatically redirecting in '),
+                      TextSpan(
+                        text: '$_redirectCountdown',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF171717),
+                        ),
+                      ),
+                      const TextSpan(text: ' seconds...'),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -1432,11 +1435,11 @@ class _GenerationPageState extends State<GenerationPage> {
                         ),
                 ),
               ),
-              // analyzing 时隐藏 Skip 按钮
+              // Skip 按钮（文本形式）- analyzing 和 uploading 时隐藏
               if (!_isAnalyzing && !_isUploading) ...[
                 const SizedBox(height: 12),
                 GestureDetector(
-                  onTap: () => setState(() => _currentStep = GenerationStep.social),
+                  onTap: _handleSkipResume,
                   child: const Text(
                     'Skip',
                     textAlign: TextAlign.center,
@@ -1520,7 +1523,7 @@ class _GenerationPageState extends State<GenerationPage> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // _redirectTimer?.cancel(); // 已暂停
+                _redirectTimer?.cancel();
                 context.go('/admin/mydinq');
               },
               style: ElevatedButton.styleFrom(
@@ -2183,7 +2186,7 @@ class _GenerationPageState extends State<GenerationPage> {
           _currentStep = GenerationStep.success;
           _isGenerating = false;
         });
-        // _startRedirectCountdown(); // 已暂停
+        _startRedirectCountdown();
       }
     } catch (error) {
       if (mounted) {
@@ -2201,7 +2204,16 @@ class _GenerationPageState extends State<GenerationPage> {
     }
   }
 
-  // 第三步：跳过
+  // 第二步：跳过简历上传
+  void _handleSkipResume() {
+    // 直接跳转到 social 步骤，不更新 flow status
+    // flow status 保持为 'resume'，但 UI 步骤可以手动跳转到 social
+    setState(() {
+      _currentStep = GenerationStep.social;
+    });
+  }
+
+  // 第三步：跳过社交链接
   Future<void> _handleSkipSocial() async {
     setState(() {
       _isSkipping = true;
@@ -2223,7 +2235,7 @@ class _GenerationPageState extends State<GenerationPage> {
           _currentStep = GenerationStep.success;
           _isSkipping = false;
         });
-        // _startRedirectCountdown(); // 已暂停
+        _startRedirectCountdown();
       }
     } catch (error) {
       if (mounted) {
