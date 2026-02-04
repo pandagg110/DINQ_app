@@ -25,7 +25,7 @@ class EditCardDialog {
     ),
     'IMAGE': CardEditHandler(
       title: 'Edit Image/video Card',
-      useScrollableLayout: true,
+      useScrollableLayout: false,
       buildContent: _buildImageContent,
     ),
   };
