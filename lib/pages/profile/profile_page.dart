@@ -16,7 +16,6 @@ import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/change_status_modal.dart';
 import '../../widgets/profile/floating_toolbar.dart';
 import '../../widgets/profile/card_toolbar.dart';
-import '../../widgets/profile/profile_edit_dialog.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -74,11 +73,74 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         _isLoading = false;
       });
       context.read<UserStore>().setCardOwner(userData);
-    } catch (_) {
+      
+      // 参考 tsx 逻辑：只有当是当前用户自己的 profile 且 name 为空时，弹出设置 name 的 dialog
+      final userStore = context.read<UserStore>();
+      final isLoggedIn = userStore.isLoggedIn();
+      final currentUserDomain = userStore.user?.userData.domain;
+      final userDataDomain = userData.domain;
+      final isEditable = isLoggedIn && currentUserDomain == userDataDomain;
+      final myFlow = userStore.myFlow;
+      final flowStatus = myFlow?.status;
+      final nameIsEmpty = userData.name.isEmpty || userData.name.trim().isEmpty;
+      
+      if (mounted && 
+          isEditable && 
+          flowStatus == 'success' &&
+          nameIsEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showSetNameDialog();
+        });
+      }
+    } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
     await cardStore.loadCards(widget.username);
+  }
+  
+  Future<void> _showSetNameDialog() async {
+    final nameController = TextEditingController();
+    
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return _SetNameDialog(
+          nameController: nameController,
+          onSave: () async {
+            final name = nameController.text.trim();
+            if (name.isEmpty) {
+              return;
+            }
+            
+            try {
+              final userStore = context.read<UserStore>();
+              await userStore.updateUserData({
+                'name': name,
+              });
+              
+              if (mounted) {
+                Navigator.of(dialogContext).pop(true);
+                // 刷新数据
+                await _loadData();
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Failed to save. Please try again.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+        );
+      },
+    );
+    
+    nameController.dispose();
   }
 
   @override
@@ -89,7 +151,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
     final isEditable = _userData != null ? _isEditable(_userData!) : false;
     final cardStore = context.watch<CardStore>();
-
     return Portal(
       child: GestureDetector(
         onTap: () {
@@ -119,7 +180,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                         color: Color(0xFF171717),
                       ),
                     ),
-                    
                   ),
                   Expanded(
                     child: GestureDetector(
@@ -146,12 +206,14 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                 ),
                                 child: ProfileHeader(
                                   data: _userData!,
-                                  username: widget.username,
+                                  username: _userData?.name ?? '',
                                   isPreviewMode: _isPreviewMode,
-                                  onPreviewModeChanged: (isPreview) =>
-                                      setState(() => _isPreviewMode = isPreview),
+                                  onPreviewModeChanged: (isPreview) => setState(
+                                    () => _isPreviewMode = isPreview,
+                                  ),
                                   onAvatarUpdated: _loadData,
-                                  onStatusEdit: () => _showStatusModal(context, _userData!),
+                                  onStatusEdit: () =>
+                                      _showStatusModal(context, _userData!),
                                   onDataUpdated: _loadData,
                                   onShare: () {
                                     // TODO: 打开分享
@@ -225,15 +287,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     _loadData();
   }
 
-  Future<void> _openProfileEditDialog(BuildContext context) async {
-    if (_userData == null) return;
-    await ProfileEditDialog.show(
-      context: context,
-      initialData: _userData!,
-      onSaved: _loadData,
-    );
-  }
-
   bool _isEditable(UserData data) {
     final userStore = context.read<UserStore>();
     return userStore.isLoggedIn() &&
@@ -262,5 +315,151 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       return;
     }
     cardStore.addCard(type: config.type);
+  }
+}
+
+// 设置姓名的 Dialog 组件
+class _SetNameDialog extends StatefulWidget {
+  final TextEditingController nameController;
+  final Future<void> Function() onSave;
+
+  const _SetNameDialog({
+    required this.nameController,
+    required this.onSave,
+  });
+
+  @override
+  State<_SetNameDialog> createState() => _SetNameDialogState();
+}
+
+class _SetNameDialogState extends State<_SetNameDialog> {
+  bool _isUpdating = false;
+
+  bool get _isValid => widget.nameController.text.trim().isNotEmpty;
+
+  Future<void> _handleSubmit() async {
+    if (!_isValid || _isUpdating) return;
+    
+    setState(() {
+      _isUpdating = true;
+    });
+    
+    try {
+      await widget.onSave();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      contentPadding: const EdgeInsets.all(24),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 输入框 - h-14 (56px), rounded-xl (12px)
+            TextField(
+              controller: widget.nameController,
+              autofocus: true,
+              enabled: !_isUpdating,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) {
+                if (_isValid && !_isUpdating) {
+                  _handleSubmit();
+                }
+              },
+              decoration: InputDecoration(
+                hintText: 'Enter Your name',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF171717), width: 1),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                hintStyle: const TextStyle(
+                  fontSize: 18,
+                  color: Color.fromRGBO(48, 48, 48, 0.32),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              style: const TextStyle(
+                fontSize: 18,
+                color: Color(0xFF171717),
+                height: 1.0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 按钮 - h-14 (56px), rounded-xl (12px), text-lg
+            SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: (_isUpdating || !_isValid) ? null : _handleSubmit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: (_isUpdating || !_isValid)
+                      ? const Color(0xFFE5E5E5)
+                      : const Color(0xFF171717),
+                  foregroundColor: (_isUpdating || !_isValid)
+                      ? const Color.fromRGBO(48, 48, 48, 0.4)
+                      : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isUpdating
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Saving...',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const Text(
+                        "Let's Start DINQ",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

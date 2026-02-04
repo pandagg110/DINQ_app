@@ -1,11 +1,12 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:crop_your_image/crop_your_image.dart';
+import 'package:croppy/croppy.dart';
 
 import '../../models/user_models.dart';
 import '../../services/upload_service.dart';
@@ -200,18 +201,39 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
       }
       return;
     }
-    final croppedBytes = await Navigator.of(context).push<Uint8List>(
-      MaterialPageRoute<Uint8List>(
-        builder: (context) => _AvatarCropPage(imageBytes: imageBytes!),
-      ),
-    );
+    Uint8List? croppedBytes;
+    try {
+      final result = await showMaterialImageCropper(
+        context,
+        imageProvider: MemoryImage(imageBytes),
+        cropPathFn: ellipseCropShapeFn, // 圆形/椭圆形裁剪
+        allowedAspectRatios: [const CropAspectRatio(width: 1, height: 1)], // 1:1 比例
+        enabledTransformations: [
+          Transformation.panAndScale, // 允许平移和缩放
+          Transformation.resize, // 允许调整大小
+          // 排除所有旋转：rotate, rotateZ, rotateY, rotateX
+        ],
+      );
+      if (result != null) {
+        // 将 ui.Image 转换为字节
+        final byteData = await result.uiImage.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData != null) {
+          croppedBytes = byteData.buffer.asUint8List();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        TopToastUtil.showError(context: context, title: '裁剪失败', description: e.toString());
+      }
+      return;
+    }
     if (croppedBytes == null || !mounted) return;
     setState(() => _isAvatarUploading = true);
     try {
       final fileUrl = await _uploadService.uploadFile(
         bytes: croppedBytes,
-        filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        contentType: 'image/jpeg',
+        filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.png',
+        contentType: 'image/png',
       );
       if (!mounted) return;
       await context.read<UserStore>().updateUserData({'avatar_url': fileUrl});
@@ -690,56 +712,3 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
   }
 }
 
-/// 头像裁剪页：crop_your_image 圆形裁剪，完成后返回裁剪后的字节
-class _AvatarCropPage extends StatefulWidget {
-  const _AvatarCropPage({required this.imageBytes});
-
-  final Uint8List imageBytes;
-
-  @override
-  State<_AvatarCropPage> createState() => _AvatarCropPageState();
-}
-
-class _AvatarCropPageState extends State<_AvatarCropPage> {
-  final CropController _cropController = CropController();
-
-  void _onCrop(CropResult result) {
-    switch (result) {
-      case CropSuccess(:final croppedImage):
-        Navigator.of(context).pop(croppedImage);
-      case CropFailure():
-        Navigator.of(context).pop<Uint8List?>(null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Crop Avatar', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        actions: [
-          TextButton(
-            onPressed: () => _cropController.crop(),
-            child: const Text('Done', style: TextStyle(color: Colors.white, fontSize: 16)),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Crop(
-          controller: _cropController,
-          image: widget.imageBytes,
-          withCircleUi: true,
-          interactive: true,
-          onCropped: _onCrop,
-          fixCropRect:true,
-          willUpdateScale: (scale) {
-            return scale <= 3;
-          },
-        ),
-      ),
-    );
-  }
-}

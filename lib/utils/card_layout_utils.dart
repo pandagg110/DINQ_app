@@ -2,6 +2,19 @@ import '../models/card_models.dart';
 
 /// 卡片布局工具类
 class CardLayoutUtils {
+  /// 与 image_edit_form 的 Preview 一致：根据屏幕宽度与 grid 配置计算预览/编辑用卡片宽高
+  static ({double width, double height}) getPreviewCardSize(
+    double screenWidth,
+    double mobileGap,
+    String sizeStr,
+  ) {
+    final cellSize = (screenWidth - 12 * 2 - mobileGap) / 2;
+    final dims = parseSizeString(sizeStr);
+    final width = cellSize * dims.w / 2;
+    final height = cellSize * dims.h / 2;
+    return (width: width, height: height);
+  }
+
   /// 从 "2x2", "4x4" 等字符串解析宽高
   static ({int w, int h}) parseSizeString(String size) {
     final parts = size.toLowerCase().split('x');

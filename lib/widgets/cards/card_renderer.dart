@@ -13,10 +13,16 @@ import 'factory/definitions/index.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 
 class CardRenderer extends StatefulWidget {
-  const CardRenderer({super.key, required this.card, this.editable = false});
+  const CardRenderer({
+    super.key,
+    required this.card,
+    this.editable = false,
+    this.showBottomSizedBox = true,
+  });
 
   final CardItem card;
   final bool editable;
+  final bool? showBottomSizedBox;
 
   @override
   State<CardRenderer> createState() => _CardRendererState();
@@ -289,7 +295,7 @@ class _CardRendererState extends State<CardRenderer> {
                         ),
                       ),
                     ),
-              const SizedBox(height: 24),
+              if (widget.showBottomSizedBox ?? true) const SizedBox(height: 24),
             ],
           ),
 

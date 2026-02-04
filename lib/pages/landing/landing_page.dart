@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -353,7 +353,7 @@ class _LandingPageState extends State<LandingPage> {
           ),
           child: const Text('测试 Waiting List 弹框'),
         ),
-      ],
+        ],
     );
   }
 
@@ -418,6 +418,18 @@ class _LandingPageState extends State<LandingPage> {
           ),
           child: const Text('测试 Waiting List 弹框'),
         ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: () => context.go('/generation'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF059669),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          ),
+          child: const Text('测试 Generation 页面'),
+        ),
+      
       ],
     );
   }

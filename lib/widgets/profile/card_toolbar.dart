@@ -3,9 +3,8 @@ import 'package:provider/provider.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
 import '../cards/factory/card_registry.dart';
-import '../cards/factory/card_definition.dart';
 
-/// 卡片工具栏：尺寸切换、链接编辑等。viewMode 固定为 mobile，与 TS CardToolbar 对应。
+/// 卡片工具栏：仅支持尺寸切换功能。viewMode 固定为 mobile，与 TS CardToolbar 对应。
 class CardToolbar extends StatelessWidget {
   const CardToolbar({
     super.key,
@@ -13,13 +12,6 @@ class CardToolbar extends StatelessWidget {
   });
 
   final CardItem card;
-
-  /// 是否为“可链接”类型（显示链接按钮）
-  static bool _isLinkable(String type) {
-    return type.toUpperCase() == 'LINK' ||
-        type.toUpperCase() == 'IMAGE' ||
-        type.toUpperCase() == 'MARKDOWN';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,99 +23,36 @@ class CardToolbar extends StatelessWidget {
     final sizeConfig = definition.sizes.mobile;
     final availableSizes = sizeConfig.supported;
     final currentSize = card.layout.mobile.size;
-    final linkable = _isLinkable(card.data.type);
 
-    final hasToolbar =
-        availableSizes.length > 1 || linkable;
+    // 只有多个尺寸选项时才显示工具栏
+    if (availableSizes.length <= 1) return const SizedBox.shrink();
 
-    if (!hasToolbar) return const SizedBox.shrink();
-
-    final cardUIState = cardStore.cardStates[card.id];
-    final isEditingLink = cardUIState?.isEditingLink ?? false;
-    final linkUrl = (card.data.metadata['link'] ?? card.data.metadata['url'] ?? '').toString();
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Center(
-                child: _buildToolbarContent(
-                  context,
-                  cardStore: cardStore,
-                  definition: definition,
-                  availableSizes: availableSizes,
-                  currentSize: currentSize,
-                  linkable: linkable,
-                  isEditingLink: isEditingLink,
-                  onToggleLink: () {
-                    final state = cardStore.cardStates[card.id] ?? CardState();
-                    cardStore.setCardState(
-                      card.id,
-                      state.copyWith(isEditingLink: !isEditingLink),
-                    );
-                  },
-                ),
-              ),
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Center(
+            child: _buildToolbarContent(
+              context,
+              cardStore: cardStore,
+              availableSizes: availableSizes,
+              currentSize: currentSize,
             ),
           ),
         ),
-        if (linkable && isEditingLink)
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 72,
-            child: _LinkInputOverlay(
-              initialValue: linkUrl,
-              onSave: (value) {
-                final idx = cardStore.cards.indexWhere((c) => c.id == card.id);
-                if (idx < 0) return;
-                final current = cardStore.cards[idx];
-                final meta = Map<String, dynamic>.from(current.data.metadata);
-                if (current.data.type.toUpperCase() == 'LINK') {
-                  meta['url'] = value;
-                } else {
-                  meta['link'] = value;
-                }
-                cardStore.updateCardData(
-                  card.id,
-                  CardData(
-                    id: current.data.id,
-                    type: current.data.type,
-                    title: current.data.title,
-                    description: current.data.description,
-                    metadata: meta,
-                    status: current.data.status,
-                  ),
-                );
-                final state = cardStore.cardStates[card.id] ?? CardState();
-                cardStore.setCardState(card.id, state.copyWith(isEditingLink: false));
-              },
-              onClose: () {
-                final state = cardStore.cardStates[card.id] ?? CardState();
-                cardStore.setCardState(card.id, state.copyWith(isEditingLink: false));
-              },
-            ),
-          ),
-      ],
+      ),
     );
   }
 
   Widget _buildToolbarContent(
     BuildContext context, {
     required CardStore cardStore,
-    required CardDefinition definition,
     required List<String> availableSizes,
     required String currentSize,
-    required bool linkable,
-    required bool isEditingLink,
-    required VoidCallback onToggleLink,
   }) {
     // 每个按钮 32x32，最外层不设宽高
     const optionSize = 32.0;
@@ -131,15 +60,7 @@ class CardToolbar extends StatelessWidget {
     const innerRadius = 6.0;
     const padding = 2.0;
 
-    final numSegments = (availableSizes.length > 1 ? availableSizes.length : 0) + (linkable ? 1 : 0);
-
-    int selectedIndex = 0;
-    if (linkable && isEditingLink) {
-      selectedIndex = availableSizes.length > 1 ? availableSizes.length : 0;
-    } else if (availableSizes.length > 1) {
-      final idx = availableSizes.indexOf(currentSize);
-      selectedIndex = idx >= 0 ? idx : 0;
-    }
+    final selectedIndex = availableSizes.indexOf(currentSize).clamp(0, availableSizes.length - 1);
 
     return Container(
       padding: const EdgeInsets.all(padding),
@@ -158,96 +79,69 @@ class CardToolbar extends StatelessWidget {
           ),
         ],
       ),
-      child: numSegments == 0
-          ? const SizedBox.shrink()
-          : Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // 滑块：32x32
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOutCubic,
-                  left: selectedIndex * optionSize,
-                  top: 0,
-                  width: optionSize,
-                  height: optionSize,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(innerRadius),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 滑块：32x32
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            left: selectedIndex * optionSize,
+            top: 0,
+            width: optionSize,
+            height: optionSize,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(innerRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 按钮层：每个 32x32
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: availableSizes.map((size) {
+              final isActive = currentSize == size;
+              return SizedBox(
+                width: optionSize,
+                height: optionSize,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      final currentLayout = card.layout.mobile;
+                      final newLayout = CardLayout(
+                        desktop: card.layout.desktop,
+                        mobile: CardLayoutState(
+                          size: size,
+                          position: currentLayout.position,
+                        ),
+                      );
+                      cardStore.updateCardLayout(card.id, newLayout);
+                      cardStore.compactLayoutAfterSizeChange();
+                    },
+                    borderRadius: BorderRadius.circular(innerRadius),
+                    child: Center(
+                      child: _SizeIcon(
+                        size: size,
+                        active: isActive,
+                        iconSize: iconSize,
                       ),
                     ),
                   ),
-                // 按钮层：每个 32x32
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                        if (availableSizes.length > 1) ...[
-                          ...availableSizes.map((size) {
-                            final isActive = currentSize == size;
-                            return SizedBox(
-                              width: optionSize,
-                              height: optionSize,
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    final currentLayout = card.layout.mobile;
-                                    final newLayout = CardLayout(
-                                      desktop: card.layout.desktop,
-                                      mobile: CardLayoutState(
-                                        size: size,
-                                        position: currentLayout.position,
-                                      ),
-                                    );
-                                    cardStore.updateCardLayout(card.id, newLayout);
-                                    cardStore.compactLayoutAfterSizeChange();
-                                  },
-                                  borderRadius: BorderRadius.circular(innerRadius),
-                                  child: Center(
-                                    child: _SizeIcon(
-                                      size: size,
-                                      active: isActive,
-                                      iconSize: iconSize,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
-                        if (linkable)
-                          SizedBox(
-                            width: optionSize,
-                            height: optionSize,
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: onToggleLink,
-                                borderRadius: BorderRadius.circular(innerRadius),
-                                child: Center(
-                                  child: Icon(
-                                    Icons.link,
-                                    size: iconSize,
-                                    color: isEditingLink
-                                        ? const Color(0xFF171717)
-                                        : Colors.white.withOpacity(0.7),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                  ],
                 ),
-              ],
-            ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -305,78 +199,4 @@ class _SizeIconPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SizeIconPainter old) =>
       old.w != w || old.h != h || old.color != color;
-}
-
-/// 链接输入浮层（类似 TS LinkInputToolbar）
-class _LinkInputOverlay extends StatefulWidget {
-  const _LinkInputOverlay({
-    required this.initialValue,
-    required this.onSave,
-    required this.onClose,
-  });
-
-  final String initialValue;
-  final void Function(String value) onSave;
-  final VoidCallback onClose;
-
-  @override
-  State<_LinkInputOverlay> createState() => _LinkInputOverlayState();
-}
-
-class _LinkInputOverlayState extends State<_LinkInputOverlay> {
-  late TextEditingController _controller;
-  late FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialValue);
-    _focusNode = FocusNode();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(12),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Input URL',
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                ),
-                style: const TextStyle(fontSize: 14),
-                onSubmitted: (v) => widget.onSave(v.trim()),
-              ),
-            ),
-            TextButton(
-              onPressed: () => widget.onSave(_controller.text.trim()),
-              child: const Text('Save'),
-            ),
-            TextButton(
-              onPressed: widget.onClose,
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
