@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 
@@ -39,6 +39,7 @@ class UploadService {
     required Uint8List bytes,
     required String filename,
     String? contentType,
+    void Function(int sent, int total)? onSendProgress,
   }) async {
     // Step 1: 获取 OSS 上传凭证
     final uploadToken = await getUploadUrl(
@@ -51,7 +52,13 @@ class UploadService {
     final fileUrl = uploadToken['file_url'] as String;
 
     // Step 2: 使用预签名 URL 直接上传到 OSS
-    final dio = Dio();
+    // 创建新的 Dio 实例以避免拦截器干扰进度回调
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(minutes: 5),
+      receiveTimeout: const Duration(minutes: 5),
+      sendTimeout: const Duration(minutes: 5),
+    ));
+    
     await dio.put(
       uploadUrl,
       data: bytes,
@@ -60,6 +67,7 @@ class UploadService {
           'Content-Type': contentType ?? 'application/octet-stream',
         },
       ),
+      onSendProgress: onSendProgress,
     );
 
     return fileUrl;

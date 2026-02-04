@@ -40,6 +40,7 @@ dependencies:
   croppy: ^1.4.1
   qr_flutter: ^4.1.0
   dotted_border: ^3.1.0
+  confetti: ^0.7.0
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,7 @@ flutter:
     - assets/icons/social-icons-line/
     - assets/images/
     - assets/images/analysis/
+    - assets/images/generation/
     - assets/images/card/
     - assets/images/landing/
     - assets/images/openings/
