@@ -7,6 +7,7 @@ import '../pages/admin/admin_mydinq_page.dart';
 import '../pages/admin/admin_openings_page.dart';
 import '../pages/admin/admin_page.dart';
 import '../pages/admin/admin_search_page.dart';
+import '../pages/discover/discover_page.dart';
 import '../pages/admin/inbox/admin_inbox_conversation_page.dart';
 import '../pages/admin/inbox/admin_inbox_notifications_page.dart';
 import '../pages/admin/inbox/admin_inbox_page.dart';
@@ -144,6 +145,13 @@ class AppRouter {
         GoRoute(path: '/demo', builder: (context, state) => const DemoPage()),
         GoRoute(path: '/waiting-list', builder: (context, state) => const WaitingListPage()),
         GoRoute(path: '/generation', builder: (context, state) => const GenerationPage()),
+        GoRoute(
+          path: '/discover',
+          builder: (context, state) {
+            print('🔍 Router: 路由到 Discover 页面 (/discover)');
+            return const DiscoverPage();
+          },
+        ),
         GoRoute(path: '/pricing', builder: (context, state) => const PricingPage()),
         GoRoute(path: '/blogs', builder: (context, state) => const BlogsPage()),
         GoRoute(

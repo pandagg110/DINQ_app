@@ -395,7 +395,7 @@ class _LandingPageState extends State<LandingPage> {
         ),
         OutlinedButton.icon(
           onPressed: () {
-            context.push('/admin-search');
+            context.push('/discover');
           },
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF171717),
