@@ -242,13 +242,22 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         final screenHeight = _screenHeight ?? MediaQuery.of(context).size.height;
         final headerHeight = isMobile ? 0.0 : 44.0;
         final availableHeight = screenHeight - headerHeight;
+        
+        // 使用固定的 MediaQuery，完全移除键盘影响
+        // 从父级 MediaQuery 获取，避免重复读取
+        final parentQuery = MediaQuery.of(context);
+        final mediaQueryWithoutInsets = parentQuery.copyWith(
+          viewInsets: EdgeInsets.zero,
+          padding: parentQuery.padding,
+          size: Size(parentQuery.size.width, screenHeight),
+        );
 
-        return MediaQuery.removeViewInsets(
-          removeBottom: true,
-          context: context,
+        return MediaQuery(
+          data: mediaQueryWithoutInsets,
           child: Container(
             color: bgColor,
             height: availableHeight,
+            width: double.infinity,
             child: Column(
               children: [
               // Header - 移动端不需要
@@ -456,7 +465,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         children: [
           // Section 1: 搜索页
           SizedBox(
-            height: (_screenHeight ?? MediaQuery.of(context).size.height) * 0.8,
+            height: _screenHeight != null ? _screenHeight! * 0.8 : MediaQuery.of(context).size.height * 0.8,
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),

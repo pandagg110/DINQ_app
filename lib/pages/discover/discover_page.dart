@@ -19,20 +19,24 @@ class _DiscoverPageState extends State<DiscoverPage> {
   bool _isMobileSheetOpen = false;
   int _prevTabClickVersion = 0;
   bool _hasLoggedBuild = false;
+  MediaQueryData? _fixedMediaQuery;
 
   @override
   void initState() {
     super.initState();
     print('🔍 DiscoverPage: initState - 进入 Discover 页面');
   }
-
+  
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // 固定 MediaQuery，避免键盘影响布局
+    _fixedMediaQuery ??= MediaQuery.of(context);
     if (!_hasLoggedBuild) {
       print('🔍 DiscoverPage: didChangeDependencies - Discover 页面依赖已更新');
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -80,29 +84,42 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final activeTab = searchStore.getActiveTab();
     final hasOpenTabs = searchStore.openTabs.isNotEmpty;
 
+    // 使用固定的 MediaQuery，完全移除键盘影响
+    final fixedQuery = _fixedMediaQuery ?? MediaQuery.of(context);
+    final mediaQueryWithoutInsets = fixedQuery.copyWith(
+      viewInsets: EdgeInsets.zero,
+      // 保持原始 padding，确保布局不变
+      padding: fixedQuery.padding,
+    );
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: MediaQuery.removeViewInsets(
-        removeBottom: true,
-        context: context,
-        child: Container(
-          padding: EdgeInsets.only(top: isMobileHeaderVisible ? 56 : 0),
-          child: Stack(
-          children: [
-            // 主聊天区域
-            const AgenticChatWidget(),
+      extendBody: true,
+      extendBodyBehindAppBar: true,
+      body: MediaQuery(
+        data: mediaQueryWithoutInsets,
+        child: SizedBox(
+          height: fixedQuery.size.height,
+          width: double.infinity,
+          child: Container(
+            padding: EdgeInsets.only(top: isMobileHeaderVisible ? 56 : 0),
+            child: Stack(
+              children: [
+                // 主聊天区域
+                const AgenticChatWidget(),
 
-            // BottomSheet - 用户信息面板
-            if (hasOpenTabs && _isMobileSheetOpen)
-              _buildMobileBottomSheet(context, searchStore, activeTab),
+                // BottomSheet - 用户信息面板
+                if (hasOpenTabs && _isMobileSheetOpen)
+                  _buildMobileBottomSheet(context, searchStore, activeTab),
 
-            // 聊天历史移动端面板
-            ChatHistoryMobileWidget(
-              isOpen: chatHistoryStore.isMobileOpen,
-              onClose: () => chatHistoryStore.setMobileOpen(false),
+                // 聊天历史移动端面板
+                ChatHistoryMobileWidget(
+                  isOpen: chatHistoryStore.isMobileOpen,
+                  onClose: () => chatHistoryStore.setMobileOpen(false),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
         ),
       ),
     );
