@@ -349,6 +349,7 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
     required String initialValue,
     required String field,
   }) async {
+    final userStore = context.read<UserStore>();
     final result = await ProfileFormPickers.showTextEditDialog(
       context: context,
       title: 'Edit $title',
@@ -357,7 +358,6 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
     );
 
     if (result != null && result != initialValue) {
-      final userStore = context.read<UserStore>();
       await userStore.updateUserData({field: result});
     }
   }

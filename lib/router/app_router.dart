@@ -1,6 +1,9 @@
 import 'package:dinq_app/pages/auth/verify_code_page.dart';
+import 'package:dinq_app/pages/settings/career_verification_page.dart';
+import 'package:dinq_app/pages/settings/education_verification_page.dart';
 import 'package:dinq_app/pages/settings/settings_set_email_page.dart';
 import 'package:dinq_app/pages/settings/settings_set_password_page.dart';
+import 'package:dinq_app/pages/settings/verification_success_page.dart';
 import 'package:go_router/go_router.dart';
 
 import '../pages/admin/admin_mydinq_page.dart';
@@ -211,6 +214,18 @@ class AppRouter {
         GoRoute(
           path: '/settings/verification',
           builder: (context, state) => const SettingsVerificationPage(),
+        ),
+        GoRoute(
+          path: '/settings/verification/education',
+          builder: (context, state) => const EducationVerificationPage(),
+        ),
+        GoRoute(
+          path: '/settings/verification/career',
+          builder: (context, state) => const CareerVerificationPage(),
+        ),
+        GoRoute(
+          path: '/settings/verification/success',
+          builder: (context, state) => const VerificationSuccessPage(),
         ),
         GoRoute(
           path: '/settings/dinqcard',

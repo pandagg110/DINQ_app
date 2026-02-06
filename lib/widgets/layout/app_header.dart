@@ -46,7 +46,7 @@ class _AppHeaderState extends State<AppHeader> {
           const Spacer(),
           if (widget.showAuthButtons)
             _buildAuthControls(context, isDesktop, isAuthenticated, userStore),
-          if (!isDesktop) _buildMobileMenuButton(),
+          // if (!isDesktop) _buildMobileMenuButton(),
         ],
       ),
     );

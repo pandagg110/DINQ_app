@@ -102,7 +102,7 @@ class TopToastUtil {
   static void showError({
     required BuildContext context,
     required String title,
-    required String description,
+    String description = '',
     Duration duration = const Duration(seconds: 5),
   }) {
     showCustom(
@@ -119,7 +119,7 @@ class TopToastUtil {
   static void showInfo({
     required BuildContext context,
     required String title,
-    required String description,
+    String description = '',
     Duration duration = const Duration(seconds: 3),
   }) {
     showCustom(

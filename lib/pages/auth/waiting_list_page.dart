@@ -1,9 +1,10 @@
-﻿import 'package:dinq_app/widgets/common/default_app_bar.dart';
+import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/waiting_list_service.dart';
 import '../../utils/color_util.dart';
+import '../../widgets/common/country_select.dart';
 
 class WaitingListPage extends StatefulWidget {
   const WaitingListPage({super.key});
@@ -122,28 +123,10 @@ class _WaitingListPageState extends State<WaitingListPage> {
               hintText: "Your full name",
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Text(
-                  "Country/Region",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: ColorUtil.textColor,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Tomato Grotesk',
-                  ),
-                ),
-                Text(' *', style: TextStyle(color: Color(0xFFC81E1D))),
-              ],
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _country,
-              decoration: const InputDecoration(labelText: 'Country'),
-              items: _countries
-                  .map((country) => DropdownMenuItem(value: country, child: Text(country)))
-                  .toList(),
-              onChanged: (value) => setState(() => _country = value),
+            CountrySelect(
+              selectedCountry: _country,
+              onCountryChanged: (value) => setState(() => _country = value),
+              required: true,
             ),
             const SizedBox(height: 10),
             _buildTextField(
@@ -272,16 +255,3 @@ class _WaitingListPageState extends State<WaitingListPage> {
     }
   }
 }
-
-const List<String> _countries = [
-  'United States',
-  'Canada',
-  'United Kingdom',
-  'Germany',
-  'France',
-  'China',
-  'Japan',
-  'Singapore',
-  'India',
-  'Australia',
-];

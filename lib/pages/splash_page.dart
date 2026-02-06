@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+
+import '../widgets/common/lottie_view.dart';
 
 /// 启动页 - 在 UserStore 初始化完成前显示
 class SplashPage extends StatelessWidget {
@@ -10,24 +11,26 @@ class SplashPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo
-            SvgPicture.asset('assets/logo/dinq-black.svg', width: 60, height: 60),
-            const SizedBox(height: 24),
-            // Loading 指示器
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF303030)),
-              ),
-            ),
-          ],
-        ),
+        child: SizedBox(height: 50, child: const LottieView(asset: 'animations/splash_logo.json')),
       ),
+      // body: Center(
+      //   child: Row(
+      //     mainAxisAlignment: MainAxisAlignment.center,
+      //     children: [
+      //       AssetImageView('logo_white', width: 48, height: 48),
+      //       const SizedBox(width: 12),
+      //       Text(
+      //         'DINQ',
+      //         style: TextStyle(
+      //           fontSize: 36,
+      //           color: ColorUtil.textColor,
+      //           fontFamily: 'Geist',
+      //           fontWeight: FontWeight.w600,
+      //         ),
+      //       ),
+      //     ],
+      //   ),
+      // ),
     );
   }
 }
