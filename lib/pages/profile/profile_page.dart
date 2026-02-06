@@ -250,7 +250,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                       key: const ValueKey('preview_edit_toggle'),
                       isPreviewMode: _isPreviewMode,
                       onPreviewModeChanged: (isPreview) {
-                        print('isPreview: $isPreview');
                         setState(() => _isPreviewMode = isPreview);
                         // 切换到 Edit 模式时隐藏底部导航栏
                         if (!isPreview) {

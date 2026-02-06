@@ -1,6 +1,7 @@
 import 'package:dinq_app/pages/admin/admin_mydinq_page.dart';
 import 'package:dinq_app/pages/admin/admin_search_page.dart';
 import 'package:dinq_app/pages/admin/inbox/admin_inbox_page.dart';
+import 'package:dinq_app/pages/discover/discover_page.dart';
 import 'package:dinq_app/pages/me/me_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +30,6 @@ class _MainTabPageState extends State<MainTabPage> {
   @override
   Widget build(BuildContext context) {
     final mainStore = context.watch<MainStore>();
-    print('mainStore.showBottomNav: ${mainStore.showBottomNav}');
     return Stack(
       children: [
         PageView(
@@ -37,7 +37,7 @@ class _MainTabPageState extends State<MainTabPage> {
           controller: _pageController,
           children: [
             KeepAliveWrapper(child: AdminMyDinqPage()),
-            KeepAliveWrapper(child: AdminSearchPage()),
+            KeepAliveWrapper(child: DiscoverPage()),
             KeepAliveWrapper(child: AdminInboxPage()),
             KeepAliveWrapper(child: MePage()),
           ],

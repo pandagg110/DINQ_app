@@ -18,14 +18,12 @@ class MainStore extends ChangeNotifier {
   /// 显示底部导航栏
   void showBottomNavigation() {
     setShowBottomNav(true);
-    print('showBottomNavigation');
     notifyListeners();
   }
 
   /// 隐藏底部导航栏
   void hideBottomNavigation() {
     setShowBottomNav(false);
-    print('hideBottomNavigation');
     notifyListeners();
   }
 }
