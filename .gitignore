@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 example/
+config.txt
 
 # IntelliJ related
 *.iml
