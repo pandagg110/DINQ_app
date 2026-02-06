@@ -350,150 +350,160 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           },
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: 100,
+              minHeight: 200,
+              maxHeight: 400,
               maxWidth: widget.fullWidth ? 768 : 480,
             ),
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-              color: isGlass ? Colors.transparent : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isGlass
-                    ? (_isFocused 
-                        ? const Color(0xFFC0C0C0)
-                        : const Color(0xFFE5E7EB))
-                    : const Color(0xFF171717),
-                width: 1,
-              ),
-            ),
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Advisor options area
-              if (_activeTool == 'find-advisor')
-                _buildAdvisorOptions(),
-
-              // Input area
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: SizedBox(
-                  height: _textFieldHeight,
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    maxLines: null,
-                    maxLength: maxLength,
-                    decoration: InputDecoration(
-                      hintText: _currentPlaceholder,
-                      hintStyle: const TextStyle(
-                        color: Color(0xFF9CA3AF),
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      counterText: '',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF171717),
-                      height: 1.5,
-                    ),
-                    onChanged: (value) {
-                      _adjustHeight();
-                      // 检测斜杠命令
-                      if (value == '/' && _activeTool == null) {
-                        setState(() {
-                          _showToolsMenu = true;
-                        });
-                      } else if (_showToolsMenu && value != '/') {
-                        setState(() {
-                          _showToolsMenu = false;
-                        });
-                      }
-                    },
-                    onSubmitted: (value) {
-                      if (value.trim().isNotEmpty && !isLoading && canSearch) {
-                        _handleSearch();
-                      }
-                    },
-                  ),
+                color: isGlass ? Colors.transparent : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isGlass
+                      ? (_isFocused
+                          ? const Color(0xFFC0C0C0)
+                          : const Color(0xFFE5E7EB))
+                      : const Color(0xFF171717),
+                  width: 1,
                 ),
               ),
-              
-              // Buttons at bottom
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Stack(
-                  children: [
-                    // Character limit indicator (绝对定位在中间)
-                    if (showLimit)
-                      Positioned.fill(
-                        child: Center(
-                          child: Text(
-                            '$inputLength/$maxLength',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: inputLength >= maxLength 
-                                  ? Colors.red 
-                                  : const Color(0xFF9CA3AF),
+              child: Stack(
+                children: [
+                  // 上方内容：由子元素决定高度，父容器自适应；总高度受 ConstrainedBox 的 maxHeight 限制
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_activeTool == 'find-advisor')
+                        _buildAdvisorOptions(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: _textFieldHeight,
+                            maxHeight: _activeTool == 'find-advisor'
+                                ? 124
+                                : 200,
+                          ),
+                          child: SingleChildScrollView(
+                            child: TextField(
+                              controller: _controller,
+                              focusNode: _focusNode,
+                              maxLines: null,
+                              maxLength: maxLength,
+                              decoration: InputDecoration(
+                                hintText: _currentPlaceholder,
+                                hintStyle: const TextStyle(
+                                  color: Color(0xFF9CA3AF),
+                                  fontSize: 16,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                                counterText: '',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF171717),
+                                height: 1.5,
+                              ),
+                              onChanged: (value) {
+                                _adjustHeight();
+                                if (value == '/' && _activeTool == null) {
+                                  setState(() => _showToolsMenu = true);
+                                } else if (_showToolsMenu && value != '/') {
+                                  setState(() => _showToolsMenu = false);
+                                }
+                              },
+                              onSubmitted: (value) {
+                                if (value.trim().isNotEmpty && !isLoading && canSearch) {
+                                  _handleSearch();
+                                }
+                              },
                             ),
                           ),
                         ),
                       ),
-                    // Buttons row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Left buttons group
-                        Row(
-                          children: [
-                            // Talent mode selector
-                            if (_activeTool == null)
-                              _buildTalentModeSelector(),
-                            if (_activeTool == null)
-                              const SizedBox(width: 8), // gap-2
-                            // Tools button and Advisor badge container
-                            _buildToolsButton(),
-                          ],
-                        ),
-                        
-                        // Right: Cancel + Search/Stop button
-                        Row(
-                          children: [
-                            // Cancel button (advisor mode only)
-                            if (_activeTool == 'find-advisor')
-                              TextButton(
-                                onPressed: _handleClearTool,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text(
-                                  'Cancel',
+                      const SizedBox(height: 76), // 为底部按钮栏预留高度 (8+52+16)
+                    ],
+                  ),
+                  // 按钮栏：固定到整个搜索框容器底部
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: SizedBox(
+                      height: 52,
+                      child: Stack(
+                        children: [
+                          if (showLimit)
+                            Positioned.fill(
+                              child: Center(
+                                child: Text(
+                                  '$inputLength/$maxLength',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF9CA3AF),
+                                    fontSize: 12,
+                                    color: inputLength >= maxLength
+                                        ? Colors.red
+                                        : const Color(0xFF9CA3AF),
                                   ),
                                 ),
                               ),
-                            if (_activeTool == 'find-advisor')
-                              const SizedBox(width: 12),
-                            // Search/Stop button
-                            _buildSearchButton(isLoading, canSearch),
-                          ],
-                        ),
-                      ],
+                            ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Row(
+                                  children: [
+                                    if (_activeTool == null)
+                                      _buildTalentModeSelector(),
+                                    if (_activeTool == null)
+                                      const SizedBox(width: 8),
+                                    _buildToolsButton(),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    if (_activeTool == 'find-advisor')
+                                      TextButton(
+                                        onPressed: _handleClearTool,
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        child: const Text(
+                                          'Cancel',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFF9CA3AF),
+                                          ),
+                                        ),
+                                      ),
+                                    if (_activeTool == 'find-advisor')
+                                      const SizedBox(width: 12),
+                                    _buildSearchButton(isLoading, canSearch),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
             ),
           ),
         );

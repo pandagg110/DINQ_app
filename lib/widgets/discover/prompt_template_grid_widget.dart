@@ -86,6 +86,7 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
           margin: const EdgeInsets.only(top: 24),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
@@ -138,31 +139,33 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
                 ],
               ),
               const SizedBox(height: 12),
-              // Grid
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: isMobile ? 2 : 4,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: _displayedPrompts.length,
-                itemBuilder: (context, index) {
-                  final prompt = _displayedPrompts[index];
-                  // 移动端只显示前2个，桌面端显示全部
-                  if (isMobile && index >= 2) {
-                    return const SizedBox.shrink();
-                  }
-
-                  return FadeTransition(
-                    key: ValueKey('${_shuffleKey}_${prompt.id}'),
-                    opacity: _animationController,
-                    child: _PromptCard(
-                      prompt: prompt,
-                      onTap: () => _handleFill(prompt.content),
-                    ),
+              // Grid：宽度按列数均分，高度由子元素内容自适应
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final crossAxisCount = isMobile ? 2 : 4;
+                  const spacing = 12.0;
+                  final availableWidth = constraints.maxWidth;
+                  final itemWidth = (availableWidth - (crossAxisCount - 1) * spacing) / crossAxisCount;
+                  final count = isMobile
+                      ? _displayedPrompts.length.clamp(0, 2)
+                      : _displayedPrompts.length;
+                  return Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: List.generate(count, (index) {
+                      final prompt = _displayedPrompts[index];
+                      return SizedBox(
+                        width: itemWidth,
+                        child: FadeTransition(
+                          key: ValueKey('${_shuffleKey}_${prompt.id}'),
+                          opacity: _animationController,
+                          child: _PromptCard(
+                            prompt: prompt,
+                            onTap: () => _handleFill(prompt.content),
+                          ),
+                        ),
+                      );
+                    }),
                   );
                 },
               ),
@@ -199,7 +202,7 @@ class _PromptCardState extends State<_PromptCard> {
         onExit: (_) => setState(() => _isHovered = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.5),
             border: Border.all(
@@ -219,26 +222,32 @@ class _PromptCardState extends State<_PromptCard> {
           ),
           child: Stack(
             children: [
-              // Title
-              Text(
-                widget.prompt.title,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: _isHovered ? const Color(0xFF171717) : const Color(0xFF6B7280),
-                  height: 1.5,
+              // Title（右侧留 16 避免与箭头图标重叠）
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(
+                  widget.prompt.title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: _isHovered ? const Color(0xFF171717) : const Color(0xFF6B7280),
+                    height: 1.5,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
               // Arrow icon
               Positioned(
-                right: 8,
-                bottom: 12,
-                child: Icon(
-                  Icons.arrow_upward,
-                  size: 16,
-                  color: const Color(0xFF9CA3AF),
+                right: 0,
+                bottom: 0,
+                child: Transform.rotate(
+                  angle: -pi / 4, // 45° 朝向左上角
+                  child: Icon(
+                    Icons.arrow_upward,
+                    size: 16,
+                    color: const Color(0xFF9CA3AF),
+                  ),
                 ),
               ),
             ],
