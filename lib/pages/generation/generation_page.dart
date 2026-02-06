@@ -202,7 +202,7 @@ class _GenerationPageState extends State<GenerationPage> {
       if (_redirectCountdown <= 0) {
         timer.cancel();
         if (mounted) {
-          context.go('/admin/mydinq');
+          context.go('/');
         }
       }
     });
@@ -1524,7 +1524,7 @@ class _GenerationPageState extends State<GenerationPage> {
             child: ElevatedButton(
               onPressed: () {
                 _redirectTimer?.cancel();
-                context.go('/admin/mydinq');
+                context.go('/');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF171717),

@@ -1,10 +1,12 @@
+import 'package:dinq_app/pages/admin/admin_mydinq_page.dart';
 import 'package:dinq_app/pages/admin/admin_search_page.dart';
 import 'package:dinq_app/pages/admin/inbox/admin_inbox_page.dart';
-import 'package:dinq_app/pages/landing/landing_page.dart';
 import 'package:dinq_app/pages/me/me_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../stores/main_store.dart';
 import '../../widgets/common/keep_alive_wrapper.dart';
 import 'main_tab_bottom_view.dart';
 import 'main_tab_model.dart';
@@ -26,28 +28,31 @@ class _MainTabPageState extends State<MainTabPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mainStore = context.watch<MainStore>();
+    print('mainStore.showBottomNav: ${mainStore.showBottomNav}');
     return Stack(
       children: [
         PageView(
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
           children: [
-            KeepAliveWrapper(child: LandingPage()),
+            KeepAliveWrapper(child: AdminMyDinqPage()),
             KeepAliveWrapper(child: AdminSearchPage()),
             KeepAliveWrapper(child: AdminInboxPage()),
             KeepAliveWrapper(child: MePage()),
           ],
         ),
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: MainTabBottomView(
-            onChanged: (mainTabType) {
-              _clickTabButton(mainTabType);
-            },
+        if (mainStore.showBottomNav)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: MainTabBottomView(
+              onChanged: (mainTabType) {
+                _clickTabButton(mainTabType);
+              },
+            ),
           ),
-        ),
       ],
     );
   }

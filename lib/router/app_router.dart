@@ -93,7 +93,6 @@ class AppRouter {
         final flow = userStore.myFlow;
         final isInitialized = userStore.isInitialized;
         final location = state.matchedLocation;
-        print('flow44444: ${flow?.status}');
         // 如果还未初始化完成，停留在启动页
         if (!isInitialized) {
           return location == '/splash' ? null : '/splash';
@@ -108,7 +107,8 @@ class AppRouter {
         final isOnAuthPage = location == '/signin' || location == '/signup';
 
         final isGenerationPage = location=='/generation';
-        if(isLoggedIn && !isGenerationPage && flow?.status != 'success') {
+        
+        if(isLoggedIn && !isGenerationPage &&flow?.status != null && flow?.status != 'success') {
           return '/generation';
         }
 
