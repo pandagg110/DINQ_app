@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/prompts.dart';
 import '../../stores/search_store.dart';
-import '../../stores/settings_store.dart';
 
 const int displayCount = 4;
 
@@ -76,103 +75,95 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
       return const SizedBox.shrink();
     }
 
-    return Consumer<SettingsStore>(
-      builder: (context, settingsStore, _) {
-        final isMobile = settingsStore.isMobile;
+    // 仅移动端：2 列，最多显示 2 个
+    const crossAxisCount = 2;
+    const spacing = 12.0;
+    final count = _displayedPrompts.length.clamp(0, 2);
 
-        return Container(
-          constraints: const BoxConstraints(maxWidth: 768),
-          width: double.infinity,
-          margin: const EdgeInsets.only(top: 24),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 768),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Prompt examples',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF9CA3AF),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _isShuffling ? null : _handleShuffle,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_isShuffling)
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9CA3AF)),
-                            ),
-                          )
-                        else
-                          const Icon(
-                            Icons.refresh,
-                            size: 14,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Shuffle',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              const Text(
+                'Prompt examples',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF9CA3AF),
+                ),
               ),
-              const SizedBox(height: 12),
-              // Grid：宽度按列数均分，高度由子元素内容自适应
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final crossAxisCount = isMobile ? 2 : 4;
-                  const spacing = 12.0;
-                  final availableWidth = constraints.maxWidth;
-                  final itemWidth = (availableWidth - (crossAxisCount - 1) * spacing) / crossAxisCount;
-                  final count = isMobile
-                      ? _displayedPrompts.length.clamp(0, 2)
-                      : _displayedPrompts.length;
-                  return Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: List.generate(count, (index) {
-                      final prompt = _displayedPrompts[index];
-                      return SizedBox(
-                        width: itemWidth,
-                        child: FadeTransition(
-                          key: ValueKey('${_shuffleKey}_${prompt.id}'),
-                          opacity: _animationController,
-                          child: _PromptCard(
-                            prompt: prompt,
-                            onTap: () => _handleFill(prompt.content),
-                          ),
+              TextButton(
+                onPressed: _isShuffling ? null : _handleShuffle,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isShuffling)
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9CA3AF)),
                         ),
-                      );
-                    }),
-                  );
-                },
+                      )
+                    else
+                      const Icon(
+                        Icons.refresh,
+                        size: 14,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Shuffle',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth = constraints.maxWidth;
+              final itemWidth = (availableWidth - (crossAxisCount - 1) * spacing) / crossAxisCount;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: List.generate(count, (index) {
+                  final prompt = _displayedPrompts[index];
+                  return SizedBox(
+                    width: itemWidth,
+                    child: FadeTransition(
+                      key: ValueKey('${_shuffleKey}_${prompt.id}'),
+                      opacity: _animationController,
+                      child: _PromptCard(
+                        prompt: prompt,
+                        onTap: () => _handleFill(prompt.content),
+                      ),
+                    ),
+                  );
+                }),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

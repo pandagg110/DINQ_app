@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../stores/search_store.dart';
-import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
 import 'prompt_template_grid_widget.dart';
+import 'recommended_papers_widget.dart';
 import 'search_box_widget.dart';
 
 // Placeholder 常量（与 React 版本一致）
@@ -37,8 +37,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   String? _activeTool; // ToolType | null
   bool _isNearBottom = true;
   bool _inPapersView = false;
-  bool _headerMounted = false;
-  
+
   // 滚动相关
   final ScrollController _scrollController = ScrollController();
   final ScrollController _initialScrollController = ScrollController();
@@ -58,15 +57,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   @override
   void initState() {
     super.initState();
-    // 延迟显示 header
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        setState(() {
-          _headerMounted = true;
-        });
-      }
-    });
-    
     // 监听滚动
     _scrollController.addListener(_handleScroll);
     _initialScrollController.addListener(_handleInitialScroll);
@@ -223,14 +213,12 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<SearchStore, SettingsStore, UserStore>(
-      builder: (context, searchStore, settingsStore, userStore, _) {
-        final isMobile = settingsStore.isMobile;
+    return Consumer2<SearchStore, UserStore>(
+      builder: (context, searchStore, userStore, _) {
         final user = userStore.user;
         final userName = user?.userData.name.isNotEmpty == true
             ? user!.userData.name
             : (user?.user.name.isNotEmpty == true ? user!.user.name : '');
-        // final userId = user?.userData.userId; // TODO: 如果需要 userId
         
         final hasMessages = _messageGroups.isNotEmpty;
         final showSkeleton = searchStore.isLoadingConversation && !hasMessages;
@@ -238,13 +226,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             ? Colors.white 
             : const Color(0xFFFDFDFD);
         
-        // 获取固定屏幕高度（不受键盘影响）
+        // 获取固定屏幕高度（不受键盘影响），仅移动端样式，headerHeight 固定为 0
         final screenHeight = _screenHeight ?? MediaQuery.of(context).size.height;
-        final headerHeight = isMobile ? 0.0 : 44.0;
+        const headerHeight = 0.0;
         final availableHeight = screenHeight - headerHeight;
         
-        // 使用固定的 MediaQuery，完全移除键盘影响
-        // 从父级 MediaQuery 获取，避免重复读取
         final parentQuery = MediaQuery.of(context);
         final mediaQueryWithoutInsets = parentQuery.copyWith(
           viewInsets: EdgeInsets.zero,
@@ -260,38 +246,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             width: double.infinity,
             child: Column(
               children: [
-              // Header - 移动端不需要
-              if (!isMobile)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xFFE5E5E5))),
-                    color: Color(0xFFFDFDFD),
-                  ),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 300),
-                    opacity: _headerMounted ? 1.0 : 0.0,
-                    child: AnimatedSlide(
-                      duration: const Duration(milliseconds: 300),
-                      offset: _headerMounted ? Offset.zero : const Offset(0, -1),
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Discover',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF171717),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
               // 骨架屏 - 加载历史会话时显示
               if (showSkeleton)
                 Expanded(
@@ -307,7 +261,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
               // 初始状态 - 双页 snap 滚动
               if (!hasMessages && !showSkeleton)
                 Expanded(
-                  child: _buildInitialState(userName),
+                  child: _buildInitialState(userName, userId: user?.user.id),
                 ),
 
               // SearchBox - 在有消息或骨架屏时固定底部
@@ -457,7 +411,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     );
   }
 
-  Widget _buildInitialState(String userName) {
+  Widget _buildInitialState(String userName, {String? userId}) {
     return SingleChildScrollView(
       controller: _initialScrollController,
       physics: const BouncingScrollPhysics(),
@@ -561,28 +515,13 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             ),
           ),
           
-          // Section 2: Papers 页（待实现 RecommendedPapers）
+          // Section 2: Papers 页
           SizedBox(
             height: _screenHeight ?? MediaQuery.of(context).size.height,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Recommended Papers',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: _scrollToSearch,
-                    child: const Text('Back to Search'),
-                  ),
-                ],
-              ),
+            child: RecommendedPapersWidget(
+              userId: userId,
+              isFullView: true,
+              onBack: _scrollToSearch,
             ),
           ),
         ],
