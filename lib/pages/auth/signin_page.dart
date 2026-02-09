@@ -9,7 +9,6 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:github_oauth_signin/github_oauth_signin.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../constants/app_constants.dart';
 import '../../stores/user_store.dart';
@@ -265,7 +264,7 @@ class _SignInPageState extends State<SignInPage> {
                       ),
                       const SizedBox(height: 15),
                       NormalButton(
-                        onTap: () => _oauthSignIn('google'),
+                        onTap: () => _googleSignIn(),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -426,13 +425,8 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  Future<void> _oauthSignIn(String provider) async {
-    final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
-    final nextUrl = redirect ?? appUrl;
-    final url = Uri.parse(
-      '$gatewayUrl/api/v1/auth/oauth/$provider?redirect_uri=${Uri.encodeComponent(nextUrl)}',
-    );
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+  Future<void> _googleSignIn() async {
+    ToastUtil.show("Need config google oauth");
   }
 
   Future<void> _githubSignIn() async {
