@@ -19,6 +19,7 @@ class ProfileHeader extends StatelessWidget {
     this.onStatusEdit,
     this.onDataUpdated,
     this.onShare,
+    this.showToggle = true, // 是否显示 Preview/Edit 切换按钮
   });
 
   final UserData data;
@@ -30,6 +31,8 @@ class ProfileHeader extends StatelessWidget {
   final VoidCallback? onDataUpdated;
   /// 右上角 Share 按钮点击
   final VoidCallback? onShare;
+  /// 是否显示 Preview/Edit 切换按钮（默认显示，设为 false 时外部可用 Positioned 固定）
+  final bool showToggle;
 
   static const _tagColors = [
     Color(0xFFFDE277),
@@ -63,7 +66,7 @@ class ProfileHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Preview / Edit 切换（仅当可编辑时显示，key 写死以保留滑块动画 State）
-        if (isEditable) ...[
+        if (isEditable && showToggle) ...[
           PreviewEditToggle(
             key: const ValueKey('preview_edit_toggle'),
             isPreviewMode: isPreviewMode,

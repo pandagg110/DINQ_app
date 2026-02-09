@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_portal/flutter_portal.dart';
+import '../../constants/app_constants.dart';
 import '../../models/user_models.dart';
 import '../../services/profile_service.dart';
 import '../../stores/card_store.dart';
+import '../../stores/main_store.dart';
 import '../../stores/user_store.dart';
 import '../../utils/add_image_card.dart';
 import '../../widgets/cards/card_grid_staggered.dart';
@@ -11,12 +13,11 @@ import '../../widgets/cards/factory/card_registry.dart';
 import '../../widgets/cards/factory/definitions/index.dart' show isSocialCard;
 import '../../widgets/cards/placeholder/placeholder_config.dart';
 import '../../widgets/common/add_card_dialog.dart';
-import '../../widgets/layout/nav_bar.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/change_status_modal.dart';
 import '../../widgets/profile/floating_toolbar.dart';
 import '../../widgets/profile/card_toolbar.dart';
-import 'package:go_router/go_router.dart';
+import '../../widgets/profile/preview_edit_toggle.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.username});
@@ -73,7 +74,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         _isLoading = false;
       });
       context.read<UserStore>().setCardOwner(userData);
-      
+
       // 参考 tsx 逻辑：只有当是当前用户自己的 profile 且 name 为空时，弹出设置 name 的 dialog
       final userStore = context.read<UserStore>();
       final isLoggedIn = userStore.isLoggedIn();
@@ -83,11 +84,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       final myFlow = userStore.myFlow;
       final flowStatus = myFlow?.status;
       final nameIsEmpty = userData.name.isEmpty || userData.name.trim().isEmpty;
-      
-      if (mounted && 
-          isEditable && 
-          flowStatus == 'success' &&
-          nameIsEmpty) {
+
+      if (mounted && isEditable && flowStatus == 'success' && nameIsEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showSetNameDialog();
         });
@@ -98,10 +96,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
     await cardStore.loadCards(widget.username);
   }
-  
+
   Future<void> _showSetNameDialog() async {
     final nameController = TextEditingController();
-    
+
     await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -113,13 +111,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             if (name.isEmpty) {
               return;
             }
-            
+
             try {
               final userStore = context.read<UserStore>();
-              await userStore.updateUserData({
-                'name': name,
-              });
-              
+              await userStore.updateUserData({'name': name});
+
               if (mounted) {
                 Navigator.of(dialogContext).pop(true);
                 // 刷新数据
@@ -139,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         );
       },
     );
-    
+
     nameController.dispose();
   }
 
@@ -148,9 +144,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    
 
     final isEditable = _userData != null ? _isEditable(_userData!) : false;
     final cardStore = context.watch<CardStore>();
+    final mainStore = context.watch<MainStore>();
     return Portal(
       child: GestureDetector(
         onTap: () {
@@ -165,83 +163,105 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         child: Stack(
           children: [
             Scaffold(
-              body: Column(
-                children: [
-                  // const AppHeader(showAuthButtons: true),
-                  NavBar(
-                    onBack: () {
-                      context.go('/');
-                    },
-                    title: const Text(
-                      'Profile',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF171717),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onHorizontalDragEnd: (details) {
-                        final v = details.primaryVelocity ?? 0;
-                        if (v < -100 && _isPreviewMode) {
-                          setState(() => _isPreviewMode = false);
-                        } else if (v > 100 && !_isPreviewMode) {
-                          setState(() => _isPreviewMode = true);
-                        }
-                      },
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            if (_userData != null) ...[
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  left: 24,
-                                  right: 24,
-                                  top: 24,
-                                  bottom: 0,
-                                ),
-                                child: ProfileHeader(
-                                  data: _userData!,
-                                  username: _userData?.name ?? '',
-                                  isPreviewMode: _isPreviewMode,
-                                  onPreviewModeChanged: (isPreview) => setState(
-                                    () => _isPreviewMode = isPreview,
+              body: SafeArea(
+                bottom: false, // 底部由 MainTabBottomView 处理
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onHorizontalDragEnd: (details) {
+                          final v = details.primaryVelocity ?? 0;
+                          if (v < -100 && _isPreviewMode) {
+                            setState(() => _isPreviewMode = false);
+                            mainStore.hideBottomNavigation();
+                          } else if (v > 100 && !_isPreviewMode) {
+                            setState(() => _isPreviewMode = true);
+                            mainStore.showBottomNavigation();
+                          }
+                        },
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(
+                            top: 68, // 为固定的 Preview/Edit 切换按钮留出空间（44 + 24）
+                            bottom: ConstantsTool.bottomTabHeight + 32,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (_userData != null) ...[
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    left: 24,
+                                    right: 24,
+                                    top: 24,
+                                    bottom: 0,
                                   ),
-                                  onAvatarUpdated: _loadData,
-                                  onStatusEdit: () =>
-                                      _showStatusModal(context, _userData!),
-                                  onDataUpdated: _loadData,
-                                  onShare: () {
-                                    // TODO: 打开分享
-                                  },
+                                  child: ProfileHeader(
+                                    data: _userData!,
+                                    username: _userData?.name ?? '',
+                                    isPreviewMode: _isPreviewMode,
+                                    onPreviewModeChanged: (isPreview) =>
+                                        setState(
+                                          () => _isPreviewMode = isPreview,
+                                        ),
+                                    onAvatarUpdated: _loadData,
+                                    onStatusEdit: () =>
+                                        _showStatusModal(context, _userData!),
+                                    onDataUpdated: _loadData,
+                                    onShare: () {
+                                      // TODO: 打开分享
+                                    },
+                                    showToggle: false, // 不在 ProfileHeader 中显示，使用 Positioned 固定在顶部
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 24),
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  left: 12,
-                                  right: 12,
-                                  top: 0,
-                                  bottom: 0,
+                                const SizedBox(height: 24),
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    left: 12,
+                                    right: 12,
+                                    top: 0,
+                                    bottom: 0,
+                                  ),
+                                  child: CardGridStaggered(
+                                    editable: !_isPreviewMode && isEditable,
+                                    onPlaceholderClick: _handlePlaceholderClick,
+                                  ),
                                 ),
-                                child: CardGridStaggered(
-                                  editable: !_isPreviewMode && isEditable,
-                                  onPlaceholderClick: _handlePlaceholderClick,
-                                ),
-                              ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+            // Preview/Edit 切换按钮 - 固定在顶部
+            if (isEditable && _userData != null)
+              Positioned(
+                top: 20,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    child: PreviewEditToggle(
+                      key: const ValueKey('preview_edit_toggle'),
+                      isPreviewMode: _isPreviewMode,
+                      onPreviewModeChanged: (isPreview) {
+                        setState(() => _isPreviewMode = isPreview);
+                        // 切换到 Edit 模式时隐藏底部导航栏
+                        if (!isPreview) {
+                          context.read<MainStore>().hideBottomNavigation();
+                        } else {
+                          context.read<MainStore>().showBottomNavigation();
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
             // Status Modal
             if (_userData != null)
               ChangeStatusModal(
@@ -323,10 +343,7 @@ class _SetNameDialog extends StatefulWidget {
   final TextEditingController nameController;
   final Future<void> Function() onSave;
 
-  const _SetNameDialog({
-    required this.nameController,
-    required this.onSave,
-  });
+  const _SetNameDialog({required this.nameController, required this.onSave});
 
   @override
   State<_SetNameDialog> createState() => _SetNameDialogState();
@@ -339,11 +356,11 @@ class _SetNameDialogState extends State<_SetNameDialog> {
 
   Future<void> _handleSubmit() async {
     if (!_isValid || _isUpdating) return;
-    
+
     setState(() {
       _isUpdating = true;
     });
-    
+
     try {
       await widget.onSave();
     } finally {
@@ -359,9 +376,7 @@ class _SetNameDialogState extends State<_SetNameDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       contentPadding: const EdgeInsets.all(24),
       content: SizedBox(
         width: double.maxFinite,
@@ -392,9 +407,15 @@ class _SetNameDialogState extends State<_SetNameDialog> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF171717), width: 1),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF171717),
+                    width: 1,
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 0,
+                ),
                 hintStyle: const TextStyle(
                   fontSize: 18,
                   color: Color.fromRGBO(48, 48, 48, 0.32),
