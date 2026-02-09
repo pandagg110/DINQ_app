@@ -105,7 +105,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
             padding: EdgeInsets.only(top: isMobileHeaderVisible ? 56 : 0),
             child: Stack(
               children: [
-                // TODO
                 
                 // 主聊天区域
                 const AgenticChatWidget(),

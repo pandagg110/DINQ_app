@@ -65,12 +65,15 @@ class SearchBoxWidget extends StatefulWidget {
     this.dropdownPosition = 'down',
     this.fullWidth = true,
     this.variant = 'glass',
+    this.onChanged,
   });
 
   final Function({required String query, bool simple}) onSearch;
   final VoidCallback? onStop;
   final bool loading;
   final String talentMode; // 'global' or 'dinq'
+  /// 输入内容变化时回调（便于父组件监听输入）
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onTalentModeChange;
   final ValueChanged<String>? onDinqSearchSubmit;
   final ValueChanged<AdvisorFormData>? onAdvisorSearch;
@@ -409,10 +412,13 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                               ),
                               onChanged: (value) {
                                 _adjustHeight();
+                                widget.onChanged?.call(value);
                                 if (value == '/' && _activeTool == null) {
                                   setState(() => _showToolsMenu = true);
                                 } else if (_showToolsMenu && value != '/') {
                                   setState(() => _showToolsMenu = false);
+                                } else {
+                                  setState(() {});
                                 }
                               },
                               onSubmitted: (value) {

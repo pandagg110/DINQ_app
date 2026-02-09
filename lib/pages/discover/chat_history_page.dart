@@ -354,7 +354,8 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       final detail = await chatStore.fetchConversationDetail(item.id);
       if (!context.mounted) return;
       if (detail != null) {
-        searchStore.loadConversation(detail);
+        searchStore.setPendingConversation(detail);
+        Navigator.of(context).pop();
       } else {
         chatStore.setActiveConversationId(null);
       }

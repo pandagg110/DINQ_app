@@ -1,8 +1,80 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
+
 import 'api_client.dart';
 
 /// Discover 相关 API（与 example 的 discoverApi 对齐）
 class DiscoverService {
   final _dio = ApiClient.instance.dio;
+
+  /// POST /discover/chat/stream — 流式搜索，返回 SSE 事件流
+  /// [query] 搜索词，[mode] fast | research，[conversationId] 可选
+  Stream<Map<String, dynamic>> chatStream({
+    required String query,
+    String mode = 'research',
+    int? conversationId,
+  }) async* {
+    print('[DiscoverService.chatStream] query: $query, mode: $mode, conversationId: $conversationId');
+    final body = <String, dynamic>{
+      'query': query,
+      'mode': mode,
+    };
+    if (conversationId != null) body['conversation_id'] = conversationId;
+
+    final response = await _dio.post<ResponseBody>(
+      '/discover/chat/stream',
+      data: body,
+      options: Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(minutes: 5),
+      ),
+    );
+    print('[DiscoverService.chatStream] response: $response');
+
+    final responseBody = response.data;
+    if (responseBody is! ResponseBody) return;
+    final stream = responseBody.stream;
+
+    final lineStream = (stream as Stream<List<int>>)
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+    String buffer = '';
+    await for (final chunk in lineStream) {
+      buffer += chunk;
+      if (!chunk.endsWith('\n')) continue;
+      final lines = buffer.split('\n');
+      buffer = lines.removeLast();
+      for (final line in lines) {
+        final trimmed = line.trim();
+        if (!trimmed.startsWith('data: ')) continue;
+        final data = trimmed.substring(6);
+        if (data == '[DONE]') return;
+        try {
+          final map = jsonDecode(data) as Map<String, dynamic>;
+          print('[DiscoverService.chatStream] event: $map');
+          yield map;
+        } catch (_) {
+          // ignore parse errors
+        }
+      }
+    }
+    if (buffer.trim().isNotEmpty) {
+      final trimmed = buffer.trim();
+      if (trimmed.startsWith('data: ')) {
+        final data = trimmed.substring(6);
+        if (data != '[DONE]') {
+          try {
+            final map = jsonDecode(data) as Map<String, dynamic>;
+            print('[DiscoverService.chatStream] event: $map');
+            yield map;
+          } catch (_) {}
+        }
+      }
+    }
+  }
 
   // ============== 聊天 ==============
 

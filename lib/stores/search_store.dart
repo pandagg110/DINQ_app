@@ -22,6 +22,11 @@ class SearchStore extends ChangeNotifier {
   String? pendingFill;
   int tabClickVersion = 0; // 用于触发面板展开
   bool isLoadingConversation = false;
+  int? currentConversationId;
+  /// 待加载的会话详情（从 Chat History 点入时设置，AgenticChat 会消费并清空）
+  Map<String, dynamic>? pendingConversation;
+  /// 重置版本：clearAll 时递增，AgenticChat 据此清空消息
+  int resetVersion = 0;
 
   int _nextId() {
     _idCounter += 1;
@@ -69,6 +74,24 @@ class SearchStore extends ChangeNotifier {
     activeTabId = null;
     isSearching = false;
     pendingQuery = null;
+    currentConversationId = null;
+    pendingConversation = null;
+    resetVersion += 1;
+    notifyListeners();
+  }
+
+  void setCurrentConversationId(int? id) {
+    currentConversationId = id;
+    notifyListeners();
+  }
+
+  void setPendingConversation(Map<String, dynamic>? detail) {
+    pendingConversation = detail;
+    notifyListeners();
+  }
+
+  void clearPendingConversation() {
+    pendingConversation = null;
     notifyListeners();
   }
 
@@ -98,6 +121,18 @@ class SearchStore extends ChangeNotifier {
     tabClickVersion += 1;
     notifyListeners();
     return id;
+  }
+
+  /// 用搜索结果候选人填充标签页（与 TSX syncCandidatesToTabs 效果一致：展示返回值）
+  void setTabsFromCandidates(List<Map<String, dynamic>> candidates) {
+    openTabs.clear();
+    for (var i = 0; i < candidates.length; i++) {
+      final c = Map<String, dynamic>.from(candidates[i]);
+      c['originalIndex'] = i;
+      openTab(c);
+    }
+    tabClickVersion += 1;
+    notifyListeners();
   }
 
   // 更新标签页的 profile 数据
@@ -156,9 +191,29 @@ class SearchStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 加载会话（占位方法，需要根据实际 API 实现）
+  /// 加载会话详情：用会话的 records 还原为消息组并填充 openTabs（与 TSX 一致）
   void loadConversation(Map<String, dynamic> conversation) {
-    // TODO: 实现加载会话逻辑
+    final records = conversation['records'];
+    if (records is! List || records.isEmpty) {
+      notifyListeners();
+      return;
+    }
+    openTabs.clear();
+    activeTabId = null;
+    _idCounter = 0;
+    for (var i = 0; i < records.length; i++) {
+      final record = records[i] as Map<String, dynamic>;
+      final result = record['result'];
+      if (result is List) {
+        for (var j = 0; j < result.length; j++) {
+          final c = Map<String, dynamic>.from(result[j] as Map<String, dynamic>);
+          c['originalIndex'] = j;
+          openTab(c);
+        }
+      }
+    }
+    if (openTabs.isNotEmpty) activeTabId = openTabs.first.id;
+    tabClickVersion += 1;
     notifyListeners();
   }
 }

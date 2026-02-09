@@ -1,10 +1,13 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../constants/app_constants.dart';
+import '../../services/discover_service.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
 import 'prompt_template_grid_widget.dart';
 import '../../pages/discover/chat_history_page.dart';
+import 'agentic_search_logic.dart';
+import 'message_group_view.dart';
 import 'recommended_papers_widget.dart';
 import 'search_box_widget.dart';
 
@@ -26,7 +29,13 @@ const List<String> dinqPlaceholders = [
 ];
 
 class AgenticChatWidget extends StatefulWidget {
-  const AgenticChatWidget({super.key});
+  const AgenticChatWidget({
+    super.key,
+    this.onSearchComplete,
+  });
+
+  /// 与 TSX onSearchComplete 一致：搜索完成且有关注人时回调
+  final void Function(List<Map<String, dynamic>> candidates, String query)? onSearchComplete;
 
   @override
   State<AgenticChatWidget> createState() => _AgenticChatWidgetState();
@@ -44,11 +53,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   final ScrollController _initialScrollController = ScrollController();
   final GlobalKey _messagesEndKey = GlobalKey();
 
-  // 消息组（待实现完整逻辑）
-  List<dynamic> _messageGroups = [];
-  bool _loading = false;
-  bool _advisorLoading = false;
-  // int _resetVersion = 0; // TODO: 实现重置逻辑时使用
+  /// 与 TSX useAgenticSearch 对应，逻辑在 agentic_search_logic.dart
+  AgenticSearchLogic? _logic;
+  bool _logicInitialized = false;
+  int _lastResetVersion = 0;
 
   // bool _initialQueryProcessed = false; // TODO: 实现 URL 参数处理时使用
 
@@ -66,12 +74,25 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 只在第一次获取屏幕高度，之后不再更新
     _screenHeight ??= MediaQuery.of(context).size.height;
+    if (!_logicInitialized) {
+      _logicInitialized = true;
+      _logic = AgenticSearchLogic(
+        discoverService: DiscoverService(),
+        searchStore: context.read<SearchStore>(),
+        onSearchComplete: widget.onSearchComplete,
+        onScrollToBottom: _scrollToBottom,
+      );
+      _logic!.addListener(_onLogicUpdate);
+    }
   }
+
+  void _onLogicUpdate() => setState(() {});
 
   @override
   void dispose() {
+    _logic?.removeListener(_onLogicUpdate);
+    _logic?.dispose();
     _scrollController.dispose();
     _initialScrollController.dispose();
     super.dispose();
@@ -131,79 +152,22 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     }
   }
 
-  // 处理搜索
   void _handleSearch({required String query, bool simple = false}) {
-    if (query.trim().isEmpty) return;
-
-    // TODO: 实现付费墙检查
-    // if (!consumeCredit(1)) return;
-
-    setState(() {
-      _isNearBottom = true;
-      _loading = true;
-    });
-
-    // TODO: 实现搜索逻辑
-    // executeSearch({ query, mode: simple ? "fast" : "research" });
-
-    // 临时：模拟搜索
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          // _messageGroups = [...]; // 添加消息组
-        });
-      }
-    });
-
-    // 滚动到底部
-    Future.delayed(const Duration(milliseconds: 100), () {
-      _scrollToBottom();
-    });
+    _logic?.handleSearch(query: query, simple: simple);
+    setState(() => _isNearBottom = true);
   }
 
-  // 处理 DINQ 搜索提交
-  void _handleDinqSearchSubmit(String query) {
-    if (query.trim().isEmpty) return;
-
-    setState(() {
-      _isNearBottom = true;
-    });
-
-    // TODO: 实现 DINQ 搜索逻辑
-    // executeDinqSearch({ query });
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      _scrollToBottom();
-    });
+  Future<void> _handleDinqSearchSubmit(String query) async {
+    await _logic?.handleDinqSearch(query);
+    setState(() => _isNearBottom = true);
   }
 
-  // 处理 Advisor 搜索
   void _handleAdvisorSearch(AdvisorFormData data) {
-    // TODO: 实现付费墙检查
-    // if (!consumeCredit(1)) return;
-
-    setState(() {
-      _isNearBottom = true;
-      _advisorLoading = true;
-    });
-
-    // TODO: 实现 Advisor 搜索逻辑
-    // executeAdvisorSearch(data);
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      _scrollToBottom();
-    });
+    _logic?.handleAdvisorSearch();
+    setState(() => _isNearBottom = true);
   }
 
-  // 处理停止
-  void _handleStop() {
-    // TODO: 实现停止逻辑
-    setState(() {
-      _loading = false;
-      _advisorLoading = false;
-    });
-  }
+  void _handleStop() => _logic?.handleStop();
 
   // 处理候选人点击
   // void _handleCandidateClick(Map<String, dynamic> candidate, int index, int groupId) {
@@ -214,14 +178,38 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final logic = _logic;
+    if (logic == null) return const SizedBox.shrink();
+    final messageGroups = logic.messageGroups;
     return Consumer2<SearchStore, UserStore>(
       builder: (context, searchStore, userStore, _) {
+        if (!mounted) return const SizedBox.shrink();
+        if (searchStore.resetVersion != _lastResetVersion) {
+          _lastResetVersion = searchStore.resetVersion;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) logic.clearMessages();
+          });
+        }
+        if (searchStore.pendingConversation != null) {
+          final pending = searchStore.pendingConversation!;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            logic.loadFromConversation(pending);
+            searchStore.clearPendingConversation();
+          });
+        }
+        if (searchStore.isLoadingConversation && logic.messageGroups.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            logic.clearMessagesOnly();
+          });
+        }
         final user = userStore.user;
         final userName = user?.userData.name.isNotEmpty == true
             ? user!.userData.name
             : (user?.user.name.isNotEmpty == true ? user!.user.name : '');
 
-        final hasMessages = _messageGroups.isNotEmpty;
+        final hasMessages = messageGroups.isNotEmpty;
         final showSkeleton = searchStore.isLoadingConversation && !hasMessages;
         final bgColor = (hasMessages || showSkeleton)
             ? Colors.white
@@ -253,16 +241,16 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
 
                 // 消息滚动区域
                 if (hasMessages && !showSkeleton)
-                  Expanded(child: _buildMessagesArea()),
+                  Expanded(child: _buildMessagesArea(logic)),
 
                 // 初始状态 - 双页 snap 滚动
                 if (!hasMessages && !showSkeleton)
                   Expanded(
-                    child: _buildInitialState(userName, userId: user?.user.id),
+                    child: _buildInitialState(userName, logic, userId: user?.user.id),
                   ),
 
                 // SearchBox - 在有消息或骨架屏时固定底部
-                if (hasMessages || showSkeleton) _buildBottomSearchBox(),
+                if (hasMessages || showSkeleton) _buildBottomSearchBox(logic),
               ],
             ),
           ),
@@ -358,27 +346,31 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     );
   }
 
-  Widget _buildMessagesArea() {
+  Widget _buildMessagesArea(AgenticSearchLogic logic) {
+    final groups = logic.messageGroups;
     return Stack(
       children: [
         SingleChildScrollView(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // TODO: 实现 MessageGroupView
-              // for (var group in _messageGroups)
-              //   MessageGroupView(...)
-
-              // 占位：显示消息组
+              for (var i = 0; i < groups.length; i++) ...[
+                MessageGroupView(
+                  key: ValueKey(groups[i].id),
+                  group: MessageGroupData(
+                    id: groups[i].id,
+                    userQuery: groups[i].userQuery,
+                    loading: groups[i].loading,
+                    candidates: groups[i].candidates,
+                  ),
+                  isLatest: i == groups.length - 1,
+                ),
+              ],
               Container(
                 key: _messagesEndKey,
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(bottom: 80),
-                child: const Text(
-                  'Messages will appear here',
-                  style: TextStyle(color: Color(0xFF9CA3AF)),
-                ),
+                height: 80,
               ),
             ],
           ),
@@ -407,7 +399,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     );
   }
 
-  Widget _buildInitialState(String userName, {String? userId}) {
+  Widget _buildInitialState(String userName, AgenticSearchLogic logic, {String? userId}) {
     return SingleChildScrollView(
       controller: _initialScrollController,
       physics: const BouncingScrollPhysics(),
@@ -537,7 +529,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                               child: SearchBoxWidget(
                                 onSearch: _handleSearch,
                                 onStop: _handleStop,
-                                loading: _loading,
+                                loading: logic.loading,
                                 talentMode: _talentMode,
                                 onTalentModeChange: (mode) {
                                   setState(() {
@@ -546,7 +538,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                                 },
                                 onDinqSearchSubmit: _handleDinqSearchSubmit,
                                 onAdvisorSearch: _handleAdvisorSearch,
-                                advisorLoading: _advisorLoading,
+                                advisorLoading: logic.advisorLoading,
                                 onActiveToolChange: (tool) {
                                   setState(() {
                                     _activeTool = tool;
@@ -595,9 +587,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     );
   }
 
-  Widget _buildBottomSearchBox() {
+  Widget _buildBottomSearchBox(AgenticSearchLogic logic) {
+    // 底部留出 MainTabBottomView 高度，避免输入框被遮挡
+    final bottomInset = ConstantsTool.bottomTabHeight + 32;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
       child: Stack(
         children: [
           // 滚动到底部按钮
@@ -651,7 +645,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
               child: SearchBoxWidget(
                 onSearch: _handleSearch,
                 onStop: _handleStop,
-                loading: _loading,
+                loading: logic.loading,
                 talentMode: _talentMode,
                 onTalentModeChange: (mode) {
                   setState(() {
@@ -660,7 +654,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                 },
                 onDinqSearchSubmit: _handleDinqSearchSubmit,
                 onAdvisorSearch: _handleAdvisorSearch,
-                advisorLoading: _advisorLoading,
+                advisorLoading: logic.advisorLoading,
                 onActiveToolChange: (tool) {
                   setState(() {
                     _activeTool = tool;
