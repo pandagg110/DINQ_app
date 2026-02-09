@@ -41,14 +41,12 @@ class ChatHistoryEmptyStateWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            Image.asset(
+              'assets/icons/discover/lock.png',
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(Icons.lock, size: 20, color: Color(0xFFF59E0B)),
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(Icons.lock, size: 20, color: Color(0xFFF59E0B)),
             ),
             const SizedBox(height: 12),
             const Text(
@@ -138,18 +136,16 @@ class ChatHistoryEmptyStateWidget extends StatelessWidget {
 
   Widget _buildUnlockSection(BuildContext context, {required String buttonLabel}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
+          Image.asset(
+            'assets/icons/discover/lock.png',
             width: 48,
             height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFDE277),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(Icons.lock, size: 24, color: Color(0xFF171717)),
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(Icons.lock, size: 24, color: Color(0xFF171717)),
           ),
           const SizedBox(height: 16),
           const Text(

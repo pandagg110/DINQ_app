@@ -124,27 +124,26 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     ),
                   ),
                 ),
-                // Search box - only for Pro/Plus
-                if (isProOrPlus) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: TextField(
-                      onChanged: (v) => chatStore.setSearchQuery(v),
-                      decoration: InputDecoration(
-                        hintText: 'Search...',
-                        prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                // Search box - 始终显示（与 list 一致）
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: TextField(
+                    onChanged: (v) => chatStore.setSearchQuery(v),
+                    readOnly: !isProOrPlus,
+                    decoration: InputDecoration(
+                      hintText: 'Search...',
+                      prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
                       ),
-                      style: const TextStyle(fontSize: 14),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
+                    style: const TextStyle(fontSize: 14),
                   ),
-                ],
+                ),
                 // Conversation list
                 Expanded(
                   child: _buildList(
@@ -196,14 +195,80 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     required bool isProOrPlus,
     required void Function(ConversationItem) onItemClick,
   }) {
-    // Free: locked state
-    if (basePlan == 'free') {
-      return SingleChildScrollView(
-        child: ChatHistoryEmptyStateWidget(type: 'locked'),
+    // 列表始终显示（Search 区域同上，list 内容按 plan 变化）
+    final listContent = _buildListContent(
+      context,
+      chatStore: chatStore,
+      basePlan: basePlan,
+      onItemClick: onItemClick,
+    );
+
+    // Free/Basic：在 list 上覆盖一层遮罩，仅阻止操作，Unlock 卡悬浮在上
+    if (basePlan == 'free' || basePlan == 'basic') {
+      return Stack(
+        children: [
+          listContent,
+          Positioned.fill(
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {},
+                  child: const SizedBox.expand(),
+                ),
+                Positioned(
+                  top: 60,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: 210,
+                      child: ChatHistoryEmptyStateWidget(
+                        type: basePlan == 'free' ? 'locked' : 'upgrade_pro',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
-    // Basic: 1 real + mock blurred + upgrade_pro
+    return listContent;
+  }
+
+  /// 列表内容：始终渲染，free=仅 mock 模糊，basic=1 条真实+mock 模糊，pro/plus=骨架/错误/空/完整列表
+  Widget _buildListContent(
+    BuildContext context, {
+    required ChatHistoryStore chatStore,
+    required String basePlan,
+    required void Function(ConversationItem) onItemClick,
+  }) {
+    // Free: 仅 mock 模糊列表（列表一直显示）
+    if (basePlan == 'free') {
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ...mockHistoryItems.map(
+              (item) => ChatHistoryItemWidget(
+                conversation: item,
+                isBlurred: true,
+                onClick: () {},
+                onDelete: (_) async => false,
+                onRename: (_, __) async => false,
+              ),
+            ),
+            const SizedBox(height: 220),
+          ],
+        ),
+      );
+    }
+
+    // Basic: 1 条真实 + mock 模糊（列表一直显示）
     if (basePlan == 'basic') {
       return SingleChildScrollView(
         child: Column(
@@ -227,7 +292,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     onRename: (_, __) async => false,
                   ),
                 ),
-            ChatHistoryEmptyStateWidget(type: 'upgrade_pro'),
+            const SizedBox(height: 220),
           ],
         ),
       );
@@ -286,14 +351,19 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     searchStore.setLoadingConversation(true);
 
     try {
-      // TODO: discoverApi.getConversationDetail(item.id) -> searchStore.loadConversation(detail)
-      // 暂时仅清除 loading
-      await Future.delayed(const Duration(milliseconds: 300));
+      final detail = await chatStore.fetchConversationDetail(item.id);
       if (!context.mounted) return;
-      searchStore.setLoadingConversation(false);
+      if (detail != null) {
+        searchStore.loadConversation(detail);
+      } else {
+        chatStore.setActiveConversationId(null);
+      }
     } catch (_) {
       if (context.mounted) {
         chatStore.setActiveConversationId(null);
+      }
+    } finally {
+      if (context.mounted) {
         searchStore.setLoadingConversation(false);
       }
     }

@@ -78,35 +78,9 @@ class _RenameDialogState extends State<RenameDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Header
+                       // Form
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                        child: Row(
-                          children: [
-                            const Text(
-                              'Rename',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF171717),
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 20, color: Color(0xFF6B7280)),
-                              onPressed: widget.onClose,
-                              style: IconButton.styleFrom(
-                                padding: const EdgeInsets.all(4),
-                                minimumSize: const Size(32, 32),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      // Form
-                      Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -123,22 +97,38 @@ class _RenameDialogState extends State<RenameDialog> {
                             ),
                             const SizedBox(height: 16),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                TextButton(
-                                  onPressed: _isLoading ? null : widget.onClose,
-                                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF6B7280))),
-                                ),
-                                const SizedBox(width: 8),
-                                FilledButton(
-                                  onPressed: (_isLoading || _controller.text.trim().isEmpty)
-                                      ? null
-                                      : _handleSubmit,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: const Color(0xFF171717),
-                                    foregroundColor: Colors.white,
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: _isLoading ? null : widget.onClose,
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: const Color(0xFF6B7280),
+                                      side: const BorderSide(color: Color(0xFFE5E7EB)),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text('Cancel'),
                                   ),
-                                  child: Text(_isLoading ? 'Saving...' : 'Save'),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: FilledButton(
+                                    onPressed: (_isLoading || _controller.text.trim().isEmpty)
+                                        ? null
+                                        : _handleSubmit,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFF171717),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(_isLoading ? 'Saving...' : 'Confirm'),
+                                  ),
                                 ),
                               ],
                             ),

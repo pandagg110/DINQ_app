@@ -25,7 +25,7 @@ class NewChatConfirmDialog extends StatelessWidget {
     final message = isFree
         ? 'Your current chat will be cleared. As a Free user, conversations are not saved after you start a new session.'
         : 'You can only save one conversation at a time. Starting this new chat will replace your currently saved history.';
-    final confirmText = isFree ? 'Start New Chat' : 'Overwrite & Start';
+    final confirmText = isFree ? 'New Chat' : 'Overwrite & Start';
     final upgradeText = isFree ? 'Want to save your chats?' : 'Need more history slots?';
     final upgradeCta = isFree ? 'Upgrade' : 'Go Unlimited';
 
@@ -72,7 +72,7 @@ class NewChatConfirmDialog extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       child: Column(
                         children: [
                           Text(
@@ -136,8 +136,7 @@ class NewChatConfirmDialog extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.diamond, size: 16, color: Color(0xFF1487FA)),
-                              const SizedBox(width: 6),
+                              
                               Text(
                                 upgradeText,
                                 style: const TextStyle(fontSize: 14, color: Color(0xFF575757)),

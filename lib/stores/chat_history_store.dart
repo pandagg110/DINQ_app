@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/discover_service.dart';
 
 class ConversationItem {
   ConversationItem({
@@ -29,6 +30,8 @@ class ConversationItem {
 class ChatHistoryStore extends ChangeNotifier {
   static const int pageSize = 20;
 
+  final DiscoverService _discoverService = DiscoverService();
+
   List<ConversationItem> conversations = [];
   int total = 0;
   bool isLoading = false;
@@ -51,27 +54,27 @@ class ChatHistoryStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: 实现 API 调用
-      // final response = await discoverApi.getConversations(
-      //   keyword: searchQuery.isEmpty ? null : searchQuery,
-      //   page: 1,
-      //   pageSize: pageSize,
-      // );
-      // 
-      // final newItems = (response['items'] as List<dynamic>?)
-      //     ?.map((item) => ConversationItem.fromJson(item as Map<String, dynamic>))
-      //     .toList() ?? [];
-      // 
-      // conversations = newItems;
-      // total = response['total'] as int? ?? 0;
-      // page = 1;
+      final response = await _discoverService.getConversations(
+        keyword: searchQuery.isEmpty ? null : searchQuery,
+        page: 1,
+        pageSize: pageSize,
+      );
 
-      // 临时占位数据
-      conversations = [];
-      total = 0;
+      final rawItems = response['items'];
+      final newItems = (rawItems is List<dynamic>)
+          ? rawItems
+              .map((e) => ConversationItem.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : <ConversationItem>[];
+
+      conversations = newItems;
+      total = (response['total'] is int) ? response['total'] as int : 0;
       page = 1;
     } catch (e) {
       error = e.toString();
+      conversations = [];
+      total = 0;
+      page = 1;
     } finally {
       isLoading = false;
       notifyListeners();
@@ -85,21 +88,23 @@ class ChatHistoryStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: 实现 API 调用
-      // final nextPage = page + 1;
-      // final response = await discoverApi.getConversations(
-      //   keyword: searchQuery.isEmpty ? null : searchQuery,
-      //   page: nextPage,
-      //   pageSize: pageSize,
-      // );
-      // 
-      // final newItems = (response['items'] as List<dynamic>?)
-      //     ?.map((item) => ConversationItem.fromJson(item as Map<String, dynamic>))
-      //     .toList() ?? [];
-      // 
-      // conversations.addAll(newItems);
-      // total = response['total'] as int? ?? total;
-      // page = nextPage;
+      final nextPage = page + 1;
+      final response = await _discoverService.getConversations(
+        keyword: searchQuery.isEmpty ? null : searchQuery,
+        page: nextPage,
+        pageSize: pageSize,
+      );
+
+      final rawItems = response['items'];
+      final newItems = (rawItems is List<dynamic>)
+          ? rawItems
+              .map((e) => ConversationItem.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : <ConversationItem>[];
+
+      conversations.addAll(newItems);
+      if (response['total'] is int) total = response['total'] as int;
+      page = nextPage;
     } catch (e) {
       // 静默失败
     } finally {
@@ -135,10 +140,8 @@ class ChatHistoryStore extends ChangeNotifier {
 
   Future<bool> renameConversation(int id, String title) async {
     try {
-      // TODO: 实现 API 调用
-      // await discoverApi.updateConversation(id, {'title': title});
-      
-      // 更新本地状态
+      await _discoverService.updateConversation(id, {'title': title});
+
       final index = conversations.indexWhere((item) => item.id == id);
       if (index >= 0) {
         conversations[index] = ConversationItem(
@@ -158,22 +161,26 @@ class ChatHistoryStore extends ChangeNotifier {
 
   Future<bool> deleteConversation(int id) async {
     try {
-      // TODO: 实现 API 调用
-      // await discoverApi.deleteConversation(id);
-      
-      // 从列表中移除
+      await _discoverService.deleteConversation(id);
+
       conversations.removeWhere((item) => item.id == id);
       total = total > 0 ? total - 1 : 0;
-      
-      // 如果删除的是当前活跃会话，清除活跃状态
       if (activeConversationId == id) {
         activeConversationId = null;
       }
-      
       notifyListeners();
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// 获取会话详情（含所有记录），供 SearchStore.loadConversation 使用
+  Future<Map<String, dynamic>?> fetchConversationDetail(int id) async {
+    try {
+      return await _discoverService.getConversationDetail(id);
+    } catch (e) {
+      return null;
     }
   }
 
