@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
 import 'prompt_template_grid_widget.dart';
+import '../../pages/discover/chat_history_page.dart';
 import 'recommended_papers_widget.dart';
 import 'search_box_widget.dart';
 
@@ -42,15 +43,15 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   final ScrollController _scrollController = ScrollController();
   final ScrollController _initialScrollController = ScrollController();
   final GlobalKey _messagesEndKey = GlobalKey();
-  
+
   // 消息组（待实现完整逻辑）
   List<dynamic> _messageGroups = [];
   bool _loading = false;
   bool _advisorLoading = false;
   // int _resetVersion = 0; // TODO: 实现重置逻辑时使用
-  
+
   // bool _initialQueryProcessed = false; // TODO: 实现 URL 参数处理时使用
-  
+
   // 固定屏幕高度（避免键盘影响布局）
   double? _screenHeight;
 
@@ -61,7 +62,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     _scrollController.addListener(_handleScroll);
     _initialScrollController.addListener(_handleInitialScroll);
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -133,18 +134,18 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   // 处理搜索
   void _handleSearch({required String query, bool simple = false}) {
     if (query.trim().isEmpty) return;
-    
+
     // TODO: 实现付费墙检查
     // if (!consumeCredit(1)) return;
-    
+
     setState(() {
       _isNearBottom = true;
       _loading = true;
     });
-    
+
     // TODO: 实现搜索逻辑
     // executeSearch({ query, mode: simple ? "fast" : "research" });
-    
+
     // 临时：模拟搜索
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
@@ -154,7 +155,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         });
       }
     });
-    
+
     // 滚动到底部
     Future.delayed(const Duration(milliseconds: 100), () {
       _scrollToBottom();
@@ -164,14 +165,14 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   // 处理 DINQ 搜索提交
   void _handleDinqSearchSubmit(String query) {
     if (query.trim().isEmpty) return;
-    
+
     setState(() {
       _isNearBottom = true;
     });
-    
+
     // TODO: 实现 DINQ 搜索逻辑
     // executeDinqSearch({ query });
-    
+
     Future.delayed(const Duration(milliseconds: 100), () {
       _scrollToBottom();
     });
@@ -181,15 +182,15 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   void _handleAdvisorSearch(AdvisorFormData data) {
     // TODO: 实现付费墙检查
     // if (!consumeCredit(1)) return;
-    
+
     setState(() {
       _isNearBottom = true;
       _advisorLoading = true;
     });
-    
+
     // TODO: 实现 Advisor 搜索逻辑
     // executeAdvisorSearch(data);
-    
+
     Future.delayed(const Duration(milliseconds: 100), () {
       _scrollToBottom();
     });
@@ -219,18 +220,19 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         final userName = user?.userData.name.isNotEmpty == true
             ? user!.userData.name
             : (user?.user.name.isNotEmpty == true ? user!.user.name : '');
-        
+
         final hasMessages = _messageGroups.isNotEmpty;
         final showSkeleton = searchStore.isLoadingConversation && !hasMessages;
-        final bgColor = (hasMessages || showSkeleton) 
-            ? Colors.white 
+        final bgColor = (hasMessages || showSkeleton)
+            ? Colors.white
             : const Color(0xFFFDFDFD);
-        
+
         // 获取固定屏幕高度（不受键盘影响），仅移动端样式，headerHeight 固定为 0
-        final screenHeight = _screenHeight ?? MediaQuery.of(context).size.height;
+        final screenHeight =
+            _screenHeight ?? MediaQuery.of(context).size.height;
         const headerHeight = 0.0;
         final availableHeight = screenHeight - headerHeight;
-        
+
         final parentQuery = MediaQuery.of(context);
         final mediaQueryWithoutInsets = parentQuery.copyWith(
           viewInsets: EdgeInsets.zero,
@@ -246,28 +248,22 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             width: double.infinity,
             child: Column(
               children: [
-              // 骨架屏 - 加载历史会话时显示
-              if (showSkeleton)
-                Expanded(
-                  child: _buildConversationSkeleton(),
-                ),
+                // 骨架屏 - 加载历史会话时显示
+                if (showSkeleton) Expanded(child: _buildConversationSkeleton()),
 
-              // 消息滚动区域
-              if (hasMessages && !showSkeleton)
-                Expanded(
-                  child: _buildMessagesArea(),
-                ),
+                // 消息滚动区域
+                if (hasMessages && !showSkeleton)
+                  Expanded(child: _buildMessagesArea()),
 
-              // 初始状态 - 双页 snap 滚动
-              if (!hasMessages && !showSkeleton)
-                Expanded(
-                  child: _buildInitialState(userName, userId: user?.user.id),
-                ),
+                // 初始状态 - 双页 snap 滚动
+                if (!hasMessages && !showSkeleton)
+                  Expanded(
+                    child: _buildInitialState(userName, userId: user?.user.id),
+                  ),
 
-              // SearchBox - 在有消息或骨架屏时固定底部
-              if (hasMessages || showSkeleton)
-                _buildBottomSearchBox(),
-            ],
+                // SearchBox - 在有消息或骨架屏时固定底部
+                if (hasMessages || showSkeleton) _buildBottomSearchBox(),
+              ],
             ),
           ),
         );
@@ -373,7 +369,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
               // TODO: 实现 MessageGroupView
               // for (var group in _messageGroups)
               //   MessageGroupView(...)
-              
+
               // 占位：显示消息组
               Container(
                 key: _messagesEndKey,
@@ -419,102 +415,172 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         children: [
           // Section 1: 搜索页
           SizedBox(
-            height: _screenHeight != null ? _screenHeight! * 0.8 : MediaQuery.of(context).size.height * 0.8,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // 欢迎文字
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Logo
-                        Image.asset(
-                          'assets/logo/dinq-black.png',
-                          width: 32,
-                          height: 32,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.search,
-                              size: 32,
-                              color: Color(0xFF171717),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 12),
-                        // Welcome Text
-                        Flexible(
-                          child: Text(
-                            userName.isNotEmpty ? 'Welcome, $userName' : 'Welcome',
-                            style: const TextStyle(
-                              fontSize: 38,
-                              fontWeight: FontWeight.normal,
-                              color: Color(0xFF171717),
-                              letterSpacing: 0.02,
-                              fontFamily: 'Editor Note',
-                              height: 1.5,
+            height: _screenHeight != null
+                ? _screenHeight! * 0.8
+                : MediaQuery.of(context).size.height * 0.8,
+            child: Column(
+              children: [
+                // 顶部：左上 History，右上 Upgrade
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push<Object?>(
+                            MaterialPageRoute<Object?>(
+                              builder: (_) => const ChatHistoryPage(),
                             ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.history,
+                          size: 20,
+                          color: Color.fromARGB(255, 0, 0, 0),
+                        ),
+                        label: const Text(
+                          'History',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color.fromARGB(255, 0, 0, 0),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-                    
-                    // 搜索框（外层白色背景容器）
-                    Center(
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 768),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          foregroundColor: const Color(0xFF6B7280),
                         ),
-                        child: SearchBoxWidget(
-                        onSearch: _handleSearch,
-                        onStop: _handleStop,
-                        loading: _loading,
-                        talentMode: _talentMode,
-                        onTalentModeChange: (mode) {
-                          setState(() {
-                            _talentMode = mode;
-                          });
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // TODO: 跳转升级页
                         },
-                        onDinqSearchSubmit: _handleDinqSearchSubmit,
-                        onAdvisorSearch: _handleAdvisorSearch,
-                        advisorLoading: _advisorLoading,
-                        onActiveToolChange: (tool) {
-                          setState(() {
-                            _activeTool = tool;
-                          });
-                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          foregroundColor: const Color(0xFF6B7280),
+                        ),
+                        child: const Text(
+                          'Upgrade',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Prompt Templates - 根据 activeTool 显示/隐藏
-                    AnimatedSize(
-                      duration: Duration(milliseconds: _activeTool != null ? 200 : 400),
-                      curve: Curves.easeOut,
-                      child: AnimatedOpacity(
-                        duration: Duration(milliseconds: _activeTool != null ? 150 : 300),
-                        opacity: _activeTool != null ? 0.0 : 1.0,
-                        child: _activeTool == null
-                            ? const PromptTemplateGridWidget()
-                            : const SizedBox.shrink(),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                // 居中内容
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // 欢迎文字
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Logo
+                              Image.asset(
+                                'assets/logo/dinq-black.png',
+                                width: 32,
+                                height: 32,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.search,
+                                    size: 32,
+                                    color: Color(0xFF171717),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 12),
+                              // Welcome Text
+                              Flexible(
+                                child: Text(
+                                  userName.isNotEmpty
+                                      ? 'Welcome, $userName'
+                                      : 'Welcome',
+                                  style: const TextStyle(
+                                    fontSize: 38,
+                                    fontWeight: FontWeight.normal,
+                                    color: Color(0xFF171717),
+                                    letterSpacing: 0.02,
+                                    fontFamily: 'Editor Note',
+                                    height: 1.5,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                          // 搜索框（外层白色背景容器）
+                          Center(
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 768),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: SearchBoxWidget(
+                                onSearch: _handleSearch,
+                                onStop: _handleStop,
+                                loading: _loading,
+                                talentMode: _talentMode,
+                                onTalentModeChange: (mode) {
+                                  setState(() {
+                                    _talentMode = mode;
+                                  });
+                                },
+                                onDinqSearchSubmit: _handleDinqSearchSubmit,
+                                onAdvisorSearch: _handleAdvisorSearch,
+                                advisorLoading: _advisorLoading,
+                                onActiveToolChange: (tool) {
+                                  setState(() {
+                                    _activeTool = tool;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          // Prompt Templates - 根据 activeTool 显示/隐藏
+                          AnimatedSize(
+                            duration: Duration(
+                              milliseconds: _activeTool != null ? 200 : 400,
+                            ),
+                            curve: Curves.easeOut,
+                            child: AnimatedOpacity(
+                              duration: Duration(
+                                milliseconds: _activeTool != null ? 150 : 300,
+                              ),
+                              opacity: _activeTool != null ? 0.0 : 1.0,
+                              child: _activeTool == null
+                                  ? const PromptTemplateGridWidget()
+                                  : const SizedBox.shrink(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          
+
           // Section 2: Papers 页
           SizedBox(
             height: _screenHeight ?? MediaQuery.of(context).size.height,
@@ -583,25 +649,25 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                 ],
               ),
               child: SearchBoxWidget(
-              onSearch: _handleSearch,
-              onStop: _handleStop,
-              loading: _loading,
-              talentMode: _talentMode,
-              onTalentModeChange: (mode) {
-                setState(() {
-                  _talentMode = mode;
-                });
-              },
-              onDinqSearchSubmit: _handleDinqSearchSubmit,
-              onAdvisorSearch: _handleAdvisorSearch,
-              advisorLoading: _advisorLoading,
-              onActiveToolChange: (tool) {
-                setState(() {
-                  _activeTool = tool;
-                });
-              },
-              dropdownPosition: 'up',
-            ),
+                onSearch: _handleSearch,
+                onStop: _handleStop,
+                loading: _loading,
+                talentMode: _talentMode,
+                onTalentModeChange: (mode) {
+                  setState(() {
+                    _talentMode = mode;
+                  });
+                },
+                onDinqSearchSubmit: _handleDinqSearchSubmit,
+                onAdvisorSearch: _handleAdvisorSearch,
+                advisorLoading: _advisorLoading,
+                onActiveToolChange: (tool) {
+                  setState(() {
+                    _activeTool = tool;
+                  });
+                },
+                dropdownPosition: 'up',
+              ),
             ),
           ),
         ],

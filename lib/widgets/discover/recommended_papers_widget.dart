@@ -162,60 +162,67 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
   }
 
   Widget _buildPeekOverlay() {
+    // 移动端：h-[8%]、pt-8、gap-2、w-8、text-xs
     return Positioned.fill(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: widget.onPeekClick,
-          child: Column(
-            children: [
-              Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFFFBFBFA),
-                      const Color(0xFFFBFBFA).withOpacity(0.7),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(width: 24, height: 1, color: const Color(0xFFE5E7EB)),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Try Finding Talent via Hot Research',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w300,
-                        color: Color(0xFF9CA3AF),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final topHeight = constraints.maxHeight * 0.08; // 8%
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onPeekClick,
+              child: Column(
+                children: [
+                  Container(
+                    height: topHeight,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFFBFBFA),
+                          const Color(0xFFFBFBFA).withOpacity(0.7),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(width: 24, height: 1, color: const Color(0xFFE5E7EB)),
-                  ],
-                ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 32), // pt-8
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(width: 32, height: 1, color: const Color(0xFFE5E7EB)), // w-8
+                        const SizedBox(width: 8), // gap-2
+                        const Text(
+                          'Try Finding Talent via Hot Research',
+                          style: TextStyle(
+                            fontSize: 12, // text-xs
+                            fontWeight: FontWeight.w300,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(width: 32, height: 1, color: const Color(0xFFE5E7EB)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildStickyHeader() {
+    // 移动端：pt-6 pb-4、px-4
     if (!widget.isFullView) {
-      return const SizedBox(height: 24);
+      return const SizedBox(height: 24); // 与 TSX h-6 占位一致
     }
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16), // px-4, pt-6 pb-4
       decoration: BoxDecoration(
         color: const Color(0xFFFBFBFA).withOpacity(0.95),
       ),
@@ -288,15 +295,15 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
   }
 
   Widget _buildLoadingGrid() {
-    const crossCount = 2;
+    // 移动端：单列
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = (constraints.maxWidth - 24 * (crossCount - 1)) / crossCount;
+        final width = constraints.maxWidth;
         return Wrap(
           spacing: 24,
           runSpacing: 24,
           children: List.generate(6, (_) => SizedBox(
-            width: width.clamp(0, 400),
+            width: width,
             height: 280,
             child: Container(
               decoration: BoxDecoration(
@@ -311,17 +318,17 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
   }
 
   Widget _buildPapersGrid() {
+    // 移动端：单列，gap-6
     return LayoutBuilder(
       builder: (context, constraints) {
-        const crossCount = 2;
-        final spacing = 24.0;
-        final itemWidth = (constraints.maxWidth - spacing * (crossCount - 1)) / crossCount;
+        const spacing = 24.0; // gap-6
+        final itemWidth = constraints.maxWidth;
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
           children: _papers.map((paper) {
             return SizedBox(
-              width: itemWidth.clamp(0.0, 600),
+              width: itemWidth,
               child: _PaperCard(
                 paper: paper,
                 onOpenPaper: _handleOpenPaper,
@@ -400,8 +407,6 @@ class _PaperCard extends StatefulWidget {
 }
 
 class _PaperCardState extends State<_PaperCard> {
-  bool _hovered = false;
-
   static ({String venue, String? level}) _parseSubject(String? subject) {
     if (subject == null || subject.isEmpty) return (venue: '', level: null);
     final parts = subject.split(' - ');
@@ -422,25 +427,22 @@ class _PaperCardState extends State<_PaperCard> {
         ? widget.paper.data.links.pdf!.first
         : (widget.paper.data.links.link?.isNotEmpty == true ? widget.paper.data.links.link!.first : null);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF3F4F6)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(_hovered ? 0.08 : 0.04),
-              blurRadius: _hovered ? 24 : 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
+    // 移动端：无 hover，固定阴影
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -545,7 +547,6 @@ class _PaperCardState extends State<_PaperCard> {
             ),
           ],
         ),
-      ),
     );
   }
 }

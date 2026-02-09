@@ -94,7 +94,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   double _textFieldHeight = minHeight;
   bool _dropdownOpen = false;
   bool _showToolsMenu = false;
-  
+
   // Advisor states
   File? _advisorFile;
   String _advisorResumeUrl = '';
@@ -112,7 +112,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
         _isFocused = _focusNode.hasFocus;
       });
     });
-    
+
     // 监听 SearchStore 的 pendingFill
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final searchStore = context.read<SearchStore>();
@@ -135,25 +135,22 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
 
   void _startPlaceholderRotation() {
     _placeholderTimer?.cancel();
-    
+
     void rotatePlaceholder() {
       if (!mounted) return;
       final placeholders = _currentPlaceholders;
       setState(() {
         _placeholderIndex = (_placeholderIndex + 1) % placeholders.length;
       });
-      
-      final duration = _placeholderIndex == 0 
+
+      final duration = _placeholderIndex == 0
           ? const Duration(seconds: 5)
           : const Duration(seconds: 3);
-      
+
       _placeholderTimer = Timer(duration, rotatePlaceholder);
     }
-    
-    _placeholderTimer = Timer(
-      const Duration(seconds: 5),
-      rotatePlaceholder,
-    );
+
+    _placeholderTimer = Timer(const Duration(seconds: 5), rotatePlaceholder);
   }
 
   void _adjustHeight() {
@@ -190,13 +187,15 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     // Advisor 模式
     if (_activeTool == 'find-advisor') {
       if (_advisorResumeUrl.isEmpty || _advisorUploading) return;
-      widget.onAdvisorSearch?.call(AdvisorFormData(
-        resumeUrl: _advisorResumeUrl,
-        resumeName: _advisorFile?.path.split('/').last,
-        additionalInfo: _controller.text.trim(),
-        countries: _advisorCountries,
-        maxAdvisors: 5,
-      ));
+      widget.onAdvisorSearch?.call(
+        AdvisorFormData(
+          resumeUrl: _advisorResumeUrl,
+          resumeName: _advisorFile?.path.split('/').last,
+          additionalInfo: _controller.text.trim(),
+          countries: _advisorCountries,
+          maxAdvisors: 5,
+        ),
+      );
       // 重置状态
       _controller.clear();
       setState(() {
@@ -228,7 +227,6 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     _adjustHeight();
   }
 
-
   Future<void> _handleFileSelect() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -239,7 +237,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       if (result == null || result.files.single.path == null) return;
 
       final file = File(result.files.single.path!);
-      
+
       // 检查文件大小（10MB）
       if (file.lengthSync() > 10 * 1024 * 1024) {
         setState(() {
@@ -290,7 +288,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       _activeTool = toolId;
     });
     widget.onActiveToolChange?.call(toolId);
-    
+
     // 清除斜杠
     if (_controller.text == '/') {
       _controller.clear();
@@ -321,7 +319,8 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     return Consumer<SearchStore>(
       builder: (context, searchStore, _) {
         // 监听 pendingFill
-        if (searchStore.pendingFill != null && _controller.text != searchStore.pendingFill) {
+        if (searchStore.pendingFill != null &&
+            _controller.text != searchStore.pendingFill) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _controller.text = searchStore.pendingFill!;
             searchStore.clearPendingFill();
@@ -362,8 +361,8 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                 border: Border.all(
                   color: isGlass
                       ? (_isFocused
-                          ? const Color(0xFFC0C0C0)
-                          : const Color(0xFFE5E7EB))
+                            ? const Color(0xFFC0C0C0)
+                            : const Color(0xFFE5E7EB))
                       : const Color(0xFF171717),
                   width: 1,
                 ),
@@ -375,8 +374,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (_activeTool == 'find-advisor')
-                        _buildAdvisorOptions(),
+                      if (_activeTool == 'find-advisor') _buildAdvisorOptions(),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                         child: ConstrainedBox(
@@ -418,7 +416,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                 }
                               },
                               onSubmitted: (value) {
-                                if (value.trim().isNotEmpty && !isLoading && canSearch) {
+                                if (value.trim().isNotEmpty &&
+                                    !isLoading &&
+                                    canSearch) {
                                   _handleSearch();
                                 }
                               },
@@ -430,80 +430,84 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     ],
                   ),
                   // 按钮栏：固定到整个搜索框容器底部
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: SizedBox(
-                      height: 52,
-                      child: Stack(
-                        children: [
-                          if (showLimit)
-                            Positioned.fill(
-                              child: Center(
-                                child: Text(
-                                  '$inputLength/$maxLength',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: inputLength >= maxLength
-                                        ? Colors.red
-                                        : const Color(0xFF9CA3AF),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: SizedBox(
+                        height: 52,
+                        child: Stack(
+                          children: [
+                            if (showLimit)
+                              Positioned.fill(
+                                child: Center(
+                                  child: Text(
+                                    '$inputLength/$maxLength',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: inputLength >= maxLength
+                                          ? Colors.red
+                                          : const Color(0xFF9CA3AF),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Row(
-                                  children: [
-                                    if (_activeTool == null)
-                                      _buildTalentModeSelector(),
-                                    if (_activeTool == null)
-                                      const SizedBox(width: 8),
-                                    _buildToolsButton(),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    if (_activeTool == 'find-advisor')
-                                      TextButton(
-                                        onPressed: _handleClearTool,
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        child: const Text(
-                                          'Cancel',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Color(0xFF9CA3AF),
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    children: [
+                                      if (_activeTool == null)
+                                        _buildTalentModeSelector(),
+                                      if (_activeTool == null)
+                                        const SizedBox(width: 8),
+                                      _buildToolsButton(),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      if (_activeTool == 'find-advisor')
+                                        TextButton(
+                                          onPressed: _handleClearTool,
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                            ),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                          ),
+                                          child: const Text(
+                                            'Cancel',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF9CA3AF),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    if (_activeTool == 'find-advisor')
-                                      const SizedBox(width: 12),
-                                    _buildSearchButton(isLoading, canSearch),
-                                  ],
-                                ),
-                              ],
+                                      if (_activeTool == 'find-advisor')
+                                        const SizedBox(width: 12),
+                                      _buildSearchButton(isLoading, canSearch),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             ),
           ),
         );
@@ -540,10 +544,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   const SizedBox(width: 4),
                   const Text(
                     '*',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.amber,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.amber),
                   ),
                 ],
               ),
@@ -556,7 +557,10 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                       icon: const Icon(Icons.description, size: 16),
                       label: const Text('Choose PDF file'),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         backgroundColor: Colors.transparent,
                         foregroundColor: const Color(0xFF6B7280),
                         side: BorderSide(
@@ -570,7 +574,10 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     )
                   else
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.amber.shade50,
                         borderRadius: BorderRadius.circular(8),
@@ -584,11 +591,17 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.amber,
+                                ),
                               ),
                             )
                           else
-                            const Icon(Icons.description, size: 16, color: Colors.amber),
+                            const Icon(
+                              Icons.description,
+                              size: 16,
+                              color: Colors.amber,
+                            ),
                           const SizedBox(width: 8),
                           SizedBox(
                             width: 200,
@@ -616,10 +629,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                       padding: const EdgeInsets.only(left: 8),
                       child: Text(
                         _advisorUploadError,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.red,
-                        ),
+                        style: const TextStyle(fontSize: 12, color: Colors.red),
                       ),
                     ),
                 ],
@@ -633,7 +643,11 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.language, size: 14, color: Color(0xFF6B7280)),
+                  const Icon(
+                    Icons.language,
+                    size: 14,
+                    color: Color(0xFF6B7280),
+                  ),
                   const SizedBox(width: 6),
                   const Text(
                     'Preferred Countries',
@@ -646,10 +660,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   const SizedBox(width: 4),
                   Text(
                     '(optional)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[400],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                   ),
                 ],
               ),
@@ -658,16 +669,18 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  ..._advisorCountries.map((country) => Chip(
-                        label: Text(country),
-                        onDeleted: () => _handleRemoveCountry(country),
-                        deleteIcon: const Icon(Icons.close, size: 16),
-                        backgroundColor: const Color(0xFFF5F5F5),
-                        labelStyle: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF374151),
-                        ),
-                      )),
+                  ..._advisorCountries.map(
+                    (country) => Chip(
+                      label: Text(country),
+                      onDeleted: () => _handleRemoveCountry(country),
+                      deleteIcon: const Icon(Icons.close, size: 16),
+                      backgroundColor: const Color(0xFFF5F5F5),
+                      labelStyle: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ),
                   TextButton.icon(
                     onPressed: () {
                       // TODO: 实现国家选择模态框
@@ -678,7 +691,10 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Add'),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       backgroundColor: Colors.transparent,
                       foregroundColor: const Color(0xFF6B7280),
                       side: BorderSide(
@@ -703,7 +719,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     if (_activeTool != null) {
       return const SizedBox.shrink();
     }
-    
+
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 300),
       opacity: _activeTool != null ? 0 : 1,
@@ -722,7 +738,10 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
               },
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -732,16 +751,23 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     widget.talentMode == 'global'
-                        ? const Icon(Icons.language, size: 16, color: Color(0xFF374151))
+                        ? const Icon(
+                            Icons.language,
+                            size: 16,
+                            color: Color(0xFF374151),
+                          )
                         : Image.asset(
                             'assets/logo/dinq-black.png',
                             width: 14,
                             height: 14,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.star, size: 14),
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.star, size: 14),
                           ),
                     const SizedBox(width: 8),
                     Text(
-                      widget.talentMode == 'global' ? 'Global Talent' : 'DINQ Fellows',
+                      widget.talentMode == 'global'
+                          ? 'Global Talent'
+                          : 'DINQ Fellows',
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF6B6B6B),
@@ -749,7 +775,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     ),
                     const SizedBox(width: 4),
                     Transform.rotate(
-                      angle: _dropdownOpen 
+                      angle: _dropdownOpen
                           ? (widget.dropdownPosition == 'up' ? 0 : 3.14159)
                           : (widget.dropdownPosition == 'up' ? 3.14159 : 0),
                       child: const Icon(
@@ -771,6 +797,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
               bottom: widget.dropdownPosition == 'up' ? 40 : null,
               left: 0,
               child: Material(
+                color: Colors.white,
                 elevation: 8,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
@@ -789,7 +816,11 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildModeOption('global', 'Global Talent', Icons.language),
+                      _buildModeOption(
+                        'global',
+                        'Global Talent',
+                        Icons.language,
+                      ),
                       _buildModeOption('dinq', 'DINQ Fellows', Icons.star),
                     ],
                   ),
@@ -804,7 +835,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   Widget _buildModeOption(String mode, String label, IconData icon) {
     final isSelected = widget.talentMode == mode;
     return Material(
-      color: Colors.transparent,
+      color: isSelected ? const Color(0xFFF5F5F5) : Colors.white,
       child: InkWell(
         onTap: () {
           widget.onTalentModeChange?.call(mode);
@@ -819,20 +850,22 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           child: Row(
             children: [
               mode == 'global'
-                  ? const Icon(Icons.language, size: 16, color: Color(0xFF374151))
+                  ? const Icon(
+                      Icons.language,
+                      size: 16,
+                      color: Color(0xFF374151),
+                    )
                   : Image.asset(
                       'assets/logo/dinq-black.png',
                       width: 14,
                       height: 14,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.star, size: 14),
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.star, size: 14),
                     ),
               const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B6B6B),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF6B6B6B)),
               ),
             ],
           ),
@@ -860,15 +893,24 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: _showToolsMenu ? const Color(0xFFF5F5F5) : Colors.transparent,
+                    color: _showToolsMenu
+                        ? const Color(0xFFF5F5F5)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.build, size: 16, color: Color(0xFF6B7280)),
+                      const Icon(
+                        Icons.build,
+                        size: 16,
+                        color: Color(0xFF6B7280),
+                      ),
                       if (_activeTool == null)
                         const Padding(
                           padding: EdgeInsets.only(left: 6),
@@ -912,7 +954,11 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildToolOption('find-advisor', 'Find Advisor', Icons.school),
+                        _buildToolOption(
+                          'find-advisor',
+                          'Find Advisor',
+                          Icons.school,
+                        ),
                       ],
                     ),
                   ),
@@ -958,7 +1004,11 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   ),
                 ),
               ),
-              const Icon(Icons.keyboard_return, size: 14, color: Color(0xFF9CA3AF)),
+              const Icon(
+                Icons.keyboard_return,
+                size: 14,
+                color: Color(0xFF9CA3AF),
+              ),
             ],
           ),
         ),
@@ -980,10 +1030,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           const SizedBox(width: 6),
           const Text(
             'Advisor',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF6B6B6B),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF6B6B6B)),
           ),
           const SizedBox(width: 4),
           GestureDetector(
@@ -1009,7 +1056,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           decoration: BoxDecoration(
             color: isLoading
                 ? const Color(0xFF171717)
-                : (canSearch ? const Color(0xFF171717) : const Color(0xFFE5E7EB)),
+                : (canSearch
+                      ? const Color(0xFF171717)
+                      : const Color(0xFFE5E7EB)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: isLoading
