@@ -62,6 +62,7 @@ class _SignInPageState extends State<SignInPage> {
       child: Scaffold(
         // 登录页不需要返回按钮，避免用户误返回到空白或历史页
         appBar: DefaultAppBar(context, isShowBack: false),
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: Column(
             children: [
@@ -395,7 +396,8 @@ class _SignInPageState extends State<SignInPage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Please enter email and password.');
+      // setState(() => _error = 'Please enter email and password.');
+      await ToastUtil.show("Please enter email and password.");
       return;
     }
 
@@ -421,7 +423,8 @@ class _SignInPageState extends State<SignInPage> {
       _showInviteCodeDialog(email);
     } catch (error) {
       await ToastUtil.dismiss();
-      setState(() => _error = 'Username or password is incorrect.');
+      ToastUtil.show("Username or password is incorrect.");
+      // setState(() => _error = 'Username or password is incorrect.');
     }
   }
 

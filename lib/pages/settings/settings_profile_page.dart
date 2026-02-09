@@ -1,5 +1,4 @@
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
+import '../../utils/image_utils.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/base_page.dart';
 import '../../widgets/profile/profile_form_helpers.dart';
@@ -26,21 +26,14 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
     if (_isUploading) return;
 
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-      );
+      final result = await ImageUtils.pickSinglePicture(context);
 
-      if (result != null && result.files.single.bytes != null) {
-        final file = result.files.single;
+      if (result != null) {
+        final file = await result.readAsBytes();
         setState(() => _isUploading = true);
 
         try {
-          final uploadedUrl = await _uploadService.uploadFile(
-            bytes: file.bytes!,
-            filename: file.name,
-            contentType: _getContentType(file.extension),
-          );
+          final uploadedUrl = await _uploadService.uploadFile(bytes: file, filename: "image.jpg");
 
           if (!mounted) return;
           final userStore = context.read<UserStore>();
@@ -160,11 +153,11 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
                 ),
               ),
             ),
-            // 底部按钮
-            Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20),
-              child: _buildEditProfileButton(),
-            ),
+            // // 底部按钮
+            // Padding(
+            //   padding: const EdgeInsets.only(left: 20, right: 20),
+            //   child: _buildEditProfileButton(),
+            // ),
             const SizedBox(height: 40),
           ],
         ),
@@ -173,38 +166,38 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
   }
 
   Widget _buildAvatarSection(String avatarUrl) {
-    return Stack(
-      children: [
-        // 头像外圈（浅蓝色）
-        Container(
-          decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFE0F0FF)),
-          width: 90,
-          height: 90,
-          child: ClipOval(
-            child: _isUploading
-                ? const Center(child: CircularProgressIndicator())
-                : avatarUrl.isNotEmpty
-                ? NetworkImageView(
-                    imageUrl: avatarUrl,
-                    width: 90,
-                    height: 90,
-                    fit: BoxFit.cover,
-                    placeholder: const Icon(Icons.person, size: 50, color: Colors.grey),
-                  )
-                : Container(
-                    width: 90,
-                    height: 90,
-                    color: const Color(0xFFE0F0FF),
-                    child: const Icon(Icons.person, size: 50, color: Colors.grey),
-                  ),
+    return NormalButton(
+      onTap: _handleAvatarUpload,
+      child: Stack(
+        children: [
+          // 头像外圈（浅蓝色）
+          Container(
+            decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFE0F0FF)),
+            width: 90,
+            height: 90,
+            child: ClipOval(
+              child: _isUploading
+                  ? const Center(child: CircularProgressIndicator())
+                  : avatarUrl.isNotEmpty
+                  ? NetworkImageView(
+                      imageUrl: avatarUrl,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      placeholder: const Icon(Icons.person, size: 50, color: Colors.grey),
+                    )
+                  : Container(
+                      width: 90,
+                      height: 90,
+                      color: const Color(0xFFE0F0FF),
+                      child: const Icon(Icons.person, size: 50, color: Colors.grey),
+                    ),
+            ),
           ),
-        ),
-        // 相机图标
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: GestureDetector(
-            onTap: _handleAvatarUpload,
+          // 相机图标
+          Positioned(
+            right: 0,
+            bottom: 0,
             child: Container(
               width: 24,
               height: 24,
@@ -216,8 +209,8 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
               child: Center(child: AssetImageView("avatar_upload", width: 14, height: 14)),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -292,7 +285,9 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
 
   Widget _buildEditProfileButton() {
     return NormalButton(
-      onTap: () => context.push('/settings/profile/edit'),
+      onTap: () {
+        context.push('/settings/profile/edit');
+      },
       child: Container(
         height: 50,
         width: double.infinity,
@@ -357,7 +352,7 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
       hintText: 'Enter $title',
     );
 
-    if (result != null && result != initialValue) {
+    if ((result?.isNotEmpty ?? false) && result != initialValue) {
       await userStore.updateUserData({field: result});
     }
   }

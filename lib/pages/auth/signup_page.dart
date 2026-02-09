@@ -67,6 +67,7 @@ class _SignUpPageState extends State<SignUpPage> {
     return KeyboardDismissOnTap(
       child: Scaffold(
         appBar: DefaultAppBar(context),
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: Column(
             children: [
@@ -335,11 +336,13 @@ class _SignUpPageState extends State<SignUpPage> {
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
     if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      setState(() => _error = 'Please fill all required fields.');
+      // setState(() => _error = 'Please fill all required fields.');
+      await ToastUtil.show('Please fill all required fields.');
       return;
     }
     if (password != confirmPassword) {
-      setState(() => _error = 'Passwords do not match.');
+      // setState(() => _error = 'Passwords do not match.');
+      await ToastUtil.show('Passwords do not match.');
       return;
     }
     setState(() => _error = null);
@@ -363,7 +366,8 @@ class _SignUpPageState extends State<SignUpPage> {
     } catch (error) {
       debugPrint('error9999: $error, $email');
       await ToastUtil.dismiss();
-      setState(() => _error = error.toString());
+      // setState(() => _error = error.toString());
+      await ToastUtil.show(error.toString());
     } finally {
       // setState(() => _isSendingCode = false);
     }

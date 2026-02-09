@@ -288,9 +288,11 @@ class _ResetPageState extends State<ResetPage> {
         });
       }
     } catch (error) {
-      setState(() => _message = error.toString());
-    } finally {
       await ToastUtil.dismiss();
+
+      await ToastUtil.show(error.toString());
+      // setState(() => _message = error.toString());
+    } finally {
       setState(() => _isSending = false);
     }
   }

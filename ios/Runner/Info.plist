@@ -45,6 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+    <key>NSCameraUsageDescription</key>
+    <string>DINQ wants to access your camera, save the picture to share the photo</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>DINQ wants to access your photo album, save the picture to share the photo</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>DINQ wants to access your microphone</string>
 	<key>CFBundleURLTypes</key>
     <array>
         <dict>
