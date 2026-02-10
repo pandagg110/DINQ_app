@@ -390,26 +390,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             ],
           ),
         ),
-        // 底部渐变
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 72,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.white,
-                  Colors.white.withOpacity(0.7),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
+        
       ],
     );
   }

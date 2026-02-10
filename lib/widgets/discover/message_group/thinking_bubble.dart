@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../theme/app_theme.dart';
 
 // 与 TSX 一致的主题色
 const Color _kAccent = Color(0xFF81A1C1);
@@ -186,27 +190,75 @@ class _ThinkingStepItem extends StatelessWidget {
   }
 
   Widget _buildThinkingStep(String content, bool isLast, bool completed) {
+    final textColor = completed ? Colors.grey[800]! : Colors.grey[600]!;
+    final baseStyle = TextStyle(
+      fontSize: 14,
+      color: textColor,
+      height: 1.4,
+      fontFamilyFallback: AppTheme.emojiFontFallback,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: IntrinsicHeight(
         child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildTimelineLead(isLast, isDot: true),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              content,
-              style: TextStyle(
-                fontSize: 14,
-                color: completed ? Colors.grey[800] : Colors.grey[600],
-                height: 1.4,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTimelineLead(isLast, isDot: true),
+            const SizedBox(width: 12),
+            Expanded(
+              child: MarkdownBody(
+                data: content,
+                styleSheet: MarkdownStyleSheet(
+                  p: baseStyle,
+                  pPadding: const EdgeInsets.only(bottom: 4, top: 4),
+                  strong: baseStyle.copyWith(fontWeight: FontWeight.w600),
+                  em: baseStyle.copyWith(fontStyle: FontStyle.italic),
+                  code: baseStyle.copyWith(
+                    fontSize: 12,
+                    backgroundColor: Colors.grey.shade100,
+                  ),
+                  codeblockDecoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  codeblockPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  a: baseStyle.copyWith(
+                    color: const Color(0xFF2563EB),
+                    decoration: TextDecoration.underline,
+                  ),
+                  listBullet: baseStyle,
+                  listIndent: 24,
+                  blockquote: baseStyle,
+                  blockquotePadding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+                  blockquoteDecoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: Colors.grey.shade400, width: 4),
+                    ),
+                  ),
+                  horizontalRuleDecoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                  ),
+                  tableHead: baseStyle.copyWith(fontWeight: FontWeight.w600),
+                  tableBody: baseStyle,
+                  tableBorder: TableBorder.all(color: Colors.grey.shade300),
+                  tableCellsPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  tableColumnWidth: const FlexColumnWidth(),
+                  del: baseStyle.copyWith(
+                    decoration: TextDecoration.lineThrough,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                onTapLink: (text, href, title) {
+                  if (href != null && href.isNotEmpty) {
+                    launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
+                  }
+                },
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildTimelineLead(bool isLast, {Widget? icon, bool isDot = false}) {
