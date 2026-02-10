@@ -180,7 +180,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   Widget build(BuildContext context) {
     final logic = _logic;
     if (logic == null) return const SizedBox.shrink();
-    final messageGroups = logic.messageGroups;
     return Consumer2<SearchStore, UserStore>(
       builder: (context, searchStore, userStore, _) {
         if (!mounted) return const SizedBox.shrink();
@@ -209,51 +208,50 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             ? user!.userData.name
             : (user?.user.name.isNotEmpty == true ? user!.user.name : '');
 
-        final hasMessages = messageGroups.isNotEmpty;
-        final showSkeleton = searchStore.isLoadingConversation && !hasMessages;
-        final bgColor = (hasMessages || showSkeleton)
-            ? Colors.white
-            : const Color(0xFFFDFDFD);
+        // 监听 logic 变化，流事件更新 messageGroups 后触发重建，才能渲染返回值
+        return ListenableBuilder(
+          listenable: logic,
+          builder: (context, __) {
+            final messageGroups = logic.messageGroups;
+            final hasMessages = messageGroups.isNotEmpty;
+            final showSkeleton = searchStore.isLoadingConversation && !hasMessages;
+            final bgColor = (hasMessages || showSkeleton)
+                ? Colors.white
+                : const Color(0xFFFDFDFD);
 
-        // 获取固定屏幕高度（不受键盘影响），仅移动端样式，headerHeight 固定为 0
-        final screenHeight =
-            _screenHeight ?? MediaQuery.of(context).size.height;
-        const headerHeight = 0.0;
-        final availableHeight = screenHeight - headerHeight;
+            final screenHeight =
+                _screenHeight ?? MediaQuery.of(context).size.height;
+            const headerHeight = 0.0;
+            final availableHeight = screenHeight - headerHeight;
 
-        final parentQuery = MediaQuery.of(context);
-        final mediaQueryWithoutInsets = parentQuery.copyWith(
-          viewInsets: EdgeInsets.zero,
-          padding: parentQuery.padding,
-          size: Size(parentQuery.size.width, screenHeight),
-        );
+            final parentQuery = MediaQuery.of(context);
+            final mediaQueryWithoutInsets = parentQuery.copyWith(
+              viewInsets: EdgeInsets.zero,
+              padding: parentQuery.padding,
+              size: Size(parentQuery.size.width, screenHeight),
+            );
 
-        return MediaQuery(
-          data: mediaQueryWithoutInsets,
-          child: Container(
-            color: bgColor,
-            height: availableHeight,
-            width: double.infinity,
-            child: Column(
-              children: [
-                // 骨架屏 - 加载历史会话时显示
-                if (showSkeleton) Expanded(child: _buildConversationSkeleton()),
-
-                // 消息滚动区域
-                if (hasMessages && !showSkeleton)
-                  Expanded(child: _buildMessagesArea(logic)),
-
-                // 初始状态 - 双页 snap 滚动
-                if (!hasMessages && !showSkeleton)
-                  Expanded(
-                    child: _buildInitialState(userName, logic, userId: user?.user.id),
-                  ),
-
-                // SearchBox - 在有消息或骨架屏时固定底部
-                if (hasMessages || showSkeleton) _buildBottomSearchBox(logic),
-              ],
-            ),
-          ),
+            return MediaQuery(
+              data: mediaQueryWithoutInsets,
+              child: Container(
+                color: bgColor,
+                height: availableHeight,
+                width: double.infinity,
+                child: Column(
+                  children: [
+                    if (showSkeleton) Expanded(child: _buildConversationSkeleton()),
+                    if (hasMessages && !showSkeleton)
+                      Expanded(child: _buildMessagesArea(logic)),
+                    if (!hasMessages && !showSkeleton)
+                      Expanded(
+                        child: _buildInitialState(userName, logic, userId: user?.user.id),
+                      ),
+                    if (hasMessages || showSkeleton) _buildBottomSearchBox(logic),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -364,7 +362,24 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                     userQuery: groups[i].userQuery,
                     loading: groups[i].loading,
                     candidates: groups[i].candidates,
+                    searchType: groups[i].searchType ?? 'global',
+                    thinkingSteps: groups[i].thinkingSteps ?? const [],
+                    thinkingExpanded: groups[i].thinkingExpanded,
+                    dinqResults: groups[i].dinqResults,
+                    advisorResults: groups[i].advisorResults,
+                    pdfAttachment: groups[i].pdfAttachment,
+                    llmMessage: groups[i].llmMessage,
+                    summary: groups[i].summary,
                   ),
+                  onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
+                  onCandidateClick: (candidate, index, groupId) {
+                    final store = context.read<SearchStore>();
+                    store.openTabWithClick(
+                      candidate,
+                      index: index,
+                      groupId: groupId,
+                    );
+                  },
                   isLatest: i == groups.length - 1,
                 ),
               ],
