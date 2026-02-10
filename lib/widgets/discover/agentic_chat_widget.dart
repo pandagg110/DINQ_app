@@ -484,9 +484,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
           top: !hasMessages ? 60 : null,
           left: 0,
           right: 0,
-          bottom: ConstantsTool.bottomTabHeight + 32,
+          bottom: ConstantsTool.bottomTabHeight + 40,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,

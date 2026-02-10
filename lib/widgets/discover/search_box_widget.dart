@@ -90,14 +90,11 @@ class SearchBoxWidget extends StatefulWidget {
 class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  final GlobalKey _talentModeButtonKey = GlobalKey();
-  OverlayEntry? _dropdownOverlayEntry;
   int _placeholderIndex = 0;
   Timer? _placeholderTimer;
   bool _isFocused = false;
   String? _activeTool; // 'find-advisor' or null
   double _textFieldHeight = minHeight;
-  bool _dropdownOpen = false;
   bool _showToolsMenu = false;
 
   // Advisor states
@@ -133,97 +130,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   @override
   void dispose() {
     _placeholderTimer?.cancel();
-    _closeDropdown();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  void _closeDropdown() {
-    _dropdownOverlayEntry?.remove();
-    _dropdownOverlayEntry = null;
-    if (_dropdownOpen) {
-      setState(() {
-        _dropdownOpen = false;
-      });
-    }
-  }
-
-  void _showDropdown() {
-    if (_dropdownOpen || _dropdownOverlayEntry != null) return;
-
-    final RenderBox? renderBox =
-        _talentModeButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final Offset position = renderBox.localToGlobal(Offset.zero);
-    final Size size = renderBox.size;
-
-    setState(() {
-      _dropdownOpen = true;
-    });
-
-    _dropdownOverlayEntry = OverlayEntry(
-      builder: (context) {
-        final dropdownTop = widget.dropdownPosition == 'up'
-            ? position.dy - 100 // 100是下拉菜单的预估高度
-            : position.dy + size.height + 4;
-
-        return Stack(
-          children: [
-            // 全屏透明层，用于捕获点击外部事件
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: _closeDropdown,
-                child: Container(
-                  color: Colors.transparent,
-                ),
-              ),
-            ),
-            // 下拉菜单
-            Positioned(
-              left: position.dx,
-              top: dropdownTop,
-              child: Material(
-                color: Colors.transparent,
-                child: GestureDetector(
-                  onTap: () {
-                    // 阻止点击下拉菜单内部时关闭
-                  },
-                  child: Container(
-                    width: 160,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildModeOption(
-                          'global',
-                          'Global Talent',
-                          Icons.language,
-                        ),
-                        _buildModeOption('dinq', 'DINQ Fellows', Icons.star),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    Overlay.of(context).insert(_dropdownOverlayEntry!);
   }
 
   void _startPlaceholderRotation() {
@@ -432,8 +341,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
 
         return GestureDetector(
           onTap: () {
-            // 点击外部时关闭下拉菜单
-            _closeDropdown();
+            // 点击外部时关闭工具菜单
             if (_showToolsMenu) {
               setState(() {
                 _showToolsMenu = false;
@@ -564,9 +472,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                     children: [
                                       if (_activeTool == null)
                                         _buildTalentModeSelector(),
-                                      if (_activeTool == null)
-                                        const SizedBox(width: 8),
-                                      _buildToolsButton(),
+                                      // if (_activeTool == null)
+                                      //   const SizedBox(width: 8),
+                                      // _buildToolsButton(),
                                     ],
                                   ),
                                   Row(
@@ -820,120 +728,89 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 300),
       opacity: _activeTool != null ? 0 : 1,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: _talentModeButtonKey,
-          onTap: () {
-            if (_dropdownOpen) {
-              _closeDropdown();
-            } else {
-              _showDropdown();
-            }
-            setState(() {
-              _showToolsMenu = false; // 关闭工具菜单
-            });
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                widget.talentMode == 'global'
-                    ? const Icon(
-                        Icons.language,
-                        size: 16,
-                        color: Color(0xFF374151),
-                      )
-                    : Image.asset(
-                        'assets/logo/dinq-black.png',
-                        width: 14,
-                        height: 14,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.star, size: 14),
+      child: GestureDetector(
+        onTap: () {
+          // 切换模式
+          final newMode = widget.talentMode == 'global' ? 'dinq' : 'global';
+          widget.onTalentModeChange?.call(newMode);
+          setState(() {
+            _placeholderIndex = 0;
+            _showToolsMenu = false;
+          });
+        },
+        child: Container(
+          width: 64,
+          height: 32,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE0E0E0),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Stack(
+            children: [
+              // 滑块背景（激活状态）
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                left: widget.talentMode == 'global' ? 2 : 34,
+                top: 2,
+                bottom: 2,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
                       ),
-                const SizedBox(width: 8),
-                Text(
-                  widget.talentMode == 'global'
-                      ? 'Global Talent'
-                      : 'DINQ Fellows',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B6B6B),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 4),
-                Transform.rotate(
-                  angle: _dropdownOpen
-                      ? (widget.dropdownPosition == 'up' ? 0 : 3.14159)
-                      : (widget.dropdownPosition == 'up' ? 3.14159 : 0),
-                  child: const Icon(
-                    Icons.keyboard_arrow_down,
-                    size: 14,
-                    color: Color(0xFF9CA3AF),
+              ),
+              // 图标
+              Row(
+                children: [
+                  // Global Talent 选项
+                  Expanded(
+                    child: _buildToggleOption(
+                      'global',
+                      Icons.search,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  // DINQ Fellows 选项
+                  Expanded(
+                    child: _buildToggleOption(
+                      'dinq',
+                      Icons.bolt,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildModeOption(String mode, String label, IconData icon) {
+  Widget _buildToggleOption(String mode, IconData icon) {
     final isSelected = widget.talentMode == mode;
-    return Material(
-      color: isSelected ? const Color(0xFFF5F5F5) : Colors.white,
-      child: InkWell(
-        onTap: () {
-          debugPrint('mode: $mode');
-          widget.onTalentModeChange?.call(mode);
-          _closeDropdown();
-          setState(() {
-            _placeholderIndex = 0;
-          });
-        },
-        child: SizedBox(
-          width: double.infinity,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                mode == 'global'
-                    ? const Icon(
-                        Icons.language,
-                        size: 16,
-                        color: Color(0xFF374151),
-                      )
-                    : Image.asset(
-                        'assets/logo/dinq-black.png',
-                        width: 14,
-                        height: 14,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.star, size: 14),
-                      ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF6B6B6B)),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return Container(
+      height: 32,
+      alignment: Alignment.center,
+      child: Icon(
+        icon,
+        size: 16,
+        color: isSelected
+            ? const Color(0xFF000000)
+            : const Color(0xFF9CA3AF),
       ),
     );
   }
+
 
   Widget _buildToolsButton() {
     return Row(
@@ -947,7 +824,6 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
-                  _closeDropdown(); // 关闭模式选择器
                   setState(() {
                     _showToolsMenu = !_showToolsMenu;
                   });
@@ -1110,7 +986,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
         onTap: (isLoading && widget.onStop != null)
             ? widget.onStop
             : (canSearch ? () => _handleSearch() : null),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(36),
         child: Container(
           width: 36,
           height: 36,
@@ -1120,7 +996,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                 : (canSearch
                       ? const Color(0xFF171717)
                       : const Color(0xFFE5E7EB)),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(36),
           ),
           child: isLoading
               ? const Center(
