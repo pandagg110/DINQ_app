@@ -6,9 +6,9 @@ import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
 import 'prompt_template_grid_widget.dart';
 import '../../pages/discover/chat_history_page.dart';
+import '../../pages/discover/recommended_papers_page.dart';
 import 'agentic_search_logic.dart';
 import 'message_group_view.dart';
-import 'recommended_papers_widget.dart';
 import 'search_box_widget.dart';
 
 // Placeholder 常量（与 React 版本一致）
@@ -29,13 +29,11 @@ const List<String> dinqPlaceholders = [
 ];
 
 class AgenticChatWidget extends StatefulWidget {
-  const AgenticChatWidget({
-    super.key,
-    this.onSearchComplete,
-  });
+  const AgenticChatWidget({super.key, this.onSearchComplete});
 
   /// 与 TSX onSearchComplete 一致：搜索完成且有关注人时回调
-  final void Function(List<Map<String, dynamic>> candidates, String query)? onSearchComplete;
+  final void Function(List<Map<String, dynamic>> candidates, String query)?
+  onSearchComplete;
 
   @override
   State<AgenticChatWidget> createState() => _AgenticChatWidgetState();
@@ -46,11 +44,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   String _talentMode = 'global'; // 'global' or 'dinq'
   String? _activeTool; // ToolType | null
   bool _isNearBottom = true;
-  bool _inPapersView = false;
 
   // 滚动相关
   final ScrollController _scrollController = ScrollController();
-  final ScrollController _initialScrollController = ScrollController();
   final GlobalKey _messagesEndKey = GlobalKey();
 
   /// 与 TSX useAgenticSearch 对应，逻辑在 agentic_search_logic.dart
@@ -68,7 +64,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     super.initState();
     // 监听滚动
     _scrollController.addListener(_handleScroll);
-    _initialScrollController.addListener(_handleInitialScroll);
   }
 
   @override
@@ -94,7 +89,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     _logic?.removeListener(_onLogicUpdate);
     _logic?.dispose();
     _scrollController.dispose();
-    _initialScrollController.dispose();
     super.dispose();
   }
 
@@ -109,18 +103,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     }
   }
 
-  void _handleInitialScroll() {
-    if (!_initialScrollController.hasClients) return;
-    final position = _initialScrollController.position;
-    final scrollRatio = position.pixels / position.viewportDimension;
-    final inPapersView = scrollRatio > 0.4;
-    if (inPapersView != _inPapersView) {
-      setState(() {
-        _inPapersView = inPapersView;
-      });
-    }
-  }
-
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -131,25 +113,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     }
   }
 
-  // void _scrollToPapers() {
-  //   // TODO: 实现滚动到 Papers 页面
-  //   if (_initialScrollController.hasClients) {
-  //     _initialScrollController.animateTo(
-  //       _initialScrollController.position.viewportDimension * 0.7,
-  //       duration: const Duration(milliseconds: 300),
-  //       curve: Curves.easeOut,
-  //     );
-  //   }
-  // }
-
-  void _scrollToSearch() {
-    if (_initialScrollController.hasClients) {
-      _initialScrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+  void _openPapersPage() {
+    Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(builder: (_) => const RecommendedPapersPage()),
+    );
   }
 
   void _handleSearch({required String query, bool simple = false}) {
@@ -197,7 +164,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             searchStore.clearPendingConversation();
           });
         }
-        if (searchStore.isLoadingConversation && logic.messageGroups.isNotEmpty) {
+        if (searchStore.isLoadingConversation &&
+            logic.messageGroups.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             logic.clearMessagesOnly();
@@ -214,7 +182,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
           builder: (context, __) {
             final messageGroups = logic.messageGroups;
             final hasMessages = messageGroups.isNotEmpty;
-            final showSkeleton = searchStore.isLoadingConversation && !hasMessages;
+            final showSkeleton =
+                searchStore.isLoadingConversation && !hasMessages;
             final bgColor = (hasMessages || showSkeleton)
                 ? Colors.white
                 : const Color(0xFFFDFDFD);
@@ -239,14 +208,20 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                 width: double.infinity,
                 child: Column(
                   children: [
-                    if (showSkeleton) Expanded(child: _buildConversationSkeleton()),
+                    if (showSkeleton)
+                      Expanded(child: _buildConversationSkeleton()),
                     if (hasMessages && !showSkeleton)
                       Expanded(child: _buildMessagesArea(logic)),
                     if (!hasMessages && !showSkeleton)
                       Expanded(
-                        child: _buildInitialState(userName, logic, userId: user?.user.id),
+                        child: _buildInitialState(
+                          userName,
+                          logic,
+                          userId: user?.user.id,
+                        ),
                       ),
-                    if (hasMessages || showSkeleton) _buildBottomSearchBox(logic),
+                    if (hasMessages || showSkeleton)
+                      _buildBottomSearchBox(logic),
                   ],
                 ),
               ),
@@ -363,7 +338,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                     loading: groups[i].loading,
                     candidates: groups[i].candidates,
                     searchType: groups[i].searchType ?? 'global',
-                    thinkingSteps: groups[i].thinkingSteps ?? const [],
+                    thinkingSteps: groups[i].thinkingSteps,
                     thinkingExpanded: groups[i].thinkingExpanded,
                     dinqResults: groups[i].dinqResults,
                     advisorResults: groups[i].advisorResults,
@@ -371,7 +346,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                     llmMessage: groups[i].llmMessage,
                     summary: groups[i].summary,
                   ),
-                  onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
+                  onToggleThinking: () =>
+                      logic.setThinkingExpanded(groups[i].id),
                   onCandidateClick: (candidate, index, groupId) {
                     final store = context.read<SearchStore>();
                     store.openTabWithClick(
@@ -383,184 +359,207 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   isLatest: i == groups.length - 1,
                 ),
               ],
-              Container(
-                key: _messagesEndKey,
-                height: 80,
-              ),
+              Container(key: _messagesEndKey, height: 80),
             ],
           ),
         ),
-        
       ],
     );
   }
 
-  Widget _buildInitialState(String userName, AgenticSearchLogic logic, {String? userId}) {
-    return SingleChildScrollView(
-      controller: _initialScrollController,
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        children: [
-          // Section 1: 搜索页
-          SizedBox(
-            height: _screenHeight != null
-                ? _screenHeight! * 0.8
-                : MediaQuery.of(context).size.height * 0.8,
-            child: Column(
+  Widget _buildInitialState(
+    String userName,
+    AgenticSearchLogic logic, {
+    String? userId,
+  }) {
+    return Stack(
+      children: [
+        // 顶部按钮栏
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // 顶部：左上 History，右上 Upgrade
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push<Object?>(
-                            MaterialPageRoute<Object?>(
-                              builder: (_) => const ChatHistoryPage(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.history,
-                          size: 20,
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push<Object?>(
+                      MaterialPageRoute<Object?>(
+                        builder: (_) => const ChatHistoryPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.history,
+                    size: 20,
+                    color: Color.fromARGB(255, 0, 0, 0),
+                  ),
+                  label: const Text(
+                    'History',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color.fromARGB(255, 0, 0, 0),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    foregroundColor: const Color(0xFF6B7280),
+                  ),
+                ),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: _openPapersPage,
+                      icon: const Icon(
+                        Icons.article,
+                        size: 20,
+                        color: Color.fromARGB(255, 0, 0, 0),
+                      ),
+                      label: const Text(
+                        'Papers',
+                        style: TextStyle(
+                          fontSize: 14,
                           color: Color.fromARGB(255, 0, 0, 0),
-                        ),
-                        label: const Text(
-                          'History',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color.fromARGB(255, 0, 0, 0),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          foregroundColor: const Color(0xFF6B7280),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          // TODO: 跳转升级页
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          foregroundColor: const Color(0xFF6B7280),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                        child: const Text(
-                          'Upgrade',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF6B7280),
-                            fontWeight: FontWeight.w500,
-                          ),
+                        foregroundColor: const Color(0xFF6B7280),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        // TODO: 跳转升级页
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
+                        foregroundColor: const Color(0xFF6B7280),
+                      ),
+                      child: const Text(
+                        'Upgrade',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Welcome、Prompt Templates 和 Search input 放在同一个 Positioned 中，贴底部并自适应高度
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: ConstantsTool.bottomTabHeight + 16,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Welcome 文字
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        userName.isNotEmpty ? 'Welcome,' : 'Welcome',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xA3303030),
+                          letterSpacing: 0.02,
+                          fontFamily: 'Editor Note',
+                          height: 2,
+                        ),
+                        // textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        userName.isNotEmpty ? '$userName' : '',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF171717),
+                          letterSpacing: 0.02,
+                          fontFamily: 'Editor Note',
+                          height: 2,
+                        ),
+                        // textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                // 居中内容
-                Expanded(
+
+                const SizedBox(height: 16),
+                // Prompt Templates - 可滚动
+                SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: AnimatedSize(
+                    duration: Duration(
+                      milliseconds: _activeTool != null ? 200 : 400,
+                    ),
+                    curve: Curves.easeOut,
+                    child: AnimatedOpacity(
+                      duration: Duration(
+                        milliseconds: _activeTool != null ? 150 : 300,
+                      ),
+                      opacity: _activeTool != null ? 0.0 : 1.0,
+                      child: _activeTool == null
+                          ? const PromptTemplateGridWidget()
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+                // 固定在底部的搜索框
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
                   child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // 欢迎文字
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Logo
-                              Image.asset(
-                                'assets/logo/dinq-black.png',
-                                width: 32,
-                                height: 32,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    Icons.search,
-                                    size: 32,
-                                    color: Color(0xFF171717),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              // Welcome Text
-                              Flexible(
-                                child: Text(
-                                  userName.isNotEmpty
-                                      ? 'Welcome, $userName'
-                                      : 'Welcome',
-                                  style: const TextStyle(
-                                    fontSize: 38,
-                                    fontWeight: FontWeight.normal,
-                                    color: Color(0xFF171717),
-                                    letterSpacing: 0.02,
-                                    fontFamily: 'Editor Note',
-                                    height: 1.5,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 32),
-                          // 搜索框（外层白色背景容器）
-                          Center(
-                            child: Container(
-                              constraints: const BoxConstraints(maxWidth: 768),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: SearchBoxWidget(
-                                onSearch: _handleSearch,
-                                onStop: _handleStop,
-                                loading: logic.loading,
-                                talentMode: _talentMode,
-                                onTalentModeChange: (mode) {
-                                  setState(() {
-                                    _talentMode = mode;
-                                  });
-                                },
-                                onDinqSearchSubmit: _handleDinqSearchSubmit,
-                                onAdvisorSearch: _handleAdvisorSearch,
-                                advisorLoading: logic.advisorLoading,
-                                onActiveToolChange: (tool) {
-                                  setState(() {
-                                    _activeTool = tool;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          // Prompt Templates - 根据 activeTool 显示/隐藏
-                          AnimatedSize(
-                            duration: Duration(
-                              milliseconds: _activeTool != null ? 200 : 400,
-                            ),
-                            curve: Curves.easeOut,
-                            child: AnimatedOpacity(
-                              duration: Duration(
-                                milliseconds: _activeTool != null ? 150 : 300,
-                              ),
-                              opacity: _activeTool != null ? 0.0 : 1.0,
-                              child: _activeTool == null
-                                  ? const PromptTemplateGridWidget()
-                                  : const SizedBox.shrink(),
-                            ),
-                          ),
-                        ],
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 768),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: SearchBoxWidget(
+                        onSearch: _handleSearch,
+                        onStop: _handleStop,
+                        loading: logic.loading,
+                        talentMode: _talentMode,
+                        onTalentModeChange: (mode) {
+                          setState(() {
+                            _talentMode = mode;
+                          });
+                        },
+                        onDinqSearchSubmit: _handleDinqSearchSubmit,
+                        onAdvisorSearch: _handleAdvisorSearch,
+                        advisorLoading: logic.advisorLoading,
+                        onActiveToolChange: (tool) {
+                          setState(() {
+                            _activeTool = tool;
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -568,18 +567,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
               ],
             ),
           ),
-
-          // Section 2: Papers 页
-          SizedBox(
-            height: _screenHeight ?? MediaQuery.of(context).size.height,
-            child: RecommendedPapersWidget(
-              userId: userId,
-              isFullView: true,
-              onBack: _scrollToSearch,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
