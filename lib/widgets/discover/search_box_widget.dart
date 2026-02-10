@@ -351,7 +351,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           behavior: HitTestBehavior.translucent,
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: 200,
+              minHeight: 108,
               maxHeight: 400,
               maxWidth: widget.fullWidth ? 768 : 480,
             ),
@@ -378,13 +378,11 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     children: [
                       if (_activeTool == 'find-advisor') _buildAdvisorOptions(),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
                             minHeight: _textFieldHeight,
-                            maxHeight: _activeTool == 'find-advisor'
-                                ? 124
-                                : 200,
+                            maxHeight: 108,
                           ),
                           child: SingleChildScrollView(
                             child: TextField(
@@ -396,7 +394,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                 hintText: _currentPlaceholder,
                                 hintStyle: const TextStyle(
                                   color: Color(0xFF9CA3AF),
-                                  fontSize: 16,
+                                  fontSize: 14,
                                 ),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
@@ -405,9 +403,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                 counterText: '',
                               ),
                               style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 color: Color(0xFF171717),
-                                height: 1.5,
+                                height: 1,
                               ),
                               onChanged: (value) {
                                 _adjustHeight();
@@ -440,7 +438,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     right: 0,
                     bottom: 0,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
                       child: SizedBox(
                         height: 52,
                         child: Stack(
