@@ -37,6 +37,30 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
       messagesStore.loadConversations();
       notificationsStore.loadNotifications();
       messagesStore.connectWebSocket();
+
+      // 设置 WebSocket 错误回调
+      messagesStore.onWsError = (message) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text(
+              'Inbox Warning',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, fontFamily: 'Geist'),
+            ),
+            content: Text(
+              message,
+              style: const TextStyle(fontSize: 15, fontFamily: 'Geist'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      };
     });
   }
 
@@ -431,7 +455,9 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
                       children: [
                         Expanded(
                           child: Text(
-                            conv.lastMessageText ?? 'Enter your message description here...',
+                            fixTruncatedUtf8(conv.lastMessageText).isNotEmpty
+                                ? fixTruncatedUtf8(conv.lastMessageText)
+                                : 'Enter your message description here...',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(

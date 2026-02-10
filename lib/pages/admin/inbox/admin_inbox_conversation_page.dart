@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../constants/app_constants.dart';
 import '../../../models/message_models.dart';
 import '../../../stores/messages_store.dart';
 import '../../../stores/user_store.dart';
@@ -32,13 +34,19 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
   bool _isInitialLoad = true;
   String _currentUserId = '';
   MessagesStore? _messagesStore;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+  }
 
-    Future.microtask(() {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
       _messagesStore = context.read<MessagesStore>();
       final userStore = context.read<UserStore>();
       _currentUserId = userStore.user?.user.id ?? '';
@@ -51,7 +59,7 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
 
       // 监听 messages 变化，处理滚动和已读
       _messagesStore!.addListener(_onStoreChanged);
-    });
+    }
   }
 
   @override
@@ -131,7 +139,9 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
         _hasTriedResolve = true;
         final conv = store.conversations.where((c) => c.id == widget.conversationId).firstOrNull;
         if (conv != null) {
-          store.setCurrentConversation(conv);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            store.setCurrentConversation(conv);
+          });
           return const Scaffold(
             backgroundColor: Colors.white,
             body: Center(child: CircularProgressIndicator()),
@@ -172,7 +182,8 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     final messages = store.messages;
 
     // 判断输入框是否禁用：所有消息都是当前用户发送的（对方还未接受）
-    final allFromCurrentUser = messages.isNotEmpty && messages.every((m) => m.senderId == currentUserId);
+    final allFromCurrentUser =
+        messages.isNotEmpty && messages.every((m) => m.senderId == currentUserId);
     final isInputDisabled = !store.isWsConnected || allFromCurrentUser;
 
     return Scaffold(
@@ -190,8 +201,8 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
             child: store.isLoadingMessages
                 ? const Center(child: CircularProgressIndicator())
                 : messages.isEmpty
-                    ? _buildEmptyMessages()
-                    : _buildMessageList(messages, currentUserId, conversation, store),
+                ? _buildEmptyMessages()
+                : _buildMessageList(messages, currentUserId, conversation, store),
           ),
 
           // 输入框
@@ -205,12 +216,23 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     );
   }
 
+  void _handleProfileClick(ConversationMember? otherMember) {
+    final username = otherMember?.username?.trim() ?? '';
+    if (username.isNotEmpty) {
+      final url = Uri.parse('$appUrl/$username');
+      launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
   Widget _buildHeader(
     BuildContext context,
     ConversationDisplay display,
     ConversationMember? otherMember,
     Conversation conversation,
   ) {
+    final profileUsername = otherMember?.username?.trim() ?? '';
+    final hasProfile = profileUsername.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 16, 12),
       decoration: const BoxDecoration(
@@ -228,25 +250,28 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
             },
           ),
 
-          // 头像
-          Stack(
-            children: [
-              _buildAvatar(display.avatar, display.name, 44),
-              if (display.isOnline)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+          // 头像（可点击跳转 Profile）
+          GestureDetector(
+            onTap: hasProfile ? () => _handleProfileClick(otherMember) : null,
+            child: Stack(
+              children: [
+                _buildAvatar(display.avatar, display.name, 44),
+                if (display.isOnline)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF22C55E),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(width: 12),
 
@@ -258,37 +283,42 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
                 Row(
                   children: [
                     Flexible(
-                      child: Text(
-                        display.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF171717),
-                          fontFamily: 'Geist',
+                      child: GestureDetector(
+                        onTap: hasProfile ? () => _handleProfileClick(otherMember) : null,
+                        child: Text(
+                          display.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF171717),
+                            fontFamily: 'Geist',
+                          ),
                         ),
                       ),
                     ),
                     if (conversation.tags != null && conversation.tags!.isNotEmpty) ...[
                       const SizedBox(width: 8),
-                      ...conversation.tags!.map((tag) => Container(
-                            margin: const EdgeInsets.only(right: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF3E8FF),
-                              borderRadius: BorderRadius.circular(6),
+                      ...conversation.tags!.map(
+                        (tag) => Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3E8FF),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            tag,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF7C3AED),
+                              fontFamily: 'Geist',
                             ),
-                            child: Text(
-                              tag,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF7C3AED),
-                                fontFamily: 'Geist',
-                              ),
-                            ),
-                          )),
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -324,49 +354,121 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
           ),
 
           // 更多菜单
-          _buildMenuButton(context, display.name),
+          _buildMenuButton(display.name),
         ],
       ),
     );
   }
 
-  Widget _buildMenuButton(BuildContext context, String convName) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 22, color: Color(0xFF6B7280)),
-      onSelected: (value) {
-        if (value == 'delete') {
-          DeleteConversationModal.show(
-            context: context,
-            conversationName: convName,
-            onConfirm: () async {
-              final store = context.read<MessagesStore>();
-              await store.deleteConversation(widget.conversationId);
-              if (mounted) context.pop();
-            },
-          );
-        }
+  bool _showMenu = false;
+
+  Widget _buildMenuButton(String convName) {
+    return Builder(
+      builder: (context) {
+        return GestureDetector(
+          onTap: () {
+            setState(() => _showMenu = !_showMenu);
+            if (_showMenu) {
+              _showCustomMenu(context, convName);
+            }
+          },
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Icon(Icons.more_vert, size: 22, color: Color(0xFF6B7280)),
+          ),
+        );
       },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
-              SizedBox(width: 8),
-              Text(
-                'Delete Conversation',
-                style: TextStyle(
-                  color: Color(0xFFEF4444),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: 'Geist',
+    );
+  }
+
+  void _showCustomMenu(BuildContext context, String convName) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final buttonSize = button.size;
+    final buttonPosition = button.localToGlobal(Offset.zero, ancestor: overlay);
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (dialogContext) {
+        return Stack(
+          children: [
+            // 透明背景点击关闭
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  setState(() => _showMenu = false);
+                },
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            // 菜单
+            Positioned(
+              top: buttonPosition.dy + buttonSize.height - MediaQuery.of(context).padding.top,
+              right: overlay.size.width - buttonPosition.dx - buttonSize.width,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 210),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFD8D8D8)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A0E121B),
+                      blurRadius: 32,
+                      offset: Offset(0, 16),
+                      spreadRadius: -12,
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(dialogContext).pop();
+                      setState(() => _showMenu = false);
+                      DeleteConversationModal.show(
+                        context: context,
+                        conversationName: convName,
+                        onConfirm: () async {
+                          final store = context.read<MessagesStore>();
+                          await store.deleteConversation(widget.conversationId);
+                          if (mounted) context.pop();
+                        },
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AssetImageView("icon_delete_red", width: 24, height: 24),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Delete Conversation',
+                            style: TextStyle(
+                              color: Color(0xFFC81E1D),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Geist',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ],
-    );
+            ),
+          ],
+        );
+      },
+    ).then((_) {
+      if (mounted) setState(() => _showMenu = false);
+    });
   }
 
   Widget _buildEmptyMessages() {
@@ -405,7 +507,8 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     final lastReadMsgIndex = otherMember?.lastReadMessageId != null
         ? messages.indexWhere((m) => m.id == otherMember!.lastReadMessageId)
         : -1;
-    final allFromCurrentUser = messages.isNotEmpty && messages.every((m) => m.senderId == currentUserId);
+    final allFromCurrentUser =
+        messages.isNotEmpty && messages.every((m) => m.senderId == currentUserId);
 
     // 构建 senderId → member 的查找表
     final memberMap = <String, ConversationMember>{};
@@ -413,23 +516,46 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
       memberMap[m.userId] = m;
     }
 
+    // 总 item 数 = 加载更多指示器(1) + 消息数
+    final itemCount = messages.length + 1;
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: messages.length,
+      itemCount: itemCount,
       itemBuilder: (context, index) {
-        final message = messages[index];
+        // 第一项：加载更多指示器
+        if (index == 0) {
+          if (store.isLoadingMoreMessages) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text(
+                  'Loading more messages...',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), fontFamily: 'Geist'),
+                ),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        }
+
+        final msgIndex = index - 1;
+        final message = messages[msgIndex];
         final isOwnMessage = message.senderId == currentUserId;
         final sender = memberMap[message.senderId];
 
         // 已读状态
-        final isRead = isOwnMessage && lastReadMsgIndex != -1 && index <= lastReadMsgIndex;
+        final isRead = isOwnMessage && lastReadMsgIndex != -1 && msgIndex <= lastReadMsgIndex;
 
-        // 日期分割线
-        final currentDate = DateTime.tryParse(message.createdAt);
-        final prevMessage = index > 0 ? messages[index - 1] : null;
-        final prevDate = prevMessage != null ? DateTime.tryParse(prevMessage.createdAt) : null;
-        final showDateDivider = currentDate != null &&
+        // 日期分割线（转为本地时区比较）
+        final currentDate = DateTime.tryParse(message.createdAt)?.toLocal();
+        final prevMessage = msgIndex > 0 ? messages[msgIndex - 1] : null;
+        final prevDate = prevMessage != null
+            ? DateTime.tryParse(prevMessage.createdAt)?.toLocal()
+            : null;
+        final showDateDivider =
+            currentDate != null &&
             (prevDate == null ||
                 currentDate.year != prevDate.year ||
                 currentDate.month != prevDate.month ||
@@ -437,21 +563,19 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
 
         // 未读消息分割线
         final showUnreadDivider =
-            store.unreadMessageStartIndex != null && index == store.unreadMessageStartIndex;
+            store.unreadMessageStartIndex != null && msgIndex == store.unreadMessageStartIndex;
 
         // 消息限制警告
-        final isLastMessage = index == messages.length - 1;
+        final isLastMessage = msgIndex == messages.length - 1;
         final showRestrictionWarning = isLastMessage && isOwnMessage && allFromCurrentUser;
 
         return Column(
           children: [
-            // 日期分割线
-            if (showDateDivider && currentDate != null)
-              _buildDivider(getDateDividerText(currentDate)),
+            // 日期分割线（showDateDivider 已包含 currentDate != null 检查）
+            if (showDateDivider) _buildDivider(getDateDividerText(currentDate!)),
 
             // 未读分割线
-            if (showUnreadDivider)
-              _buildDivider('Unread messages'),
+            if (showUnreadDivider) _buildDivider('Unread messages'),
 
             // 消息气泡
             MessageBubble(
@@ -475,11 +599,7 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
                 child: const Text(
                   'You can only send one message request until they accept or reply.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Geist',
-                  ),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, fontFamily: 'Geist'),
                 ),
               ),
           ],
@@ -524,10 +644,7 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
-        color: Color(0xFFE5E7EB),
-        shape: BoxShape.circle,
-      ),
+      decoration: const BoxDecoration(color: Color(0xFFE5E7EB), shape: BoxShape.circle),
       child: Center(
         child: Text(
           name.isNotEmpty ? name[0].toUpperCase() : '?',

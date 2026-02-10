@@ -4,7 +4,9 @@ import 'dart:ui';
 import 'package:dinq_app/constants/app_constants.dart';
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../stores/messages_store.dart';
 import '../../widgets/common/base_page.dart';
 import 'main_tab_model.dart';
 
@@ -41,6 +43,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
   @override
   Widget build(BuildContext context) {
     List<MainTabModel> buttonData = getTabBarData();
+    final totalUnreadCount = context.watch<MessagesStore>().totalUnreadCount;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -136,12 +139,47 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
                               left: 0,
                               right: 0,
                               child: Center(
-                                child: AssetImageView(
-                                  isSelected
-                                      ? buttonData[index].selIconName
-                                      : buttonData[index].iconName,
-                                  width: 24,
-                                  fit: BoxFit.contain,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    AssetImageView(
+                                      isSelected
+                                          ? buttonData[index].selIconName
+                                          : buttonData[index].iconName,
+                                      width: 24,
+                                      fit: BoxFit.contain,
+                                    ),
+                                    // Inbox 未读数角标
+                                    if (buttonData[index].pageType == MainTabType.inBox &&
+                                        totalUnreadCount > 0)
+                                      Positioned(
+                                        top: -6,
+                                        right: -10,
+                                        child: Container(
+                                          constraints: const BoxConstraints(minWidth: 18),
+                                          height: 18,
+                                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEF4444),
+                                            borderRadius: BorderRadius.circular(9),
+                                            border: Border.all(color: Colors.white, width: 1.5),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            totalUnreadCount > 99
+                                                ? '99+'
+                                                : '$totalUnreadCount',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              height: 1.0,
+                                              fontFamily: 'Geist',
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),

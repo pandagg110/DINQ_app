@@ -1,5 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/message_models.dart';
 import '../common/base_page.dart';
@@ -24,7 +26,7 @@ class MessageBubble extends StatelessWidget {
   final bool isRead;
 
   String _formatTime(String timestamp) {
-    final date = DateTime.tryParse(timestamp);
+    final date = DateTime.tryParse(timestamp)?.toLocal();
     if (date == null) return '';
     // 聊天气泡只显示时间（日期由分割线提供），与 H5 一致
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
@@ -179,13 +181,66 @@ class MessageBubble extends StatelessWidget {
     }
   }
 
+  /// 正则匹配 URL 链接
+  static final RegExp _urlRegex = RegExp(r'(https?://[^\s]+)');
+
   Widget _buildTextContent() {
-    return Text(
-      message.content,
-      style: TextStyle(
-        fontSize: 15,
-        height: 1.5,
-        color: isOwnMessage ? Colors.white : const Color(0xFF111827),
+    final text = message.content;
+    final matches = _urlRegex.allMatches(text).toList();
+
+    // 没有链接，直接显示纯文本
+    if (matches.isEmpty) {
+      return Text(
+        text,
+        style: TextStyle(
+          fontSize: 15,
+          height: 1.5,
+          color: isOwnMessage ? Colors.white : const Color(0xFF111827),
+        ),
+      );
+    }
+
+    // 有链接，使用 RichText 展示
+    final spans = <TextSpan>[];
+    int lastEnd = 0;
+
+    for (final match in matches) {
+      // 链接前的普通文本
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+      }
+      // 链接文本（可点击）
+      final url = match.group(0)!;
+      spans.add(TextSpan(
+        text: url,
+        style: TextStyle(
+          decoration: TextDecoration.underline,
+          color: isOwnMessage ? Colors.white : const Color(0xFF2563EB),
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () {
+            final uri = Uri.tryParse(url);
+            if (uri != null) {
+              launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
+          },
+      ));
+      lastEnd = match.end;
+    }
+
+    // 链接后的剩余文本
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+
+    return Text.rich(
+      TextSpan(
+        style: TextStyle(
+          fontSize: 15,
+          height: 1.5,
+          color: isOwnMessage ? Colors.white : const Color(0xFF111827),
+        ),
+        children: spans,
       ),
     );
   }

@@ -20,6 +20,9 @@ class MessagesStore extends ChangeNotifier {
   StreamSubscription<Map<String, dynamic>>? _wsSubscription;
   StreamSubscription<WsConnectionState>? _wsStateSubscription;
 
+  /// WebSocket 错误消息回调（由 UI 层设置，用于显示对话框）
+  void Function(String message)? onWsError;
+
   // 对话列表
   List<Conversation> conversations = [];
   Conversation? currentConversation;
@@ -118,6 +121,15 @@ class MessagesStore extends ChangeNotifier {
 
       case WsMessageType.recall:
         loadConversations();
+        break;
+
+      case 'error':
+        if (data != null) {
+          final errorMessage = data['message']?.toString() ?? '';
+          if (errorMessage.isNotEmpty) {
+            onWsError?.call(errorMessage);
+          }
+        }
         break;
     }
   }
