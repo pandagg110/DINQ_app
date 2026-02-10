@@ -210,7 +210,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   children: [
                     // 主要内容区域
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 296,top: 32),
+                      padding: const EdgeInsets.only(bottom: 296, top: 32),
                       child: Column(
                         children: [
                           if (showSkeleton)
@@ -383,56 +383,35 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   }) {
     return Stack(
       children: [
-        // 顶部按钮栏
+        // 合并所有内容到一个 Positioned
         Positioned(
           top: 0,
           left: 0,
           right: 0,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push<Object?>(
-                      MaterialPageRoute<Object?>(
-                        builder: (_) => const ChatHistoryPage(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.history,
-                    size: 20,
-                    color: Color.fromARGB(255, 0, 0, 0),
-                  ),
-                  label: const Text(
-                    'History',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color.fromARGB(255, 0, 0, 0),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    foregroundColor: const Color(0xFF6B7280),
-                  ),
-                ),
-                Row(
+          bottom: ConstantsTool.bottomTabHeight + 32,
+          child: Column(
+            children: [
+              // 顶部按钮栏
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     TextButton.icon(
-                      onPressed: _openPapersPage,
+                      onPressed: () {
+                        Navigator.of(context).push<Object?>(
+                          MaterialPageRoute<Object?>(
+                            builder: (_) => const ChatHistoryPage(),
+                          ),
+                        );
+                      },
                       icon: const Icon(
-                        Icons.article,
+                        Icons.history,
                         size: 20,
                         color: Color.fromARGB(255, 0, 0, 0),
                       ),
                       label: const Text(
-                        'Papers',
+                        'History',
                         style: TextStyle(
                           fontSize: 14,
                           color: Color.fromARGB(255, 0, 0, 0),
@@ -447,33 +426,60 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                         foregroundColor: const Color(0xFF6B7280),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {
-                        // TODO: 跳转升级页
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: _openPapersPage,
+                          icon: const Icon(
+                            Icons.article,
+                            size: 20,
+                            color: Color.fromARGB(255, 0, 0, 0),
+                          ),
+                          label: const Text(
+                            'Papers',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color.fromARGB(255, 0, 0, 0),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            foregroundColor: const Color(0xFF6B7280),
+                          ),
                         ),
-                        foregroundColor: const Color(0xFF6B7280),
-                      ),
-                      child: const Text(
-                        'Upgrade',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF6B7280),
-                          fontWeight: FontWeight.w500,
+                        TextButton(
+                          onPressed: () {
+                            // TODO: 跳转升级页
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            foregroundColor: const Color(0xFF6B7280),
+                          ),
+                          child: const Text(
+                            'Upgrade',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF6B7280),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        // Welcome、Prompt Templates 和搜索框（合并到一个 Positioned）
+        // Welcome、Prompt Templates 和搜索框（使用 Positioned 固定在底部）
         Positioned(
           top: !hasMessages ? 60 : null,
           left: 0,
@@ -487,67 +493,63 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
               children: [
                 // Welcome 和 Prompt Templates（只在没有消息时显示）
                 if (!hasMessages) ...[
-                  Expanded(
-                    child: Column(
-                      children: [
-                        // Welcome 文字
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Text(
-                                userName.isNotEmpty ? 'Welcome,' : 'Welcome',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xA3303030),
-                                  letterSpacing: 0.02,
-                                  fontFamily: 'Editor Note',
-                                  height: 2,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                  Column(
+                    children: [
+                      // Welcome 文字
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Text(
+                              userName.isNotEmpty ? 'Welcome,' : 'Welcome',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xA3303030),
+                                letterSpacing: 0.02,
+                                fontFamily: 'Editor Note',
+                                height: 2,
                               ),
-                              Text(
-                                userName.isNotEmpty ? '$userName' : '',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF171717),
-                                  letterSpacing: 0.02,
-                                  fontFamily: 'Editor Note',
-                                  height: 2,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Prompt Templates - 可滚动
-                        Expanded(
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            child: AnimatedSize(
-                              duration: Duration(
-                                milliseconds: _activeTool != null ? 200 : 400,
-                              ),
-                              curve: Curves.easeOut,
-                              child: AnimatedOpacity(
-                                duration: Duration(
-                                  milliseconds: _activeTool != null ? 150 : 300,
-                                ),
-                                opacity: _activeTool != null ? 0.0 : 1.0,
-                                child: _activeTool == null
-                                    ? const PromptTemplateGridWidget()
-                                    : const SizedBox.shrink(),
-                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                            Text(
+                              userName.isNotEmpty ? '$userName' : '',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF171717),
+                                letterSpacing: 0.02,
+                                fontFamily: 'Editor Note',
+                                height: 2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Prompt Templates - 可滚动
+                      SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: AnimatedSize(
+                          duration: Duration(
+                            milliseconds: _activeTool != null ? 200 : 400,
+                          ),
+                          curve: Curves.easeOut,
+                          child: AnimatedOpacity(
+                            duration: Duration(
+                              milliseconds: _activeTool != null ? 150 : 300,
+                            ),
+                            opacity: _activeTool != null ? 0.0 : 1.0,
+                            child: _activeTool == null
+                                ? const PromptTemplateGridWidget()
+                                : const SizedBox.shrink(),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                 ],
