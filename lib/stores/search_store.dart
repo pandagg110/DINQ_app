@@ -13,6 +13,9 @@ class SearchTabData {
   String? error;
 }
 
+/// 与 TSX MAX_TABS 一致
+const int _maxTabs = 12;
+
 class SearchStore extends ChangeNotifier {
   final List<SearchTabData> openTabs = [];
   int? activeTabId;
@@ -33,10 +36,67 @@ class SearchStore extends ChangeNotifier {
     return _idCounter;
   }
 
-  int? openTab(Map<String, dynamic> candidate) {
+  /// 与 TSX getCandidateCompleteness 简化版：有值的字段数 / 总字段数
+  static double _getCandidateCompleteness(Map<String, dynamic> c) {
+    const keys = ['name', 'image_url', 'company', 'position', 'university', 'one_liner', 'match_reason'];
+    var filled = 0;
+    for (final k in keys) {
+      final v = c[k];
+      if (v != null && v.toString().trim().isNotEmpty) filled++;
+    }
+    return filled / keys.length;
+  }
+
+  /// 与 TSX openTab 一致：支持 index/groupId/判重/MAX_TABS，返回标签页 id 或 null（不满足条件时）
+  int? openTab(
+    Map<String, dynamic> candidate, {
+    int? index,
+    int? groupId,
+    bool matchByName = false,
+    bool switchTab = true,
+  }) {
+    final hasAvatar = (candidate['image_url']?.toString() ?? '').trim().isNotEmpty;
+    final completeness = _getCandidateCompleteness(candidate);
+    if (!hasAvatar && completeness < 0.7) return null;
+
+    final originalIndex = index ?? 0;
+    final gId = groupId ?? 0;
+
+    SearchTabData? existing;
+    for (final t in openTabs) {
+      if (matchByName) {
+        if (t.candidate['groupId'] == -1 && t.candidate['name'] == candidate['name']) {
+          existing = t;
+          break;
+        }
+      } else {
+        if (t.candidate['groupId'] == gId && t.candidate['originalIndex'] == originalIndex) {
+          existing = t;
+          break;
+        }
+      }
+    }
+
+    if (existing != null) {
+      if (switchTab) {
+        activeTabId = existing.id;
+        tabClickVersion += 1;
+      }
+      notifyListeners();
+      return existing.id;
+    }
+
     final id = _nextId();
-    openTabs.add(SearchTabData(id: id, candidate: candidate));
-    activeTabId = id;
+    final tabCandidate = Map<String, dynamic>.from(candidate);
+    tabCandidate['originalIndex'] = originalIndex;
+    tabCandidate['groupId'] = gId;
+
+    if (openTabs.length >= _maxTabs) {
+      openTabs.removeAt(0);
+    }
+    openTabs.add(SearchTabData(id: id, candidate: tabCandidate));
+    if (switchTab) activeTabId = id;
+    tabClickVersion += 1;
     notifyListeners();
     return id;
   }
@@ -73,6 +133,7 @@ class SearchStore extends ChangeNotifier {
     openTabs.clear();
     activeTabId = null;
     isSearching = false;
+    isLoadingConversation = false;
     pendingQuery = null;
     currentConversationId = null;
     pendingConversation = null;
@@ -115,23 +176,40 @@ class SearchStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 打开标签页并触发点击版本更新
-  int? openTabWithClick(Map<String, dynamic> candidate, {int? index, int? groupId}) {
-    final id = openTab(candidate);
-    tabClickVersion += 1;
-    notifyListeners();
-    return id;
+  /// 与 TSX 一致：点击候选人时打开标签页（带 index/groupId，会判重并受 MAX_TABS 限制）
+  int? openTabWithClick(
+    Map<String, dynamic> candidate, {
+    int? index,
+    int? groupId,
+    bool matchByName = false,
+    bool switchTab = true,
+  }) {
+    return openTab(candidate, index: index, groupId: groupId, matchByName: matchByName, switchTab: switchTab);
   }
 
-  /// 用搜索结果候选人填充标签页（与 TSX syncCandidatesToTabs 效果一致：展示返回值）
+  /// 用搜索结果候选人整体替换标签页（首次展示返回值时用；与 TSX 中“无已有 tab 时展示结果”对应）
   void setTabsFromCandidates(List<Map<String, dynamic>> candidates) {
     openTabs.clear();
     for (var i = 0; i < candidates.length; i++) {
       final c = Map<String, dynamic>.from(candidates[i]);
       c['originalIndex'] = i;
-      openTab(c);
+      c['groupId'] = 0;
+      openTabs.add(SearchTabData(id: _nextId(), candidate: c));
     }
+    if (openTabs.isNotEmpty) activeTabId = openTabs.first.id;
     tabClickVersion += 1;
+    notifyListeners();
+  }
+
+  /// 与 TSX syncCandidatesToTabs 一致：只更新已打开标签页的 candidate（按 originalIndex + name 匹配），不增删 tab
+  void syncCandidatesToTabs(List<Map<String, dynamic>> candidates) {
+    for (final tab in openTabs) {
+      final idx = tab.candidate['originalIndex'];
+      if (idx == null || idx is! int || idx < 0 || idx >= candidates.length) continue;
+      final updated = candidates[idx];
+      if (updated['name'] != tab.candidate['name']) continue;
+      tab.candidate.addAll(updated);
+    }
     notifyListeners();
   }
 
@@ -157,10 +235,11 @@ class SearchStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 设置标签页错误
+  // 设置标签页错误（与 TSX 一致：同时将 isLoading 置为 false）
   void setTabError(int id, String? error) {
     final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
     tab.error = error;
+    tab.isLoading = false;
     notifyListeners();
   }
 

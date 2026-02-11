@@ -6,9 +6,9 @@ import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
 import 'prompt_template_grid_widget.dart';
 import '../../pages/discover/chat_history_page.dart';
+import '../../pages/discover/recommended_papers_page.dart';
 import 'agentic_search_logic.dart';
 import 'message_group_view.dart';
-import 'recommended_papers_widget.dart';
 import 'search_box_widget.dart';
 
 // Placeholder 常量（与 React 版本一致）
@@ -29,13 +29,11 @@ const List<String> dinqPlaceholders = [
 ];
 
 class AgenticChatWidget extends StatefulWidget {
-  const AgenticChatWidget({
-    super.key,
-    this.onSearchComplete,
-  });
+  const AgenticChatWidget({super.key, this.onSearchComplete});
 
   /// 与 TSX onSearchComplete 一致：搜索完成且有关注人时回调
-  final void Function(List<Map<String, dynamic>> candidates, String query)? onSearchComplete;
+  final void Function(List<Map<String, dynamic>> candidates, String query)?
+  onSearchComplete;
 
   @override
   State<AgenticChatWidget> createState() => _AgenticChatWidgetState();
@@ -46,11 +44,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   String _talentMode = 'global'; // 'global' or 'dinq'
   String? _activeTool; // ToolType | null
   bool _isNearBottom = true;
-  bool _inPapersView = false;
 
   // 滚动相关
   final ScrollController _scrollController = ScrollController();
-  final ScrollController _initialScrollController = ScrollController();
   final GlobalKey _messagesEndKey = GlobalKey();
 
   /// 与 TSX useAgenticSearch 对应，逻辑在 agentic_search_logic.dart
@@ -68,7 +64,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     super.initState();
     // 监听滚动
     _scrollController.addListener(_handleScroll);
-    _initialScrollController.addListener(_handleInitialScroll);
   }
 
   @override
@@ -94,7 +89,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     _logic?.removeListener(_onLogicUpdate);
     _logic?.dispose();
     _scrollController.dispose();
-    _initialScrollController.dispose();
     super.dispose();
   }
 
@@ -109,18 +103,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     }
   }
 
-  void _handleInitialScroll() {
-    if (!_initialScrollController.hasClients) return;
-    final position = _initialScrollController.position;
-    final scrollRatio = position.pixels / position.viewportDimension;
-    final inPapersView = scrollRatio > 0.4;
-    if (inPapersView != _inPapersView) {
-      setState(() {
-        _inPapersView = inPapersView;
-      });
-    }
-  }
-
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -131,25 +113,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     }
   }
 
-  // void _scrollToPapers() {
-  //   // TODO: 实现滚动到 Papers 页面
-  //   if (_initialScrollController.hasClients) {
-  //     _initialScrollController.animateTo(
-  //       _initialScrollController.position.viewportDimension * 0.7,
-  //       duration: const Duration(milliseconds: 300),
-  //       curve: Curves.easeOut,
-  //     );
-  //   }
-  // }
-
-  void _scrollToSearch() {
-    if (_initialScrollController.hasClients) {
-      _initialScrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+  void _openPapersPage() {
+    Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(builder: (_) => const RecommendedPapersPage()),
+    );
   }
 
   void _handleSearch({required String query, bool simple = false}) {
@@ -180,7 +147,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   Widget build(BuildContext context) {
     final logic = _logic;
     if (logic == null) return const SizedBox.shrink();
-    final messageGroups = logic.messageGroups;
     return Consumer2<SearchStore, UserStore>(
       builder: (context, searchStore, userStore, _) {
         if (!mounted) return const SizedBox.shrink();
@@ -198,7 +164,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             searchStore.clearPendingConversation();
           });
         }
-        if (searchStore.isLoadingConversation && logic.messageGroups.isNotEmpty) {
+        if (searchStore.isLoadingConversation &&
+            logic.messageGroups.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             logic.clearMessagesOnly();
@@ -209,51 +176,67 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
             ? user!.userData.name
             : (user?.user.name.isNotEmpty == true ? user!.user.name : '');
 
-        final hasMessages = messageGroups.isNotEmpty;
-        final showSkeleton = searchStore.isLoadingConversation && !hasMessages;
-        final bgColor = (hasMessages || showSkeleton)
-            ? Colors.white
-            : const Color(0xFFFDFDFD);
+        // 监听 logic 变化，流事件更新 messageGroups 后触发重建，才能渲染返回值
+        return ListenableBuilder(
+          listenable: logic,
+          builder: (context, __) {
+            final messageGroups = logic.messageGroups;
+            final hasMessages = messageGroups.isNotEmpty;
+            final showSkeleton =
+                searchStore.isLoadingConversation && !hasMessages;
+            final bgColor = (hasMessages || showSkeleton)
+                ? Colors.white
+                : const Color(0xFFFDFDFD);
 
-        // 获取固定屏幕高度（不受键盘影响），仅移动端样式，headerHeight 固定为 0
-        final screenHeight =
-            _screenHeight ?? MediaQuery.of(context).size.height;
-        const headerHeight = 0.0;
-        final availableHeight = screenHeight - headerHeight;
+            final screenHeight =
+                _screenHeight ?? MediaQuery.of(context).size.height;
+            const headerHeight = 0.0;
+            final availableHeight = screenHeight - headerHeight;
 
-        final parentQuery = MediaQuery.of(context);
-        final mediaQueryWithoutInsets = parentQuery.copyWith(
-          viewInsets: EdgeInsets.zero,
-          padding: parentQuery.padding,
-          size: Size(parentQuery.size.width, screenHeight),
-        );
+            final parentQuery = MediaQuery.of(context);
+            final mediaQueryWithoutInsets = parentQuery.copyWith(
+              viewInsets: EdgeInsets.zero,
+              padding: parentQuery.padding,
+              size: Size(parentQuery.size.width, screenHeight),
+            );
 
-        return MediaQuery(
-          data: mediaQueryWithoutInsets,
-          child: Container(
-            color: bgColor,
-            height: availableHeight,
-            width: double.infinity,
-            child: Column(
-              children: [
-                // 骨架屏 - 加载历史会话时显示
-                if (showSkeleton) Expanded(child: _buildConversationSkeleton()),
+            return MediaQuery(
+              data: mediaQueryWithoutInsets,
+              child: Container(
+                color: bgColor,
+                height: availableHeight,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    // 主要内容区域
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 236, top: 32),
+                      child: Column(
+                        children: [
+                          if (showSkeleton)
+                            Expanded(child: _buildConversationSkeleton()),
+                          if (hasMessages && !showSkeleton)
+                            Expanded(child: _buildMessagesArea(logic)),
+                          if (!hasMessages && !showSkeleton)
+                            Expanded(
+                              child: Container(),
+                            ), // 占位，实际内容在 _buildInitialState 中
+                        ],
+                      ),
+                    ),
 
-                // 消息滚动区域
-                if (hasMessages && !showSkeleton)
-                  Expanded(child: _buildMessagesArea(logic)),
-
-                // 初始状态 - 双页 snap 滚动
-                if (!hasMessages && !showSkeleton)
-                  Expanded(
-                    child: _buildInitialState(userName, logic, userId: user?.user.id),
-                  ),
-
-                // SearchBox - 在有消息或骨架屏时固定底部
-                if (hasMessages || showSkeleton) _buildBottomSearchBox(logic),
-              ],
-            ),
-          ),
+                    // 统一使用 _buildInitialState 中的 Search input，悬浮在顶部
+                    _buildInitialState(
+                      userName,
+                      logic,
+                      hasMessages: hasMessages,
+                      userId: user?.user.id,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -261,6 +244,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
 
   Widget _buildConversationSkeleton() {
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
@@ -348,324 +332,269 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
 
   Widget _buildMessagesArea(AgenticSearchLogic logic) {
     final groups = logic.messageGroups;
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      interactive: true,
+      child: ListView(
+        controller: _scrollController,
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        children: [
+          for (var i = 0; i < groups.length; i++)
+            MessageGroupView(
+              key: ValueKey(groups[i].id),
+              group: MessageGroupData(
+                id: groups[i].id,
+                userQuery: groups[i].userQuery,
+                loading: groups[i].loading,
+                candidates: groups[i].candidates,
+                searchType: groups[i].searchType ?? 'global',
+                thinkingSteps: groups[i].thinkingSteps,
+                thinkingExpanded: groups[i].thinkingExpanded,
+                dinqResults: groups[i].dinqResults,
+                advisorResults: groups[i].advisorResults,
+                pdfAttachment: groups[i].pdfAttachment,
+                llmMessage: groups[i].llmMessage,
+                summary: groups[i].summary,
+              ),
+              onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
+              onCandidateClick: (candidate, index, groupId) {
+                final store = context.read<SearchStore>();
+                store.openTabWithClick(
+                  candidate,
+                  index: index,
+                  groupId: groupId,
+                );
+              },
+              isLatest: i == groups.length - 1,
+            ),
+          Container(key: _messagesEndKey, height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInitialState(
+    String userName,
+    AgenticSearchLogic logic, {
+    required bool hasMessages,
+    String? userId,
+  }) {
     return Stack(
       children: [
-        SingleChildScrollView(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        // 合并所有内容到一个 Positioned
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: ConstantsTool.bottomTabHeight + 32,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (var i = 0; i < groups.length; i++) ...[
-                MessageGroupView(
-                  key: ValueKey(groups[i].id),
-                  group: MessageGroupData(
-                    id: groups[i].id,
-                    userQuery: groups[i].userQuery,
-                    loading: groups[i].loading,
-                    candidates: groups[i].candidates,
-                  ),
-                  isLatest: i == groups.length - 1,
+              // 顶部按钮栏
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push<Object?>(
+                          MaterialPageRoute<Object?>(
+                            builder: (_) => const ChatHistoryPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.history,
+                        size: 20,
+                        color: Color.fromARGB(255, 0, 0, 0),
+                      ),
+                      label: const Text(
+                        'History',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color.fromARGB(255, 0, 0, 0),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        foregroundColor: const Color(0xFF6B7280),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: _openPapersPage,
+                          icon: const Icon(
+                            Icons.article,
+                            size: 20,
+                            color: Color.fromARGB(255, 0, 0, 0),
+                          ),
+                          label: const Text(
+                            'Papers',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color.fromARGB(255, 0, 0, 0),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            foregroundColor: const Color(0xFF6B7280),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            // TODO: 跳转升级页
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            foregroundColor: const Color(0xFF6B7280),
+                          ),
+                          child: const Text(
+                            'Upgrade',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF6B7280),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-              Container(
-                key: _messagesEndKey,
-                height: 80,
               ),
             ],
           ),
         ),
-        // 底部渐变
+        // Welcome、Prompt Templates 和搜索框（使用 Positioned 固定在底部）
         Positioned(
-          bottom: 0,
+          top: !hasMessages ? 60 : null,
           left: 0,
           right: 0,
-          height: 72,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.white,
-                  Colors.white.withOpacity(0.7),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInitialState(String userName, AgenticSearchLogic logic, {String? userId}) {
-    return SingleChildScrollView(
-      controller: _initialScrollController,
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        children: [
-          // Section 1: 搜索页
-          SizedBox(
-            height: _screenHeight != null
-                ? _screenHeight! * 0.8
-                : MediaQuery.of(context).size.height * 0.8,
+          bottom: ConstantsTool.bottomTabHeight + 40,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // 顶部：左上 History，右上 Upgrade
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Welcome 和 Prompt Templates（只在没有消息时显示）
+                if (!hasMessages) ...[
+                  Column(
                     children: [
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push<Object?>(
-                            MaterialPageRoute<Object?>(
-                              builder: (_) => const ChatHistoryPage(),
+                      // Welcome 文字
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Text(
+                              userName.isNotEmpty ? 'Welcome,' : 'Welcome',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xA3303030),
+                                letterSpacing: 0.02,
+                                fontFamily: 'Editor Note',
+                                height: 2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.history,
-                          size: 20,
-                          color: Color.fromARGB(255, 0, 0, 0),
-                        ),
-                        label: const Text(
-                          'History',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color.fromARGB(255, 0, 0, 0),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          foregroundColor: const Color(0xFF6B7280),
+                            Text(
+                              userName.isNotEmpty ? '$userName' : '',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF171717),
+                                letterSpacing: 0.02,
+                                fontFamily: 'Editor Note',
+                                height: 2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          // TODO: 跳转升级页
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                      const SizedBox(height: 16),
+                      // Prompt Templates - 可滚动
+                      SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: AnimatedSize(
+                          duration: Duration(
+                            milliseconds: _activeTool != null ? 200 : 400,
                           ),
-                          foregroundColor: const Color(0xFF6B7280),
-                        ),
-                        child: const Text(
-                          'Upgrade',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF6B7280),
-                            fontWeight: FontWeight.w500,
+                          curve: Curves.easeOut,
+                          child: AnimatedOpacity(
+                            duration: Duration(
+                              milliseconds: _activeTool != null ? 150 : 300,
+                            ),
+                            opacity: _activeTool != null ? 0.0 : 1.0,
+                            child: _activeTool == null
+                                ? const PromptTemplateGridWidget()
+                                : const SizedBox.shrink(),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                // 居中内容
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // 欢迎文字
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Logo
-                              Image.asset(
-                                'assets/logo/dinq-black.png',
-                                width: 32,
-                                height: 32,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    Icons.search,
-                                    size: 32,
-                                    color: Color(0xFF171717),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              // Welcome Text
-                              Flexible(
-                                child: Text(
-                                  userName.isNotEmpty
-                                      ? 'Welcome, $userName'
-                                      : 'Welcome',
-                                  style: const TextStyle(
-                                    fontSize: 38,
-                                    fontWeight: FontWeight.normal,
-                                    color: Color(0xFF171717),
-                                    letterSpacing: 0.02,
-                                    fontFamily: 'Editor Note',
-                                    height: 1.5,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 32),
-                          // 搜索框（外层白色背景容器）
-                          Center(
-                            child: Container(
-                              constraints: const BoxConstraints(maxWidth: 768),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: SearchBoxWidget(
-                                onSearch: _handleSearch,
-                                onStop: _handleStop,
-                                loading: logic.loading,
-                                talentMode: _talentMode,
-                                onTalentModeChange: (mode) {
-                                  setState(() {
-                                    _talentMode = mode;
-                                  });
-                                },
-                                onDinqSearchSubmit: _handleDinqSearchSubmit,
-                                onAdvisorSearch: _handleAdvisorSearch,
-                                advisorLoading: logic.advisorLoading,
-                                onActiveToolChange: (tool) {
-                                  setState(() {
-                                    _activeTool = tool;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          // Prompt Templates - 根据 activeTool 显示/隐藏
-                          AnimatedSize(
-                            duration: Duration(
-                              milliseconds: _activeTool != null ? 200 : 400,
-                            ),
-                            curve: Curves.easeOut,
-                            child: AnimatedOpacity(
-                              duration: Duration(
-                                milliseconds: _activeTool != null ? 150 : 300,
-                              ),
-                              opacity: _activeTool != null ? 0.0 : 1.0,
-                              child: _activeTool == null
-                                  ? const PromptTemplateGridWidget()
-                                  : const SizedBox.shrink(),
-                            ),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 16),
+                ],
+                // 固定在底部的搜索框（始终显示）
+                Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 768),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: SearchBoxWidget(
+                      onSearch: _handleSearch,
+                      onStop: _handleStop,
+                      loading: logic.loading,
+                      talentMode: _talentMode,
+                      onTalentModeChange: (mode) {
+                        setState(() {
+                          _talentMode = mode;
+                        });
+                      },
+                      onDinqSearchSubmit: _handleDinqSearchSubmit,
+                      onAdvisorSearch: _handleAdvisorSearch,
+                      advisorLoading: logic.advisorLoading,
+                      onActiveToolChange: (tool) {
+                        setState(() {
+                          _activeTool = tool;
+                        });
+                      },
+                      dropdownPosition: 'up',
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Section 2: Papers 页
-          SizedBox(
-            height: _screenHeight ?? MediaQuery.of(context).size.height,
-            child: RecommendedPapersWidget(
-              userId: userId,
-              isFullView: true,
-              onBack: _scrollToSearch,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomSearchBox(AgenticSearchLogic logic) {
-    // 底部留出 MainTabBottomView 高度，避免输入框被遮挡
-    final bottomInset = ConstantsTool.bottomTabHeight + 32;
-    return Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
-      child: Stack(
-        children: [
-          // 滚动到底部按钮
-          if (!_isNearBottom)
-            Positioned(
-              top: -48,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Material(
-                  color: Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    onTap: _scrollToBottom,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.8),
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Color(0xFF5A5A5A),
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          // 搜索框
-          Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 768),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 2,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: SearchBoxWidget(
-                onSearch: _handleSearch,
-                onStop: _handleStop,
-                loading: logic.loading,
-                talentMode: _talentMode,
-                onTalentModeChange: (mode) {
-                  setState(() {
-                    _talentMode = mode;
-                  });
-                },
-                onDinqSearchSubmit: _handleDinqSearchSubmit,
-                onAdvisorSearch: _handleAdvisorSearch,
-                advisorLoading: logic.advisorLoading,
-                onActiveToolChange: (tool) {
-                  setState(() {
-                    _activeTool = tool;
-                  });
-                },
-                dropdownPosition: 'up',
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
