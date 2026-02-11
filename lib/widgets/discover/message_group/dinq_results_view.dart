@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../common/asset_icon.dart';
 
 /// 与 TSX DinqResultsView 对应，同步功能但只保留移动端样式
 class DinqResultsView extends StatefulWidget {
@@ -22,6 +23,22 @@ class DinqResultsView extends StatefulWidget {
 class _DinqResultsViewState extends State<DinqResultsView> {
   static const int _initialDisplay = 5;
   bool _showAll = false;
+
+  // 社交图标映射（使用 search 目录下的图标，与 TSX 一致）
+  static String _getSocialIconPath(String type) {
+    final typeLower = type.toLowerCase();
+    final iconMap = <String, String>{
+      'linkedin': 'icons/search/lineicons/linkedin.svg',
+      'github': 'icons/search/lineicons/github.svg',
+      'scholar': 'icons/search/lineicons/scholar.svg',
+      'google_scholar': 'icons/search/lineicons/scholar.svg',
+      'twitter': 'icons/search/lineicons/website.svg', // 如果没有 twitter 图标，使用 website
+      'x': 'icons/search/lineicons/website.svg',
+      'openreview': 'icons/search/lineicons/website.svg',
+      'huggingface': 'icons/search/lineicons/website.svg',
+    };
+    return iconMap[typeLower] ?? 'icons/search/lineicons/website.svg';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -626,25 +643,33 @@ class _DinqResultsViewState extends State<DinqResultsView> {
                 Row(
                   children:
                       socialLinks.take(3).toList().map((link) {
+                        final linkMap = link as Map<String, dynamic>;
+                        final linkType = linkMap['type'] as String? ?? '';
+                        final iconPath = _getSocialIconPath(linkType);
                         return Padding(
                           padding: const EdgeInsets.only(left: 4),
-                          child: IconButton(
-                            icon: const Icon(Icons.link, size: 14),
-                            onPressed: () {
-                              final url =
-                                  (link as Map<String, dynamic>)['url']
-                                      as String?;
-                              if (url != null) {
-                                // TODO: 打开链接
-                              }
-                            },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 24,
-                              minHeight: 24,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.transparent,
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: IconButton(
+                              icon: Opacity(
+                                opacity: 0.6,
+                                child: AssetIcon(
+                                  asset: iconPath,
+                                  size: 14,
+                                ),
+                              ),
+                              onPressed: () {
+                                final url = linkMap['url'] as String?;
+                                if (url != null) {
+                                  // TODO: 打开链接
+                                }
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                              ),
                             ),
                           ),
                         );

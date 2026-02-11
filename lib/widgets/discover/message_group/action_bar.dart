@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../common/asset_icon.dart';
 /// 操作栏（与 TSX 中 DinqLogoButton + thumbs 一致）
 class MessageGroupActionBar extends StatelessWidget {
   const MessageGroupActionBar({
@@ -23,12 +23,7 @@ class MessageGroupActionBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Image.asset(
-            'assets/logo/dinq-black.png',
-            width: 24,
-            height: 24,
-            errorBuilder: (_, __, ___) => const Icon(Icons.search, size: 24),
-          ),
+          AssetIcon(asset: 'icons/logo/dinq-black.svg', size: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -37,7 +32,9 @@ class MessageGroupActionBar extends StatelessWidget {
                 children: [
                   IconButton(
                     icon: Icon(
-                      feedback == 'up' ? Icons.thumb_up : Icons.thumb_up_outlined,
+                      feedback == 'up'
+                          ? Icons.thumb_up
+                          : Icons.thumb_up_outlined,
                       size: 18,
                       color: feedback == 'up'
                           ? const Color(0xFF4B5563)
@@ -72,10 +69,7 @@ class MessageGroupActionBar extends StatelessWidget {
                   padding: EdgeInsets.only(top: 4),
                   child: Text(
                     'DINQ can make mistakes. Verify important info.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF9CA3AF),
-                    ),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                   ),
                 ),
             ],
