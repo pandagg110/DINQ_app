@@ -1,5 +1,4 @@
 import 'package:dinq_app/widgets/common/dash_line.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,7 @@ import '../../constants/app_constants.dart';
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
+import '../../utils/image_utils.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/base_page.dart';
 
@@ -26,22 +26,14 @@ class _MePageState extends State<MePage> {
     if (_isUploading) return;
 
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-      );
+      final result = await ImageUtils.pickSinglePicture(context);
 
-      if (result != null && result.files.single.bytes != null) {
-        final file = result.files.single;
+      if (result != null) {
+        final file = await result.readAsBytes();
         setState(() => _isUploading = true);
 
         try {
-          final uploadedUrl = await _uploadService.uploadFile(
-            bytes: file.bytes!,
-            filename: file.name,
-            contentType: _getContentType(file.extension),
-          );
-
+          final uploadedUrl = await _uploadService.uploadFile(bytes: file, filename: "image.jpg");
           if (!mounted) {
             return;
           }

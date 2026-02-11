@@ -252,8 +252,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
       });
     } catch (error) {
       await ToastUtil.dismiss();
-      if (!mounted) return;
-      TopToastUtil.showError(context: context, title: error.toString(), description: "");
+      await ToastUtil.show(error.toString());
     }
   }
 }

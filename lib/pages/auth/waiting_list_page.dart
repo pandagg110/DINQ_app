@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../services/waiting_list_service.dart';
 import '../../utils/color_util.dart';
+import '../../utils/toast_util.dart';
 import '../../widgets/common/country_select.dart';
 
 class WaitingListPage extends StatefulWidget {
@@ -249,7 +250,8 @@ class _WaitingListPageState extends State<WaitingListPage> {
       });
       setState(() => _isSuccess = true);
     } catch (error) {
-      setState(() => _error = error.toString());
+      // setState(() => _error = error.toString());
+      await ToastUtil.show(error.toString());
     } finally {
       setState(() => _isSubmitting = false);
     }

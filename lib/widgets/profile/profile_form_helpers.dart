@@ -1,3 +1,4 @@
+import 'package:dinq_app/utils/toast_util.dart';
 import 'package:flutter/material.dart';
 
 import '../../utils/color_util.dart';
@@ -239,7 +240,13 @@ class ProfileFormPickers {
             ),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, controller.text),
+            onPressed: () {
+              if (controller.text.isEmpty) {
+                ToastUtil.show("Cannot be empty");
+              } else {
+                Navigator.pop(context, controller.text);
+              }
+            },
             child: Text(
               'Save',
               style: TextStyle(

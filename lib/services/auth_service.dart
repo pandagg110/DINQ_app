@@ -1,17 +1,24 @@
 ﻿import 'package:dio/dio.dart';
+
 import '../models/user_models.dart';
 import 'api_client.dart';
 
 class AuthService {
   final Dio _dio = ApiClient.instance.dio;
 
-  Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
+  Future<Map<String, dynamic>> login({required String email, required String password}) async {
+    final response = await _dio.post('/auth/login', data: {'email': email, 'password': password});
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// 三方登录 google/github
+  Future<Map<String, dynamic>> thirdPartyLogin({
+    required String provider,
+    required String idToken,
   }) async {
     final response = await _dio.post(
-      '/auth/login',
-      data: {'email': email, 'password': password},
+      '/auth/oauth/app-login',
+      data: {'provider': provider, 'id_token': idToken},
     );
     return Map<String, dynamic>.from(response.data as Map);
   }
@@ -44,11 +51,7 @@ class AuthService {
   }) async {
     await _dio.post(
       '/auth/send-code',
-      data: {
-        'email': email,
-        'type': type,
-        if (inviteCode != null) 'inviteCode': inviteCode,
-      },
+      data: {'email': email, 'type': type, if (inviteCode != null) 'inviteCode': inviteCode},
     );
   }
 
@@ -59,14 +62,8 @@ class AuthService {
   /// 忘记密码 - 发送重置链接到邮箱
   /// [email] 邮箱地址
   /// [redirectUrl] 重定向 URL
-  Future<void> forgotPassword({
-    required String email,
-    required String redirectUrl,
-  }) async {
-    await _dio.post('/auth/forgot-password', data: {
-      'email': email,
-      'redirectUrl': redirectUrl,
-    });
+  Future<void> forgotPassword({required String email, required String redirectUrl}) async {
+    await _dio.post('/auth/forgot-password', data: {'email': email, 'redirectUrl': redirectUrl});
   }
 
   /// 确认重置密码
@@ -80,21 +77,14 @@ class AuthService {
   }) async {
     await _dio.post(
       '/auth/confirm-reset',
-      data: {
-        'email': email,
-        'code': code,
-        'new_password': newPassword,
-      },
+      data: {'email': email, 'code': code, 'new_password': newPassword},
     );
   }
 
   /// 修改密码 (已登录用户)
   /// [currentPassword] 当前密码（可选）
   /// [newPassword] 新密码
-  Future<void> changePassword({
-    String? currentPassword,
-    required String newPassword,
-  }) async {
+  Future<void> changePassword({String? currentPassword, required String newPassword}) async {
     await _dio.post(
       '/auth/change-password',
       data: {
@@ -106,9 +96,7 @@ class AuthService {
 
   Future<UserProfile> getUserProfile() async {
     final response = await _dio.get('/user/profile');
-    return UserProfile.fromJson(
-      Map<String, dynamic>.from(response.data as Map),
-    );
+    return UserProfile.fromJson(Map<String, dynamic>.from(response.data as Map));
   }
 
   /// 发送绑定/更换邮箱验证码
@@ -120,14 +108,8 @@ class AuthService {
   /// 绑定/更换邮箱
   /// [newEmail] 新邮箱地址
   /// [code] 验证码
-  Future<void> bindEmail({
-    required String newEmail,
-    required String code,
-  }) async {
-    await _dio.post('/auth/change-email', data: {
-      'newEmail': newEmail,
-      'code': code,
-    });
+  Future<void> bindEmail({required String newEmail, required String code}) async {
+    await _dio.post('/auth/change-email', data: {'newEmail': newEmail, 'code': code});
   }
 
   Future<void> deleteAccount() async {

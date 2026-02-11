@@ -1,6 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../services/auth_service.dart';
+import '../../utils/toast_util.dart';
 
 class ResetCallbackPage extends StatefulWidget {
   const ResetCallbackPage({super.key});
@@ -74,7 +76,8 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
                   obscureText: true,
                 ),
                 const SizedBox(height: 12),
-                if (_message != null) Text(_message!, style: const TextStyle(color: Colors.redAccent)),
+                if (_message != null)
+                  Text(_message!, style: const TextStyle(color: Colors.redAccent)),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _submit,
@@ -103,17 +106,13 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
       _isLoading = true;
     });
     try {
-      await _authService.confirmReset(
-        email: email,
-        code: code,
-        newPassword: password,
-      );
+      await _authService.confirmReset(email: email, code: code, newPassword: password);
       setState(() => _message = 'Password updated. You can sign in now.');
     } catch (error) {
-      setState(() => _message = error.toString());
+      // setState(() => _message = error.toString());
+      await ToastUtil.show(error.toString());
     } finally {
       setState(() => _isLoading = false);
     }
   }
 }
-

@@ -9,7 +9,6 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:github_oauth_signin/github_oauth_signin.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../constants/app_constants.dart';
 import '../../stores/user_store.dart';
@@ -63,6 +62,7 @@ class _SignInPageState extends State<SignInPage> {
       child: Scaffold(
         // 登录页不需要返回按钮，避免用户误返回到空白或历史页
         appBar: DefaultAppBar(context, isShowBack: false),
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: Column(
             children: [
@@ -265,7 +265,7 @@ class _SignInPageState extends State<SignInPage> {
                       ),
                       const SizedBox(height: 15),
                       NormalButton(
-                        onTap: () => _oauthSignIn('google'),
+                        onTap: () => _googleSignIn(),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -396,7 +396,8 @@ class _SignInPageState extends State<SignInPage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Please enter email and password.');
+      // setState(() => _error = 'Please enter email and password.');
+      await ToastUtil.show("Please enter email and password.");
       return;
     }
 
@@ -407,32 +408,16 @@ class _SignInPageState extends State<SignInPage> {
       await ToastUtil.dismiss();
       if (!mounted) return;
 
-      final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
-      if (redirect != null && redirect.isNotEmpty) {
-        context.go(redirect);
-        _showInviteCodeDialog(email);
-        return;
-      }
-      final flow = context.read<UserStore>().myFlow;
-      if (flow != null && flow.status == 'success') {
-        context.go('/admin/mydinq');
-      } else {
-        context.go('/');
-      }
-      _showInviteCodeDialog(email);
+      _handleLoginSuccess();
     } catch (error) {
       await ToastUtil.dismiss();
-      setState(() => _error = 'Username or password is incorrect.');
+      ToastUtil.show("Username or password is incorrect.");
+      // setState(() => _error = 'Username or password is incorrect.');
     }
   }
 
-  Future<void> _oauthSignIn(String provider) async {
-    final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
-    final nextUrl = redirect ?? appUrl;
-    final url = Uri.parse(
-      '$gatewayUrl/api/v1/auth/oauth/$provider?redirect_uri=${Uri.encodeComponent(nextUrl)}',
-    );
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+  Future<void> _googleSignIn() async {
+    ToastUtil.show("Need config google oauth");
   }
 
   Future<void> _githubSignIn() async {
@@ -456,6 +441,23 @@ class _SignInPageState extends State<SignInPage> {
           print('📊 Public Repos: ${user['public_repos']}');
           print('👥 Followers: ${user['followers']}');
         }
+
+        try {
+          await ToastUtil.showLoading();
+          if (!mounted) return;
+          await context.read<UserStore>().thirdPartyLogin(
+            provider: 'github',
+            idToken: result.token ?? '',
+          );
+          await ToastUtil.dismiss();
+          if (!mounted) return;
+
+          _handleLoginSuccess();
+        } catch (error) {
+          await ToastUtil.dismiss();
+          await ToastUtil.show("Login failed: $error");
+        }
+
         break;
 
       case GitHubSignInResultStatus.cancelled:
@@ -465,6 +467,26 @@ class _SignInPageState extends State<SignInPage> {
       case GitHubSignInResultStatus.failed:
         print('❌ Sign in failed: ${result.errorMessage}');
         break;
+    }
+  }
+
+  void _handleLoginSuccess({String? email}) {
+    final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
+    if (redirect != null && redirect.isNotEmpty) {
+      context.go(redirect);
+      if (email != null) {
+        _showInviteCodeDialog(email);
+      }
+      return;
+    }
+    final flow = context.read<UserStore>().myFlow;
+    if (flow != null && flow.status == 'success') {
+      context.go('/admin/mydinq');
+    } else {
+      context.go('/');
+    }
+    if (email != null) {
+      _showInviteCodeDialog(email);
     }
   }
 
