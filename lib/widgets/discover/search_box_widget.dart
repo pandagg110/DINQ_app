@@ -382,7 +382,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
                             minHeight: _textFieldHeight,
-                            maxHeight: 108,
+                            maxHeight: 270,
                           ),
                           child: SingleChildScrollView(
                             child: TextField(

@@ -451,6 +451,7 @@ class ScholarsList extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 480),
               child: ListView.builder(
+                padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 itemCount: candidates.length,
                 itemBuilder: (context, idx) {
