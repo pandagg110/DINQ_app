@@ -210,7 +210,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   children: [
                     // 主要内容区域
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 296, top: 32),
+                      padding: const EdgeInsets.only(bottom: 236, top: 32),
                       child: Column(
                         children: [
                           if (showSkeleton)
