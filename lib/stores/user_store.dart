@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/user_models.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
@@ -44,11 +45,7 @@ class UserStore extends ChangeNotifier {
       return;
     }
 
-    await Future.wait([
-      getCurrentUser(),
-      getFlow(),
-      loadSubscription(),
-    ]);
+    await Future.wait([getCurrentUser(), getFlow(), loadSubscription()]);
     isInitialized = true;
     notifyListeners();
     await loadVerifications();
@@ -81,6 +78,26 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
     try {
       final result = await _authService.login(email: email, password: password);
+      authToken = result['token']?.toString();
+      ApiClient.instance.setAuthToken(authToken);
+      await _persistToken();
+      await initialize();
+      isLoading = false;
+      notifyListeners();
+      return user;
+    } catch (error) {
+      debugPrint('login error: $error');
+      isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<UserProfile?> thirdPartyLogin({required String provider, required String idToken}) async {
+    isLoading = true;
+    notifyListeners();
+    try {
+      final result = await _authService.thirdPartyLogin(provider: provider, idToken: idToken);
       authToken = result['token']?.toString();
       ApiClient.instance.setAuthToken(authToken);
       await _persistToken();
@@ -280,5 +297,3 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-

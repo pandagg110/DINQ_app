@@ -408,19 +408,7 @@ class _SignInPageState extends State<SignInPage> {
       await ToastUtil.dismiss();
       if (!mounted) return;
 
-      final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
-      if (redirect != null && redirect.isNotEmpty) {
-        context.go(redirect);
-        _showInviteCodeDialog(email);
-        return;
-      }
-      final flow = context.read<UserStore>().myFlow;
-      if (flow != null && flow.status == 'success') {
-        context.go('/admin/mydinq');
-      } else {
-        context.go('/');
-      }
-      _showInviteCodeDialog(email);
+      _handleLoginSuccess();
     } catch (error) {
       await ToastUtil.dismiss();
       ToastUtil.show("Username or password is incorrect.");
@@ -453,6 +441,23 @@ class _SignInPageState extends State<SignInPage> {
           print('📊 Public Repos: ${user['public_repos']}');
           print('👥 Followers: ${user['followers']}');
         }
+
+        try {
+          await ToastUtil.showLoading();
+          if (!mounted) return;
+          await context.read<UserStore>().thirdPartyLogin(
+            provider: 'github',
+            idToken: result.token ?? '',
+          );
+          await ToastUtil.dismiss();
+          if (!mounted) return;
+
+          _handleLoginSuccess();
+        } catch (error) {
+          await ToastUtil.dismiss();
+          await ToastUtil.show("Login failed: $error");
+        }
+
         break;
 
       case GitHubSignInResultStatus.cancelled:
@@ -462,6 +467,26 @@ class _SignInPageState extends State<SignInPage> {
       case GitHubSignInResultStatus.failed:
         print('❌ Sign in failed: ${result.errorMessage}');
         break;
+    }
+  }
+
+  void _handleLoginSuccess({String? email}) {
+    final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
+    if (redirect != null && redirect.isNotEmpty) {
+      context.go(redirect);
+      if (email != null) {
+        _showInviteCodeDialog(email);
+      }
+      return;
+    }
+    final flow = context.read<UserStore>().myFlow;
+    if (flow != null && flow.status == 'success') {
+      context.go('/admin/mydinq');
+    } else {
+      context.go('/');
+    }
+    if (email != null) {
+      _showInviteCodeDialog(email);
     }
   }
 
