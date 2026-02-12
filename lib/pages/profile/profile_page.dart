@@ -167,7 +167,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    
+
+    // 从 Discover 进入时由路由提供 ViewerCardStore，此处 watch 使本页在 store 更新时重建
+    if (widget.showAppBar) {
+      context.watch<CardStore>();
+    }
 
     final isEditable = _userData != null ? _isEditable(_userData!) : false;
     final mainStore = context.watch<MainStore>();
@@ -266,6 +270,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                   child: CardGridStaggered(
                                     editable: !_isPreviewMode && isEditable,
                                     onPlaceholderClick: _handlePlaceholderClick,
+                                    cardStore: _cardStore,
                                   ),
                                 ),
                               ],

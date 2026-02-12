@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../common/asset_icon.dart';
 import '../../../pages/profile/profile_page.dart';
+import '../../../stores/card_store.dart';
+import '../../../stores/viewer_card_store.dart';
 
 /// 与 TSX DinqResultsView 对应，同步功能但只保留移动端样式
 class DinqResultsView extends StatefulWidget {
@@ -64,9 +67,13 @@ class _DinqResultsViewState extends State<DinqResultsView> {
   }
 
   void _openProfile(BuildContext context, String username) {
+    final viewerCardStore = context.read<ViewerCardStore>();
     Navigator.of(context).push<Object?>(
       MaterialPageRoute<Object?>(
-        builder: (_) => ProfilePage(username: username, showAppBar: true),
+        builder: (_) => ChangeNotifierProvider<CardStore>.value(
+          value: viewerCardStore,
+          child: ProfilePage(username: username, showAppBar: true),
+        ),
       ),
     );
   }

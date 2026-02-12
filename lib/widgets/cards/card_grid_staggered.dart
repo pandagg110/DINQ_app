@@ -17,12 +17,16 @@ class CardGridStaggered extends StatefulWidget {
     super.key,
     this.editable = false,
     this.onPlaceholderClick,
+    /// 显式传入时使用该 store 并监听其更新（用于看他人 profile 时注入 ViewerCardStore，确保 loading 完成后能正确刷新）
+    this.cardStore,
   });
 
   final bool editable;
 
   /// 点击占位卡片时回调；不传则不显示占位符或点击无效果
   final void Function(PlaceholderCardConfig config)? onPlaceholderClick;
+
+  final CardStore? cardStore;
 
   /// 与数据一致：4 列时 2x2=半宽并排，4x4=全宽
   static const int gridColumns = 4;
@@ -34,13 +38,24 @@ class CardGridStaggered extends StatefulWidget {
 class _CardGridStaggeredState extends State<CardGridStaggered> {
   @override
   Widget build(BuildContext context) {
+    if (widget.cardStore != null) {
+      return ListenableBuilder(
+        listenable: widget.cardStore!,
+        builder: (context, _) => _buildContent(context, widget.cardStore!),
+      );
+    }
     final cardStore = context.watch<CardStore>();
+    return _buildContent(context, cardStore);
+  }
+
+  Widget _buildContent(BuildContext context, CardStore cardStore) {
     final placeholderNotifier = context.watch<PlaceholderNotifier>();
     final userStore = context.watch<UserStore>();
     final settings = context.watch<SettingsStore>();
     final cards = cardStore.cards;
     final columns = CardGridStaggered.gridColumns;
     final updateCount = cardStore.updateCount;
+    debugPrint('updateCountupdateCount: ${updateCount}');
     final userId = userStore.user?.user.id;
 
     if (!cardStore.isInitialized) {

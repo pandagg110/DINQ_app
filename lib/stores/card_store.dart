@@ -596,6 +596,7 @@ class CardStore extends ChangeNotifier {
       // Filter out datasource type cards
       cards.removeWhere((card) => card.data.type.toLowerCase() == 'datasource');
 
+      updateCount++;
       notifyListeners();
     } catch (e) {
       debugPrint('CardStore: Error analyzing datasource: $e');
