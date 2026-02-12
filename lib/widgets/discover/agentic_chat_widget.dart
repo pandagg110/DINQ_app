@@ -116,7 +116,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   void _openPapersPage() {
     Navigator.of(context).push<Object?>(
       MaterialPageRoute<Object?>(builder: (_) => const RecommendedPapersPage()),
-    );
+    ).then((result) {
+      if (result != null && result is String) {
+        _handleSearch(query: result);
+      }
+    });
   }
 
   void _handleSearch({required String query, bool simple = false}) {
@@ -544,7 +548,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                             ),
                             opacity: _activeTool != null ? 0.0 : 1.0,
                             child: _activeTool == null
-                                ? const PromptTemplateGridWidget()
+                                ? PromptTemplateGridWidget(
+                                    onQueryFromPapers: (query) =>
+                                        _handleSearch(query: query),
+                                  )
                                 : const SizedBox.shrink(),
                           ),
                         ),

@@ -11,12 +11,15 @@ class RecommendedPapersWidget extends StatefulWidget {
     this.isFullView = false,
     this.onBack,
     this.onPeekClick,
+    this.onSearchAuthorAndBack,
   });
 
   final String? userId;
   final bool isFullView;
   final VoidCallback? onBack;
   final VoidCallback? onPeekClick;
+  /// 点击 Find Authors 时调用并传入搜索文案，调用方负责 pop 并触发搜索
+  final ValueChanged<String>? onSearchAuthorAndBack;
 
   @override
   State<RecommendedPapersWidget> createState() => _RecommendedPapersWidgetState();
@@ -81,9 +84,12 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
   }
 
   void _handleSearchAuthor(rec.RecommendedPaper paper) {
-    // TODO: 新开页面或填充搜索框
     final query = 'Find all authors from "${paper.data.title}"';
-    debugPrint('Search author: $query');
+    if (widget.onSearchAuthorAndBack != null) {
+      widget.onSearchAuthorAndBack!(query);
+    } else {
+      debugPrint('Search author: $query');
+    }
   }
 
   Widget _buildPlaceholder() {

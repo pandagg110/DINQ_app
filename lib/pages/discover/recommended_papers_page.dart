@@ -36,6 +36,7 @@ class RecommendedPapersPage extends StatelessWidget {
           userId: userId,
           isFullView: true,
           onBack: () => Navigator.of(context).pop(),
+          onSearchAuthorAndBack: (query) => Navigator.of(context).pop(query),
         ),
       ),
     );

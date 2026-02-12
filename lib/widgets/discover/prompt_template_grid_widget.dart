@@ -8,7 +8,10 @@ import '../../pages/discover/recommended_papers_page.dart';
 const int displayCount = 4;
 
 class PromptTemplateGridWidget extends StatefulWidget {
-  const PromptTemplateGridWidget({super.key});
+  const PromptTemplateGridWidget({super.key, this.onQueryFromPapers});
+
+  /// Papers 页通过 Find Authors 返回的搜索文案，用于自动发起搜索
+  final ValueChanged<String>? onQueryFromPapers;
 
   @override
   State<PromptTemplateGridWidget> createState() =>
@@ -99,7 +102,11 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
                 MaterialPageRoute<Object?>(
                   builder: (_) => const RecommendedPapersPage(),
                 ),
-              );
+              ).then((result) {
+                if (result != null && result is String) {
+                  widget.onQueryFromPapers?.call(result);
+                }
+              });
             },
           ),
           const SizedBox(height: 12),
