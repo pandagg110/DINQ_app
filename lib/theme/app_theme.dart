@@ -1,10 +1,17 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 class AppTheme {
   static const Color brandBlack = Color(0xFF171717);
   static const Color brandWhite = Color(0xFFFFFFFF);
   static const Color brandGray = Color(0xFFF9F9F9);
   static const Color brandLightGray = Color(0xFFEDEDE5);
+
+  /// 用于可能包含 emoji 的文案，确保系统用 emoji 字体渲染
+  static const List<String> emojiFontFallback = [
+    'Segoe UI Emoji',
+    'Apple Color Emoji',
+    'Noto Color Emoji',
+  ];
 
   static ThemeData get lightTheme {
     final base = ThemeData.light();

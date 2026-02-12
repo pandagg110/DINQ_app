@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/prompts.dart';
 import '../../stores/search_store.dart';
+import '../../pages/discover/recommended_papers_page.dart';
 
 const int displayCount = 4;
 
@@ -10,7 +11,8 @@ class PromptTemplateGridWidget extends StatefulWidget {
   const PromptTemplateGridWidget({super.key});
 
   @override
-  State<PromptTemplateGridWidget> createState() => _PromptTemplateGridWidgetState();
+  State<PromptTemplateGridWidget> createState() =>
+      _PromptTemplateGridWidgetState();
 }
 
 class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
@@ -75,92 +77,49 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
       return const SizedBox.shrink();
     }
 
-    // 仅移动端：2 列，最多显示 2 个
-    const crossAxisCount = 2;
+    // 单列垂直排列，只显示前3条 prompts
     const spacing = 12.0;
-    final count = _displayedPrompts.length.clamp(0, 2);
+    final displayCount = _displayedPrompts.length.clamp(0, 3);
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 768),
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      // margin: const EdgeInsets.only(top: 24),
+      // padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Prompt examples',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF9CA3AF),
+          // Featured prompt card with Explore button
+          _FeaturedPromptCard(
+            title: 'Find Talent in Research',
+            description: 'Discover top researchers',
+            onTap: () {
+              Navigator.of(context).push<Object?>(
+                MaterialPageRoute<Object?>(
+                  builder: (_) => const RecommendedPapersPage(),
                 ),
-              ),
-              TextButton(
-                onPressed: _isShuffling ? null : _handleShuffle,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_isShuffling)
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9CA3AF)),
-                        ),
-                      )
-                    else
-                      const Icon(
-                        Icons.refresh,
-                        size: 14,
-                        color: Color(0xFF9CA3AF),
-                      ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Shuffle',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF9CA3AF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final availableWidth = constraints.maxWidth;
-              final itemWidth = (availableWidth - (crossAxisCount - 1) * spacing) / crossAxisCount;
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: List.generate(count, (index) {
-                  final prompt = _displayedPrompts[index];
-                  return SizedBox(
-                    width: itemWidth,
-                    child: FadeTransition(
-                      key: ValueKey('${_shuffleKey}_${prompt.id}'),
-                      opacity: _animationController,
-                      child: _PromptCard(
-                        prompt: prompt,
-                        onTap: () => _handleFill(prompt.content),
-                      ),
-                    ),
-                  );
-                }),
               );
             },
+          ),
+          const SizedBox(height: 12),
+          Column(
+            children: List.generate(displayCount, (index) {
+              final prompt = _displayedPrompts[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index < displayCount - 1 ? spacing : 0,
+                ),
+                child: FadeTransition(
+                  key: ValueKey('${_shuffleKey}_${prompt.id}'),
+                  opacity: _animationController,
+                  child: _PromptCard(
+                    prompt: prompt,
+                    onTap: () => _handleFill(prompt.content),
+                  ),
+                ),
+              );
+            }),
           ),
         ],
       ),
@@ -169,10 +128,7 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
 }
 
 class _PromptCard extends StatefulWidget {
-  const _PromptCard({
-    required this.prompt,
-    required this.onTap,
-  });
+  const _PromptCard({required this.prompt, required this.onTap});
 
   final PromptTemplate prompt;
   final VoidCallback onTap;
@@ -182,67 +138,119 @@ class _PromptCard extends StatefulWidget {
 }
 
 class _PromptCardState extends State<_PromptCard> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: widget.onTap,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.5),
-            border: Border.all(
-              color: _isHovered ? const Color(0xFFD1D5DB) : const Color(0xFFE5E7EB),
-              width: 1,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24), // 更大的圆角，pill形状
+          border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
             ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
+          ],
+        ),
+        child: Text(
+          widget.prompt.title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF171717),
+            height: 1.4,
+          ),
+          textAlign: TextAlign.left,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+class _FeaturedPromptCard extends StatelessWidget {
+  const _FeaturedPromptCard({
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
+
+  final String title;
+  final String description;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Left side: Title and description
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF171717),
+                      height: 1.3,
                     ),
-                  ]
-                : null,
-          ),
-          child: Stack(
-            children: [
-              // Title（右侧留 16 避免与箭头图标重叠）
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Text(
-                  widget.prompt.title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isHovered ? const Color(0xFF171717) : const Color(0xFF6B7280),
-                    height: 1.5,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF6B7280),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Right side: Explore button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF171717),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Explore',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
-              // Arrow icon
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Transform.rotate(
-                  angle: -pi / 4, // 45° 朝向左上角
-                  child: Icon(
-                    Icons.arrow_upward,
-                    size: 16,
-                    color: const Color(0xFF9CA3AF),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

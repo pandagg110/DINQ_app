@@ -1,6 +1,8 @@
+import 'package:dinq_app/utils/color_util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../common/base_page.dart';
 import 'emoji_picker.dart';
 
 /// 消息输入组件
@@ -65,9 +67,7 @@ class _MessageInputState extends State<MessageInput> {
     final end = selection.end >= 0 ? selection.end : text.length;
     final newText = text.replaceRange(start, end, emoji);
     _controller.text = newText;
-    _controller.selection = TextSelection.collapsed(
-      offset: start + emoji.length,
-    );
+    _controller.selection = TextSelection.collapsed(offset: start + emoji.length);
   }
 
   @override
@@ -89,24 +89,27 @@ class _MessageInputState extends State<MessageInput> {
             onClose: () => setState(() => _showEmojiPicker = false),
           ),
 
-        // 输入框
+        // 输入框区域（与 H5 p-4 对应）
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              top: BorderSide(color: Color(0xFFE5E7EB), width: 0.5),
-            ),
-          ),
+          color: Colors.white,
+          padding: const EdgeInsets.all(16),
           child: SafeArea(
             top: false,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: const Color(0xFFD8D8D8), width: 1),
                 borderRadius: BorderRadius.circular(24),
-                color: Colors.white,
+                color: widget.disabled ? const Color(0xFFF9F9F9) : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              constraints: BoxConstraints(minHeight: 50),
+              padding: const EdgeInsets.only(left: 8, right: 4, bottom: 5),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -126,10 +129,11 @@ class _MessageInputState extends State<MessageInput> {
                             setState(() => _showEmojiPicker = false);
                           }
                         },
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
-                          height: 1.3,
+                          height: 1.2,
                           fontFamily: 'Geist',
+                          color: widget.disabled ? Colors.grey[400] : null,
                         ),
                         decoration: InputDecoration(
                           hintText: widget.placeholder,
@@ -139,10 +143,12 @@ class _MessageInputState extends State<MessageInput> {
                             fontFamily: 'Geist',
                           ),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                          enabledBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                          focusedErrorBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                           isDense: true,
                         ),
                       ),
@@ -152,37 +158,49 @@ class _MessageInputState extends State<MessageInput> {
                   // 表情按钮
                   GestureDetector(
                     onTap: widget.disabled ? null : _toggleEmojiPicker,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined,
-                        size: 22,
-                        color: widget.disabled ? Colors.grey[300] : Colors.grey[600],
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _showEmojiPicker ? Color(0xFF1487fa) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Color(0x12303030), width: 1),
+                      ),
+                      child: Center(
+                        child: AssetImageView(
+                          _showEmojiPicker ? "inbox_keyboard" : "inbox_emoji",
+                          width: 24,
+                          height: 24,
+                        ),
                       ),
                     ),
                   ),
 
-                  // 发送按钮
-                  GestureDetector(
-                    onTap: (_hasContent && !widget.disabled) ? _handleSend : null,
+                  const SizedBox(width: 8),
+
+                  // 发送按钮（与 H5 移动端 px-2.5 py-2.5 对应）
+                  NormalButton(
+                    onTap: () {
+                      if (_hasContent && !widget.disabled) {
+                        _handleSend();
+                      }
+                    },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: (_hasContent && !widget.disabled)
-                            ? Colors.black
-                            : Colors.grey[300],
+                            ? ColorUtil.textColor
+                            : Color(0x47303030),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SvgPicture.asset(
-                            'assets/icons/send-message.svg',
-                            width: 16,
-                            height: 16,
-                            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                          ),
-                        ],
+                      child: Center(
+                        child: SvgPicture.asset(
+                          'assets/icons/send-message.svg',
+                          width: 16,
+                          height: 16,
+                          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                        ),
                       ),
                     ),
                   ),

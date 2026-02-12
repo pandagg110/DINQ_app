@@ -37,14 +37,11 @@ class DiscoverService {
     if (responseBody is! ResponseBody) return;
     final stream = responseBody.stream;
 
-    final lineStream = (stream as Stream<List<int>>)
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
-
+    // 不用 transform(utf8.decoder)：Dio 的 stream 是 Stream<Uint8List>，与 Utf8Decoder 类型不兼容，改为逐 chunk 解码
     String buffer = '';
-    await for (final chunk in lineStream) {
-      buffer += chunk;
-      if (!chunk.endsWith('\n')) continue;
+    await for (final chunk in stream) {
+      buffer += utf8.decode(chunk);
+      if (!buffer.endsWith('\n')) continue;
       final lines = buffer.split('\n');
       buffer = lines.removeLast();
       for (final line in lines) {

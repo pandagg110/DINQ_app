@@ -383,7 +383,7 @@ ConversationDisplay getConversationDisplay(Conversation conversation, String cur
 String formatMessageDate(String? timestamp) {
   if (timestamp == null || timestamp.isEmpty) return '';
 
-  final date = DateTime.tryParse(timestamp);
+  final date = DateTime.tryParse(timestamp)?.toLocal();
   if (date == null) return '';
 
   final now = DateTime.now();
@@ -403,6 +403,13 @@ String formatMessageDate(String? timestamp) {
   // 更早 - 显示月日
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return '${months[date.month - 1]} ${date.day}';
+}
+
+/// 修复被截断的 UTF-8 字符串（移除末尾的替换字符 \uFFFD）
+String fixTruncatedUtf8(String? str) {
+  if (str == null || str.isEmpty) return '';
+  // 移除末尾连续的 Unicode 替换字符
+  return str.replaceAll(RegExp(r'\uFFFD+$'), '');
 }
 
 /// 获取日期分割文本

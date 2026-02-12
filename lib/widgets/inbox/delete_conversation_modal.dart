@@ -20,10 +20,8 @@ class DeleteConversationModal extends StatefulWidget {
     return showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => DeleteConversationModal(
-        conversationName: conversationName,
-        onConfirm: onConfirm,
-      ),
+      builder: (context) =>
+          DeleteConversationModal(conversationName: conversationName, onConfirm: onConfirm),
     );
   }
 
@@ -52,45 +50,39 @@ class _DeleteConversationModalState extends State<DeleteConversationModal> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 标题和关闭按钮
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Delete Conversation',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF171717),
-                        fontFamily: 'Geist',
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      child: const Icon(Icons.close, size: 24, color: Color(0xFF6B7280)),
-                    ),
-                  ),
-                ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  margin: EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 4),
+                  child: const Icon(Icons.close, size: 24, color: Color(0xFF6B7280)),
+                ),
+              ),
+            ),
+            Text(
+              'Delete Conversation',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF171717),
+                fontFamily: 'Geist',
               ),
             ),
 
+            const SizedBox(height: 8),
+
             // 描述
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Are you sure you want to delete this conversation? All messages will be permanently deleted and cannot be recovered.',
+                'Are you sure you want to delete this conversation?\n All messages will be permanently deleted and cannot be recovered.',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF4B5563),
@@ -100,11 +92,11 @@ class _DeleteConversationModalState extends State<DeleteConversationModal> {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 14),
 
             // 按钮
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Row(
                 children: [
                   // 取消按钮
@@ -114,8 +106,8 @@ class _DeleteConversationModalState extends State<DeleteConversationModal> {
                       child: Container(
                         height: 48,
                         decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF171717), width: 2),
-                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFD8D8D8), width: 1),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         alignment: Alignment.center,
                         child: const Text(
@@ -130,7 +122,7 @@ class _DeleteConversationModalState extends State<DeleteConversationModal> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   // 删除按钮
                   Expanded(
                     child: GestureDetector(
@@ -139,7 +131,7 @@ class _DeleteConversationModalState extends State<DeleteConversationModal> {
                         height: 48,
                         decoration: BoxDecoration(
                           color: const Color(0xFFDC2626),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         alignment: Alignment.center,
                         child: Text(
