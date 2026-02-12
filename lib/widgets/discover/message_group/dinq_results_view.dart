@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../common/asset_icon.dart';
+import '../../../pages/profile/profile_page.dart';
 
 /// 与 TSX DinqResultsView 对应，同步功能但只保留移动端样式
 class DinqResultsView extends StatefulWidget {
@@ -38,6 +39,36 @@ class _DinqResultsViewState extends State<DinqResultsView> {
       'huggingface': 'icons/search/lineicons/website.svg',
     };
     return iconMap[typeLower] ?? 'icons/search/lineicons/website.svg';
+  }
+
+  static String? _extractUsernameFromProfileUrl(String? profileUrl) {
+    if (profileUrl == null || profileUrl.isEmpty) return null;
+    try {
+      if (profileUrl.startsWith('http://') || profileUrl.startsWith('https://')) {
+        final uri = Uri.parse(profileUrl);
+        final path = uri.path;
+        if (path.isNotEmpty && path.startsWith('/')) {
+          final parts = path.substring(1).split('/');
+          return parts.isNotEmpty ? parts[0] : null;
+        }
+        return path.isEmpty ? null : path;
+      }
+      if (profileUrl.startsWith('/')) {
+        final parts = profileUrl.substring(1).split('/');
+        return parts.isNotEmpty ? parts[0] : null;
+      }
+      return profileUrl;
+    } catch (e) {
+      return profileUrl;
+    }
+  }
+
+  void _openProfile(BuildContext context, String username) {
+    Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(
+        builder: (_) => ProfilePage(username: username, showAppBar: true),
+      ),
+    );
   }
 
   @override
@@ -292,14 +323,21 @@ class _DinqResultsViewState extends State<DinqResultsView> {
       if (verificationStatus['social']?['verified'] == true) verifiedCount++;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
+    final username = _extractUsernameFromProfileUrl(profileUrl);
+
+    return InkWell(
+      onTap: username != null
+          ? () => _openProfile(context, username)
+          : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
@@ -312,10 +350,8 @@ class _DinqResultsViewState extends State<DinqResultsView> {
                   children: [
                     // 头像
                     GestureDetector(
-                      onTap: profileUrl != null
-                          ? () {
-                              // TODO: 打开 profile
-                            }
+                      onTap: username != null
+                          ? () => _openProfile(context, username)
                           : null,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
@@ -360,10 +396,8 @@ class _DinqResultsViewState extends State<DinqResultsView> {
                         children: [
                           Flexible(
                             child: GestureDetector(
-                              onTap: profileUrl != null
-                                  ? () {
-                                      // TODO: 打开 profile
-                                    }
+                              onTap: username != null
+                                  ? () => _openProfile(context, username)
                                   : null,
                               child: Text(
                                 name,
@@ -466,10 +500,8 @@ class _DinqResultsViewState extends State<DinqResultsView> {
                           height: 28,
                           child: IconButton(
                             icon: const Icon(Icons.open_in_new, size: 16),
-                            onPressed: profileUrl != null
-                                ? () {
-                                    // TODO: 打开 profile
-                                  }
+                            onPressed: username != null
+                                ? () => _openProfile(context, username)
                                 : null,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -691,6 +723,7 @@ class _DinqResultsViewState extends State<DinqResultsView> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

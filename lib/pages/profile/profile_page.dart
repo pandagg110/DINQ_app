@@ -20,9 +20,15 @@ import '../../widgets/profile/card_toolbar.dart';
 import '../../widgets/profile/preview_edit_toggle.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key, required this.username});
+  const ProfilePage({
+    super.key,
+    required this.username,
+    this.showAppBar = false,
+  });
 
   final String username;
+  /// 为 true 时显示顶部 AppBar（含返回按钮），便于从 Discover 等 push 进入后返回
+  final bool showAppBar;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -142,7 +148,21 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: widget.showAppBar
+            ? AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                title: const Text('Profile'),
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF171717),
+                elevation: 0,
+              )
+            : null,
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
     
 
@@ -163,6 +183,23 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         child: Stack(
           children: [
             Scaffold(
+              appBar: widget.showAppBar
+                  ? AppBar(
+                      leading: IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      title: Text(
+                        (_userData?.name ?? '').isNotEmpty
+                            ? _userData!.name
+                            : widget.username,
+                      ),
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF171717),
+                      elevation: 0,
+                      scrolledUnderElevation: 0,
+                    )
+                  : null,
               body: SafeArea(
                 bottom: false, // 底部由 MainTabBottomView 处理
                 child: Column(
@@ -180,8 +217,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                           }
                         },
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.only(
-                            top: 68, // 为固定的 Preview/Edit 切换按钮留出空间（44 + 24）
+                          padding: EdgeInsets.only(
+                            // showAppBar 时无顶部悬浮切换按钮，用 24；否则为切换按钮留出空间（44 + 24）= 68
+                            top: widget.showAppBar ? 24 : 68,
                             bottom: ConstantsTool.bottomTabHeight + 32,
                           ),
                           child: Column(
