@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'router/app_router.dart';
 import 'stores/card_store.dart';
+import 'stores/viewer_card_store.dart';
 import 'stores/chat_history_store.dart';
 import 'stores/main_store.dart';
 import 'stores/messages_store.dart';
@@ -27,6 +28,7 @@ class DinqApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsStore()),
         ChangeNotifierProvider.value(value: _userStore),
         ChangeNotifierProvider(create: (_) => CardStore()),
+        ChangeNotifierProvider(create: (_) => ViewerCardStore()),
         ChangeNotifierProvider(create: (_) => MessagesStore()),
         ChangeNotifierProvider(create: (_) => NotificationsStore()),
         ChangeNotifierProvider(create: (_) => SearchStore()),

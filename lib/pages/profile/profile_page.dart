@@ -7,6 +7,7 @@ import '../../services/profile_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/main_store.dart';
 import '../../stores/user_store.dart';
+import '../../stores/viewer_card_store.dart';
 import '../../utils/add_image_card.dart';
 import '../../widgets/cards/card_grid_staggered.dart';
 import '../../widgets/cards/factory/card_registry.dart';
@@ -48,7 +49,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _cardStore = context.read<CardStore>();
+    _cardStore = widget.showAppBar
+        ? context.read<ViewerCardStore>()
+        : context.read<CardStore>();
     _loadData();
   }
 
@@ -71,7 +74,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadData() async {
-    final cardStore = context.read<CardStore>();
+    final cardStore = _cardStore!;
     try {
       final userData = await _profileService.getUserData(widget.username);
       if (!mounted) return;
@@ -167,21 +170,22 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     
 
     final isEditable = _userData != null ? _isEditable(_userData!) : false;
-    final cardStore = context.watch<CardStore>();
     final mainStore = context.watch<MainStore>();
-    return Portal(
-      child: GestureDetector(
+    return ChangeNotifierProvider<CardStore>.value(
+      value: _cardStore!,
+      child: Portal(
+        child: GestureDetector(
         onTap: () {
           // 点击页面外部区域时，清除选中状态
           if (!_isPreviewMode &&
               isEditable &&
-              cardStore.selectedCardIds.isNotEmpty) {
-            cardStore.clearSelection();
+              _cardStore!.selectedCardIds.isNotEmpty) {
+            _cardStore!.clearSelection();
           }
         },
-        behavior: HitTestBehavior.deferToChild,
-        child: Stack(
-          children: [
+          behavior: HitTestBehavior.deferToChild,
+          child: Stack(
+            children: [
             Scaffold(
               appBar: widget.showAppBar
                   ? AppBar(
@@ -309,29 +313,30 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               ),
             // 编辑模式下：有卡片选中时显示 CardToolbar，否则显示 FloatingToolbar
             if (!_isPreviewMode && isEditable) ...[
-              if (cardStore.selectedCardIds.isNotEmpty) ...[
+              if (_cardStore!.selectedCardIds.isNotEmpty) ...[
                 Builder(
                   builder: (context) {
-                    final selectedId = cardStore.selectedCardIds.first;
-                    final idx = cardStore.cards.indexWhere(
+                    final selectedId = _cardStore!.selectedCardIds.first;
+                    final idx = _cardStore!.cards.indexWhere(
                       (c) => c.id == selectedId,
                     );
                     if (idx < 0) return const SizedBox.shrink();
-                    return CardToolbar(card: cardStore.cards[idx]);
+                    return CardToolbar(card: _cardStore!.cards[idx]);
                   },
                 ),
               ] else
                 FloatingToolbar(
                   isMobile: true,
-                  isSaving: cardStore.isSaving,
+                  isSaving: _cardStore!.isSaving,
                   username: widget.username,
                   userData: _userData,
-                  cards: cardStore.cards,
+                  cards: _cardStore!.cards,
                 ),
             ],
           ],
         ),
       ),
+    ),
     );
   }
 
