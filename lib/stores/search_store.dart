@@ -30,6 +30,8 @@ class SearchStore extends ChangeNotifier {
   Map<String, dynamic>? pendingConversation;
   /// 重置版本：clearAll 时递增，AgenticChat 据此清空消息
   int resetVersion = 0;
+  /// Extra type 字符串（默认 null）
+  String? extraType;
 
   int _nextId() {
     _idCounter += 1;
@@ -137,6 +139,7 @@ class SearchStore extends ChangeNotifier {
     pendingQuery = null;
     currentConversationId = null;
     pendingConversation = null;
+    extraType = null;
     resetVersion += 1;
     notifyListeners();
   }
@@ -173,6 +176,18 @@ class SearchStore extends ChangeNotifier {
 
   void clearPendingFill() {
     pendingFill = null;
+    notifyListeners();
+  }
+
+  /// 设置 extra type 字符串
+  void setExtraType(String? value) {
+    extraType = value;
+    notifyListeners();
+  }
+
+  /// 清除 extra type 字符串
+  void clearExtraType() {
+    extraType = null;
     notifyListeners();
   }
 

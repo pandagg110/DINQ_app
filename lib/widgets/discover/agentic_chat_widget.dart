@@ -5,6 +5,7 @@ import '../../services/discover_service.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
+import 'discover_quick_actions_widget.dart';
 import 'prompt_template_grid_widget.dart';
 import '../../pages/discover/recommended_papers_page.dart';
 import 'agentic_search_logic.dart';
@@ -557,6 +558,21 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   const SizedBox(height: 16),
                 ],
                 // 固定在底部的搜索框（始终显示）
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 768),
+                    child: DiscoverQuickActionsWidget(
+                      onFindAdvisor: () {
+                        // TODO: 打开 Find Advisor 流程（如与搜索框顾问入口一致）
+                      },
+                      onSalaryAnalysis: () {
+                        // TODO: 打开 Salary Analysis 流程
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Center(
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 768),

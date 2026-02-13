@@ -94,22 +94,22 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Featured prompt card with Explore button
-          _FeaturedPromptCard(
-            title: 'Find Talent in Research',
-            description: 'Discover top researchers',
-            onTap: () {
-              Navigator.of(context).push<Object?>(
-                MaterialPageRoute<Object?>(
-                  builder: (_) => const RecommendedPapersPage(),
-                ),
-              ).then((result) {
-                if (result != null && result is String) {
-                  widget.onQueryFromPapers?.call(result);
-                }
-              });
-            },
-          ),
-          const SizedBox(height: 12),
+          // _FeaturedPromptCard(
+          //   title: 'Find Talent in Research',
+          //   description: 'Discover top researchers',
+          //   onTap: () {
+          //     Navigator.of(context).push<Object?>(
+          //       MaterialPageRoute<Object?>(
+          //         builder: (_) => const RecommendedPapersPage(),
+          //       ),
+          //     ).then((result) {
+          //       if (result != null && result is String) {
+          //         widget.onQueryFromPapers?.call(result);
+          //       }
+          //     });
+          //   },
+          // ),
+          // const SizedBox(height: 12),
           Column(
             children: List.generate(displayCount, (index) {
               final prompt = _displayedPrompts[index];
