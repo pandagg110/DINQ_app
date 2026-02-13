@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/recommendation_models.dart' as rec;
 import '../../services/recommendation_service.dart';
 
@@ -544,9 +545,30 @@ class _PaperCardState extends State<_PaperCard> {
                   _ActionChip(
                     icon: Icons.open_in_new,
                     label: 'PDF',
-                    onTap: () {
+                    onTap: () async {
                       widget.onOpenPaper(widget.paper);
-                      // TODO: url_launcher
+                      final url = paperUrl;
+                      try {
+                        final launched = await launchUrl(
+                          Uri.parse(url),
+                          mode: LaunchMode.externalApplication,
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                launched ? '下载完成' : '无法打开链接',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('无法打开链接')),
+                          );
+                        }
+                      }
                     },
                   ),
               ],
