@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../stores/chat_history_store.dart';
+import 'delete_conversation_confirm_dialog.dart';
 import 'rename_dialog.dart';
 
 /// 遮罩路径：全屏减去 item 内容区（圆角矩形），使选中内容不模糊
@@ -156,10 +157,29 @@ class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
                   InkWell(
                     onTap: () {
                       final id = widget.conversation.id;
+                      final messenger = ScaffoldMessenger.maybeOf(context);
                       overlayEntry.remove();
-                      // 下一帧再执行删除（与 TSX handleDelete 一致：调用 store.deleteConversation(id)）
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        widget.onDelete(id);
+                      showDialog<bool>(
+                        context: context,
+                        useRootNavigator: true,
+                        barrierDismissible: true,
+                        builder: (ctx) => DeleteConversationConfirmDialog(
+                          onCancel: () =>
+                              Navigator.of(ctx, rootNavigator: true).pop(false),
+                          onConfirm: () =>
+                              Navigator.of(ctx, rootNavigator: true).pop(true),
+                        ),
+                      ).then((confirmed) {
+                        if (confirmed == true) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            widget.onDelete(id).then((ok) {
+                              if (ok == false && messenger != null) {
+                                messenger.showSnackBar(const SnackBar(
+                                    content: Text('删除失败，请重试')));
+                              }
+                            });
+                          });
+                        }
                       });
                     },
                     borderRadius: const BorderRadius.vertical(
