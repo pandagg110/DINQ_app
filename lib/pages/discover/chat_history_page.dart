@@ -122,14 +122,20 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                   ),
                 ),
                 // Search box - 始终显示（与 list 一致）
-                // Conversation list
+                // Conversation list：用 Selector 依赖 conversations，列表更新时必重建
                 Expanded(
-                  child: _buildList(
-                    context,
-                    chatStore: chatStore,
-                    basePlan: basePlan,
-                    isProOrPlus: isProOrPlus,
-                    onItemClick: (item) => _handleItemClick(context, item),
+                  child: Selector<ChatHistoryStore, List<ConversationItem>>(
+                    selector: (_, store) => store.conversations,
+                    builder: (context, _, child) {
+                      final chatStore = context.watch<ChatHistoryStore>();
+                      return _buildList(
+                        context,
+                        chatStore: chatStore,
+                        basePlan: basePlan,
+                        isProOrPlus: isProOrPlus,
+                        onItemClick: (item) => _handleItemClick(context, item),
+                      );
+                    },
                   ),
                 ),
                 // Footer - Total for Pro/Plus
@@ -295,11 +301,13 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       );
     }
 
+    final list = chatStore.conversations;
     return ListView.builder(
+      key: ValueKey('conversations_${list.length}_${list.hashCode}'),
       padding: const EdgeInsets.symmetric(vertical: 4),
-      itemCount: chatStore.conversations.length + (chatStore.hasMore() ? 1 : 0),
+      itemCount: list.length + (chatStore.hasMore() ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index >= chatStore.conversations.length) {
+        if (index >= list.length) {
           if (chatStore.hasMore()) {
             chatStore.loadMore();
             return const Padding(
@@ -309,8 +317,9 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           }
           return const SizedBox.shrink();
         }
-        final item = chatStore.conversations[index];
+        final item = list[index];
         return ChatHistoryItemWidget(
+          key: ValueKey('conv_${item.id}'),
           conversation: item,
           isActive: item.id == chatStore.activeConversationId,
           onClick: () => onItemClick(item),

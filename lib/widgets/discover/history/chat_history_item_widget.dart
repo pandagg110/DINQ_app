@@ -3,17 +3,19 @@ import 'package:flutter/material.dart';
 import '../../../../stores/chat_history_store.dart';
 import 'rename_dialog.dart';
 
-/// 遮罩路径：全屏减去 item 矩形，使选中 item 区域不模糊
+/// 遮罩路径：全屏减去 item 内容区（圆角矩形），使选中内容不模糊
 class _BlurHoleClipper extends CustomClipper<Path> {
-  _BlurHoleClipper(this.screenSize, this.itemRect);
+  _BlurHoleClipper(this.screenSize, this.contentRRect);
 
   final Size screenSize;
-  final Rect itemRect;
+  final RRect contentRRect;
 
   @override
   Path getClip(Size size) {
-    final screen = Rect.fromLTWH(0, 0, screenSize.width, screenSize.height);
-    return Path.combine(PathOperation.difference, Path()..addRect(screen), Path()..addRect(itemRect));
+    final screen = Path()
+      ..addRect(Rect.fromLTWH(0, 0, screenSize.width, screenSize.height));
+    final hole = Path()..addRRect(contentRRect);
+    return Path.combine(PathOperation.difference, screen, hole);
   }
 
   @override
@@ -44,10 +46,6 @@ class ChatHistoryItemWidget extends StatefulWidget {
 }
 
 class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
-  Future<void> _handleDelete() async {
-    await widget.onDelete(widget.conversation.id);
-  }
-
   void _openRenameDialog() {
     showDialog<void>(
       context: context,
@@ -69,16 +67,24 @@ class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
     if (overlayBox == null) return;
     final screenSize = overlayBox.size;
     final itemTopLeft = box.localToGlobal(Offset.zero);
-    const holeMargin = 2.0;
-    final itemRect = Rect.fromLTWH(
-      itemTopLeft.dx - holeMargin,
-      itemTopLeft.dy - holeMargin,
-      box.size.width + holeMargin * 2,
-      box.size.height + holeMargin * 2,
+    // 仅内容区，不含 padding：与 build 中 Padding(horizontal: 12, vertical: 4) 一致
+    const contentPaddingH = 12.0;
+    const contentPaddingV = 4.0;
+    const contentRadius = 8.0;
+    final contentRect = Rect.fromLTWH(
+      itemTopLeft.dx + contentPaddingH,
+      itemTopLeft.dy + contentPaddingV,
+      box.size.width - contentPaddingH * 2,
+      box.size.height - contentPaddingV * 2,
+    );
+    final contentRRect = RRect.fromRectAndRadius(
+      contentRect,
+      const Radius.circular(contentRadius),
     );
     const gap = 8.0;
-    final menuTopLeft = box.localToGlobal(Offset(0, box.size.height + gap));
-    const menuWidth = 160.0;
+    // 菜单与内容区左对齐，在内容区下方
+    final menuTopLeft = Offset(contentRect.left, contentRect.bottom + gap);
+    final menuWidth = contentRect.width.clamp(140.0, 200.0);
     const menuItemHeight = 48.0;
 
     // 同一 OverlayEntry：先模糊遮罩，再叠放自定义菜单，保证菜单在遮罩之上
@@ -92,12 +98,10 @@ class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
               behavior: HitTestBehavior.opaque,
               onTap: () => overlayEntry.remove(),
               child: ClipPath(
-                clipper: _BlurHoleClipper(screenSize, itemRect),
+                clipper: _BlurHoleClipper(screenSize, contentRRect),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                  child: Container(
-                    color: const Color(0x33000000),
-                  ),
+                  child: Container(color: const Color(0x33000000)),
                 ),
               ),
             ),
@@ -118,16 +122,32 @@ class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
                       overlayEntry.remove();
                       _openRenameDialog();
                     },
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                     child: SizedBox(
                       height: menuItemHeight,
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined, size: 20, color: Color(0xFF171717)),
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 20,
+                              color: Color(0xFF171717),
+                            ),
                             SizedBox(width: 12),
-                            Text('Rename', style: TextStyle(fontSize: 14, color: Color(0xFF171717), fontWeight: FontWeight.w500)),
+                            Text(
+                              'Rename',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF171717),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -135,19 +155,39 @@ class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
                   ),
                   InkWell(
                     onTap: () {
+                      final id = widget.conversation.id;
                       overlayEntry.remove();
-                      _handleDelete();
+                      // 下一帧再执行删除（与 TSX handleDelete 一致：调用 store.deleteConversation(id)）
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        widget.onDelete(id);
+                      });
                     },
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(16),
+                    ),
                     child: SizedBox(
                       height: menuItemHeight,
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, size: 20, color: Color(0xFFDC2626)),
+                            Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: Color(0xFFDC2626),
+                            ),
                             SizedBox(width: 12),
-                            Text('Delete', style: TextStyle(fontSize: 14, color: Color(0xFFDC2626), fontWeight: FontWeight.w500)),
+                            Text(
+                              'Delete',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFFDC2626),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -171,34 +211,40 @@ class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.isBlurred ? null : widget.onClick,
-              onLongPress: widget.isBlurred ? null : _showContextMenu,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: widget.isActive
-                      ? const Color(0xFF171717).withOpacity(0.05)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        displayText,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF374151),
+          child: SizedBox(
+            height: 36,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.isBlurred ? null : widget.onClick,
+                onLongPress: widget.isBlurred ? null : _showContextMenu,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: widget.isActive
+                        ? const Color(0xFF171717).withOpacity(0.05)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          displayText,
+                          style: const TextStyle(
+                            fontFamily: 'Geist',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFF374151),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -212,9 +258,7 @@ class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
                 borderRadius: BorderRadius.circular(8),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                  child: Container(
-                    color: Colors.white.withOpacity(0.5),
-                  ),
+                  child: Container(color: Colors.white.withOpacity(0.5)),
                 ),
               ),
             ),

@@ -174,11 +174,9 @@ class DiscoverService {
     return response.data as Map<String, dynamic>;
   }
 
-  /// DELETE /discover/conversations/:id — 删除会话
-  Future<Map<String, dynamic>> deleteConversation(int id) async {
-    final response = await _dio.delete<Map<String, dynamic>>(
-      '/discover/conversations/$id',
-    );
-    return response.data as Map<String, dynamic>;
+  /// DELETE /discover/conversations/:id — 删除会话（与 example discoverApi.deleteConversation 对齐）
+  Future<void> deleteConversation(int id) async {
+    await _dio.delete<void>('/discover/conversations/$id');
+    // 后端可能返回 code:0 data:null，不依赖 response 结构
   }
 }
