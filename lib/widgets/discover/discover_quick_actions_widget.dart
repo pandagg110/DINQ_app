@@ -24,15 +24,15 @@ class DiscoverQuickActionsWidget extends StatelessWidget {
         _ActionChip(
           icon: Icons.school_outlined,
           label: 'Find Advisor',
-          extraType: 'advisor',
+          activeTool: 'find-advisor',
           onTap: onFindAdvisor,
         ),
-        const SizedBox(width: _spacing),
-        _ActionChip(
-          icon: Icons.bar_chart_outlined,
-          label: 'Salary Analysis',
-          onTap: onSalaryAnalysis,
-        ),
+        // const SizedBox(width: _spacing),
+        // _ActionChip(
+        //   icon: Icons.bar_chart_outlined,
+        //   label: 'Salary Analysis',
+        //   onTap: onSalaryAnalysis,
+        // ),
       ],
     );
   }
@@ -42,13 +42,13 @@ class _ActionChip extends StatelessWidget {
   const _ActionChip({
     required this.icon,
     required this.label,
-    this.extraType,
+    this.activeTool,
     this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final String? extraType;
+  final String? activeTool;
   final VoidCallback? onTap;
 
   static const Color _bgColor = Color(0xFFFFFFFF);
@@ -62,9 +62,9 @@ class _ActionChip extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            if (extraType != null) {
+            if (activeTool != null) {
               final searchStore = context.read<SearchStore>();
-              searchStore.setExtraType(extraType);
+              searchStore.setActiveTool(activeTool);
             }
             onTap?.call();
           },

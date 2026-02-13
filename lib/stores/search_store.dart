@@ -32,6 +32,8 @@ class SearchStore extends ChangeNotifier {
   int resetVersion = 0;
   /// Extra type 字符串（默认 null）
   String? extraType;
+  /// Active tool（'find-advisor' 或 null）
+  String? activeTool;
 
   int _nextId() {
     _idCounter += 1;
@@ -140,6 +142,7 @@ class SearchStore extends ChangeNotifier {
     currentConversationId = null;
     pendingConversation = null;
     extraType = null;
+    activeTool = null;
     resetVersion += 1;
     notifyListeners();
   }
@@ -188,6 +191,18 @@ class SearchStore extends ChangeNotifier {
   /// 清除 extra type 字符串
   void clearExtraType() {
     extraType = null;
+    notifyListeners();
+  }
+
+  /// 设置 active tool
+  void setActiveTool(String? tool) {
+    activeTool = tool;
+    notifyListeners();
+  }
+
+  /// 清除 active tool
+  void clearActiveTool() {
+    activeTool = null;
     notifyListeners();
   }
 

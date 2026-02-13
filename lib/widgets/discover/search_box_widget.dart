@@ -93,7 +93,6 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   int _placeholderIndex = 0;
   Timer? _placeholderTimer;
   bool _isFocused = false;
-  String? _activeTool; // 'find-advisor' or null
   double _textFieldHeight = minHeight;
   bool _showToolsMenu = false;
 
@@ -140,7 +139,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
 
     void rotatePlaceholder() {
       if (!mounted) return;
-      final placeholders = _currentPlaceholders;
+      final placeholders = _currentPlaceholders(context);
       setState(() {
         _placeholderIndex = (_placeholderIndex + 1) % placeholders.length;
       });
@@ -174,20 +173,22 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     }
   }
 
-  List<String> get _currentPlaceholders {
-    if (_activeTool == 'find-advisor') {
+  List<String> _currentPlaceholders(BuildContext context) {
+    final searchStore = context.read<SearchStore>();
+    if (searchStore.activeTool == 'find-advisor') {
       return advisorPlaceholders;
     }
     return widget.talentMode == 'dinq' ? dinqPlaceholders : globalPlaceholders;
   }
 
-  String get _currentPlaceholder {
-    return _currentPlaceholders[_placeholderIndex];
+  String _currentPlaceholder(BuildContext context) {
+    return _currentPlaceholders(context)[_placeholderIndex];
   }
 
   void _handleSearch({bool simple = false}) {
+    final searchStore = context.read<SearchStore>();
     // Advisor 模式
-    if (_activeTool == 'find-advisor') {
+    if (searchStore.activeTool == 'find-advisor') {
       if (_advisorResumeUrl.isEmpty || _advisorUploading) return;
       widget.onAdvisorSearch?.call(
         AdvisorFormData(
@@ -201,12 +202,12 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       // 重置状态
       _controller.clear();
       setState(() {
-        _activeTool = null;
         _advisorFile = null;
         _advisorResumeUrl = '';
         _advisorCountries = [];
         _advisorUploadError = '';
       });
+      searchStore.clearActiveTool();
       _adjustHeight();
       widget.onActiveToolChange?.call(null);
       return;
@@ -285,10 +286,11 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   }
 
   void _handleToolSelect(String toolId) {
+    final searchStore = context.read<SearchStore>();
     setState(() {
       _showToolsMenu = false;
-      _activeTool = toolId;
     });
+    searchStore.setActiveTool(toolId);
     widget.onActiveToolChange?.call(toolId);
 
     // 清除斜杠
@@ -299,13 +301,14 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   }
 
   void _handleClearTool() {
+    final searchStore = context.read<SearchStore>();
     setState(() {
-      _activeTool = null;
       _advisorFile = null;
       _advisorResumeUrl = '';
       _advisorUploadError = '';
       _advisorCountries = [];
     });
+    searchStore.clearActiveTool();
     widget.onActiveToolChange?.call(null);
     _focusNode.requestFocus();
   }
@@ -335,7 +338,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
         final inputLength = _controller.text.length;
         final showLimit = inputLength >= showLimitThreshold;
         final isGlass = widget.variant == 'glass';
-        final canSearch = _activeTool == 'find-advisor'
+        final canSearch = searchStore.activeTool == 'find-advisor'
             ? (_advisorResumeUrl.isNotEmpty && !_advisorUploading)
             : _controller.text.trim().isNotEmpty;
 
@@ -376,7 +379,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (_activeTool == 'find-advisor') _buildAdvisorOptions(),
+                      if (searchStore.activeTool == 'find-advisor') _buildAdvisorOptions(),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
                         child: ConstrainedBox(
@@ -391,7 +394,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                               maxLines: null,
                               maxLength: maxLength,
                               decoration: InputDecoration(
-                                hintText: _currentPlaceholder,
+                                hintText: _currentPlaceholder(context),
                                 hintStyle: const TextStyle(
                                   color: Color(0xFF9CA3AF),
                                   fontSize: 14,
@@ -410,7 +413,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                               onChanged: (value) {
                                 _adjustHeight();
                                 widget.onChanged?.call(value);
-                                if (value == '/' && _activeTool == null) {
+                                if (value == '/' && searchStore.activeTool == null) {
                                   setState(() => _showToolsMenu = true);
                                 } else if (_showToolsMenu && value != '/') {
                                   setState(() => _showToolsMenu = false);
@@ -468,16 +471,16 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                 children: [
                                   Row(
                                     children: [
-                                      if (_activeTool == null)
+                                      if (searchStore.activeTool == null)
                                         _buildTalentModeSelector(),
-                                      // if (_activeTool == null)
+                                      // if (searchStore.activeTool == null)
                                       //   const SizedBox(width: 8),
                                       // _buildToolsButton(),
                                     ],
                                   ),
                                   Row(
                                     children: [
-                                      if (_activeTool == 'find-advisor')
+                                      if (searchStore.activeTool == 'find-advisor')
                                         TextButton(
                                           onPressed: _handleClearTool,
                                           style: TextButton.styleFrom(
@@ -496,7 +499,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                             ),
                                           ),
                                         ),
-                                      if (_activeTool == 'find-advisor')
+                                      if (searchStore.activeTool == 'find-advisor')
                                         const SizedBox(width: 12),
                                       _buildSearchButton(isLoading, canSearch),
                                     ],
@@ -719,13 +722,14 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   }
 
   Widget _buildTalentModeSelector() {
-    if (_activeTool != null) {
+    final searchStore = context.read<SearchStore>();
+    if (searchStore.activeTool != null) {
       return const SizedBox.shrink();
     }
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 300),
-      opacity: _activeTool != null ? 0 : 1,
+      opacity: searchStore.activeTool != null ? 0 : 1,
       child: GestureDetector(
         onTap: () {
           // 切换模式
@@ -811,6 +815,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
 
 
   Widget _buildToolsButton() {
+    final searchStore = context.read<SearchStore>();
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -846,7 +851,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                         size: 16,
                         color: Color(0xFF6B7280),
                       ),
-                      if (_activeTool == null)
+                      if (searchStore.activeTool == null)
                         const Padding(
                           padding: EdgeInsets.only(left: 6),
                           child: Text(
@@ -902,7 +907,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           ],
         ),
         // Advisor badge (显示在 Tools 按钮旁边)
-        if (_activeTool == 'find-advisor')
+        if (searchStore.activeTool == 'find-advisor')
           Padding(
             padding: const EdgeInsets.only(left: 6),
             child: _buildAdvisorBadge(),

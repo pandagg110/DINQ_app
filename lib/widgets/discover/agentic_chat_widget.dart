@@ -234,6 +234,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                     _buildInitialState(
                       userName,
                       logic,
+                      searchStore: searchStore,
                       hasMessages: hasMessages,
                       userId: user?.user.id,
                     ),
@@ -383,6 +384,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   Widget _buildInitialState(
     String userName,
     AgenticSearchLogic logic, {
+    required SearchStore searchStore,
     required bool hasMessages,
     String? userId,
   }) {
@@ -558,21 +560,23 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   const SizedBox(height: 16),
                 ],
                 // 固定在底部的搜索框（始终显示）
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 768),
-                    child: DiscoverQuickActionsWidget(
-                      onFindAdvisor: () {
-                        // TODO: 打开 Find Advisor 流程（如与搜索框顾问入口一致）
-                      },
-                      onSalaryAnalysis: () {
-                        // TODO: 打开 Salary Analysis 流程
-                      },
+                if (searchStore.activeTool != 'find-advisor')
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 768),
+                      child: DiscoverQuickActionsWidget(
+                        onFindAdvisor: () {
+                          // TODO: 打开 Find Advisor 流程（如与搜索框顾问入口一致）
+                        },
+                        onSalaryAnalysis: () {
+                          // TODO: 打开 Salary Analysis 流程
+                        },
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                if (searchStore.activeTool != 'find-advisor')
+                  const SizedBox(height: 16),
                 Center(
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 768),
