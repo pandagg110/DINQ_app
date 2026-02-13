@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_constants.dart';
 import '../../services/discover_service.dart';
+import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
 import 'prompt_template_grid_widget.dart';
-import '../../pages/discover/chat_history_page.dart';
 import '../../pages/discover/recommended_papers_page.dart';
 import 'agentic_search_logic.dart';
 import 'message_group_view.dart';
@@ -403,19 +403,15 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   children: [
                     TextButton.icon(
                       onPressed: () {
-                        Navigator.of(context).push<Object?>(
-                          MaterialPageRoute<Object?>(
-                            builder: (_) => const ChatHistoryPage(),
-                          ),
-                        );
+                        context.read<ChatHistoryStore>().setMobileOpen(true);
                       },
-                      icon: const Icon(
-                        Icons.history,
-                        size: 20,
-                        color: Color.fromARGB(255, 0, 0, 0),
+                      icon: Image.asset(
+                        'assets/icons/discover/history.png',
+                        width: 20,
+                        height: 20,
                       ),
                       label: const Text(
-                        'History',
+                        '',
                         style: TextStyle(
                           fontSize: 14,
                           color: Color.fromARGB(255, 0, 0, 0),

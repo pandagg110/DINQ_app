@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../stores/chat_history_store.dart';
+import '../../pages/discover/chat_history_page.dart';
 
-class ChatHistoryMobileWidget extends StatelessWidget {
+/// 左侧滑出的聊天历史弹框，内容为 ChatHistoryPage，带滑入动画
+class ChatHistoryMobileWidget extends StatefulWidget {
   const ChatHistoryMobileWidget({
     super.key,
     required this.isOpen,
@@ -13,60 +13,93 @@ class ChatHistoryMobileWidget extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
+  State<ChatHistoryMobileWidget> createState() => _ChatHistoryMobileWidgetState();
+}
+
+class _ChatHistoryMobileWidgetState extends State<ChatHistoryMobileWidget>
+    with SingleTickerProviderStateMixin {
+  static const _duration = Duration(milliseconds: 280);
+
+  late final AnimationController _controller;
+  late final Animation<Offset> _slideAnimation;
+  late final Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: _duration);
+    final curved = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(-1.0, 0.0),
+      end: Offset.zero,
+    ).animate(curved);
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(curved);
+    if (widget.isOpen) {
+      _controller.forward();
+    }
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed) setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(ChatHistoryMobileWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isOpen && !oldWidget.isOpen) {
+      _controller.forward();
+    } else if (!widget.isOpen && oldWidget.isOpen) {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (!isOpen) {
+    // 关闭且动画已结束再隐藏，否则保持显示以播放关闭动画
+    if (!widget.isOpen &&
+        _controller.status == AnimationStatus.dismissed) {
       return const SizedBox.shrink();
     }
 
-    return AnimatedSlide(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-      offset: isOpen ? Offset.zero : const Offset(1.0, 0.0),
-      child: Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            // Header
-            Container(
-              height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFE5E5E5))),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    color: const Color(0xFF171717),
-                    onPressed: onClose,
-                  ),
-                  const SizedBox(width: 12),
-                  // TODO: 添加历史图标
-                  const Text(
-                    'Chat History',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717),
-                    ),
-                  ),
-                ],
-              ),
+    final width = MediaQuery.of(context).size.width * 0.85;
+
+    return Stack(
+      children: [
+        // 半透明遮罩，渐隐动画，点击关闭
+        Positioned.fill(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onClose,
+              child: Container(color: Colors.black54),
             ),
-            // TODO: 添加搜索框（仅 Pro/Plus 用户）
-            // TODO: 添加 New Chat 按钮
-            // TODO: 添加会话列表
-            const Expanded(
-              child: Center(
-                child: Text(
-                  'Chat History',
-                  style: TextStyle(color: Color(0xFF9CA3AF)),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        // 左侧面板，SlideTransition 实现从左侧滑入
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: Material(
+              elevation: 8,
+              child: SizedBox(
+                width: width,
+                height: MediaQuery.of(context).size.height,
+                child: ChatHistoryPage(onClose: widget.onClose),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

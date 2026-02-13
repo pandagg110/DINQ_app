@@ -14,7 +14,10 @@ import '../../widgets/discover/history/new_chat_confirm_dialog.dart';
 /// Chat History 页：与 TSX ChatHistorySidebar/ChatHistoryMobile 逻辑一致
 /// 含 Header、Search(Pro/Plus)、New Chat、列表( free→locked / basic→1+mock+upgrade / 加载|错误|空|列表 )、Footer、NewChatConfirmDialog
 class ChatHistoryPage extends StatefulWidget {
-  const ChatHistoryPage({super.key});
+  const ChatHistoryPage({super.key, this.onClose});
+
+  /// 在左侧弹框内展示时传入，返回按钮和 New Chat 将调用此回调而非 Navigator.pop
+  final VoidCallback? onClose;
 
   @override
   State<ChatHistoryPage> createState() => _ChatHistoryPageState();
@@ -50,7 +53,11 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     void doNewChat() {
       chatStore.setActiveConversationId(null);
       searchStore.clearAll();
-      Navigator.of(context).pop();
+      if (widget.onClose != null) {
+        widget.onClose!();
+      } else {
+        Navigator.of(context).pop();
+      }
     }
 
     void handleNewChat() {
@@ -64,86 +71,57 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF171717)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/icons/discover/clock-time-arrow.png',
-              width: 24,
-              height: 24,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.history,
-                size: 24,
-                color: Color(0xFF171717),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Chat History',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF171717),
-              ),
-            ),
-          ],
-        ),
-        centerTitle: true,
-      ),
       body: Stack(
         children: [
           SafeArea(
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: SizedBox(
+                    height: 40,
+                    child: TextField(
+                      onChanged: (v) => chatStore.setSearchQuery(v),
+                      readOnly: !isProOrPlus,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'Search...',
+                        prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
+                
                 // New Chat button
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
+                    child: TextButton.icon(
                       onPressed: handleNewChat,
-                      icon: const Icon(Icons.add, size: 20, color: Colors.white),
+                      icon: const Icon(Icons.add, size: 20, color: Colors.black),
                       label: const Text('New Chat'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF171717),
-                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFFF6F6F6),
+                        foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black),
                       ),
                     ),
                   ),
                 ),
                 // Search box - 始终显示（与 list 一致）
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: TextField(
-                    onChanged: (v) => chatStore.setSearchQuery(v),
-                    readOnly: !isProOrPlus,
-                    decoration: InputDecoration(
-                      hintText: 'Search...',
-                      prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
                 // Conversation list
                 Expanded(
                   child: _buildList(
