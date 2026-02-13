@@ -14,18 +14,21 @@ class NewChatConfirmDialog extends StatelessWidget {
   final bool isOpen;
   final VoidCallback onClose;
   final VoidCallback onConfirm;
-  final String userPlan; // 'free' | 'basic'
+  final String userPlan; // 'free' | 'basic' | 'pro' | 'plus'
 
   @override
   Widget build(BuildContext context) {
     if (!isOpen) return const SizedBox.shrink();
 
     final isFree = userPlan == 'free';
-    final title = isFree ? 'Start New Chat?' : 'Overwrite Previous History?';
-    final message = isFree
-        ? 'Your current chat will be cleared. As a Free user, conversations are not saved after you start a new session.'
-        : 'You can only save one conversation at a time. Starting this new chat will replace your currently saved history.';
-    final confirmText = isFree ? 'New Chat' : 'Overwrite & Start';
+    final isProOrPlus = userPlan == 'pro' || userPlan == 'plus';
+    final title = isProOrPlus ? 'Start New Chat?' : (isFree ? 'Start New Chat?' : 'Overwrite Previous History?');
+    final message = isProOrPlus
+        ? 'Your current chat will be cleared.'
+        : (isFree
+            ? 'Your current chat will be cleared. As a Free user, conversations are not saved after you start a new session.'
+            : 'You can only save one conversation at a time. Starting this new chat will replace your currently saved history.');
+    final confirmText = isProOrPlus ? 'New Chat' : (isFree ? 'New Chat' : 'Overwrite & Start');
     final upgradeText = isFree ? 'Want to save your chats?' : 'Need more history slots?';
     final upgradeCta = isFree ? 'Upgrade' : 'Go Unlimited';
 
@@ -130,39 +133,40 @@ class NewChatConfirmDialog extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          const Divider(height: 1),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              
-                              Text(
-                                upgradeText,
-                                style: const TextStyle(fontSize: 14, color: Color(0xFF575757)),
-                              ),
-                              const SizedBox(width: 4),
-                              TextButton(
-                                onPressed: () {
-                                  onClose();
-                                  context.push('/pricing');
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          if (!isProOrPlus) ...[
+                            const SizedBox(height: 16),
+                            const Divider(height: 1),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  upgradeText,
+                                  style: const TextStyle(fontSize: 14, color: Color(0xFF575757)),
                                 ),
-                                child: Text(
-                                  upgradeCta,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF1487FA),
+                                const SizedBox(width: 4),
+                                TextButton(
+                                  onPressed: () {
+                                    onClose();
+                                    context.push('/pricing');
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    upgradeCta,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF1487FA),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),

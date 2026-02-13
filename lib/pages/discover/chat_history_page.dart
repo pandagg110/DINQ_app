@@ -25,7 +25,6 @@ class ChatHistoryPage extends StatefulWidget {
 
 class _ChatHistoryPageState extends State<ChatHistoryPage> {
   bool _hasLoaded = false;
-  bool _showNewChatDialog = false;
 
   @override
   void didChangeDependencies() {
@@ -61,12 +60,21 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     }
 
     void handleNewChat() {
-      if (basePlan == 'free' ||
-          (basePlan == 'basic' && chatStore.conversations.isNotEmpty)) {
-        setState(() => _showNewChatDialog = true);
-        return;
-      }
-      doNewChat();
+      // 使用根 Navigator 弹框，使确认框居中在整个窗口而非当前组件
+      showDialog<void>(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (dialogContext) => NewChatConfirmDialog(
+          isOpen: true,
+          onClose: () => Navigator.of(dialogContext).pop(),
+          onConfirm: () {
+            doNewChat();
+            Navigator.of(dialogContext).pop();
+          },
+          userPlan: basePlan,
+        ),
+      );
     }
 
     return Scaffold(
@@ -157,16 +165,6 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
               ],
             ),
           ),
-          if (_showNewChatDialog)
-            NewChatConfirmDialog(
-              isOpen: true,
-              onClose: () => setState(() => _showNewChatDialog = false),
-              onConfirm: () {
-                doNewChat();
-                setState(() => _showNewChatDialog = false);
-              },
-              userPlan: basePlan == 'basic' ? 'basic' : 'free',
-            ),
         ],
       ),
     );
