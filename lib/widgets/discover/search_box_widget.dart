@@ -37,6 +37,22 @@ const double _kAdvisorSectionApproxHeight = 200.0;
 const int maxLength = 2000;
 const int showLimitThreshold = 1800;
 
+const List<String> _kCountryOptions = [
+  'USA',
+  'Canada',
+  'China',
+  'Hong Kong',
+  'Macao',
+  'Taiwan',
+  'UK',
+  'Germany',
+  'Australia',
+  'Singapore',
+  'Japan',
+  'France',
+  'Netherlands',
+];
+
 /// 虚线圆角矩形边框（用于 Resume 上传区域）
 class _DashedRectPainter extends CustomPainter {
   _DashedRectPainter({
@@ -85,6 +101,164 @@ class _DashedRectPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// 国家选择底部弹窗（参考 CountrySelectModal.tsx）
+class _CountrySelectBottomSheet extends StatefulWidget {
+  const _CountrySelectBottomSheet({
+    required this.initialSelected,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  final List<String> initialSelected;
+  final void Function(List<String> countries) onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  State<_CountrySelectBottomSheet> createState() =>
+      _CountrySelectBottomSheetState();
+}
+
+class _CountrySelectBottomSheetState extends State<_CountrySelectBottomSheet> {
+  late List<String> _tempCountries;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempCountries = List<String>.from(widget.initialSelected);
+  }
+
+  void _toggleCountry(String country) {
+    setState(() {
+      if (_tempCountries.contains(country)) {
+        _tempCountries.remove(country);
+      } else {
+        _tempCountries.add(country);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Countries',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF171717),
+              ),
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 8.0;
+                final itemWidth = (constraints.maxWidth - spacing) / 2;
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.5,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: _kCountryOptions.map((country) {
+                        final isSelected = _tempCountries.contains(country);
+                        return SizedBox(
+                          width: itemWidth,
+                          child: Material(
+                            color: isSelected
+                                ? const Color(0xFFE5E5E5)
+                                : const Color(0xFFF5F5F5),
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              onTap: () => _toggleCountry(country),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        country,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF171717),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        Icons.check,
+                                        size: 16,
+                                        color: Color(0xFF171717),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: widget.onCancel,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      side: const BorderSide(color: Color(0xFF171717)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      foregroundColor: const Color(0xFF171717),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => widget.onConfirm(_tempCountries),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      backgroundColor: const Color(0xFF171717),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Confirm'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class AdvisorFormData {
@@ -370,6 +544,25 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     setState(() {
       _advisorCountries.remove(country);
     });
+  }
+
+  void _showCountrySelectModal() {
+    final initial = List<String>.from(_advisorCountries);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CountrySelectBottomSheet(
+        initialSelected: initial,
+        onConfirm: (countries) {
+          setState(() {
+            _advisorCountries = countries;
+          });
+          Navigator.of(context).pop();
+        },
+        onCancel: () => Navigator.of(context).pop(),
+      ),
+    );
   }
 
   @override
@@ -659,6 +852,45 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Find Advisor 标题行：毕业帽图标 + 文案 + 右侧圆形清除按钮（高度 48px，按钮 32px）
+          SizedBox(
+            height: 16,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.school_outlined,
+                  size: 16,
+                  color: Color(0xFF171717),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Find Advisor',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF171717)),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: Material(
+                    color: const Color(0xFFD9D9D9),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: _handleClearTool,
+                      customBorder: const CircleBorder(),
+                      child: const Center(
+                        child: Icon(
+                          Icons.close,
+                          size:12,
+                          color: Color(0xFFFFFFFF),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           // Resume row（按 UI：标签深灰加粗，上传区虚线框、浅底、居中图标与文案）
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -668,8 +900,8 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   const Text(
                     'Resume',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                       color: Color(0xFF333333),
                     ),
                   ),
@@ -840,24 +1072,18 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.language,
-                    size: 14,
-                    color: Color(0xFF6B7280),
-                  ),
-                  const SizedBox(width: 6),
                   const Text(
                     'Preferred Countries',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF6B7280),
+                      color: Color(0xFF171717),
                     ),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     '(optional)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                    style: TextStyle(fontSize: 12, color: Color(0xA3303030)),
                   ),
                 ],
               ),
@@ -879,12 +1105,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     ),
                   ),
                   TextButton.icon(
-                    onPressed: () {
-                      // TODO: 实现国家选择模态框
-                      // setState(() {
-                      //   _showCountryModal = true;
-                      // });
-                    },
+                    onPressed: _showCountrySelectModal,
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Add'),
                     style: TextButton.styleFrom(
