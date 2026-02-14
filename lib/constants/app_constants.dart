@@ -4,6 +4,9 @@ const String gatewayUrl = String.fromEnvironment(
   defaultValue: 'https://api.dinq.me',
 );
 
+const String privacyUrl = '$appUrl/privacy';
+const String termsUrl = '$appUrl/terms';
+
 class ConstantsTool {
   static const bottomTabHeight = 55.0;
 }

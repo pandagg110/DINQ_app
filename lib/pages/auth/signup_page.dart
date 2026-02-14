@@ -1,5 +1,6 @@
 import 'package:dinq_app/utils/cache_manager.dart';
 import 'package:dinq_app/utils/toast_util.dart';
+import 'package:dinq_app/widgets/account/agreement_protocol_modal.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -291,7 +292,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           ..onTap = () {
                             context.push(
                               '/webview',
-                              extra: {'url': '$appUrl/terms', 'navTitle': 'Terms of Service'},
+                              extra: {'url': termsUrl, 'navTitle': 'Terms of Service'},
                             );
                           },
                       ),
@@ -315,7 +316,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           ..onTap = () {
                             context.push(
                               '/webview',
-                              extra: {'url': '$appUrl/privacy', 'navTitle': 'Privacy Policy'},
+                              extra: {'url': privacyUrl, 'navTitle': 'Privacy Policy'},
                             );
                           },
                       ),
@@ -346,8 +347,14 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
     setState(() => _error = null);
-    // 发送邮箱验证码
-    await _sendCode();
+    // 注册的时候显示协议弹框
+    showAgreementProtocolDialog(
+      context,
+      onContinue: () {
+        // 发送邮箱验证码
+        _sendCode();
+      },
+    );
   }
 
   /// 发送邮箱验证码
