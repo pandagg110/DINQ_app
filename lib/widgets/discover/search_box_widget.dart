@@ -381,7 +381,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     children: [
                       if (searchStore.activeTool == 'find-advisor') _buildAdvisorOptions(),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
                             minHeight: _textFieldHeight,
@@ -399,6 +399,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                   color: Color(0xFF9CA3AF),
                                   fontSize: 14,
                                 ),
+                                isDense: true,
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
