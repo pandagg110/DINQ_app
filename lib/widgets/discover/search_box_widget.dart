@@ -37,6 +37,56 @@ const double _kAdvisorSectionApproxHeight = 200.0;
 const int maxLength = 2000;
 const int showLimitThreshold = 1800;
 
+/// 虚线圆角矩形边框（用于 Resume 上传区域）
+class _DashedRectPainter extends CustomPainter {
+  _DashedRectPainter({
+    required this.color,
+    this.strokeWidth = 1,
+    this.borderRadius = 8,
+    this.dashWidth = 4,
+    this.dashSpace = 3,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double borderRadius;
+  final double dashWidth;
+  final double dashSpace;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(borderRadius),
+    );
+    final path = Path()..addRRect(rrect);
+    _drawDashedPath(canvas, path, paint);
+  }
+
+  void _drawDashedPath(Canvas canvas, Path path, Paint paint) {
+    final pathMetrics = path.computeMetrics();
+    for (final metric in pathMetrics) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final nextDistance = distance + dashWidth;
+        final extractPath = metric.extractPath(
+          distance,
+          nextDistance > metric.length ? metric.length : nextDistance,
+        );
+        canvas.drawPath(extractPath, paint);
+        distance = nextDistance + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class AdvisorFormData {
   AdvisorFormData({
     required this.resumeUrl,
@@ -562,6 +612,43 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     );
   }
 
+  /// PDF 文档图标 + 左下角红色 "PDF" 角标
+  Widget _buildPdfIconWithBadge() {
+    return SizedBox(
+      width: 28,
+      height: 32,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(
+            Icons.insert_drive_file,
+            size: 28,
+            color: Color(0xFFE5E7EB),
+          ),
+          Positioned(
+            left: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.red.shade700,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: const Text(
+                'PDF',
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAdvisorOptions() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
@@ -572,101 +659,164 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Resume row
+          // Resume row（按 UI：标签深灰加粗，上传区虚线框、浅底、居中图标与文案）
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.upload, size: 14, color: Color(0xFF6B7280)),
-                  const SizedBox(width: 6),
                   const Text(
                     'Resume',
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF6B7280),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
                     ),
                   ),
                   const SizedBox(width: 4),
                   const Text(
                     '*',
-                    style: TextStyle(fontSize: 12, color: Colors.amber),
+                    style: TextStyle(fontSize: 14, color: Colors.amber),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   if (_advisorFile == null)
-                    TextButton.icon(
-                      onPressed: _advisorUploading ? null : _handleFileSelect,
-                      icon: const Icon(Icons.description, size: 16),
-                      label: const Text('Choose PDF file'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        backgroundColor: Colors.transparent,
-                        foregroundColor: const Color(0xFF6B7280),
-                        side: BorderSide(
-                          color: const Color(0xFFD1D5DB),
-                          style: BorderStyle.solid,
-                        ),
-                        shape: RoundedRectangleBorder(
+                    Expanded(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _advisorUploading ? null : _handleFileSelect,
                           borderRadius: BorderRadius.circular(8),
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 20,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8F8F8),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.cloud_upload,
+                                      size: 20,
+                                      color: Color(0xFF888888),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Choose PDF file',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF888888),
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: _DashedRectPainter(
+                                    color: const Color(0xFFCCCCCC),
+                                    strokeWidth: 1,
+                                    borderRadius: 8,
+                                    dashWidth: 4,
+                                    dashSpace: 3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )
                   else
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    Expanded(
+                      child: Stack(
                         children: [
-                          if (_advisorUploading)
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.amber,
-                                ),
-                              ),
-                            )
-                          else
-                            const Icon(
-                              Icons.description,
-                              size: 16,
-                              color: Colors.amber,
+                          Container(
+                            height: 48,
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
                             ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 200,
-                            child: Text(
-                              _advisorFile!.path.split('/').last,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF374151),
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8F8F8),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                if (_advisorUploading)
+                                  const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF888888),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  _buildPdfIconWithBadge(),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _advisorFile!.path.split('/').last,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF171717),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                SizedBox(
+                                  height: 32,
+                                  child: TextButton(
+                                    onPressed: _handleRemoveFile,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 0,
+                                      ),
+                                      minimumSize: const Size(0, 32),
+                                      backgroundColor: const Color(0xFFFFFFFF),
+                                      foregroundColor: const Color(0xFF171717),
+                                      side: const BorderSide(
+                                        color: Color(0xFFD1D5DB),
+                                        width: 1,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text('Remove File'),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 16),
-                            color: const Color(0xFF9CA3AF),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: _handleRemoveFile,
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _DashedRectPainter(
+                                color: const Color(0xFFCCCCCC),
+                                strokeWidth: 1,
+                                borderRadius: 8,
+                                dashWidth: 4,
+                                dashSpace: 3,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -1030,13 +1180,13 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
             borderRadius: BorderRadius.circular(36),
           ),
           child: isLoading
-              ? const Center(
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ? Center(
+                  child: Container(
+                    width: 9.6,
+                    height: 9.6,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(1.6),
                     ),
                   ),
                 )
