@@ -31,6 +31,9 @@ const List<String> advisorPlaceholders = [
 
 const double minHeight = 24.0;
 const double maxHeight = 240.0;
+
+/// find-advisor 区域约占用高度（Resume + Countries 等），用于计算输入区 maxHeight
+const double _kAdvisorSectionApproxHeight = 200.0;
 const int maxLength = 2000;
 const int showLimitThreshold = 1800;
 
@@ -372,148 +375,182 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   width: 1,
                 ),
               ),
-              child: Stack(
-                children: [
-                  // 上方内容：由子元素决定高度，父容器自适应；总高度受 ConstrainedBox 的 maxHeight 限制
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // 剩余高度 = 总高 - 底部预留(76) - 底部按钮栏(52+8+14) - 顶部 padding(12) - find-advisor 区域(若显示)
+                  final bottomReserve = 76.0;
+                  final bottomBarHeight = 52.0 + 8 + 14;
+                  final topPadding = 12.0;
+                  final advisorHeight = searchStore.activeTool == 'find-advisor'
+                      ? _kAdvisorSectionApproxHeight
+                      : 0.0;
+                  final maxInputHeight =
+                      (constraints.maxHeight -
+                              bottomReserve -
+                              bottomBarHeight -
+                              topPadding -
+                              advisorHeight)
+                          .clamp(_textFieldHeight, double.infinity) -40;
+                  print('maxInputHeight: $maxInputHeight');
+                  return Stack(
                     children: [
-                      if (searchStore.activeTool == 'find-advisor') _buildAdvisorOptions(),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: _textFieldHeight,
-                            maxHeight: 270,
-                          ),
-                          child: SingleChildScrollView(
-                            child: TextField(
-                              controller: _controller,
-                              focusNode: _focusNode,
-                              maxLines: null,
-                              maxLength: maxLength,
-                              decoration: InputDecoration(
-                                hintText: _currentPlaceholder(context),
-                                hintStyle: const TextStyle(
-                                  color: Color(0xFF9CA3AF),
-                                  fontSize: 14,
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (searchStore.activeTool == 'find-advisor')
+                            _buildAdvisorOptions(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight:
+                                    maxInputHeight < 0 ||
+                                        maxInputHeight > _textFieldHeight
+                                    ? _textFieldHeight
+                                    : maxInputHeight,
+                                maxHeight: maxInputHeight < 0
+                                    ? 270
+                                    : maxInputHeight,
+                              ),
+                              child: SingleChildScrollView(
+                                child: TextField(
+                                  controller: _controller,
+                                  focusNode: _focusNode,
+                                  maxLines: null,
+                                  maxLength: maxLength,
+                                  decoration: InputDecoration(
+                                    hintText: _currentPlaceholder(context),
+                                    hintStyle: const TextStyle(
+                                      color: Color(0xFF9CA3AF),
+                                      fontSize: 14,
+                                    ),
+                                    isDense: true,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    counterText: '',
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF171717),
+                                    height: 1,
+                                  ),
+                                  onChanged: (value) {
+                                    _adjustHeight();
+                                    widget.onChanged?.call(value);
+                                    if (value == '/' &&
+                                        searchStore.activeTool == null) {
+                                      setState(() => _showToolsMenu = true);
+                                    } else if (_showToolsMenu && value != '/') {
+                                      setState(() => _showToolsMenu = false);
+                                    } else {
+                                      setState(() {});
+                                    }
+                                  },
+                                  onSubmitted: (value) {
+                                    if (value.trim().isNotEmpty &&
+                                        !isLoading &&
+                                        canSearch) {
+                                      _handleSearch();
+                                    }
+                                  },
                                 ),
-                                isDense: true,
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
-                                counterText: '',
                               ),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF171717),
-                                height: 1,
-                              ),
-                              onChanged: (value) {
-                                _adjustHeight();
-                                widget.onChanged?.call(value);
-                                if (value == '/' && searchStore.activeTool == null) {
-                                  setState(() => _showToolsMenu = true);
-                                } else if (_showToolsMenu && value != '/') {
-                                  setState(() => _showToolsMenu = false);
-                                } else {
-                                  setState(() {});
-                                }
-                              },
-                              onSubmitted: (value) {
-                                if (value.trim().isNotEmpty &&
-                                    !isLoading &&
-                                    canSearch) {
-                                  _handleSearch();
-                                }
-                              },
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 76), // 为底部按钮栏预留高度 (8+52+16)
+                        ],
                       ),
-                      const SizedBox(height: 76), // 为底部按钮栏预留高度 (8+52+16)
-                    ],
-                  ),
-                  // 按钮栏：固定到整个搜索框容器底部
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
-                      child: SizedBox(
-                        height: 52,
-                        child: Stack(
-                          children: [
-                            if (showLimit)
-                              Positioned.fill(
-                                child: Center(
-                                  child: Text(
-                                    '$inputLength/$maxLength',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: inputLength >= maxLength
-                                          ? Colors.red
-                                          : const Color(0xFF9CA3AF),
+                      // 按钮栏：固定到整个搜索框容器底部
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
+                          child: SizedBox(
+                            height: 52,
+                            child: Stack(
+                              children: [
+                                if (showLimit)
+                                  Positioned.fill(
+                                    child: Center(
+                                      child: Text(
+                                        '$inputLength/$maxLength',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: inputLength >= maxLength
+                                              ? Colors.red
+                                              : const Color(0xFF9CA3AF),
+                                        ),
+                                      ),
                                     ),
                                   ),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          if (searchStore.activeTool == null)
+                                            _buildTalentModeSelector(),
+                                          // if (searchStore.activeTool == null)
+                                          //   const SizedBox(width: 8),
+                                          // _buildToolsButton(),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (searchStore.activeTool ==
+                                              'find-advisor')
+                                            TextButton(
+                                              onPressed: _handleClearTool,
+                                              style: TextButton.styleFrom(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                    ),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                              child: const Text(
+                                                'Cancel',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Color(0xFF9CA3AF),
+                                                ),
+                                              ),
+                                            ),
+                                          if (searchStore.activeTool ==
+                                              'find-advisor')
+                                            const SizedBox(width: 12),
+                                          _buildSearchButton(
+                                            isLoading,
+                                            canSearch,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Row(
-                                    children: [
-                                      if (searchStore.activeTool == null)
-                                        _buildTalentModeSelector(),
-                                      // if (searchStore.activeTool == null)
-                                      //   const SizedBox(width: 8),
-                                      // _buildToolsButton(),
-                                    ],
-                                  ),
-                                  Row(
-                                    children: [
-                                      if (searchStore.activeTool == 'find-advisor')
-                                        TextButton(
-                                          onPressed: _handleClearTool,
-                                          style: TextButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                            ),
-                                            minimumSize: Size.zero,
-                                            tapTargetSize: MaterialTapTargetSize
-                                                .shrinkWrap,
-                                          ),
-                                          child: const Text(
-                                            'Cancel',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Color(0xFF9CA3AF),
-                                            ),
-                                          ),
-                                        ),
-                                      if (searchStore.activeTool == 'find-advisor')
-                                        const SizedBox(width: 12),
-                                      _buildSearchButton(isLoading, canSearch),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -777,19 +814,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
               Row(
                 children: [
                   // Global Talent 选项
-                  Expanded(
-                    child: _buildToggleOption(
-                      'global',
-                      Icons.search,
-                    ),
-                  ),
+                  Expanded(child: _buildToggleOption('global', Icons.search)),
                   // DINQ Fellows 选项
-                  Expanded(
-                    child: _buildToggleOption(
-                      'dinq',
-                      Icons.bolt,
-                    ),
-                  ),
+                  Expanded(child: _buildToggleOption('dinq', Icons.bolt)),
                 ],
               ),
             ],
@@ -807,13 +834,10 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       child: Icon(
         icon,
         size: 16,
-        color: isSelected
-            ? const Color(0xFF000000)
-            : const Color(0xFF9CA3AF),
+        color: isSelected ? const Color(0xFF000000) : const Color(0xFF9CA3AF),
       ),
     );
   }
-
 
   Widget _buildToolsButton() {
     final searchStore = context.read<SearchStore>();
