@@ -121,4 +121,20 @@ class AuthService {
   Future<void> activate({required String inviteCode}) async {
     await _dio.post('/user/activate', data: {'invite_code': inviteCode});
   }
+
+  /// 查询是否是否同意过协议
+  Future<bool> checkAgreement() async {
+    final response = await _dio.get('/user/privacy-consent/status');
+    final res = Map<String, dynamic>.from(response.data as Map);
+    if (res["agreed"] == true) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /// 同意协议
+  Future<void> agreeToTerms() async {
+    await _dio.post('/user/privacy-consent/agree');
+  }
 }

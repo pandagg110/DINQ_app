@@ -241,6 +241,9 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
         password: widget.password,
         verificationCode: code,
       );
+      if (!mounted) return;
+      // 注册成功后默认同意协议, 因为注册前会弹出
+      await context.read<UserStore>().agreeToTerms();
       await ToastUtil.dismiss();
       if (!mounted) return;
       CacheManager.instance.signUpAccount = widget.email;

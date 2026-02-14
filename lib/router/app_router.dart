@@ -10,7 +10,6 @@ import '../pages/admin/admin_mydinq_page.dart';
 import '../pages/admin/admin_openings_page.dart';
 import '../pages/admin/admin_page.dart';
 import '../pages/admin/admin_search_page.dart';
-import '../pages/discover/discover_page.dart';
 import '../pages/admin/inbox/admin_inbox_conversation_page.dart';
 import '../pages/admin/inbox/admin_inbox_notifications_page.dart';
 import '../pages/admin/inbox/admin_inbox_page.dart';
@@ -29,6 +28,7 @@ import '../pages/auth/signup_page.dart';
 import '../pages/auth/waiting_list_page.dart';
 import '../pages/callback/account_callback_page.dart';
 import '../pages/callback/social_callback_page.dart';
+import '../pages/discover/discover_page.dart';
 import '../pages/generation/generation_page.dart';
 import '../pages/landing/landing_page.dart';
 import '../pages/main_tab/main_tab_page.dart';
@@ -58,6 +58,7 @@ class AppRouter {
   // 不需要登录就能访问的公开路由
   static const _publicRoutes = [
     '/splash',
+    '/webview',
     '/signin',
     '/signup',
     '/reset',
@@ -109,9 +110,9 @@ class AppRouter {
         // 判断当前是否在登录/注册页
         final isOnAuthPage = location == '/signin' || location == '/signup';
 
-        final isGenerationPage = location=='/generation';
-        
-        if(isLoggedIn && !isGenerationPage &&flow?.status != null && flow?.status != 'success') {
+        final isGenerationPage = location == '/generation';
+
+        if (isLoggedIn && !isGenerationPage && flow?.status != null && flow?.status != 'success') {
           return '/generation';
         }
 
