@@ -1,3 +1,4 @@
+import 'package:dinq_app/utils/toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -295,5 +296,24 @@ class UserStore extends ChangeNotifier {
       cancelAtPeriodEnd: subscription!.cancelAtPeriodEnd,
     );
     notifyListeners();
+  }
+
+  /// 查询是否是否同意过协议
+  Future<bool> checkAgreement() async {
+    try {
+      return await _authService.checkAgreement();
+    } catch (error) {
+      ToastUtil.show('Check agreement error');
+      return false;
+    }
+  }
+
+  /// 同意协议
+  Future<void> agreeToTerms() async {
+    try {
+      await _authService.agreeToTerms();
+    } catch (error) {
+      ToastUtil.show('Failed to agree to terms');
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:dinq_app/utils/cache_manager.dart';
 import 'package:dinq_app/utils/toast_util.dart';
+import 'package:dinq_app/widgets/account/agreement_protocol_modal.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:dinq_app/widgets/landing/invite_code_dialog.dart';
@@ -375,7 +376,7 @@ class _SignInPageState extends State<SignInPage> {
                           ..onTap = () {
                             context.push(
                               '/webview',
-                              extra: {'url': '$appUrl/privacy', 'navTitle': 'Privacy Policy'},
+                              extra: {'url': privacyUrl, 'navTitle': 'Privacy Policy'},
                             );
                           },
                       ),
@@ -470,7 +471,26 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  void _handleLoginSuccess({String? email}) {
+  void _handleLoginSuccess({String? email}) async {
+    // 先查询是否已经同意过协议
+    final isAgree = await context.read<UserStore>().checkAgreement();
+    if (!mounted) {
+      return;
+    }
+    if (!isAgree) {
+      showAgreementProtocolDialog(
+        context,
+        onContinue: () async {
+          await context.read<UserStore>().agreeToTerms();
+          _handleAgreementContinue(email: email);
+        },
+      );
+    } else {
+      _handleAgreementContinue(email: email);
+    }
+  }
+
+  void _handleAgreementContinue({String? email}) {
     final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
     if (redirect != null && redirect.isNotEmpty) {
       context.go(redirect);
