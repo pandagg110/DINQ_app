@@ -84,27 +84,27 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final activeTab = searchStore.getActiveTab();
     final hasOpenTabs = searchStore.openTabs.isNotEmpty;
 
-    // 使用固定的 MediaQuery，完全移除键盘影响
-    final fixedQuery = _fixedMediaQuery ?? MediaQuery.of(context);
-    final mediaQueryWithoutInsets = fixedQuery.copyWith(
-      viewInsets: EdgeInsets.zero,
-      // 保持原始 padding，确保布局不变
-      padding: fixedQuery.padding,
-    );
+    final mq = MediaQuery.of(context);
+    // 不修改内容高度：Scaffold 不 resize，用 Transform.translate 把整块内容顶上去
+    final keyboardHeight = mq.viewInsets.bottom;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       extendBody: true,
       extendBodyBehindAppBar: true,
-      body: MediaQuery(
-        data: mediaQueryWithoutInsets,
-        child: SizedBox(
-          height: fixedQuery.size.height,
-          width: double.infinity,
-          child: Container(
-            padding: EdgeInsets.only(top: isMobileHeaderVisible ? 56 : 0),
-            child: Stack(
-              children: [
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: ClipRect(
+          child: Transform.translate(
+            offset: Offset(0, -keyboardHeight),
+            child: SizedBox(
+              height: mq.size.height,
+              width: double.infinity,
+              child: Container(
+                padding: EdgeInsets.only(top: isMobileHeaderVisible ? 56 : 0),
+                child: Stack(
+                  children: [
                 
                 // 主聊天区域
                 const AgenticChatWidget(),
@@ -118,7 +118,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   isOpen: chatHistoryStore.isMobileOpen,
                   onClose: () => chatHistoryStore.setMobileOpen(false),
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),

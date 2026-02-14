@@ -197,38 +197,32 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                 ? Colors.white
                 : const Color(0xFFFDFDFD);
 
-            final screenHeight =
-                _screenHeight ?? MediaQuery.of(context).size.height;
-            const headerHeight = 0.0;
-            final availableHeight = screenHeight - headerHeight;
+            final mq = MediaQuery.of(context);
+            // 父级用 Transform.translate 顶起，这里保持一屏高度不压缩
+            final contentHeight = mq.size.height;
 
-            final parentQuery = MediaQuery.of(context);
-            final mediaQueryWithoutInsets = parentQuery.copyWith(
-              viewInsets: EdgeInsets.zero,
-              padding: parentQuery.padding,
-              size: Size(parentQuery.size.width, screenHeight),
-            );
-
-            return MediaQuery(
-              data: mediaQueryWithoutInsets,
-              child: Container(
-                color: bgColor,
-                height: availableHeight,
-                width: double.infinity,
-                child: Column(
+            return Container(
+              color: bgColor,
+              height: contentHeight,
+              width: double.infinity,
+              child: Column(
                   children: [
                     // 顶部栏
                     Padding(
-                      padding: const EdgeInsets.only(top: 32),
+                      padding: const EdgeInsets.only(top: 0),
                       child: _buildTopBar(),
                     ),
-                    // 内容在上，使用 Expanded
+                    // 内容在上，使用 Expanded；点击聊天区域时收起键盘
                     Expanded(
-                      child: showSkeleton
-                          ? _buildConversationSkeleton()
-                          : hasMessages
-                          ? _buildMessagesArea(logic)
-                          : const SizedBox.shrink(),
+                      child: GestureDetector(
+                        onTap: () => FocusScope.of(context).unfocus(),
+                        behavior: HitTestBehavior.translucent,
+                        child: showSkeleton
+                            ? _buildConversationSkeleton()
+                            : hasMessages
+                                ? _buildMessagesArea(logic)
+                                : const SizedBox.shrink(),
+                      ),
                     ),
                     // 搜索框和 Prompt 在下
                     Padding(
@@ -244,7 +238,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                     ),
                   ],
                 ),
-              ),
             );
           },
         );

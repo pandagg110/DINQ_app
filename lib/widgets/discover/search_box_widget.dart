@@ -347,7 +347,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
 
         return GestureDetector(
           onTap: () {
-            // 点击外部时关闭工具菜单
+            FocusScope.of(context).unfocus();
             if (_showToolsMenu) {
               setState(() {
                 _showToolsMenu = false;
@@ -391,7 +391,6 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                               topPadding -
                               advisorHeight)
                           .clamp(_textFieldHeight, double.infinity) -40;
-                  print('maxInputHeight: $maxInputHeight');
                   return Stack(
                     children: [
                       Column(
@@ -463,14 +462,17 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                           const SizedBox(height: 76), // 为底部按钮栏预留高度 (8+52+16)
                         ],
                       ),
-                      // 按钮栏：固定到整个搜索框容器底部
+                      // 按钮栏：固定到整个搜索框容器底部；点击时收起键盘
                       Positioned(
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
-                          child: SizedBox(
+                        child: GestureDetector(
+                          onTap: () => FocusScope.of(context).unfocus(),
+                          behavior: HitTestBehavior.translucent,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
+                            child: SizedBox(
                             height: 52,
                             child: Stack(
                               children: [
@@ -546,6 +548,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                               ],
                             ),
                           ),
+                        ),
                         ),
                       ),
                     ],
