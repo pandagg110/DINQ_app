@@ -55,7 +55,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     final cards = cardStore.cards;
     final columns = CardGridStaggered.gridColumns;
     final updateCount = cardStore.updateCount;
-    debugPrint('updateCountupdateCount: ${updateCount}');
     final userId = userStore.user?.user.id;
 
     if (!cardStore.isInitialized) {

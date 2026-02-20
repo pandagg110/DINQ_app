@@ -206,38 +206,38 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
               height: contentHeight,
               width: double.infinity,
               child: Column(
-                  children: [
-                    // 顶部栏
-                    Padding(
-                      padding: const EdgeInsets.only(top: 0),
-                      child: _buildTopBar(),
+                children: [
+                  // 顶部栏
+                  Padding(
+                    padding: const EdgeInsets.only(top: 0),
+                    child: _buildTopBar(),
+                  ),
+                  // 内容在上，使用 Expanded；点击聊天区域时收起键盘
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => FocusScope.of(context).unfocus(),
+                      behavior: HitTestBehavior.translucent,
+                      child: showSkeleton
+                          ? _buildConversationSkeleton()
+                          : hasMessages
+                          ? _buildMessagesArea(logic)
+                          : const SizedBox.shrink(),
                     ),
-                    // 内容在上，使用 Expanded；点击聊天区域时收起键盘
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => FocusScope.of(context).unfocus(),
-                        behavior: HitTestBehavior.translucent,
-                        child: showSkeleton
-                            ? _buildConversationSkeleton()
-                            : hasMessages
-                                ? _buildMessagesArea(logic)
-                                : const SizedBox.shrink(),
-                      ),
+                  ),
+                  // 搜索框和 Prompt 在下；键盘弹起时底部 padding 设为 0
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: ConstantsTool.bottomTabHeight + 32,
                     ),
-                    // 搜索框和 Prompt 在下
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: ConstantsTool.bottomTabHeight + 32,
-                      ),
-                      child: _buildBottomSection(
-                        userName: userName,
-                        logic: logic,
-                        searchStore: searchStore,
-                        hasMessages: hasMessages,
-                      ),
+                    child: _buildBottomSection(
+                      userName: userName,
+                      logic: logic,
+                      searchStore: searchStore,
+                      hasMessages: hasMessages,
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
             );
           },
         );
