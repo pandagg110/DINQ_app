@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/recommendation_models.dart' as rec;
+import '../../pages/discover/paper_filters_page.dart' show getSelectedFilterItems;
 import '../../services/recommendation_service.dart';
 
 // ---------- RecommendedPapers 主组件 ----------
@@ -10,6 +11,8 @@ class RecommendedPapersWidget extends StatefulWidget {
     super.key,
     this.userId,
     this.isFullView = false,
+    this.initialFilters,
+    this.onFiltersChanged,
     this.onBack,
     this.onPeekClick,
     this.onSearchAuthorAndBack,
@@ -17,6 +20,10 @@ class RecommendedPapersWidget extends StatefulWidget {
 
   final String? userId;
   final bool isFullView;
+  /// 外部传入的筛选条件，变化时会同步并重新请求列表
+  final rec.PaperFiltersState? initialFilters;
+  /// 当用户在列表页通过标签移除某项筛选时回调，用于与 TSX ActiveFilterTags 行为一致
+  final ValueChanged<rec.PaperFiltersState>? onFiltersChanged;
   final VoidCallback? onBack;
   final VoidCallback? onPeekClick;
   /// 点击 Find Authors 时调用并传入搜索文案，调用方负责 pop 并触发搜索
@@ -35,9 +42,46 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialFilters != null) {
+      _filters = _copyFilters(widget.initialFilters!);
+    }
     if (widget.userId != null && widget.userId!.isNotEmpty) {
       _loadRecommendations();
     }
+  }
+
+  @override
+  void didUpdateWidget(RecommendedPapersWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialFilters != null &&
+        _filters != widget.initialFilters &&
+        !_filtersEqual(_filters, widget.initialFilters!)) {
+      _filters = _copyFilters(widget.initialFilters!);
+      if (widget.userId != null && widget.userId!.isNotEmpty) {
+        _loadRecommendations();
+      }
+    }
+  }
+
+  static rec.PaperFiltersState _copyFilters(rec.PaperFiltersState f) {
+    return rec.PaperFiltersState(
+      conference: List.from(f.conference),
+      year: List.from(f.year),
+      status: List.from(f.status),
+      group: List.from(f.group),
+    );
+  }
+
+  static bool _filtersEqual(rec.PaperFiltersState a, rec.PaperFiltersState b) {
+    if (a.conference.length != b.conference.length ||
+        a.year.length != b.year.length ||
+        a.status.length != b.status.length ||
+        a.group.length != b.group.length) return false;
+    for (final x in a.conference) if (!b.conference.contains(x)) return false;
+    for (final x in a.year) if (!b.year.contains(x)) return false;
+    for (final x in a.status) if (!b.status.contains(x)) return false;
+    for (final x in a.group) if (!b.group.contains(x)) return false;
+    return true;
   }
 
   final RecommendationService _recommendationService = RecommendationService();
@@ -224,12 +268,16 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
   }
 
   Widget _buildStickyHeader() {
-    // 移动端：pt-6 pb-4、px-4
+    // 移动端：pt-6 pb-4、px-4，与 TSX sticky header 一致
     if (!widget.isFullView) {
       return const SizedBox(height: 24); // 与 TSX h-6 占位一致
     }
+    // 仅 recommend 模式显示已选筛选标签（与 TSX ActiveFilterTags 一致）
+    final showFilterTags = _mode == 'recommend';
+    final selectedItems = showFilterTags ? getSelectedFilterItems(_filters) : <({String key, dynamic value, String label})>[];
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16), // px-4, pt-6 pb-4
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
       decoration: BoxDecoration(
         color: const Color(0xFFFBFBFA).withOpacity(0.95),
       ),
@@ -237,45 +285,66 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                if (widget.onBack != null)
-                  TextButton.icon(
-                    onPressed: widget.onBack,
-                    icon: const Icon(Icons.keyboard_arrow_up, size: 20),
-                    label: const Text('Back to Search'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF6B7280),
-                      padding: const EdgeInsets.symmetric(horizontal: 0),
+            if (_mode == 'similar')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: _handleBackToRecommend,
+                  child: const Text(
+                    '← Back',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF6B7280),
                     ),
                   ),
-                const Spacer(),
-                const Text(
-                  'PAPERS',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF171717),
-                  ),
                 ),
-                const Spacer(),
-                if (_mode == 'recommend')
-                  _FilterChipButton(
-                    filters: _filters,
-                    onChanged: (f) => setState(() => _filters = f),
-                  )
-                else
-                  TextButton(
-                    onPressed: _handleBackToRecommend,
-                    child: const Text('← Back', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-                  ),
-              ],
-            ),
+              ),
+            if (selectedItems.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: selectedItems.map((item) {
+                  return _ActiveFilterChip(
+                    label: item.label,
+                    onRemove: () => _removeFilter(item.key, item.value),
+                  );
+                }).toList(),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  void _removeFilter(String key, dynamic value) {
+    rec.PaperFiltersState next;
+    switch (key) {
+      case 'conference':
+        next = _filters.copyWith(
+          conference: _filters.conference.where((v) => v != value).toList(),
+        );
+        break;
+      case 'year':
+        next = _filters.copyWith(
+          year: _filters.year.where((v) => v != value).toList(),
+        );
+        break;
+      case 'status':
+        next = _filters.copyWith(
+          status: _filters.status.where((v) => v != value).toList(),
+        );
+        break;
+      case 'group':
+        next = _filters.copyWith(
+          group: _filters.group.where((v) => v != value).toList(),
+        );
+        break;
+      default:
+        return;
+    }
+    widget.onFiltersChanged?.call(next);
   }
 
   Widget _buildContent() {
@@ -350,45 +419,41 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
   }
 }
 
-// ---------- 筛选按钮（简化）----------
+// ---------- 已选筛选标签（与 TSX ActiveFilterTags 一致）----------
 
-class _FilterChipButton extends StatelessWidget {
-  const _FilterChipButton({required this.filters, required this.onChanged});
+class _ActiveFilterChip extends StatelessWidget {
+  const _ActiveFilterChip({required this.label, required this.onRemove});
 
-  final rec.PaperFiltersState filters;
-  final ValueChanged<rec.PaperFiltersState> onChanged;
+  final String label;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final hasFilters = filters.conference.isNotEmpty ||
-        filters.year.isNotEmpty ||
-        filters.status.isNotEmpty ||
-        filters.group.isNotEmpty;
-    return Material(
-      color: hasFilters ? const Color(0xFF171717) : const Color(0xFFF3F4F6),
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: () {
-          // TODO: 打开筛选弹窗
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.tune, size: 14, color: hasFilters ? Colors.white : const Color(0xFF6B7280)),
-              const SizedBox(width: 6),
-              Text(
-                'Filter',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: hasFilters ? Colors.white : const Color(0xFF6B7280),
-                ),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF4B5563),
+            ),
           ),
-        ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Padding(
+              padding: EdgeInsets.all(2),
+              child: Icon(Icons.close, size: 14, color: Color(0xFF4B5563)),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -122,6 +122,15 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
           ),
         )
         .then((result) {
+          // 返回后下一帧再收起焦点，避免 Flutter 焦点恢复后再把键盘带出来
+          if (mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                FocusScope.of(context).unfocus();
+                FocusManager.instance.primaryFocus?.unfocus();
+              }
+            });
+          }
           if (result != null && result is String) {
             _handleSearch(query: result);
           }
