@@ -86,7 +86,7 @@ class AdminGridTileData {
 // 纯源码实现：交错网格（无第三方包）
 // ---------------------------------------------------------------------------
 
-/// 单个交错网格项：占格数、x,y,w,h 或 cellX,cellY,cellW,cellH + 子组件
+/// 单个交错网格项：占格数、x,y,w,h 或 cellX,cellY,cellW,cellH + 展示数据（用于在 Body 内按实际尺寸构建拖拽与内容）
 class _StaggeredGridTile {
   const _StaggeredGridTile({
     this.crossAxisCellCount,
@@ -99,7 +99,9 @@ class _StaggeredGridTile {
     this.cellY,
     this.cellW,
     this.cellH,
-    required this.child,
+    required this.index,
+    required this.color,
+    required this.label,
   }) : assert(
          (x != null && y != null && w != null && h != null) ||
              (crossAxisCellCount != null && mainAxisCellCount != null) ||
@@ -117,7 +119,9 @@ class _StaggeredGridTile {
   final int? cellY;
   final int? cellW;
   final int? cellH;
-  final Widget child;
+  final int index;
+  final Color color;
+  final String label;
 
   bool get isAbsolute =>
       x != null && y != null && w != null && h != null;
@@ -135,7 +139,19 @@ class _StaggeredPlacement {
   final Size size;
 }
 
-/// 底层 1x1 格子：空白容器并标记 (x,y)
+/// 拖拽时传递的数据：格子索引与占格尺寸
+class _TileDragData {
+  const _TileDragData({
+    required this.index,
+    required this.cellW,
+    required this.cellH,
+  });
+  final int index;
+  final int cellW;
+  final int cellH;
+}
+
+/// 底层 1x1 格子：空白容器并标记 (x,y)，不参与拖拽
 class _GridCellMarker extends StatelessWidget {
   const _GridCellMarker({required this.cellX, required this.cellY});
 
@@ -167,10 +183,45 @@ class _StaggeredGridBody extends StatelessWidget {
   const _StaggeredGridBody({
     required this.config,
     required this.tiles,
+    this.onTileDrop,
   });
 
   final AdminGridConfig config;
   final List<_StaggeredGridTile> tiles;
+  /// 拖拽放下时回调 (index, newCellX, newCellY)，用于更新格子位置
+  final void Function(int index, int cellX, int cellY)? onTileDrop;
+
+  Widget _buildDraggableTile({
+    required _StaggeredGridTile tile,
+    required Size placementSize,
+  }) {
+    final dragData = _TileDragData(
+      index: tile.index,
+      cellW: tile.cellW!,
+      cellH: tile.cellH!,
+    );
+    final content = _GridTile(
+      index: tile.index,
+      color: tile.color,
+      label: tile.label,
+    );
+    return Draggable<_TileDragData>(
+      data: dragData,
+      feedback: Material(
+        color: Colors.transparent,
+        child: SizedBox(
+          width: placementSize.width,
+          height: placementSize.height,
+          child: content,
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.5,
+        child: content,
+      ),
+      child: content,
+    );
+  }
 
   List<_StaggeredPlacement> _computeLayout(double contentWidth) {
     final int cols = config.crossAxisCount;
@@ -303,26 +354,50 @@ class _StaggeredGridBody extends StatelessWidget {
           }
         }
 
-        // 上层：实际数据块（Positioned）
+        // 上层：实际数据块（Positioned），每个带拖拽，feedback 用与格子相同的尺寸
         final List<Widget> dataLayer = [
-          for (int i = 0; i < tiles.length && i < placements.length; i++)
+          for (int i = 0; i < tiles.length && i < placements.length; i++) ...[
             Positioned(
               left: placements[i].offset.dx,
               top: placements[i].offset.dy,
               width: placements[i].size.width,
               height: placements[i].size.height,
-              child: tiles[i].child,
+              child: _buildDraggableTile(
+                tile: tiles[i],
+                placementSize: placements[i].size,
+              ),
             ),
+          ],
         ];
 
-        return SizedBox(
-          height: totalHeight,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              ...backgroundCells,
-              ...dataLayer,
-            ],
+        final stackContent = Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ...backgroundCells,
+            ...dataLayer,
+          ],
+        );
+
+        if (onTileDrop == null) {
+          return SizedBox(height: totalHeight, child: stackContent);
+        }
+
+        final stackKey = GlobalKey();
+        return DragTarget<_TileDragData>(
+          onAcceptWithDetails: (DragTargetDetails<_TileDragData> details) {
+            final box = stackKey.currentContext?.findRenderObject() as RenderBox?;
+            if (box == null) return;
+            final local = box.globalToLocal(details.offset);
+            final int cellX = (local.dx / (cellWidth + crossSpacing)).floor().clamp(0, cols - details.data.cellW);
+            final int cellY = (local.dy / (cellHeight + mainSpacing)).floor().clamp(0, 999);
+            // 松手时打印落点：像素坐标与格点坐标
+            debugPrint('松手落点 - 像素 xy: (${local.dx.toStringAsFixed(1)}, ${local.dy.toStringAsFixed(1)}), 格点 cell: ($cellX, $cellY)');
+            onTileDrop!(details.data.index, cellX, cellY);
+          },
+          builder: (context, candidateData, rejectedData) => SizedBox(
+            key: stackKey,
+            height: totalHeight,
+            child: stackContent,
           ),
         );
       },
@@ -331,16 +406,21 @@ class _StaggeredGridBody extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 页面：仅展示网格，无拖拽
+// 页面：网格 + 数据块拖拽（底层 1x1 不拖拽）
 // ---------------------------------------------------------------------------
 
-class AdminTextPage extends StatelessWidget {
+class AdminTextPage extends StatefulWidget {
   const AdminTextPage({super.key});
 
+  @override
+  State<AdminTextPage> createState() => _AdminTextPageState();
+}
+
+class _AdminTextPageState extends State<AdminTextPage> {
   static const AdminGridConfig _gridConfig = AdminGridConfig();
 
   /// 按 JSON 结构：size "WxH"，position { x, y }（格点单位）
-  static final List<AdminGridTileData> _tiles = _buildTilesFromJson([
+  static List<AdminGridTileData> _buildInitialTiles() => _buildTilesFromJson([
     {'size': '4x4', 'position': {'x': 0, 'y': 12}},
     {'size': '4x4', 'position': {'x': 0, 'y': 22}},
     {'size': '2x4', 'position': {'x': 0, 'y': 0}},
@@ -381,6 +461,30 @@ class AdminTextPage extends StatelessWidget {
     return out;
   }
 
+  late List<AdminGridTileData> _tiles = _buildInitialTiles();
+
+  void _onTileDrop(int index, int cellX, int cellY) {
+    if (index < 0 || index >= _tiles.length) return;
+    final t = _tiles[index];
+    setState(() {
+      _tiles = List.from(_tiles);
+      _tiles[index] = AdminGridTileData(
+        crossAxisCellCount: t.crossAxisCellCount,
+        mainAxisCellCount: t.mainAxisCellCount,
+        x: t.x,
+        y: t.y,
+        w: t.w,
+        h: t.h,
+        cellX: cellX,
+        cellY: cellY,
+        cellW: t.cellW,
+        cellH: t.cellH,
+        color: t.color,
+        label: t.label,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -391,6 +495,7 @@ class AdminTextPage extends StatelessWidget {
         padding: _gridConfig.padding,
         child: _StaggeredGridBody(
           config: _gridConfig,
+          onTileDrop: _onTileDrop,
           tiles: [
             for (int i = 0; i < _tiles.length; i++)
               _StaggeredGridTile(
@@ -404,11 +509,9 @@ class AdminTextPage extends StatelessWidget {
                 cellY: _tiles[i].cellY,
                 cellW: _tiles[i].cellW,
                 cellH: _tiles[i].cellH,
-                child: _GridTile(
-                  index: i,
-                  color: _tiles[i].color,
-                  label: _tiles[i].label ?? '${i + 1}',
-                ),
+                index: i,
+                color: _tiles[i].color,
+                label: _tiles[i].label ?? '${i + 1}',
               ),
           ],
         ),
