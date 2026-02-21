@@ -1,5 +1,6 @@
 import 'package:dinq_app/pages/admin/admin_mydinq_page.dart';
 import 'package:dinq_app/pages/admin/admin_search_page.dart';
+import 'package:dinq_app/pages/admin/admin_text_page.dart';
 import 'package:dinq_app/pages/admin/inbox/admin_inbox_page.dart';
 import 'package:dinq_app/pages/discover/discover_page.dart';
 import 'package:dinq_app/pages/me/me_page.dart';
@@ -36,8 +37,10 @@ class _MainTabPageState extends State<MainTabPage> {
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
           children: [
+            // KeepAliveWrapper(child: AdminMyDinqPage()),
+            KeepAliveWrapper(child: AdminTextPage()),
             KeepAliveWrapper(child: AdminMyDinqPage()),
-            KeepAliveWrapper(child: DiscoverPage()),
+            // KeepAliveWrapper(child: DiscoverPage()),
             KeepAliveWrapper(child: AdminInboxPage()),
             KeepAliveWrapper(child: MePage()),
           ],
