@@ -184,12 +184,15 @@ class _StaggeredGridBody extends StatelessWidget {
     required this.config,
     required this.tiles,
     this.onTileDrop,
+    this.onTileDragMove,
   });
 
   final AdminGridConfig config;
   final List<_StaggeredGridTile> tiles;
   /// 拖拽放下时回调 (index, newCellX, newCellY)，用于更新格子位置
   final void Function(int index, int cellX, int cellY)? onTileDrop;
+  /// 拖拽移动过程中回调，用于实时更新格子位置（与 onTileDrop 可共用同一方法）
+  final void Function(int index, int cellX, int cellY)? onTileDragMove;
 
   Widget _buildDraggableTile({
     required _StaggeredGridTile tile,
@@ -207,12 +210,15 @@ class _StaggeredGridBody extends StatelessWidget {
     );
     return Draggable<_TileDragData>(
       data: dragData,
-      feedback: Material(
-        color: Colors.transparent,
-        child: SizedBox(
-          width: placementSize.width,
-          height: placementSize.height,
-          child: content,
+      // 让 feedback 不参与命中测试，松手时落点才能被下层 DragTarget 接收到
+      feedback: IgnorePointer(
+        child: Material(
+          color: Colors.transparent,
+          child: SizedBox(
+            width: placementSize.width,
+            height: placementSize.height,
+            child: content,
+          ),
         ),
       ),
       childWhenDragging: Opacity(
@@ -383,14 +389,26 @@ class _StaggeredGridBody extends StatelessWidget {
         }
 
         final stackKey = GlobalKey();
+        void reportCellPosition(DragTargetDetails<_TileDragData> details, Offset globalOffset) {
+          final box = stackKey.currentContext?.findRenderObject() as RenderBox?;
+          if (box == null) return;
+          final local = box.globalToLocal(globalOffset);
+          final int cellX = (local.dx / (cellWidth + crossSpacing)).floor().clamp(0, cols - details.data.cellW);
+          final int cellY = (local.dy / (cellHeight + mainSpacing)).floor().clamp(0, 999);
+          onTileDragMove?.call(details.data.index, cellX, cellY);
+        }
+
         return DragTarget<_TileDragData>(
+          onMove: onTileDragMove != null
+              ? (DragTargetDetails<_TileDragData> details) =>
+                  reportCellPosition(details, details.offset)
+              : null,
           onAcceptWithDetails: (DragTargetDetails<_TileDragData> details) {
             final box = stackKey.currentContext?.findRenderObject() as RenderBox?;
             if (box == null) return;
             final local = box.globalToLocal(details.offset);
             final int cellX = (local.dx / (cellWidth + crossSpacing)).floor().clamp(0, cols - details.data.cellW);
             final int cellY = (local.dy / (cellHeight + mainSpacing)).floor().clamp(0, 999);
-            // 松手时打印落点：像素坐标与格点坐标
             debugPrint('松手落点 - 像素 xy: (${local.dx.toStringAsFixed(1)}, ${local.dy.toStringAsFixed(1)}), 格点 cell: ($cellX, $cellY)');
             onTileDrop!(details.data.index, cellX, cellY);
           },
@@ -463,9 +481,53 @@ class _AdminTextPageState extends State<AdminTextPage> {
 
   late List<AdminGridTileData> _tiles = _buildInitialTiles();
 
-  void _onTileDrop(int index, int cellX, int cellY) {
+  /// 找到覆盖格点 (cellX, cellY) 的块索引（仅格点模式），若无则 null（视为空白 1x1）
+  int? _findTileAtCell(List<AdminGridTileData> tiles, int cellX, int cellY) {
+    for (int i = 0; i < tiles.length; i++) {
+      final t = tiles[i];
+      if (!t.isCellBased) continue;
+      final cx = t.cellX!, cy = t.cellY!, cw = t.cellW!, ch = t.cellH!;
+      if (cellX >= cx && cellX < cx + cw && cellY >= cy && cellY < cy + ch) return i;
+    }
+    return null;
+  }
+
+  /// 更新格子位置：落点在已有 item 上则互换位置，落点在空白 1x1 则只改当前块 xy
+  void _onTilePositionUpdate(int index, int cellX, int cellY) {
     if (index < 0 || index >= _tiles.length) return;
     final t = _tiles[index];
+    if (!t.isCellBased) return;
+
+    final targetIndex = _findTileAtCell(_tiles, cellX, cellY);
+
+    if (targetIndex == null) {
+      // 空白 1x1：只修改当前拖拽 item 的 xy
+      if (t.cellX == cellX && t.cellY == cellY) return;
+      setState(() {
+        _tiles = List.from(_tiles);
+        _tiles[index] = AdminGridTileData(
+          crossAxisCellCount: t.crossAxisCellCount,
+          mainAxisCellCount: t.mainAxisCellCount,
+          x: t.x,
+          y: t.y,
+          w: t.w,
+          h: t.h,
+          cellX: cellX,
+          cellY: cellY,
+          cellW: t.cellW,
+          cellH: t.cellH,
+          color: t.color,
+          label: t.label,
+        );
+      });
+      return;
+    }
+
+    if (targetIndex == index) return; // 落在自己身上，不处理
+
+    // 落在已有 item 上：与对方互换位置
+    final other = _tiles[targetIndex];
+    if (!other.isCellBased) return;
     setState(() {
       _tiles = List.from(_tiles);
       _tiles[index] = AdminGridTileData(
@@ -475,12 +537,26 @@ class _AdminTextPageState extends State<AdminTextPage> {
         y: t.y,
         w: t.w,
         h: t.h,
-        cellX: cellX,
-        cellY: cellY,
+        cellX: other.cellX,
+        cellY: other.cellY,
         cellW: t.cellW,
         cellH: t.cellH,
         color: t.color,
         label: t.label,
+      );
+      _tiles[targetIndex] = AdminGridTileData(
+        crossAxisCellCount: other.crossAxisCellCount,
+        mainAxisCellCount: other.mainAxisCellCount,
+        x: other.x,
+        y: other.y,
+        w: other.w,
+        h: other.h,
+        cellX: t.cellX,
+        cellY: t.cellY,
+        cellW: other.cellW,
+        cellH: other.cellH,
+        color: other.color,
+        label: other.label,
       );
     });
   }
@@ -495,7 +571,8 @@ class _AdminTextPageState extends State<AdminTextPage> {
         padding: _gridConfig.padding,
         child: _StaggeredGridBody(
           config: _gridConfig,
-          onTileDrop: _onTileDrop,
+          onTileDrop: _onTilePositionUpdate,
+          onTileDragMove: _onTilePositionUpdate,
           tiles: [
             for (int i = 0; i < _tiles.length; i++)
               _StaggeredGridTile(
