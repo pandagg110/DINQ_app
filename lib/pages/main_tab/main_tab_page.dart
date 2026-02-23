@@ -1,6 +1,6 @@
 import 'package:dinq_app/pages/admin/admin_mydinq_page.dart';
 import 'package:dinq_app/pages/admin/admin_search_page.dart';
-import 'package:dinq_app/pages/admin/admin_text_page.dart';
+import 'package:dinq_app/pages/admin/admin_text_page1.dart';
 import 'package:dinq_app/pages/admin/inbox/admin_inbox_page.dart';
 import 'package:dinq_app/pages/discover/discover_page.dart';
 import 'package:dinq_app/pages/me/me_page.dart';
