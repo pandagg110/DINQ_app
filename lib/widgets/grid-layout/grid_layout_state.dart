@@ -53,6 +53,8 @@ class GridLayoutState extends ChangeNotifier {
     required List<LayoutItem> layout,
     required this.cols,
     this.preventCollision = false,
+    /// 松手时是否执行紧凑重排；为 false 时仅更新落点位置，不重排，与拖拽终点一致
+    this.compactOnDragEnd = false,
     this.onLayoutChange,
     Compactor? compactor,
   })  : _layout = core.cloneLayout(layout),
@@ -62,6 +64,7 @@ class GridLayoutState extends ChangeNotifier {
 
   final int cols;
   final bool preventCollision;
+  final bool compactOnDragEnd;
   final void Function(List<LayoutItem> layout)? onLayoutChange;
   final Compactor compactor;
 
@@ -150,18 +153,24 @@ class GridLayoutState extends ChangeNotifier {
   void onDragStop(String itemId, int x, int y) {
     final item = core.getLayoutItem(_layout, itemId);
     if (item == null) return;
-    final newLayout = core.moveElement(
-      _layout,
-      item,
-      x,
-      y,
-      true,
-      preventCollision,
-      compactor.type,
-      cols,
-      allowOverlap: compactor.allowOverlap,
-    );
-    _layout = compactor.compact(newLayout, cols);
+    if (compactOnDragEnd) {
+      final newLayout = core.moveElement(
+        _layout,
+        item,
+        x,
+        y,
+        true,
+        preventCollision,
+        compactor.type,
+        cols,
+        allowOverlap: compactor.allowOverlap,
+      );
+      _layout = compactor.compact(newLayout, cols);
+    } else {
+      // 仅更新落点，不重排，位置与松手时一致
+      item.x = x.clamp(0, cols - item.w);
+      item.y = y.clamp(0, 999 - item.h);
+    }
     _isDragging = false;
     _dragState = DragState();
     onLayoutChange?.call(_layout);
