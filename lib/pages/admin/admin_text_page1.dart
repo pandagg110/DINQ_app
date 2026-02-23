@@ -54,9 +54,7 @@ class _AdminTextPageState extends State<AdminTextPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Grid Layout Demo'),
-      ),
+      appBar: AppBar(title: const Text('Grid Layout Demo')),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -65,9 +63,9 @@ class _AdminTextPageState extends State<AdminTextPage> {
               padding: const EdgeInsets.all(12),
               child: Text(
                 '固定 12 列，6 个不同尺寸（2×2、4×2、6×2 等）。拖拽可移动，松手后紧凑重排。',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
               ),
             ),
             Expanded(
@@ -75,7 +73,10 @@ class _AdminTextPageState extends State<AdminTextPage> {
                 builder: (context, constraints) {
                   // 扣除左右 padding，让网格真正占满父容器可用宽度
                   const horizontalPadding = 12.0 * 2;
-                  final w = (constraints.maxWidth - horizontalPadding).clamp(1.0, double.infinity);
+                  final w = (constraints.maxWidth - horizontalPadding).clamp(
+                    1.0,
+                    double.infinity,
+                  );
                   if (w <= 0) return const SizedBox();
                   final params = GridLayoutParams(
                     containerWidth: w,
@@ -93,35 +94,38 @@ class _AdminTextPageState extends State<AdminTextPage> {
                           child: GridLayoutWidget(
                             state: _gridState,
                             params: params,
-                        itemBuilder: (context, item) {
-                          final idx = int.tryParse(item.i) ?? 0;
-                          final color = _tileColors[idx % _tileColors.length];
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: color,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade400),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
+                            itemBuilder: (context, item) {
+                              final idx = int.tryParse(item.i) ?? 0;
+                              final color =
+                                  _tileColors[idx % _tileColors.length];
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${item.i}\n${item.w}×${item.h}',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade800,
+                                child: Center(
+                                  child: Text(
+                                    '${item.i}\n${item.w}×${item.h}',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          );
-                        },
+                              );
+                            },
                           ),
                         ),
                       );

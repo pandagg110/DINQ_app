@@ -151,6 +151,11 @@ class GridLayoutState extends ChangeNotifier {
   }
 
   void onDragStop(String itemId, int x, int y) {
+    _isDragging = false;
+    _dragState = DragState();
+    onLayoutChange?.call(_layout);
+    notifyListeners();
+    return;
     final item = core.getLayoutItem(_layout, itemId);
     if (item == null) return;
     if (compactOnDragEnd) {
@@ -167,9 +172,18 @@ class GridLayoutState extends ChangeNotifier {
       );
       _layout = compactor.compact(newLayout, cols);
     } else {
-      // 仅更新落点，不重排，位置与松手时一致
-      item.x = x.clamp(0, cols - item.w);
-      item.y = y.clamp(0, 999 - item.h);
+      // 仅更新落点，不重排，与阴影位置一致（落点来自最后一次 onDragUpdate 的格点）
+      // 直接采用 widget 传入的 (x,y)，不再二次 clamp，避免与 calcXY 的 params 不一致导致错位
+      item.x = x;
+      item.y = y;
+      final other = core.getFirstCollision(_layout, item);
+      if (other != null) {
+        final ox = other.x, oy = other.y;
+        other.x = x;
+        other.y = y;
+        item.x = ox;
+        item.y = oy;
+      }
     }
     _isDragging = false;
     _dragState = DragState();
