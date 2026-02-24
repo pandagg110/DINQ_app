@@ -5,7 +5,6 @@ import '../grid-layout/grid_layout_widget.dart';
 import '../grid-layout/grid_layout_types.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
-import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
 import '../../utils/card_layout_utils.dart';
 import '../../utils/grid_layout_core.dart';
@@ -40,6 +39,8 @@ class CardGridStaggered extends StatefulWidget {
 
 class _CardGridStaggeredState extends State<CardGridStaggered> {
   GridLayoutState? _gridState;
+  /// 拖拽过程中由 onMove 写入的布局，用于 PlaceholderGrid 计算 placeholderPositions；松手后清空
+  List<LayoutItem>? _layoutDuringMove;
 
   List<LayoutItem> _cardsToLayoutItems(List<CardItem> cards, bool static_) {
     return cards.map((c) {
@@ -92,7 +93,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
   Widget _buildContent(BuildContext context, CardStore cardStore) {
     final placeholderNotifier = context.watch<PlaceholderNotifier>();
     final userStore = context.watch<UserStore>();
-    final settings = context.watch<SettingsStore>();
     final cards = cardStore.cards;
     final columns = CardGridStaggered.gridColumns;
     final updateCount = cardStore.updateCount;
@@ -116,7 +116,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       );
     });
 
-    final gridConfig = settings.gridConfig;
     final gap = 12.0;
     // 与网格显示一致：仅用实际参与排布的卡片（allowedSizes）计算占位布局，改尺寸后占位会重排
     const allowedSizes = {'2x2', '2x4', '4x2', '4x4', '4x1'};
@@ -128,6 +127,11 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         widget.editable &&
         widget.onPlaceholderClick != null &&
         placeholderNotifier.showPlaceholders;
+     final layoutOverrideForPlaceholders = _layoutDuringMove != null
+        ? _layoutDuringMove!
+            .map((e) => (x: e.x, y: e.y, w: e.w, h: e.h))
+            .toList()
+        : null;
     final placeholderPositions = showPlaceholders
         ? computePlaceholderPositions(
             cards: cards,
@@ -136,6 +140,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
             editable: widget.editable,
             showPlaceholders: placeholderNotifier.showPlaceholders,
             hiddenPlaceholders: placeholderNotifier.hiddenPlaceholders,
+            layoutOverride: layoutOverrideForPlaceholders,
           )
         : <PlaceholderPosition>[];
     int maxGridY = 0;
@@ -235,7 +240,19 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       _gridState = GridLayoutState(
         layout: layoutItems,
         cols: columns,
-        onLayoutChange: (newLayout) => _syncLayoutToStore(newLayout, cardStore),
+        onMove: (newLayout) {
+          setState(() {
+            _layoutDuringMove = newLayout.map((e) => e.copyWith()).toList();
+          });
+        },
+        onLayoutChange: (newLayout) {
+          _syncLayoutToStore(newLayout, cardStore);
+          if (_gridState?.dragState.activeDrag == null && _layoutDuringMove != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _layoutDuringMove = null);
+            });
+          }
+        },
       );
     } else {
       _gridState!.setLayoutFromProps(layoutItems);
@@ -267,21 +284,23 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
           padding: const EdgeInsets.symmetric(vertical: 0),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: minHeight),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                ListenableBuilder(
-                  listenable: _gridState!,
-                  builder: (context, _) {
-                    return GridLayoutWidget(
-                      // key: ValueKey(
-                      //   cards
-                      //       .map(
-                      //         (c) =>
-                      //             '${c.id}_${c.layout.mobile.size}_${widget.editable}_${c.data.status}_${updateCount}',
-                      //       )
-                      //       .join('|'),
-                      // ),
+            child: ListenableBuilder(
+              listenable: _gridState!,
+              builder: (context, _) {
+                final activeDrag = _gridState!.dragState.activeDrag;
+                final dragSnapshot = activeDrag != null
+                    ? GridDragSnapshot(
+                        itemId: activeDrag.i,
+                        x: activeDrag.x,
+                        y: activeDrag.y,
+                        w: activeDrag.w,
+                        h: activeDrag.h,
+                      )
+                    : null;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    GridLayoutWidget(
                       state: _gridState!,
                       params: params,
                       itemBuilder: (context, item) {
@@ -299,29 +318,30 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                                 card: card, editable: widget.editable);
                         return content;
                       },
-                    );
-                  },
-                ),
-                if (placeholderPositions.isNotEmpty)
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: SizedBox(
-                      width: w,
-                      height: totalGridHeight > 0 ? totalGridHeight : null,
-                      child: PlaceholderGrid(
-                        width: w,
-                        positions: placeholderPositions,
-                        contentSlotWidth: contentSlotWidth,
-                        mainRowHeight: mainRowHeight,
-                        onPlaceholderClick: (pos) =>
-                            widget.onPlaceholderClick?.call(pos.config),
-                        onPlaceholderDelete: (type) =>
-                            placeholderNotifier.hidePlaceholder(type),
-                      ),
                     ),
-                  ),
-              ],
+                    if (placeholderPositions.isNotEmpty)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        child: SizedBox(
+                          width: w,
+                          height: totalGridHeight > 0 ? totalGridHeight : null,
+                          child: PlaceholderGrid(
+                            width: w,
+                            positions: placeholderPositions,
+                            contentSlotWidth: contentSlotWidth,
+                            mainRowHeight: mainRowHeight,
+                            dragSnapshot: dragSnapshot,
+                            onPlaceholderClick: (pos) =>
+                                widget.onPlaceholderClick?.call(pos.config),
+                            onPlaceholderDelete: (type) =>
+                                placeholderNotifier.hidePlaceholder(type),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         );

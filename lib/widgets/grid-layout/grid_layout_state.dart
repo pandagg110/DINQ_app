@@ -56,6 +56,8 @@ class GridLayoutState extends ChangeNotifier {
     /// 松手时是否执行紧凑重排；为 false 时仅更新落点位置，不重排，与拖拽终点一致
     this.compactOnDragEnd = false,
     this.onLayoutChange,
+    /// 拖拽移动过程中每次位置变化时调用，可能为空
+    this.onMove,
     Compactor? compactor,
   })  : _layout = core.cloneLayout(layout),
         compactor = compactor ?? VerticalCompactor() {
@@ -66,6 +68,8 @@ class GridLayoutState extends ChangeNotifier {
   final bool preventCollision;
   final bool compactOnDragEnd;
   final void Function(List<LayoutItem> layout)? onLayoutChange;
+  /// 拖拽移动过程中每次位置变化时调用，可能为空
+  final void Function(List<LayoutItem> layout)? onMove;
   final Compactor compactor;
 
   List<LayoutItem> get layout => _layout;
@@ -147,6 +151,7 @@ class GridLayoutState extends ChangeNotifier {
       allowOverlap: compactor.allowOverlap,
     );
     _layout = compactor.compact(newLayout, cols);
+    onMove?.call(_layout);
     notifyListeners();
   }
 

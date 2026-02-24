@@ -5,6 +5,7 @@ import 'use_placeholders.dart';
 /// 占位网格：与 GridLayoutWidget 对齐，按格点 + gap 定位。
 /// left = x * (contentSlotWidth + gap)，top = y * mainRowHeight；
 /// width/height = 格数 * contentSlotWidth + (格数 - 1) * gap。
+/// [dragSnapshot] 为拖拽过程中的数据，可用于高亮落点或避免与拖拽项重叠等。
 class PlaceholderGrid extends StatelessWidget {
   const PlaceholderGrid({
     super.key,
@@ -14,6 +15,7 @@ class PlaceholderGrid extends StatelessWidget {
     required this.onPlaceholderClick,
     required this.onPlaceholderDelete,
     required this.width,
+    this.dragSnapshot,
   });
 
   final List<PlaceholderPosition> positions;
@@ -22,6 +24,8 @@ class PlaceholderGrid extends StatelessWidget {
   final void Function(PlaceholderPosition pos) onPlaceholderClick;
   final void Function(String type) onPlaceholderDelete;
   final double width;
+  /// 拖拽过程中的数据（由外部从 GridLayoutState.dragState 转换后传入）
+  final GridDragSnapshot? dragSnapshot;
 
   /// 与 GridLayoutWidget 一致：格宽 + 间隙 = 每格步长
   static double _slotStep(double contentSlotWidth, double mainRowHeight) {
