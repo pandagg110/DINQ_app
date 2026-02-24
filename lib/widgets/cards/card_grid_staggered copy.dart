@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../grid-layout/grid_layout_state.dart';
-import '../grid-layout/grid_layout_widget.dart';
-import '../grid-layout/grid_layout_types.dart';
+import '../reorderable_staggered_scroll_view/reorderable_staggered_scroll_view.dart';
 import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
 import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
 import '../../utils/card_layout_utils.dart';
-import '../../utils/grid_layout_core.dart';
 import 'card_renderer.dart';
 import 'placeholder/placeholder_config.dart';
 import 'placeholder/placeholder_grid.dart';
@@ -39,44 +36,6 @@ class CardGridStaggered extends StatefulWidget {
 }
 
 class _CardGridStaggeredState extends State<CardGridStaggered> {
-  GridLayoutState? _gridState;
-
-  List<LayoutItem> _cardsToLayoutItems(List<CardItem> cards, bool static_) {
-    return cards.map((c) {
-      final pos = c.layout.mobile.position;
-      final dims = CardLayoutUtils.parseSizeString(c.layout.mobile.size);
-      return LayoutItem(
-        i: c.id,
-        x: pos.x,
-        y: pos.y,
-        w: dims.w.clamp(1, CardGridStaggered.gridColumns),
-        h: dims.h.clamp(1, 100),
-        static_: static_,
-      );
-    }).toList();
-  }
-
-  void _syncLayoutToStore(List<LayoutItem> layout, CardStore cardStore) {
-    final byId = {for (final item in layout) item.i: item};
-    final changedLayouts = <String, CardLayout>{};
-    for (final c in cardStore.cards) {
-      final item = byId[c.id];
-      if (item == null) continue;
-      final oldPos = c.layout.mobile.position;
-      if (oldPos.x == item.x && oldPos.y == item.y) continue;
-      changedLayouts[c.id] = CardLayout(
-        desktop: c.layout.desktop,
-        mobile: CardLayoutState(
-          size: c.layout.mobile.size,
-          position: CardPosition(x: item.x, y: item.y, w: item.w, h: item.h),
-        ),
-      );
-    }
-    if (changedLayouts.isNotEmpty) {
-      cardStore.updateCardLayouts(changedLayouts);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.cardStore != null) {
@@ -156,7 +115,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         ? maxGridY * unitSize + (maxGridY - 1) * gap
         : 0.0;
     if (cards.isEmpty) {
-      _gridState = null;
       if (!widget.editable) return const SizedBox.shrink();
       return LayoutBuilder(
         builder: (context, constraints) {
@@ -192,7 +150,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     }
 
     if (filteredCards.isEmpty) {
-      _gridState = null;
       if (!widget.editable) return const SizedBox.shrink();
       return LayoutBuilder(
         builder: (context, constraints) {
@@ -227,35 +184,87 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       );
     }
 
-    final layoutItems = _cardsToLayoutItems(filteredCards, !widget.editable);
-    if (_gridState == null) {
-      _gridState = GridLayoutState(
-        layout: layoutItems,
-        cols: columns,
-        onLayoutChange: (newLayout) => _syncLayoutToStore(newLayout, cardStore),
+    // 包不支持按 (x,y) 定位，只按「列表顺序 + 每项占格数」排布。用 (y,x) 排序使顺序=左上到右下的格子顺序，等价于用 xy 布局
+    final sortedCards = List<CardItem>.from(filteredCards);
+    sortedCards.sort((a, b) {
+      final pa = a.layout.mobile.position;
+      final pb = b.layout.mobile.position;
+      if (pa.y != pb.y) return pa.y.compareTo(pb.y);
+      return pa.x.compareTo(pb.x);
+    });
+
+    // 包内 StaggeredGrid 无 mainAxisSpacing/crossAxisSpacing，用 Padding 包每个 item 实现 gap
+    final halfGap = gap / 2;
+    final gridItems = <ReorderableStaggeredScrollViewGridItem>[];
+    for (final card in sortedCards) {
+      final dims = CardLayoutUtils.parseSizeString(card.layout.mobile.size);
+      final crossCells = dims.w.clamp(1, columns);
+      final mainCells = dims.h.clamp(1, 100);
+      gridItems.add(
+        ReorderableStaggeredScrollViewGridCountItem(
+          key: ValueKey(card.id),
+          mainAxisCellCount: mainCells,
+          crossAxisCellCount: crossCells,
+          data: card,
+          widget: Padding(
+            padding: EdgeInsets.only(
+              left: halfGap,
+              top: 0,
+              right: halfGap,
+              bottom: 0,
+            ),
+
+            child: widget.editable
+                ? GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => cardStore.toggleCardSelection(card.id),
+                    child: CardRenderer(card: card, editable: widget.editable),
+                  )
+                : CardRenderer(card: card, editable: widget.editable),
+          ),
+        ),
       );
-    } else {
-      _gridState!.setLayoutFromProps(layoutItems);
     }
-    final cardById = {for (final c in filteredCards) c.id: c};
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
+
         final contentSlotWidth = w > 0
             ? (w - (columns - 1) * gap) / columns
             : unitSize;
         final minHeight = placeholderPositions.isNotEmpty && totalGridHeight > 0
             ? totalGridHeight
             : 0.0;
-        final params = GridLayoutParams(
-          containerWidth: w,
-          cols: columns,
-          rowHeight: w/4,
-          marginX: 12,
-          marginY: 12,
-        );
-        debugPrint('CardGridStaggered: _gridState: ${params.cols}');
+
+        final updateLayout = (orderedDataList) {
+          final orderedCards = <CardItem>[];
+          for (final elem in orderedDataList) {
+            if (elem.data is CardItem) {
+              orderedCards.add(elem.data as CardItem);
+            }
+          }
+          if (orderedCards.isEmpty) return;
+          final newPositions = CardLayoutUtils.compactPositions(
+            orderedCards,
+            columns,
+          );
+          // 收集位置有变化的卡片，批量更新
+          final changedLayouts = <String, CardLayout>{};
+          for (var i = 0; i < orderedCards.length; i++) {
+            final c = orderedCards[i];
+            final pos = newPositions[i];
+            final oldPos = c.layout.mobile.position;
+            // 位置无变化则跳过
+            if (oldPos.x == pos.x && oldPos.y == pos.y) continue;
+            final currentLayout = c.layout.mobile;
+            changedLayouts[c.id] = CardLayout(
+              desktop: c.layout.desktop,
+              mobile: CardLayoutState(size: currentLayout.size, position: pos),
+            );
+          }
+          cardStore.updateCardLayouts(changedLayouts);
+        };
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 0),
           child: ConstrainedBox(
@@ -263,36 +272,30 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                ListenableBuilder(
-                  listenable: _gridState!,
-                  builder: (context, _) {
-                    return GridLayoutWidget(
-                      // key: ValueKey(
-                      //   cards
-                      //       .map(
-                      //         (c) =>
-                      //             '${c.id}_${c.layout.mobile.size}_${widget.editable}_${c.data.status}_${updateCount}',
-                      //       )
-                      //       .join('|'),
-                      // ),
-                      state: _gridState!,
-                      params: params,
-                      itemBuilder: (context, item) {
-                        final card = cardById[item.i];
-                        if (card == null) return const SizedBox.shrink();
-                        final content = widget.editable
-                            ? GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () =>
-                                    cardStore.toggleCardSelection(card.id),
-                                child: CardRenderer(
-                                    card: card, editable: widget.editable),
-                              )
-                            : CardRenderer(
-                                card: card, editable: widget.editable);
-                        return content;
-                      },
-                    );
+                ReorderableStaggeredScrollView.grid(
+                  key: ValueKey(
+                    cards
+                        .map(
+                          (c) =>
+                              '${c.id}_${c.layout.mobile.size}_${widget.editable}_${c.data.status}_${updateCount}',
+                        )
+                        .join('|'),
+                  ),
+                  enable: widget.editable,
+                  crossAxisCount: columns,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(0),
+                  isLongPressDraggable: true,
+                  children: gridItems,
+                  onCompleted: (orderedDataList) {
+                    updateLayout(orderedDataList);
+                  },
+                  onDragEnd: (details, item, orderedDataList) {
+                    // 根据 orderedDataList 的顺序和每张 card 的 size，计算 x,y 并更新布局
+                    updateLayout(orderedDataList);
+                  },
+                  onAccept: (draggedItem, targetItem, isFront) {
+                    // 由 onDragEnd 根据 orderedDataList 统一计算并更新布局
                   },
                 ),
                 if (placeholderPositions.isNotEmpty)
@@ -303,6 +306,14 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                       width: w,
                       height: totalGridHeight > 0 ? totalGridHeight : null,
                       child: PlaceholderGrid(
+                        // key: ValueKey(
+                        //   cards
+                        //       .map(
+                        //         (c) =>
+                        //             '${c.id}_${c.layout.mobile.size}_${c.layout.mobile.position.x}_${c.layout.mobile.position.y}_${widget.editable}_${c.data.status}_${updateCount}',
+                        //       )
+                        //       .join('|'),
+                        // ),
                         width: w,
                         positions: placeholderPositions,
                         contentSlotWidth: contentSlotWidth,

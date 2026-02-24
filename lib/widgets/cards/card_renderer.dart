@@ -295,7 +295,7 @@ class _CardRendererState extends State<CardRenderer> {
                         ),
                       ),
                     ),
-              if (widget.showBottomSizedBox ?? true) const SizedBox(height: 24),
+              // if (widget.showBottomSizedBox ?? true) const SizedBox(height: 24),
             ],
           ),
 
