@@ -72,8 +72,10 @@ class _GridItemWidgetState extends State<GridItemWidget> {
     content = Draggable<LayoutItem>(
       data: item,
       feedback: Material(
+        type: MaterialType.transparency,
         elevation: 8,
         borderRadius: BorderRadius.circular(4),
+        color: Colors.transparent,
         child: SizedBox(
           width: rect.width,
           height: rect.height,

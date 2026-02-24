@@ -117,8 +117,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     });
 
     final gridConfig = settings.gridConfig;
-    final gap = gridConfig.mobileGap;
-    final unitSize = gridConfig.mobileUnitSize;
+    final gap = 12.0;
     // 与网格显示一致：仅用实际参与排布的卡片（allowedSizes）计算占位布局，改尺寸后占位会重排
     const allowedSizes = {'2x2', '2x4', '4x2', '4x4', '4x1'};
     final filteredCards = cards.where((c) {
@@ -150,23 +149,23 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       final endY = p.y + p.config.size.h;
       if (endY > maxGridY) maxGridY = endY;
     }
-    // 与 TSX 一致：totalGridHeight = totalMaxY * unitSize + (totalMaxY - 1) * gap（行间有 gap，最后一行下无 gap）
-    final mainRowHeight = unitSize + gap;
-    final totalGridHeight = maxGridY > 0
-        ? maxGridY * unitSize + (maxGridY - 1) * gap
-        : 0.0;
     if (cards.isEmpty) {
       _gridState = null;
       if (!widget.editable) return const SizedBox.shrink();
       return LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
+          // 单格为正方形：格宽 = (宽度 - 间隙) / 列数，行高 = 格宽
           final contentSlotWidth = w > 0
               ? (w - (columns - 1) * gap) / columns
-              : unitSize;
+              : 80.0;
+          final mainRowHeight = contentSlotWidth + gap;
+          final totalGridHeight = maxGridY > 0
+              ? maxGridY * contentSlotWidth + (maxGridY - 1) * gap
+              : 120.0;
           return SizedBox(
             width: w,
-            height: totalGridHeight > 0 ? totalGridHeight : 120,
+            height: totalGridHeight,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -199,10 +198,14 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
           final w = constraints.maxWidth;
           final contentSlotWidth = w > 0
               ? (w - (columns - 1) * gap) / columns
-              : unitSize;
+              : 80.0;
+          final mainRowHeight = contentSlotWidth + gap;
+          final totalGridHeight = maxGridY > 0
+              ? maxGridY * contentSlotWidth + (maxGridY - 1) * gap
+              : 120.0;
           return SizedBox(
             width: w,
-            height: totalGridHeight > 0 ? totalGridHeight : 120,
+            height: totalGridHeight,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -242,20 +245,24 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
+        // 单格为正方形：行高 = 格宽，无需单独设置 rowHeight
         final contentSlotWidth = w > 0
             ? (w - (columns - 1) * gap) / columns
-            : unitSize;
+            : 80.0;
+        final mainRowHeight = contentSlotWidth + gap;
+        final totalGridHeight = maxGridY > 0
+            ? maxGridY * contentSlotWidth + (maxGridY - 1) * gap
+            : 0.0;
         final minHeight = placeholderPositions.isNotEmpty && totalGridHeight > 0
             ? totalGridHeight
             : 0.0;
         final params = GridLayoutParams(
           containerWidth: w,
           cols: columns,
-          rowHeight: w/4,
-          marginX: 12,
-          marginY: 12,
+          rowHeight: contentSlotWidth,
+          marginX: gap,
+          marginY: gap,
         );
-        debugPrint('CardGridStaggered: _gridState: ${params.cols}');
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 0),
           child: ConstrainedBox(
