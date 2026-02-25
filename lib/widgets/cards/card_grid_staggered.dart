@@ -42,17 +42,23 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
   /// 拖拽过程中由 onMove 写入的布局，用于 PlaceholderGrid 计算 placeholderPositions；松手后清空
   List<LayoutItem>? _layoutDuringMove;
 
-  List<LayoutItem> _cardsToLayoutItems(List<CardItem> cards, bool static_) {
+  /// [selectedIds] 编辑态下仅在此集合中的卡片可拖拽，未选中则 static_=true
+  List<LayoutItem> _cardsToLayoutItems(
+    List<CardItem> cards, {
+    required Set<String> selectedIds,
+    required bool editable,
+  }) {
     return cards.map((c) {
       final pos = c.layout.mobile.position;
       final dims = CardLayoutUtils.parseSizeString(c.layout.mobile.size);
+      final canDrag = editable && selectedIds.contains(c.id);
       return LayoutItem(
         i: c.id,
         x: pos.x,
         y: pos.y,
         w: dims.w.clamp(1, CardGridStaggered.gridColumns),
         h: dims.h.clamp(1, 100),
-        static_: static_,
+        static_: !canDrag,
       );
     }).toList();
   }
@@ -235,7 +241,11 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       );
     }
 
-    final layoutItems = _cardsToLayoutItems(filteredCards, !widget.editable);
+    final layoutItems = _cardsToLayoutItems(
+      filteredCards,
+      selectedIds: cardStore.selectedCardIds,
+      editable: widget.editable,
+    );
     if (_gridState == null) {
       _gridState = GridLayoutState(
         layout: layoutItems,

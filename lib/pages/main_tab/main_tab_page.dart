@@ -37,10 +37,8 @@ class _MainTabPageState extends State<MainTabPage> {
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
           children: [
-            // KeepAliveWrapper(child: AdminMyDinqPage()),
-            KeepAliveWrapper(child: AdminTextPage()),
             KeepAliveWrapper(child: AdminMyDinqPage()),
-            // KeepAliveWrapper(child: DiscoverPage()),
+            KeepAliveWrapper(child: DiscoverPage()),
             KeepAliveWrapper(child: AdminInboxPage()),
             KeepAliveWrapper(child: MePage()),
           ],

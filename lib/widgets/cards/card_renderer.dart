@@ -105,14 +105,13 @@ class _CardRendererState extends State<CardRenderer> {
         : const Color(0xFFE5E7EB); // 默认灰色
     final borderWidth = isSelected ? 2.0 : 1.0;
 
-    // 卡片内容
+    // 卡片内容（不含 border，border 用 Positioned 单独一层）
     final cardContent = Container(
       width: double.infinity,
       height: widget.card.data.type.toUpperCase() == 'TITLE' ? 100 : null,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: borderColor, width: borderWidth),
         boxShadow: [
           BoxShadow(
             color: isSelected
@@ -211,6 +210,21 @@ class _CardRendererState extends State<CardRenderer> {
                 ),
               ),
             ),
+
+          // 边框单独一层，不占布局、不拦截点击
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: borderColor,
+                    width: borderWidth,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -341,10 +355,15 @@ class _CardRendererState extends State<CardRenderer> {
                   : const SizedBox.shrink(),
             ],
 
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: _buildCardToolbar(context, cardStore, viewMode),
-            ),
+          
+            Positioned(
+                left: 0,
+                right: 0,
+                bottom: -16,
+                child: Center(
+                  child: _buildCardToolbar(context, cardStore, viewMode),
+                ),
+              ),
             //   // 工具栏 - 底部居中，选中时显示
           ],
         ],
