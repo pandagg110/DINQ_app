@@ -464,8 +464,11 @@ class ScholarsList extends StatelessWidget {
                     isSelected: isSelected,
                     onTap: () {
                       if (onCandidateClick != null) {
+
+                        debugPrint('candidate1111: $candidate');
                         onCandidateClick!(candidate, idx, groupId);
                       } else {
+                        debugPrint('candidate22222: $candidate');
                         final store = context.read<SearchStore>();
                         final tabId = store.openTabWithClick(
                               candidate,

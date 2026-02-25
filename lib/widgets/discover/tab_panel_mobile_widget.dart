@@ -4,6 +4,18 @@ import '../../stores/search_store.dart';
 import 'tab_bar_widget.dart';
 import 'user_info_widget.dart';
 
+/// 按候选人姓名去重，保留每组同名中第一个 tab，避免渲染出多个重复角色
+List<SearchTabData> _deduplicateTabsByName(List<SearchTabData> tabs) {
+  final seen = <String>{};
+  return tabs.where((tab) {
+    final name = tab.candidate['name']?.toString().trim() ?? '';
+    if (name.isEmpty) return true;
+    if (seen.contains(name)) return false;
+    seen.add(name);
+    return true;
+  }).toList();
+}
+
 /// 底部滑出的 tab 面板，与 ChatHistoryMobileWidget 同方式：由 store 控制 isOpen，带滑入/遮罩动画
 class TabPanelMobileWidget extends StatefulWidget {
   const TabPanelMobileWidget({
@@ -99,33 +111,24 @@ class _TabPanelMobileWidgetState extends State<TabPanelMobileWidget>
                 child: Consumer<SearchStore>(
                   builder: (context, searchStore, _) {
                     final activeTab = searchStore.getActiveTab();
+                    final displayTabs = _deduplicateTabsByName(searchStore.openTabs);
                     return Column(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide(color: Color(0xFFE5E5E5))),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  activeTab?.candidate['name']?.toString() ?? 'User Profile',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF171717),
-                                  ),
-                                ),
+                        // 顶部拖拽条
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12, bottom: 8),
+                          child: Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFBDBDBD),
+                                borderRadius: BorderRadius.circular(2),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.close),
-                                onPressed: widget.onClose,
-                              ),
-                            ],
+                            ),
                           ),
                         ),
-                        const TabBarWidget(),
+                        TabBarWidget(displayTabs: displayTabs),
                         if (activeTab != null)
                           Expanded(
                             child: UserInfoWidget(

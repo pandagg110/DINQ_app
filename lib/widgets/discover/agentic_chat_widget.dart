@@ -377,6 +377,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   candidate,
                   index: index,
                   groupId: groupId,
+                  matchByName: true,
                 );
                 if (tabId != null) store.setTabPanelOpen(true);
               },
