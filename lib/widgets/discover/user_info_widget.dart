@@ -698,8 +698,13 @@ class _NetworkSheetState extends State<_NetworkSheet> {
   /// 正在 enrich 的用户名集合（与 TSX enrichingUsers 一致）
   final Set<String> _enrichingUsers = {};
 
+  /// 与 TSX 一致：点击 Network 只更新弹层内的“中心用户”，不修改 tab、不打开新卡片。
+  /// 弹层内维护 sheet 自己的 center/network，不写回 SearchStore。
+  Map<String, dynamic>? _sheetCenterUser;
+  List<dynamic>? _sheetNetwork;
+  bool _sheetNetworkLoading = false;
+
   void _moveToCenter(Map<String, dynamic> person) {
-    final searchStore = context.read<SearchStore>();
     final candidate = <String, dynamic>{
       'name': person['name']?.toString() ?? 'Unknown',
       'image_url': person['image_url'] ?? person['avatar_url'],
@@ -707,25 +712,27 @@ class _NetworkSheetState extends State<_NetworkSheet> {
       'company': person['company'],
       'match_reason': person['reason']?.toString() ?? '',
     };
-    try {
-      searchStore.updateTabCandidate(widget.candidateId, candidate);
-    } catch (e) {
-      debugPrint('NetworkNodeTap updateTabCandidate error: $e');
-      return;
-    }
-    searchStore.setTabNetworkLoading(widget.candidateId, true);
+    setState(() {
+      _tooltipUser = null;
+      _sheetCenterUser = candidate;
+      _sheetNetwork = null;
+      _sheetNetworkLoading = true;
+    });
     DiscoverService().getNetwork({'person': candidate}).then((result) {
+      if (!mounted) return;
       final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
-      searchStore.updateTabNetwork(widget.candidateId, network);
+      setState(() {
+        _sheetNetwork = network;
+        _sheetNetworkLoading = false;
+      });
     }).catchError((e) {
       debugPrint('NetworkNodeTap getNetwork error: $e');
       if (mounted) {
+        setState(() => _sheetNetworkLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('加载 Network 失败：$e')),
         );
       }
-    }).whenComplete(() {
-      searchStore.setTabNetworkLoading(widget.candidateId, false);
     });
   }
 
@@ -857,14 +864,45 @@ class _NetworkSheetState extends State<_NetworkSheet> {
     }
   }
 
+  /// 刷新当前视图的 network：若为 sheet 本地中心则只刷新 sheet 内 network，否则刷新 tab
+  Future<void> _refreshCurrentNetwork() async {
+    if (_sheetCenterUser != null) {
+      setState(() => _sheetNetworkLoading = true);
+      try {
+        final result = await DiscoverService().getNetwork({'person': _sheetCenterUser});
+        if (mounted) {
+          setState(() {
+            _sheetNetwork = (result['network'] as List<dynamic>? ?? []).take(6).toList();
+            _sheetNetworkLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _sheetNetworkLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('刷新 Network 失败：$e')),
+          );
+        }
+      }
+      return;
+    }
+    if (widget.onRefresh != null) widget.onRefresh!();
+  }
+
   @override
   Widget build(BuildContext context) {
     final searchStore = context.watch<SearchStore>();
     final tab = searchStore.openTabs.where((t) => t.id == widget.candidateId).firstOrNull;
-    final centerUser = tab?.candidate ?? <String, dynamic>{};
-    final items = tab?.network ?? const [];
+    // 与 TSX 一致：点击 Network 只改弹层内中心，不写 tab。有 sheet 本地中心时用本地，否则用 tab
+    final centerUser = _sheetCenterUser ?? tab?.candidate ?? <String, dynamic>{};
+    final tabOwnerName = tab?.candidate['name']?.toString() ?? ''; // Profile match_reason 用 tab 主人，与 TSX currentUser 一致
+    final items = _sheetCenterUser != null
+        ? (_sheetNetwork ?? const [])
+        : (tab?.network ?? const []);
     final hasConnections = items.isNotEmpty;
-    final isLoading = tab?.networkLoading ?? false;
+    final isLoading = _sheetCenterUser != null
+        ? _sheetNetworkLoading
+        : (tab?.networkLoading ?? false);
 
     void onNodeTap(Map<String, dynamic> person) {
       setState(() => _tooltipUser = person);
@@ -974,7 +1012,7 @@ class _NetworkSheetState extends State<_NetworkSheet> {
                       children: [
                         if (widget.onRefresh != null) ...[
                           _NetworkSheetRefreshButton(
-                            onPressed: widget.onRefresh!,
+                            onPressed: _refreshCurrentNetwork,
                             loading: isLoading,
                           ),
                           const SizedBox(height: 16),
@@ -1007,8 +1045,8 @@ class _NetworkSheetState extends State<_NetworkSheet> {
                           setState(() => _tooltipUser = null);
                         },
                         onProfile: () {
-                          _handleProfileClick(_tooltipUser!, centerUser['name']?.toString() ?? '');
-                          // 不关闭 tooltip，与 TSX 一致
+                          _handleProfileClick(_tooltipUser!, tabOwnerName);
+                          // 不关闭 tooltip，与 TSX 一致；match_reason 用 tab 主人名
                         },
                         onAnalyzeOption: (type, url) {
                           final userId = _extractUserId(type, url);
@@ -1300,7 +1338,7 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
   }
 }
 
-/// Analyze 下拉区域：主按钮 + 下拉项（与 TSX analyze-dropdown-container 一致）
+/// Analyze 下拉区域：主按钮 + 下拉项（与 TSX analyze-dropdown-container 一致），带展开/收起动画
 class _AnalyzeDropdownSection extends StatelessWidget {
   const _AnalyzeDropdownSection({
     required this.user,
@@ -1317,6 +1355,9 @@ class _AnalyzeDropdownSection extends StatelessWidget {
   final VoidCallback onToggle;
   final void Function(String id, String? url) onSelect;
   final String? Function(String type, String? url) extractUserId;
+
+  static const Duration _dropdownDuration = Duration(milliseconds: 200);
+  static const Curve _dropdownCurve = Curves.easeOut;
 
   @override
   Widget build(BuildContext context) {
@@ -1357,8 +1398,10 @@ class _AnalyzeDropdownSection extends StatelessWidget {
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF171717)),
                   ),
                   const SizedBox(width: 4),
-                  Transform.rotate(
-                    angle: isOpen ? 3.14159 : 0,
+                  AnimatedRotation(
+                    turns: isOpen ? 0.5 : 0,
+                    duration: _dropdownDuration,
+                    curve: _dropdownCurve,
                     child: const Icon(
                       Icons.keyboard_arrow_down,
                       size: 14,
@@ -1370,61 +1413,72 @@ class _AnalyzeDropdownSection extends StatelessWidget {
             ),
           ),
         ),
-        if (isOpen)
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                left: const BorderSide(color: Color(0xFF171717), width: 1.5),
-                right: const BorderSide(color: Color(0xFF171717), width: 1.5),
-                bottom: const BorderSide(color: Color(0xFF171717), width: 1.5),
-              ),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final option in options) ...[
-                  Builder(
-                    builder: (context) {
-                      final url = option.id == 'github'
-                          ? user['github_url']?.toString()
-                          : option.id == 'scholar'
-                              ? user['scholar_url']?.toString()
-                              : user['linkedin_url']?.toString();
-                      final hasUrl = extractUserId(option.id, url) != null;
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: hasUrl ? () => onSelect(option.id, url) : null,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            child: Row(
-                              children: [
-                                AssetIcon(
-                                  asset: option.icon,
-                                  size: 16,
-                                  color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  option.label,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
+        AnimatedSize(
+          duration: _dropdownDuration,
+          curve: _dropdownCurve,
+          alignment: Alignment.topCenter,
+          child: AnimatedOpacity(
+            duration: _dropdownDuration,
+            curve: _dropdownCurve,
+            opacity: isOpen ? 1 : 0,
+            child: isOpen
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        left: const BorderSide(color: Color(0xFF171717), width: 1.5),
+                        right: const BorderSide(color: Color(0xFF171717), width: 1.5),
+                        bottom: const BorderSide(color: Color(0xFF171717), width: 1.5),
+                      ),
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final option in options) ...[
+                          Builder(
+                            builder: (context) {
+                              final url = option.id == 'github'
+                                  ? user['github_url']?.toString()
+                                  : option.id == 'scholar'
+                                      ? user['scholar_url']?.toString()
+                                      : user['linkedin_url']?.toString();
+                              final hasUrl = extractUserId(option.id, url) != null;
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: hasUrl ? () => onSelect(option.id, url) : null,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    child: Row(
+                                      children: [
+                                        AssetIcon(
+                                          asset: option.icon,
+                                          size: 16,
+                                          color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          option.label,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ],
-            ),
+                        ],
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
+        ),
       ],
     );
   }
