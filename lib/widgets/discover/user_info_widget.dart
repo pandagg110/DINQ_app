@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -8,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../common/asset_icon.dart';
 import '../../services/discover_service.dart';
 import '../../stores/search_store.dart';
+import 'network_loading_animation.dart';
 
 class UserInfoWidget extends StatefulWidget {
   const UserInfoWidget({
@@ -41,6 +43,27 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
     }
   }
 
+  /// 仅刷新 Network 数据（不关闭弹层，弹层通过 watch Store 自动更新）
+  Future<void> _refreshNetworkOnly(BuildContext context, int candidateId) async {
+    final searchStore = context.read<SearchStore>();
+    searchStore.setTabNetworkLoading(candidateId, true);
+    try {
+      final tab = searchStore.openTabs.where((t) => t.id == candidateId).firstOrNull;
+      if (tab == null) return;
+      final result = await _discoverService.getNetwork({'person': tab.candidate});
+      final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
+      searchStore.updateTabNetwork(candidateId, network);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('刷新 Network 失败：$e')),
+        );
+      }
+    } finally {
+      searchStore.setTabNetworkLoading(candidateId, false);
+    }
+  }
+
   Future<void> _handleNetworkTap(BuildContext context) async {
     final searchStore = context.read<SearchStore>();
     final candidateId = widget.tabData.id;
@@ -52,8 +75,8 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
         context: context,
         isScrollControlled: true,
         builder: (ctx) => _NetworkSheet(
-          centerUser: widget.tabData.candidate,
-          items: existing,
+          candidateId: candidateId,
+          onRefresh: () => _refreshNetworkOnly(context, candidateId),
         ),
       );
       return;
@@ -72,8 +95,8 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
           context: context,
           isScrollControlled: true,
           builder: (ctx) => _NetworkSheet(
-            centerUser: widget.tabData.candidate,
-            items: network,
+            candidateId: candidateId,
+            onRefresh: () => _refreshNetworkOnly(context, candidateId),
           ),
         );
       }
@@ -541,12 +564,79 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+/// Network 加载时轮播提示（与 TSX loading-tip / tips 一致），放在 user_info_widget 中供 Network 相关 UI 使用
+const List<String> kNetworkLoadingTips = [
+  'Hover over avatars to view talent profiles',
+  'Click on an avatar to explore their network',
+  'Use the refresh button to return to the initial network',
+];
+
+class _NetworkLoadingTips extends StatefulWidget {
+  const _NetworkLoadingTips();
+
+  @override
+  State<_NetworkLoadingTips> createState() => _NetworkLoadingTipsState();
+}
+
+class _NetworkLoadingTipsState extends State<_NetworkLoadingTips>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 9),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tips = kNetworkLoadingTips;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: SizedBox(
+        height: 24,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final index = (_controller.value * tips.length).floor() % tips.length;
+            return Center(
+              child: Text(
+                tips[index],
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF9CA3AF),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 /// 与 TSX NetworkModal 一致：径向图布局（中心节点 + 周围 6 节点 + 连线），上一版（无移动端 70dvh/阴影/Expanded）
 class _NetworkSheet extends StatelessWidget {
-  const _NetworkSheet({required this.centerUser, required this.items});
+  const _NetworkSheet({
+    required this.candidateId,
+    this.onRefresh,
+  });
 
-  final Map<String, dynamic> centerUser;
-  final List<dynamic> items;
+  final int candidateId;
+  /// 底部刷新按钮回调（与 TSX reset-button / resetToDefault 一致）
+  final VoidCallback? onRefresh;
 
   static String _defaultAvatarUrl(String? name) {
     if (name != null && name.trim().isNotEmpty) {
@@ -557,7 +647,12 @@ class _NetworkSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final searchStore = context.watch<SearchStore>();
+    final tab = searchStore.openTabs.where((t) => t.id == candidateId).firstOrNull;
+    final centerUser = tab?.candidate ?? <String, dynamic>{};
+    final items = tab?.network ?? const [];
     final hasConnections = items.isNotEmpty;
+    final isLoading = tab?.networkLoading ?? false;
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFFBFBFA),
@@ -613,7 +708,7 @@ class _NetworkSheet extends StatelessWidget {
                 ),
               ],
             ),
-            if (!hasConnections)
+            if (!hasConnections && !isLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 48),
                 child: Text(
@@ -622,14 +717,90 @@ class _NetworkSheet extends StatelessWidget {
                 ),
               )
             else
-              SizedBox(
-                height: 440,
-                child: _NetworkRadialGraph(
-                  centerUser: centerUser,
-                  items: items,
-                ),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Opacity(
+                    opacity: isLoading ? 0 : 1,
+                    child: SizedBox(
+                      height: 440,
+                      child: _NetworkRadialGraph(
+                        centerUser: centerUser,
+                        items: items,
+                      ),
+                    ),
+                  ),
+                  if (isLoading)
+                    Positioned.fill(
+                      child: Container(
+                        height: 440,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Center(
+                          child: NetworkLoadingAnimation(size: 300),
+                        ),
+                      ),
+                    ),
+                ],
               ),
+            // 与 TSX network-modal-actions、bottom-tip 一致：刷新按钮 + 底部轮播提示
+            Padding(
+              padding: const EdgeInsets.only(top: 16, bottom: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onRefresh != null) ...[
+                    _NetworkSheetRefreshButton(
+                      onPressed: onRefresh!,
+                      loading: isLoading,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const Center(child: _NetworkLoadingTips()),
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 与 TSX .reset-button、.refresh-icon 一致
+class _NetworkSheetRefreshButton extends StatelessWidget {
+  const _NetworkSheetRefreshButton({
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  final VoidCallback onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: loading ? null : onPressed,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE5E7EB),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Center(
+                  child: AssetIcon(
+                    asset: 'icons/search/refresh.svg',
+                    size: 20,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                ),
         ),
       ),
     );
