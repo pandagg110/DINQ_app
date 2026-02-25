@@ -91,6 +91,7 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
 
       // 仅在当前标签仍然是该用户时弹出
       if (searchStore.activeTabId == candidateId && network.isNotEmpty) {
+        searchStore.setTabNetworkLoading(candidateId, false); // 先关 loading 再开弹层，避免弹层打开时仍显示 loading
         await showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
@@ -674,24 +675,20 @@ class _NetworkSheet extends StatelessWidget {
                 ),
               ),
             ),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 48, 8),
-                  child: Text(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  const Text(
                     'Network',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF171717),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: GestureDetector(
+                  const Spacer(),
+                  GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
                     child: Opacity(
                       opacity: 0.32,
@@ -705,8 +702,8 @@ class _NetworkSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             if (!hasConnections && !isLoading)
               const Padding(
