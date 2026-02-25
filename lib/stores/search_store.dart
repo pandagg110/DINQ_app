@@ -24,6 +24,8 @@ class SearchStore extends ChangeNotifier {
   String? pendingQuery;
   String? pendingFill;
   int tabClickVersion = 0; // 用于触发面板展开
+  /// 与 ChatHistoryStore.isMobileOpen 一致：tab 面板是否打开（底部滑入）
+  bool isTabPanelOpen = false;
   bool isLoadingConversation = false;
   int? currentConversationId;
   /// 待加载的会话详情（从 Chat History 点入时设置，AgenticChat 会消费并清空）
@@ -115,6 +117,12 @@ class SearchStore extends ChangeNotifier {
 
   void setActiveTab(int id) {
     activeTabId = id;
+    notifyListeners();
+  }
+
+  void setTabPanelOpen(bool open) {
+    if (isTabPanelOpen == open) return;
+    isTabPanelOpen = open;
     notifyListeners();
   }
 

@@ -466,11 +466,13 @@ class ScholarsList extends StatelessWidget {
                       if (onCandidateClick != null) {
                         onCandidateClick!(candidate, idx, groupId);
                       } else {
-                        context.read<SearchStore>().openTabWithClick(
+                        final store = context.read<SearchStore>();
+                        final tabId = store.openTabWithClick(
                               candidate,
                               index: idx,
                               groupId: groupId,
                             );
+                        if (tabId != null) store.setTabPanelOpen(true);
                       }
                     },
                   );

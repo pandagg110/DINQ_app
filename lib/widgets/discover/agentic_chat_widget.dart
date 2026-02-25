@@ -373,11 +373,12 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
               onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
               onCandidateClick: (candidate, index, groupId) {
                 final store = context.read<SearchStore>();
-                store.openTabWithClick(
+                final tabId = store.openTabWithClick(
                   candidate,
                   index: index,
                   groupId: groupId,
                 );
+                if (tabId != null) store.setTabPanelOpen(true);
               },
               isLatest: i == groups.length - 1,
             ),
