@@ -1,4 +1,4 @@
-﻿const String appUrl = String.fromEnvironment('APP_URL', defaultValue: 'https://dinq.me');
+const String appUrl = String.fromEnvironment('APP_URL', defaultValue: 'https://dinq.me');
 const String gatewayUrl = String.fromEnvironment(
   'GATEWAY_URL',
   defaultValue: 'https://api.dinq.me',
@@ -6,6 +6,9 @@ const String gatewayUrl = String.fromEnvironment(
 
 const String privacyUrl = '$appUrl/privacy';
 const String termsUrl = '$appUrl/terms';
+
+/// 分析页 base URL，与 TSX buildFullAnalysisUrl 一致
+const String analysisBaseUrl = 'https://analysis.dinq.me';
 
 class ConstantsTool {
   static const bottomTabHeight = 55.0;

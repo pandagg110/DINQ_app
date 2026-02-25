@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../common/asset_icon.dart';
+import '../../constants/app_constants.dart';
 import '../../services/discover_service.dart';
 import '../../stores/search_store.dart';
 import 'network_loading_animation.dart';
@@ -74,6 +75,7 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
+        enableDrag: false,
         builder: (ctx) => _NetworkSheet(
           candidateId: candidateId,
           onRefresh: () => _refreshNetworkOnly(context, candidateId),
@@ -95,6 +97,7 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
         await showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
+          enableDrag: false,
           builder: (ctx) => _NetworkSheet(
             candidateId: candidateId,
             onRefresh: () => _refreshNetworkOnly(context, candidateId),
@@ -628,32 +631,249 @@ class _NetworkLoadingTipsState extends State<_NetworkLoadingTips>
   }
 }
 
+/// 通过 InheritedWidget 向下传递 onNodeTap/onCenterTap，避免 rebuild 时丢失
+class _NetworkSheetScope extends InheritedWidget {
+  const _NetworkSheetScope({
+    required this.onNodeTap,
+    required this.onCenterTap,
+    required super.child,
+  });
+
+  final void Function(Map<String, dynamic> person) onNodeTap;
+  final void Function(Map<String, dynamic> centerUser) onCenterTap;
+
+  static _NetworkSheetScope? of(BuildContext context) {
+    return context.findAncestorWidgetOfExactType<_NetworkSheetScope>();
+  }
+
+  @override
+  bool updateShouldNotify(_NetworkSheetScope old) =>
+      onNodeTap != old.onNodeTap || onCenterTap != old.onCenterTap;
+}
+
 /// 与 TSX NetworkModal 一致：径向图布局（中心节点 + 周围 6 节点 + 连线），上一版（无移动端 70dvh/阴影/Expanded）
-class _NetworkSheet extends StatelessWidget {
+class _NetworkSheet extends StatefulWidget {
   const _NetworkSheet({
     required this.candidateId,
     this.onRefresh,
   });
 
   final int candidateId;
-  /// 底部刷新按钮回调（与 TSX reset-button / resetToDefault 一致）
   final VoidCallback? onRefresh;
 
-  static String _defaultAvatarUrl(String? name) {
-    if (name != null && name.trim().isNotEmpty) {
-      return 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name.trim())}&background=e5e7eb&color=6b7280&size=128';
+  @override
+  State<_NetworkSheet> createState() => _NetworkSheetState();
+}
+
+/// 与 TSX extractUserId 一致：从 URL 提取分析用 user id
+String? _extractUserId(String type, String? url) {
+  if (url == null || url.isEmpty) return null;
+  try {
+    if (type == 'github') {
+      final match = RegExp(r'github\.com/([^/?]+)').firstMatch(url);
+      return match?.group(1);
     }
-    return '';
+    if (type == 'scholar') {
+      final uri = Uri.tryParse(url);
+      return uri?.queryParameters['user'];
+    }
+    if (type == 'linkedin') {
+      final match = RegExp(r'linkedin\.com/in/([^/?]+)').firstMatch(url);
+      return match?.group(1);
+    }
+  } catch (_) {}
+  return null;
+}
+
+/// 与 TSX buildFullAnalysisUrl 一致
+String _buildAnalysisUrl(String type, String userId) {
+  return '$analysisBaseUrl/$type?user=${Uri.encodeComponent(userId)}';
+}
+
+class _NetworkSheetState extends State<_NetworkSheet> {
+  /// 点击头像后显示的 tooltip 对应用户（与 TSX hoveredUser 一致）
+  Map<String, dynamic>? _tooltipUser;
+
+  static int _networkTabCounter = 0;
+  /// 正在 enrich 的用户名集合（与 TSX enrichingUsers 一致）
+  final Set<String> _enrichingUsers = {};
+
+  void _moveToCenter(Map<String, dynamic> person) {
+    final searchStore = context.read<SearchStore>();
+    final candidate = <String, dynamic>{
+      'name': person['name']?.toString() ?? 'Unknown',
+      'image_url': person['image_url'] ?? person['avatar_url'],
+      'position': person['position'],
+      'company': person['company'],
+      'match_reason': person['reason']?.toString() ?? '',
+    };
+    try {
+      searchStore.updateTabCandidate(widget.candidateId, candidate);
+    } catch (e) {
+      debugPrint('NetworkNodeTap updateTabCandidate error: $e');
+      return;
+    }
+    searchStore.setTabNetworkLoading(widget.candidateId, true);
+    DiscoverService().getNetwork({'person': candidate}).then((result) {
+      final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
+      searchStore.updateTabNetwork(widget.candidateId, network);
+    }).catchError((e) {
+      debugPrint('NetworkNodeTap getNetwork error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加载 Network 失败：$e')),
+        );
+      }
+    }).whenComplete(() {
+      searchStore.setTabNetworkLoading(widget.candidateId, false);
+    });
+  }
+
+  /// 将 network 用户转为 openTab 用的 candidate（与 TSX localUserToCandidate 一致）
+  Map<String, dynamic> _localUserToCandidate(Map<String, dynamic> user, String centerUserName) {
+    final reason = user['reason']?.toString() ?? '';
+    final matchReason = reason.isNotEmpty
+        ? '$reason (from $centerUserName\'s network)'
+        : 'From $centerUserName\'s network';
+    final socialLinks = <Map<String, String>>[];
+    final linkedin = user['linkedin_url']?.toString();
+    if (linkedin != null && linkedin.isNotEmpty) socialLinks.add({'type': 'linkedin', 'url': linkedin});
+    final scholar = user['scholar_url']?.toString();
+    if (scholar != null && scholar.isNotEmpty) socialLinks.add({'type': 'google_scholar', 'url': scholar});
+    final github = user['github_url']?.toString();
+    if (github != null && github.isNotEmpty) socialLinks.add({'type': 'github', 'url': github});
+    final openreview = user['openreview_url']?.toString();
+    if (openreview != null && openreview.isNotEmpty) socialLinks.add({'type': 'openreview', 'url': openreview});
+    return {
+      'name': user['name']?.toString() ?? 'Unknown',
+      'match_reason': matchReason,
+      'useful_info': '',
+      'company': user['company'],
+      'position': user['position'],
+      'image_url': user['image_url'] ?? user['avatar_url'],
+      'social_links': socialLinks,
+    };
+  }
+
+  /// 构建 enrich 请求体（与 TSX localUserToEnrichRequest 一致）
+  Map<String, dynamic> _localUserToEnrichRequest(Map<String, dynamic> user) {
+    final raw = [
+      user['position']?.toString(),
+      user['company']?.toString(),
+      user['affiliation']?.toString(),
+    ];
+    final infoParts = raw.whereType<String>().where((s) => s.trim().isNotEmpty).toList();
+    final usefulInfo = infoParts.isEmpty ? (user['name']?.toString() ?? '') : infoParts.join(', ');
+    final sources = <Map<String, String>>[];
+    final scholar = user['scholar_url']?.toString();
+    if (scholar != null && scholar.isNotEmpty) sources.add({'url': scholar, 'description': 'Google Scholar'});
+    final linkedin = user['linkedin_url']?.toString();
+    if (linkedin != null && linkedin.isNotEmpty) sources.add({'url': linkedin, 'description': 'LinkedIn'});
+    final github = user['github_url']?.toString();
+    if (github != null && github.isNotEmpty) sources.add({'url': github, 'description': 'GitHub'});
+    final openreview = user['openreview_url']?.toString();
+    if (openreview != null && openreview.isNotEmpty) sources.add({'url': openreview, 'description': 'OpenReview'});
+    return {
+      'name': user['name']?.toString() ?? 'Unknown',
+      'match_reason': user['reason']?.toString() ?? '',
+      'useful_info': usefulInfo,
+      'sources': sources,
+    };
+  }
+
+  /// 将 enrich 接口返回转为 candidate（与 TSX 一致）
+  Map<String, dynamic> _enrichResultToCandidate(Map<String, dynamic> enrichResult, String centerUserName) {
+    final networkSource = '(from $centerUserName\'s network)';
+    final mr = enrichResult['match_reason']?.toString() ?? '';
+    final matchReason = mr.isNotEmpty ? '$mr $networkSource' : networkSource;
+    final pos = enrichResult['position']?.toString();
+    final company = enrichResult['company']?.toString();
+    final uni = enrichResult['university']?.toString();
+    final usefulInfo = [pos, company, uni].whereType<String>().where((s) => s.isNotEmpty).join(', ');
+    return {
+      'name': enrichResult['name'],
+      'match_reason': matchReason,
+      'useful_info': usefulInfo,
+      'company': company,
+      'position': pos,
+      'university': uni,
+      'email': enrichResult['email'],
+      'research_areas': enrichResult['research_areas'],
+      'personal_homepage': enrichResult['personal_homepage'],
+      'image_url': enrichResult['image_url'],
+      'one_liner': enrichResult['one_liner'],
+      'social_links': enrichResult['social_links'],
+      'key_publications': enrichResult['key_publications'],
+      'news': enrichResult['news'],
+    };
+  }
+
+  Future<void> _executeProfileEnrich(Map<String, dynamic> user, int tabId, String centerUserName) async {
+    final name = user['name']?.toString() ?? 'Unknown';
+    if (!mounted) return;
+    setState(() => _enrichingUsers.add(name));
+    final searchStore = context.read<SearchStore>();
+    searchStore.setTabLoading(tabId, true);
+    try {
+      final request = _localUserToEnrichRequest(user);
+      final result = await DiscoverService().enrich(request);
+      final candidate = _enrichResultToCandidate(Map<String, dynamic>.from(result), centerUserName);
+      searchStore.updateTabCandidate(tabId, candidate);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已加载 $name 的 Profile')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Profile 加载失败：$e')),
+        );
+        searchStore.setTabError(tabId, e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _enrichingUsers.remove(name));
+        searchStore.setTabLoading(tabId, false);
+      }
+    }
+  }
+
+  void _handleProfileClick(Map<String, dynamic> user, String centerUserName) {
+    final name = user['name']?.toString() ?? 'Unknown';
+    if (_enrichingUsers.contains(name)) return;
+    final searchStore = context.read<SearchStore>();
+    final candidate = _localUserToCandidate(user, centerUserName);
+    final uniqueIndex = ++_networkTabCounter;
+    final tabId = searchStore.openTab(candidate, index: uniqueIndex, groupId: -1, matchByName: true, switchTab: false);
+    if (tabId == null) return;
+    final tab = searchStore.openTabs.where((t) => t.id == tabId).firstOrNull;
+    if (tab != null && tab.profile == null && !tab.isLoading) {
+      _executeProfileEnrich(user, tabId, centerUserName);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$name 的 Profile 已在标签页中打开')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final searchStore = context.watch<SearchStore>();
-    final tab = searchStore.openTabs.where((t) => t.id == candidateId).firstOrNull;
+    final tab = searchStore.openTabs.where((t) => t.id == widget.candidateId).firstOrNull;
     final centerUser = tab?.candidate ?? <String, dynamic>{};
     final items = tab?.network ?? const [];
     final hasConnections = items.isNotEmpty;
     final isLoading = tab?.networkLoading ?? false;
+
+    void onNodeTap(Map<String, dynamic> person) {
+      setState(() => _tooltipUser = person);
+    }
+
+    void onCenterTap(Map<String, dynamic> user) {
+      setState(() => _tooltipUser = user);
+    }
+
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFFBFBFA),
@@ -661,107 +881,551 @@ class _NetworkSheet extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
           children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD1D5DB),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  const Text(
-                    'Network',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717),
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Opacity(
-                      opacity: 0.32,
-                      child: Text(
-                        '×',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          height: 1,
-                          color: Color(0xFF333333),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (!hasConnections && !isLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Text(
-                  'No connections found.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
-                ),
-              )
-            else
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Opacity(
-                    opacity: isLoading ? 0 : 1,
-                    child: SizedBox(
-                      height: 440,
-                      child: _NetworkRadialGraph(
-                        centerUser: centerUser,
-                        items: items,
-                      ),
-                    ),
-                  ),
-                  if (isLoading)
-                    Positioned.fill(
-                      child: Container(
-                        height: 440,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Center(
-                          child: NetworkLoadingAnimation(size: 300),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            // 与 TSX network-modal-actions、bottom-tip 一致：刷新按钮 + 底部轮播提示
-            Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 20),
+            _NetworkSheetScope(
+              onNodeTap: onNodeTap,
+              onCenterTap: onCenterTap,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (onRefresh != null) ...[
-                    _NetworkSheetRefreshButton(
-                      onPressed: onRefresh!,
-                      loading: isLoading,
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD1D5DB),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                  const Center(child: _NetworkLoadingTips()),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'Network',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF171717),
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Opacity(
+                            opacity: 0.32,
+                            child: Text(
+                              '×',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                height: 1,
+                                color: Color(0xFF333333),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!hasConnections && !isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 48),
+                      child: Text(
+                        'No connections found.',
+                        style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                      ),
+                    )
+                  else
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Opacity(
+                          opacity: isLoading ? 0 : 1,
+                          child: SizedBox(
+                            height: 440,
+                            child: _NetworkRadialGraph(
+                              centerUser: centerUser,
+                              items: items,
+                            ),
+                          ),
+                        ),
+                        if (isLoading)
+                          Positioned.fill(
+                            child: Container(
+                              height: 440,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Center(
+                                child: NetworkLoadingAnimation(size: 300),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.onRefresh != null) ...[
+                          _NetworkSheetRefreshButton(
+                            onPressed: widget.onRefresh!,
+                            loading: isLoading,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        const Center(child: _NetworkLoadingTips()),
+                      ],
+                    ),
+                  ),
                 ],
               ),
+            ),
+            if (_tooltipUser != null)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => setState(() => _tooltipUser = null),
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    color: Colors.black26,
+                    alignment: Alignment.center,
+                    child: GestureDetector(
+                      onTap: () {},
+                      child: _NetworkTooltipCard(
+                        user: _tooltipUser!,
+                        centerUser: centerUser,
+                        defaultAvatarUrl: _defaultAvatarUrlForTooltip,
+                        isEnriching: _tooltipUser!['name'] != null && _enrichingUsers.contains(_tooltipUser!['name']?.toString()),
+                        onClose: () => setState(() => _tooltipUser = null),
+                        onNetwork: () {
+                          _moveToCenter(_tooltipUser!);
+                          setState(() => _tooltipUser = null);
+                        },
+                        onProfile: () {
+                          _handleProfileClick(_tooltipUser!, centerUser['name']?.toString() ?? '');
+                          // 不关闭 tooltip，与 TSX 一致
+                        },
+                        onAnalyzeOption: (type, url) {
+                          final userId = _extractUserId(type, url);
+                          if (userId != null && mounted) {
+                            launchUrl(Uri.parse(_buildAnalysisUrl(type, userId)), mode: LaunchMode.externalApplication);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _defaultAvatarUrlForTooltip(String? name) {
+  if (name != null && name.trim().isNotEmpty) {
+    return 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name.trim())}&background=e5e7eb&color=6b7280&size=128';
+  }
+  return '';
+}
+
+/// 与 TSX network-tooltip 一致：布局与样式对齐（content 灰底、两行按钮、Profile 黑底白字、Analyze 下拉）
+class _NetworkTooltipCard extends StatefulWidget {
+  const _NetworkTooltipCard({
+    required this.user,
+    required this.centerUser,
+    required this.defaultAvatarUrl,
+    required this.isEnriching,
+    required this.onClose,
+    required this.onNetwork,
+    required this.onProfile,
+    required this.onAnalyzeOption,
+  });
+
+  final Map<String, dynamic> user;
+  final Map<String, dynamic> centerUser;
+  final String Function(String? name) defaultAvatarUrl;
+  final bool isEnriching;
+  final VoidCallback onClose;
+  final VoidCallback onNetwork;
+  final VoidCallback onProfile;
+  final void Function(String type, String? url) onAnalyzeOption;
+
+  @override
+  State<_NetworkTooltipCard> createState() => _NetworkTooltipCardState();
+}
+
+class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
+  bool _analyzeDropdownOpen = false;
+
+  static const List<({String id, String label, String icon})> _analyzeOptions = [
+    (id: 'github', label: 'GitHub', icon: 'icons/search/lineicons/github.svg'),
+    (id: 'scholar', label: 'Google Scholar', icon: 'icons/search/lineicons/scholar.svg'),
+    (id: 'linkedin', label: 'LinkedIn', icon: 'icons/search/lineicons/linkedin.svg'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.user;
+    final centerUser = widget.centerUser;
+    final name = user['name']?.toString() ?? 'Unknown';
+    final centerName = centerUser['name']?.toString() ?? '';
+    final isCenterUser = name == centerName;
+
+    final avatarUrl = user['image_url']?.toString() ?? user['avatar_url']?.toString();
+    final avatarSrc = (avatarUrl != null && avatarUrl.isNotEmpty)
+        ? avatarUrl
+        : widget.defaultAvatarUrl(name);
+    final position = user['position']?.toString();
+    final company = user['company']?.toString() ?? user['affiliation']?.toString();
+    final descField = user['description']?.toString();
+    final description = (descField != null && descField.trim().isNotEmpty)
+        ? descField.trim()
+        : [position, company].whereType<String>().where((s) => s.trim().isNotEmpty).join(' · ');
+    final institutionLogoUrl = user['institution_logo_url']?.toString();
+
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(10),
+      color: const Color(0xFFF8F8F8),
+      child: Container(
+        width: 380,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // tooltip-content：灰底 #f0f0f0，与 TSX .tooltip-content 一致
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // tooltip-avatar 56px + 可选 institution 角标
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          child: CircleAvatar(
+                            radius: 28,
+                            backgroundColor: const Color(0xFFE5E7EB),
+                            backgroundImage: avatarSrc.isNotEmpty ? NetworkImage(avatarSrc) : null,
+                            child: avatarSrc.isEmpty
+                                ? Text(
+                                    name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+                                    style: const TextStyle(fontSize: 20, color: Color(0xFF6B7280)),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        if (institutionLogoUrl != null && institutionLogoUrl.isNotEmpty)
+                          Positioned(
+                            right: -2,
+                            bottom: -2,
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(color: const Color(0xFFE5E7EB)),
+                                shape: BoxShape.circle,
+                              ),
+                              child: ClipOval(
+                                child: Image.network(
+                                  institutionLogoUrl,
+                                  fit: BoxFit.contain,
+                                  width: 14,
+                                  height: 14,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.business, size: 14),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF171717),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            description,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9CA3AF),
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // tooltip-buttons：两行，与 TSX 一致
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 第一行：Network（非中心用户时显示）+ Profile
+                Row(
+                  children: [
+                    if (!isCenterUser) ...[
+                      Expanded(
+                        child: _tooltipButton(
+                          label: 'Network',
+                          icon: 'icons/search/network.svg',
+                          bgColor: const Color(0xFFF3F4F6),
+                          fgColor: const Color(0xFF171717),
+                          border: const BorderSide(color: Color(0xFFE5E7EB)),
+                          onPressed: widget.onNetwork,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: _tooltipButton(
+                        label: 'Profile',
+                        icon: 'icons/search/enrich.svg',
+                        bgColor: widget.isEnriching ? const Color(0xFF333333) : Colors.black,
+                        fgColor: Colors.white,
+                        border: const BorderSide(color: Colors.black, width: 2),
+                        onPressed: widget.isEnriching ? null : widget.onProfile,
+                        loading: widget.isEnriching,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // 第二行：Analyze 下拉
+                _AnalyzeDropdownSection(
+                  user: user,
+                  isOpen: _analyzeDropdownOpen,
+                  options: _analyzeOptions,
+                  onToggle: () => setState(() => _analyzeDropdownOpen = !_analyzeDropdownOpen),
+                  onSelect: (id, url) {
+                    widget.onAnalyzeOption(id, url);
+                    setState(() => _analyzeDropdownOpen = false);
+                  },
+                  extractUserId: _extractUserId,
+                ),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _tooltipButton({
+    required String label,
+    required String icon,
+    required Color bgColor,
+    required Color fgColor,
+    required BorderSide border,
+    VoidCallback? onPressed,
+    bool loading = false,
+  }) {
+    return Material(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: border.color, width: border.width),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (loading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              else
+                AssetIcon(asset: icon, size: 14, color: fgColor),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: fgColor),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Analyze 下拉区域：主按钮 + 下拉项（与 TSX analyze-dropdown-container 一致）
+class _AnalyzeDropdownSection extends StatelessWidget {
+  const _AnalyzeDropdownSection({
+    required this.user,
+    required this.isOpen,
+    required this.options,
+    required this.onToggle,
+    required this.onSelect,
+    required this.extractUserId,
+  });
+
+  final Map<String, dynamic> user;
+  final bool isOpen;
+  final List<({String id, String label, String icon})> options;
+  final VoidCallback onToggle;
+  final void Function(String id, String? url) onSelect;
+  final String? Function(String type, String? url) extractUserId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: isOpen ? const Color(0xFFF5F5F5) : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(10),
+            topRight: const Radius.circular(10),
+            bottomLeft: Radius.circular(isOpen ? 0 : 10),
+            bottomRight: Radius.circular(isOpen ? 0 : 10),
+          ),
+          child: InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(10),
+                  topRight: const Radius.circular(10),
+                  bottomLeft: Radius.circular(isOpen ? 0 : 10),
+                  bottomRight: Radius.circular(isOpen ? 0 : 10),
+                ),
+                border: Border.all(color: const Color(0xFF171717), width: 1.5),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const AssetIcon(asset: 'icons/search/analyze.svg', size: 14, color: Color(0xFF171717)),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Analyze',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF171717)),
+                  ),
+                  const SizedBox(width: 4),
+                  Transform.rotate(
+                    angle: isOpen ? 3.14159 : 0,
+                    child: const Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 14,
+                      color: Color(0xFF171717),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (isOpen)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                left: const BorderSide(color: Color(0xFF171717), width: 1.5),
+                right: const BorderSide(color: Color(0xFF171717), width: 1.5),
+                bottom: const BorderSide(color: Color(0xFF171717), width: 1.5),
+              ),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final option in options) ...[
+                  Builder(
+                    builder: (context) {
+                      final url = option.id == 'github'
+                          ? user['github_url']?.toString()
+                          : option.id == 'scholar'
+                              ? user['scholar_url']?.toString()
+                              : user['linkedin_url']?.toString();
+                      final hasUrl = extractUserId(option.id, url) != null;
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: hasUrl ? () => onSelect(option.id, url) : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                AssetIcon(
+                                  asset: option.icon,
+                                  size: 16,
+                                  color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  option.label,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -820,6 +1484,10 @@ class _NetworkRadialGraph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scope = _NetworkSheetScope.of(context);
+    final onNodeTap = scope?.onNodeTap;
+    final onCenterTap = scope?.onCenterTap;
+
     final w = MediaQuery.sizeOf(context).width;
     final centerX = w / 2;
     const centerY = 220.0;
@@ -834,6 +1502,8 @@ class _NetworkRadialGraph extends StatelessWidget {
       ));
     }
 
+    final centerOffset = Offset(centerX, centerY);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -842,37 +1512,62 @@ class _NetworkRadialGraph extends StatelessWidget {
           top: centerY - 200+100,
           width: 200,
           height: 200,
-          child: Opacity(
-            opacity: 0.7,
-            child: SvgPicture.asset(
-              'assets/images/network_modal_bg.svg',
-              fit: BoxFit.contain,
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: 0.7,
+              child: SvgPicture.asset(
+                'assets/images/network_modal_bg.svg',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
-        CustomPaint(
-          size: Size(w, 440),
-          painter: _NetworkLinesPainter(
-            center: Offset(centerX, centerY),
-            nodePositions: nodePositions,
+        IgnorePointer(
+          child: CustomPaint(
+            size: Size(w, 440),
+            painter: _NetworkLinesPainter(
+              center: centerOffset,
+              nodePositions: nodePositions,
+            ),
           ),
         ),
         Positioned(
           left: centerX - _centerRadius,
           top: centerY - _centerRadius,
-          child: _CenterNode(
-            name: centerUser['name']?.toString() ?? 'Unknown',
-            avatarUrl: centerUser['image_url']?.toString() ?? centerUser['avatar_url']?.toString(),
-          ),
-        ),
-        for (var i = 0; i < n; i++)
-          Positioned(
-            left: nodePositions[i].dx - _nodeRadius,
-            top: nodePositions[i].dy - _nodeRadius,
-            child: _NetworkNode(
-              item: items[i] is Map<String, dynamic> ? items[i] as Map<String, dynamic> : <String, dynamic>{},
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onCenterTap != null ? () => onCenterTap(centerUser) : null,
+            child: _CenterNode(
+              name: centerUser['name']?.toString() ?? 'Unknown',
+              avatarUrl: centerUser['image_url']?.toString() ?? centerUser['avatar_url']?.toString(),
             ),
           ),
+        ),
+        for (var i = 0; i < n; i++) ...[
+          () {
+            final index = i;
+            final item = items[index] is Map<String, dynamic> ? items[index] as Map<String, dynamic> : <String, dynamic>{};
+            return Positioned(
+              left: nodePositions[index].dx - _nodeRadius,
+              top: nodePositions[index].dy - _nodeRadius,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onNodeTap != null
+                    ? () {
+                        debugPrint('NetworkNode onTap: index=$index, name=${item['name']}');
+                        try {
+                          onNodeTap(item);
+                          debugPrint('NetworkNode onTap: onNodeTap returned');
+                        } catch (e, st) {
+                          debugPrint('NetworkNode onTap: onNodeTap threw $e\n$st');
+                        }
+                      }
+                    : () => debugPrint('NetworkNode onTap: onNodeTap is null'),
+                child: _NetworkNode(item: item),
+              ),
+            );
+          }(),
+        ],
       ],
     );
   }
@@ -999,7 +1694,7 @@ class _NetworkNode extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = item['name']?.toString() ?? 'Unknown';
     final avatarUrl = item['avatar_url']?.toString();
-    final avatarSrc = (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : _NetworkSheet._defaultAvatarUrl(name);
+    final avatarSrc = (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : _defaultAvatarUrlForTooltip(name);
     const size = _NetworkRadialGraph._nodeRadius * 2;
 
     return SizedBox(
