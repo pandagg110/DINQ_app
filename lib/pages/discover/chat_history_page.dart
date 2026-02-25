@@ -94,20 +94,30 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                       decoration: InputDecoration(
                         isDense: true,
                         hintText: 'Search...',
-                        prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          size: 20,
+                          color: Color(0xFF9CA3AF),
+                        ),
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE5E7EB),
+                            width: 1,
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 12,
+                        ),
                       ),
                       style: const TextStyle(fontSize: 14),
                     ),
                   ),
                 ),
-                
+
                 // New Chat button
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -115,7 +125,11 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     width: double.infinity,
                     child: TextButton.icon(
                       onPressed: handleNewChat,
-                      icon: const Icon(Icons.add, size: 20, color: Colors.black),
+                      icon: const Icon(
+                        Icons.add,
+                        size: 20,
+                        color: Colors.black,
+                      ),
                       label: const Text('New Chat'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF6F6F6),
@@ -124,7 +138,11 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ),
@@ -147,7 +165,9 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                   ),
                 ),
                 // Footer - Total for Pro/Plus
-                if (basePlan != 'free' && basePlan != 'basic' && chatStore.total > 0)
+                if (basePlan != 'free' &&
+                    basePlan != 'basic' &&
+                    chatStore.total > 0)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -158,7 +178,10 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     child: Center(
                       child: Text(
                         '${chatStore.total} ${chatStore.total == 1 ? 'Conversation' : 'Conversations'} Total',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF636363)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF636363),
+                        ),
                       ),
                     ),
                   ),
@@ -256,24 +279,27 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ...chatStore.conversations.take(1).map(
+            ...chatStore.conversations
+                .take(1)
+                .map(
                   (item) => ChatHistoryItemWidget(
                     conversation: item,
                     isActive: item.id == chatStore.activeConversationId,
                     onClick: () => onItemClick(item),
                     onDelete: (id) => chatStore.deleteConversation(id),
-                    onRename: (id, title) => chatStore.renameConversation(id, title),
+                    onRename: (id, title) =>
+                        chatStore.renameConversation(id, title),
                   ),
                 ),
             ...mockHistoryItems.map(
-                  (item) => ChatHistoryItemWidget(
-                    conversation: item,
-                    isBlurred: true,
-                    onClick: () {},
-                    onDelete: (_) async => false,
-                    onRename: (_, __) async => false,
-                  ),
-                ),
+              (item) => ChatHistoryItemWidget(
+                conversation: item,
+                isBlurred: true,
+                onClick: () {},
+                onDelete: (_) async => false,
+                onRename: (_, __) async => false,
+              ),
+            ),
             const SizedBox(height: 220),
           ],
         ),
@@ -328,7 +354,10 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     );
   }
 
-  Future<void> _handleItemClick(BuildContext context, ConversationItem item) async {
+  Future<void> _handleItemClick(
+    BuildContext context,
+    ConversationItem item,
+  ) async {
     final chatStore = context.read<ChatHistoryStore>();
     final searchStore = context.read<SearchStore>();
 
@@ -340,9 +369,12 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       if (!context.mounted) return;
       if (detail != null) {
         searchStore.setPendingConversation(detail);
-        Navigator.of(context).pop();
+        // Navigator.of(context).pop();
       } else {
         chatStore.setActiveConversationId(null);
+      }
+      if (widget.onClose != null) {
+        widget.onClose!();
       }
     } catch (_) {
       if (context.mounted) {

@@ -36,6 +36,7 @@ class _MessageGroupViewState extends State<MessageGroupView>
     with SingleTickerProviderStateMixin {
   String? _feedback; // 'up' | 'down'
   bool _showPdfModal = false;
+  bool _hovering = false; // 与 TSX group-hover/message:opacity-100 一致
   late AnimationController _breathingController;
 
   @override
@@ -62,9 +63,12 @@ class _MessageGroupViewState extends State<MessageGroupView>
     final hasDinqResults = (group.dinqResults?.length ?? 0) > 0;
     final hasAdvisorResults = (group.advisorResults?.length ?? 0) > 0;
     final hasPdfAttachment = group.pdfAttachment != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         // 用户问题 - 靠右对齐（与 TSX flex items-end gap-3）
         Align(
           alignment: Alignment.centerRight,
@@ -153,6 +157,7 @@ class _MessageGroupViewState extends State<MessageGroupView>
               if (isAdvisorSearch && hasAdvisorResults)
                 AdvisorsList(advisors: group.advisorResults!),
 
+              // 与 TSX 一致：加载时显示呼吸 Logo（仅 Global/Advisor），pt-2
               if (!isDinqSearch && group.loading)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -162,34 +167,37 @@ class _MessageGroupViewState extends State<MessageGroupView>
                   ),
                 ),
 
-              if (!isDinqSearch &&
-                  !isAdvisorSearch &&
-                  !group.loading &&
-                  !hasCandidates &&
-                  !hasDinqResults &&
-                  !hasAdvisorResults)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    '暂无匹配结果',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
-                ),
-
+              // 与 TSX 一致：有结果且不在加载中时显示操作栏；!isLatest 时整条 opacity-0，悬停 group 时显示
               if (!group.loading &&
-                  (hasCandidates || hasDinqResults || hasAdvisorResults))
-                MessageGroupActionBar(
-                  isLatest: widget.isLatest,
-                  feedback: _feedback,
-                  onFeedbackUp: () =>
-                      setState(() => _feedback = _feedback == 'up' ? null : 'up'),
-                  onFeedbackDown: () => setState(
-                      () => _feedback = _feedback == 'down' ? null : 'down'),
-                ),
+                  (hasCandidates || hasDinqResults || hasAdvisorResults)) ...[
+                if (widget.isLatest)
+                  MessageGroupActionBar(
+                    isLatest: true,
+                    feedback: _feedback,
+                    onFeedbackUp: () =>
+                        setState(() => _feedback = _feedback == 'up' ? null : 'up'),
+                    onFeedbackDown: () => setState(
+                        () => _feedback = _feedback == 'down' ? null : 'down'),
+                  )
+                else
+                  AnimatedOpacity(
+                    opacity: _hovering ? 1 : 0,
+                    duration: const Duration(milliseconds: 150),
+                    child: MessageGroupActionBar(
+                      isLatest: false,
+                      feedback: _feedback,
+                      onFeedbackUp: () =>
+                          setState(() => _feedback = _feedback == 'up' ? null : 'up'),
+                      onFeedbackDown: () => setState(
+                          () => _feedback = _feedback == 'down' ? null : 'down'),
+                    ),
+                  ),
+              ],
             ],
           ),
         ),
       ],
+    ),
     );
   }
 }
