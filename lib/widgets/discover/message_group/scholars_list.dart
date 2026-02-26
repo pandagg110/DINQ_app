@@ -73,6 +73,43 @@ String _getFirstName(String name) {
   return name.split(' ').first;
 }
 
+/// 与 TSX renderMarkdownBold 一致：解析 **加粗**，加粗部分 font-medium text-gray-700
+List<InlineSpan> renderMarkdownBold(
+  String text, {
+  TextStyle? baseStyle,
+  TextStyle? boldStyle,
+}) {
+  const defaultBase = TextStyle(fontSize: 12, color: _kTextGray500);
+  const defaultBold = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    color: Color(0xFF374151), // gray-700
+  );
+  final base = baseStyle ?? defaultBase;
+  final bold = boldStyle ?? defaultBold;
+  const pattern = '**';
+  final spans = <InlineSpan>[];
+  var start = 0;
+  while (true) {
+    final i = text.indexOf(pattern, start);
+    if (i < 0) {
+      if (start < text.length) spans.add(TextSpan(text: text.substring(start), style: base));
+      break;
+    }
+    if (start < i) {
+      spans.add(TextSpan(text: text.substring(start, i), style: base));
+    }
+    final end = text.indexOf(pattern, i + pattern.length);
+    if (end < 0) {
+      spans.add(TextSpan(text: text.substring(i), style: base));
+      break;
+    }
+    spans.add(TextSpan(text: text.substring(i + pattern.length, end), style: bold));
+    start = end + pattern.length;
+  }
+  return spans;
+}
+
 // 与 TSX getEnrichingText 一致（确定性选择）
 final Map<String, List<String>> _kEnrichingTemplates = {
   'name': ['Identifying %s', "Confirming %s's identity", 'Verifying name'],
@@ -464,11 +501,8 @@ class ScholarsList extends StatelessWidget {
                     isSelected: isSelected,
                     onTap: () {
                       if (onCandidateClick != null) {
-
-                        debugPrint('candidate1111: $candidate');
                         onCandidateClick!(candidate, idx, groupId);
                       } else {
-                        debugPrint('candidate22222: $candidate');
                         final store = context.read<SearchStore>();
                         final tabId = store.openTabWithClick(
                               candidate,
@@ -692,32 +726,24 @@ class _CandidateCardState extends State<_CandidateCard> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _kMatchBg,
-                            border: Border.all(color: _kMatchBorder),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'match',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: _kBlueDark,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
+                        
                         Expanded(
-                          child: Text(
-                            matchReason,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: _kTextGray500,
-                            ),
+                          child: RichText(
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                            text: TextSpan(
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _kTextGray500,
+                              ),
+                              children: renderMarkdownBold(
+                                matchReason,
+                                baseStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: _kTextGray500,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -752,6 +778,7 @@ class _CandidateCardState extends State<_CandidateCard> {
 
   Widget _buildAvatar(dynamic imageUrl, String name, bool loading) {
     final url = imageUrl?.toString() ?? '';
+    debugPrint('url3333333: $url');
     return SizedBox(
       width: 40,
       height: 40,

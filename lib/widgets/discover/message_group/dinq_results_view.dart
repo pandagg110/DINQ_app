@@ -390,10 +390,26 @@ class _DinqResultsViewState extends State<DinqResultsView> {
                                   debugPrint(
                                     'DinqResultsView - Image URL: $imageUrl',
                                   );
-                                  return const Icon(Icons.person, size: 40);
+                                  return const SizedBox(
+                                    width: 40,
+                                    height: 40,
+                                    child: AssetIcon(
+                                      asset: 'images/default-avatar.svg',
+                                      size: 40,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  );
                                 },
                               )
-                            : const Icon(Icons.person, size: 40),
+                            : const SizedBox(
+                                    width: 40,
+                                    height: 40,
+                                    child: AssetIcon(
+                                      asset: 'images/default-avatar.svg',
+                                      size: 40,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
                       ),
                     ),
                     const SizedBox(width: 12),

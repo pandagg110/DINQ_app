@@ -628,7 +628,7 @@ class ThinkingBubble extends StatelessWidget {
                       : const BoxConstraints(),
                   child: SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 8, 12, 12),
+                      padding: const EdgeInsets.fromLTRB(6, 8, 8, 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
