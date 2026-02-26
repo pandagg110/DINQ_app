@@ -444,7 +444,7 @@ class _SourceTag extends StatelessWidget {
 }
 
 /// 与 TSX ScholarsList 对应，只保留移动端样式
-class ScholarsList extends StatelessWidget {
+class ScholarsList extends StatefulWidget {
   const ScholarsList({
     super.key,
     required this.candidates,
@@ -460,12 +460,25 @@ class ScholarsList extends StatelessWidget {
       onCandidateClick;
 
   @override
-  Widget build(BuildContext context) {
-    if (candidates.isEmpty) return const SizedBox.shrink();
+  State<ScholarsList> createState() => _ScholarsListState();
+}
 
-    final totalCompleteness =
-        candidates.fold<double>(0, (sum, c) => sum + getCandidateCompleteness(c));
-    final avgPercent = (totalCompleteness / candidates.length * 100).round();
+class _ScholarsListState extends State<ScholarsList> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.candidates.isEmpty) return const SizedBox.shrink();
+
+    final totalCompleteness = widget.candidates.fold<double>(
+        0, (sum, c) => sum + getCandidateCompleteness(c));
+    final avgPercent = (totalCompleteness / widget.candidates.length * 100).round();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -480,40 +493,46 @@ class ScholarsList extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _MilestoneProgress(
-              candidateCount: candidates.length,
-              isSearching: isLoading,
+              candidateCount: widget.candidates.length,
+              isSearching: widget.isLoading,
               avgPercent: avgPercent,
-              candidates: candidates,
+              candidates: widget.candidates,
             ),
-            // 不设内层滚动，由外层 ListView 统一滚动，滚到底后继续滑动即触发外层
-            ListView.builder(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: candidates.length,
-              itemBuilder: (context, idx) {
-                final candidate = candidates[idx];
-                final isSelected = _isSelected(context, idx);
-                return _CandidateCard(
-                  candidate: candidate,
-                  isLast: idx == candidates.length - 1,
-                  isLoading: isLoading,
-                  isSelected: isSelected,
-                  onTap: () {
-                    if (onCandidateClick != null) {
-                      onCandidateClick!(candidate, idx, groupId);
-                    } else {
-                      final store = context.read<SearchStore>();
-                      final tabId = store.openTabWithClick(
-                            candidate,
-                            index: idx,
-                            groupId: groupId,
-                          );
-                      if (tabId != null) store.setTabPanelOpen(true);
-                    }
+            Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 480),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: widget.candidates.length,
+                  itemBuilder: (context, idx) {
+                    final candidate = widget.candidates[idx];
+                    final isSelected = _isSelected(context, idx);
+                    return _CandidateCard(
+                      candidate: candidate,
+                      isLast: idx == widget.candidates.length - 1,
+                      isLoading: widget.isLoading,
+                      isSelected: isSelected,
+                      onTap: () {
+                        if (widget.onCandidateClick != null) {
+                          widget.onCandidateClick!(candidate, idx, widget.groupId);
+                        } else {
+                          final store = context.read<SearchStore>();
+                          final tabId = store.openTabWithClick(
+                                candidate,
+                                index: idx,
+                                groupId: widget.groupId,
+                              );
+                          if (tabId != null) store.setTabPanelOpen(true);
+                        }
+                      },
+                    );
                   },
-                );
-              },
+                ),
+              ),
             ),
           ],
         ),
@@ -528,7 +547,7 @@ class ScholarsList extends StatelessWidget {
     final c = active.candidate;
     final gId = c['groupId'];
     final orig = c['originalIndex'];
-    return gId == groupId && orig == idx;
+    return gId == widget.groupId && orig == idx;
   }
 }
 
