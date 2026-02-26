@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../constants/app_constants.dart';
 import '../../services/discover_service.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
@@ -11,6 +10,7 @@ import '../../pages/discover/recommended_papers_page.dart';
 import 'agentic_search_logic.dart';
 import 'message_group_view.dart';
 import 'search_box_widget.dart';
+import '../../constants/app_constants.dart';
 
 // Placeholder 常量（与 React 版本一致）
 const List<String> globalPlaceholders = [
@@ -115,13 +115,26 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   }
 
   void _openPapersPage() {
-    Navigator.of(context).push<Object?>(
-      MaterialPageRoute<Object?>(builder: (_) => const RecommendedPapersPage()),
-    ).then((result) {
-      if (result != null && result is String) {
-        _handleSearch(query: result);
-      }
-    });
+    Navigator.of(context)
+        .push<Object?>(
+          MaterialPageRoute<Object?>(
+            builder: (_) => const RecommendedPapersPage(),
+          ),
+        )
+        .then((result) {
+          // 返回后下一帧再收起焦点，避免 Flutter 焦点恢复后再把键盘带出来
+          if (mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                FocusScope.of(context).unfocus();
+                FocusManager.instance.primaryFocus?.unfocus();
+              }
+            });
+          }
+          if (result != null && result is String) {
+            _handleSearch(query: result);
+          }
+        });
   }
 
   void _handleSearch({required String query, bool simple = false}) {
@@ -193,53 +206,46 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                 ? Colors.white
                 : const Color(0xFFFDFDFD);
 
-            final screenHeight =
-                _screenHeight ?? MediaQuery.of(context).size.height;
-            const headerHeight = 0.0;
-            final availableHeight = screenHeight - headerHeight;
+            final mq = MediaQuery.of(context);
+            // 父级用 Transform.translate 顶起，这里保持一屏高度不压缩
+            final contentHeight = mq.size.height;
 
-            final parentQuery = MediaQuery.of(context);
-            final mediaQueryWithoutInsets = parentQuery.copyWith(
-              viewInsets: EdgeInsets.zero,
-              padding: parentQuery.padding,
-              size: Size(parentQuery.size.width, screenHeight),
-            );
-
-            return MediaQuery(
-              data: mediaQueryWithoutInsets,
-              child: Container(
-                color: bgColor,
-                height: availableHeight,
-                width: double.infinity,
-                child: Stack(
-                  children: [
-                    // 主要内容区域
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 236, top: 32),
-                      child: Column(
-                        children: [
-                          if (showSkeleton)
-                            Expanded(child: _buildConversationSkeleton()),
-                          if (hasMessages && !showSkeleton)
-                            Expanded(child: _buildMessagesArea(logic)),
-                          if (!hasMessages && !showSkeleton)
-                            Expanded(
-                              child: Container(),
-                            ), // 占位，实际内容在 _buildInitialState 中
-                        ],
-                      ),
+            return Container(
+              color: bgColor,
+              height: contentHeight,
+              width: double.infinity,
+              child: Column(
+                children: [
+                  // 顶部栏
+                  Padding(
+                    padding: const EdgeInsets.only(top: 0),
+                    child: _buildTopBar(),
+                  ),
+                  // 内容在上，使用 Expanded；点击聊天区域时收起键盘
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => FocusScope.of(context).unfocus(),
+                      behavior: HitTestBehavior.translucent,
+                      child: showSkeleton
+                          ? _buildConversationSkeleton()
+                          : hasMessages
+                          ? _buildMessagesArea(logic)
+                          : const SizedBox.shrink(),
                     ),
-
-                    // 统一使用 _buildInitialState 中的 Search input，悬浮在顶部
-                    _buildInitialState(
-                      userName,
-                      logic,
+                  ),
+                  // 搜索框和 Prompt 在下；键盘弹起时底部 padding 设为 0
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: ConstantsTool.bottomTabHeight + 32,
+                    ),
+                    child: _buildBottomSection(
+                      userName: userName,
+                      logic: logic,
                       searchStore: searchStore,
                       hasMessages: hasMessages,
-                      userId: user?.user.id,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -338,283 +344,272 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
 
   Widget _buildMessagesArea(AgenticSearchLogic logic) {
     final groups = logic.messageGroups;
-    return Scrollbar(
+    return PrimaryScrollController(
       controller: _scrollController,
-      thumbVisibility: true,
-      interactive: true,
-      child: ListView(
+      child: Scrollbar(
         controller: _scrollController,
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        children: [
-          for (var i = 0; i < groups.length; i++)
-            MessageGroupView(
-              key: ValueKey(groups[i].id),
-              group: MessageGroupData(
-                id: groups[i].id,
-                userQuery: groups[i].userQuery,
-                loading: groups[i].loading,
-                candidates: groups[i].candidates,
-                searchType: groups[i].searchType ?? 'global',
-                thinkingSteps: groups[i].thinkingSteps,
-                thinkingExpanded: groups[i].thinkingExpanded,
-                dinqResults: groups[i].dinqResults,
-                advisorResults: groups[i].advisorResults,
-                pdfAttachment: groups[i].pdfAttachment,
-                llmMessage: groups[i].llmMessage,
-                summary: groups[i].summary,
+        thumbVisibility: true,
+        interactive: true,
+        child: NestedScrollView(
+          physics: const ClampingScrollPhysics(),
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [],
+          body: ListView(
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            children: [
+            for (var i = 0; i < groups.length; i++)
+              MessageGroupView(
+                key: ValueKey(groups[i].id),
+                group: MessageGroupData(
+                  id: groups[i].id,
+                  userQuery: groups[i].userQuery,
+                  loading: groups[i].loading,
+                  candidates: groups[i].candidates,
+                  searchType: groups[i].searchType ?? 'global',
+                  thinkingSteps: groups[i].thinkingSteps,
+                  thinkingExpanded: groups[i].thinkingExpanded,
+                  dinqResults: groups[i].dinqResults,
+                  advisorResults: groups[i].advisorResults,
+                  pdfAttachment: groups[i].pdfAttachment,
+                  llmMessage: groups[i].llmMessage,
+                  summary: groups[i].summary,
+                ),
+                onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
+                onCandidateClick: (candidate, index, groupId) {
+                  final store = context.read<SearchStore>();
+                  final tabId = store.openTabWithClick(
+                    candidate,
+                    index: index,
+                    groupId: groupId,
+                    matchByName: true,
+                  );
+                  if (tabId != null) store.setTabPanelOpen(true);
+                },
+                isLatest: i == groups.length - 1,
               ),
-              onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
-              onCandidateClick: (candidate, index, groupId) {
-                final store = context.read<SearchStore>();
-                store.openTabWithClick(
-                  candidate,
-                  index: index,
-                  groupId: groupId,
-                );
-              },
-              isLatest: i == groups.length - 1,
+            Container(key: _messagesEndKey, height: 80),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          TextButton.icon(
+            onPressed: () {
+              context.read<ChatHistoryStore>().setMobileOpen(true);
+            },
+            icon: Image.asset(
+              'assets/icons/discover/history.png',
+              width: 20,
+              height: 20,
             ),
-          Container(key: _messagesEndKey, height: 80),
+            label: const Text(
+              '',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color.fromARGB(255, 0, 0, 0),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              foregroundColor: const Color(0xFF6B7280),
+            ),
+          ),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: _openPapersPage,
+                icon: const Icon(
+                  Icons.article,
+                  size: 20,
+                  color: Color.fromARGB(255, 0, 0, 0),
+                ),
+                label: const Text(
+                  'Papers',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color.fromARGB(255, 0, 0, 0),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  foregroundColor: const Color(0xFF6B7280),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  // TODO: 跳转升级页
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  foregroundColor: const Color(0xFF6B7280),
+                ),
+                child: const Text(
+                  'Upgrade',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF6B7280),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInitialState(
-    String userName,
-    AgenticSearchLogic logic, {
+  Widget _buildBottomSection({
+    required String userName,
+    required AgenticSearchLogic logic,
     required SearchStore searchStore,
     required bool hasMessages,
-    String? userId,
   }) {
-    return Stack(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // 合并所有内容到一个 Positioned
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: ConstantsTool.bottomTabHeight + 32,
-          child: Column(
-            children: [
-              // 顶部按钮栏
-              Padding(
-                padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () {
-                        context.read<ChatHistoryStore>().setMobileOpen(true);
-                      },
-                      icon: Image.asset(
-                        'assets/icons/discover/history.png',
-                        width: 20,
-                        height: 20,
-                      ),
-                      label: const Text(
-                        '',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color.fromARGB(255, 0, 0, 0),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        foregroundColor: const Color(0xFF6B7280),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        TextButton.icon(
-                          onPressed: _openPapersPage,
-                          icon: const Icon(
-                            Icons.article,
-                            size: 20,
-                            color: Color.fromARGB(255, 0, 0, 0),
-                          ),
-                          label: const Text(
-                            'Papers',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color.fromARGB(255, 0, 0, 0),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            foregroundColor: const Color(0xFF6B7280),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            // TODO: 跳转升级页
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            foregroundColor: const Color(0xFF6B7280),
-                          ),
-                          child: const Text(
-                            'Upgrade',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF6B7280),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Welcome、Prompt Templates 和搜索框（使用 Positioned 固定在底部）
-        Positioned(
-          top: !hasMessages ? 60 : null,
-          left: 0,
-          right: 0,
-          bottom: ConstantsTool.bottomTabHeight + 40,
-          child: Padding(
+        // Welcome 和 Prompt Templates（只在没有消息时显示）
+        if (!hasMessages) ...[
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Welcome 和 Prompt Templates（只在没有消息时显示）
-                if (!hasMessages) ...[
-                  Column(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
                     children: [
-                      // Welcome 文字
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Text(
-                              userName.isNotEmpty ? 'Welcome,' : 'Welcome',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xA3303030),
-                                letterSpacing: 0.02,
-                                fontFamily: 'Editor Note',
-                                height: 2,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              userName.isNotEmpty ? '$userName' : '',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF171717),
-                                letterSpacing: 0.02,
-                                fontFamily: 'Editor Note',
-                                height: 2,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                      Text(
+                        userName.isNotEmpty ? 'Welcome,' : 'Welcome',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xA3303030),
+                          letterSpacing: 0.02,
+                          fontFamily: 'Editor Note',
+                          height: 2,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 16),
-                      // Prompt Templates - 可滚动
-                      SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: AnimatedSize(
-                          duration: Duration(
-                            milliseconds: _activeTool != null ? 200 : 400,
-                          ),
-                          curve: Curves.easeOut,
-                          child: AnimatedOpacity(
-                            duration: Duration(
-                              milliseconds: _activeTool != null ? 150 : 300,
-                            ),
-                            opacity: _activeTool != null ? 0.0 : 1.0,
-                            child: _activeTool == null
-                                ? PromptTemplateGridWidget(
-                                    onQueryFromPapers: (query) =>
-                                        _handleSearch(query: query),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
+                      Text(
+                        userName.isNotEmpty ? '$userName' : '',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF171717),
+                          letterSpacing: 0.02,
+                          fontFamily: 'Editor Note',
+                          height: 2,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-                // 固定在底部的搜索框（始终显示）
-                if (searchStore.activeTool != 'find-advisor')
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 768),
-                      child: DiscoverQuickActionsWidget(
-                        onFindAdvisor: () {
-                          // TODO: 打开 Find Advisor 流程（如与搜索框顾问入口一致）
-                        },
-                        onSalaryAnalysis: () {
-                          // TODO: 打开 Salary Analysis 流程
-                        },
+                ),
+                const SizedBox(height: 16),
+                SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: AnimatedSize(
+                    duration: Duration(
+                      milliseconds: _activeTool != null ? 200 : 400,
+                    ),
+                    curve: Curves.easeOut,
+                    child: AnimatedOpacity(
+                      duration: Duration(
+                        milliseconds: _activeTool != null ? 150 : 300,
                       ),
-                    ),
-                  ),
-                if (searchStore.activeTool != 'find-advisor')
-                  const SizedBox(height: 16),
-                Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 768),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: SearchBoxWidget(
-                      onSearch: _handleSearch,
-                      onStop: _handleStop,
-                      loading: logic.loading,
-                      talentMode: _talentMode,
-                      onTalentModeChange: (mode) {
-                        setState(() {
-                          _talentMode = mode;
-                        });
-                      },
-                      onDinqSearchSubmit: _handleDinqSearchSubmit,
-                      onAdvisorSearch: _handleAdvisorSearch,
-                      advisorLoading: logic.advisorLoading,
-                      onActiveToolChange: (tool) {
-                        setState(() {
-                          _activeTool = tool;
-                        });
-                      },
-                      dropdownPosition: 'up',
+                      opacity: _activeTool != null ? 0.0 : 1.0,
+                      child: _activeTool == null
+                          ? PromptTemplateGridWidget(
+                              onQueryFromPapers: (query) =>
+                                  _handleSearch(query: query),
+                            )
+                          : const SizedBox.shrink(),
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        // 搜索框区域（始终显示）
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (searchStore.activeTool != 'find-advisor')
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 768),
+                    child: DiscoverQuickActionsWidget(
+                      onFindAdvisor: () {
+                        // TODO: 打开 Find Advisor 流程（如与搜索框顾问入口一致）
+                      },
+                      onSalaryAnalysis: () {
+                        // TODO: 打开 Salary Analysis 流程
+                      },
+                    ),
+                  ),
+                ),
+              if (searchStore.activeTool != 'find-advisor')
+                const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 768),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: SearchBoxWidget(
+                    onSearch: _handleSearch,
+                    onStop: _handleStop,
+                    loading: logic.loading,
+                    talentMode: _talentMode,
+                    onTalentModeChange: (mode) {
+                      setState(() {
+                        _talentMode = mode;
+                      });
+                    },
+                    onDinqSearchSubmit: _handleDinqSearchSubmit,
+                    onAdvisorSearch: _handleAdvisorSearch,
+                    advisorLoading: logic.advisorLoading,
+                    onActiveToolChange: (tool) {
+                      setState(() {
+                        _activeTool = tool;
+                      });
+                    },
+                    dropdownPosition: 'up',
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

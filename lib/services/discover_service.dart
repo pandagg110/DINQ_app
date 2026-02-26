@@ -51,7 +51,6 @@ class DiscoverService {
         if (data == '[DONE]') return;
         try {
           final map = jsonDecode(data) as Map<String, dynamic>;
-          print('[DiscoverService.chatStream] event: $map');
           yield map;
         } catch (_) {
           // ignore parse errors

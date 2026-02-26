@@ -21,6 +21,22 @@ class PlaceholderPosition {
   final int y;
 }
 
+/// 拖拽过程中的数据快照，供 PlaceholderGrid 等使用（如高亮落点、避免与拖拽项重叠等）
+class GridDragSnapshot {
+  const GridDragSnapshot({
+    required this.itemId,
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+  });
+  final String itemId;
+  final int x;
+  final int y;
+  final int w;
+  final int h;
+}
+
 /// 占位符状态与持久化：隐藏列表、是否显示占位符
 class PlaceholderNotifier extends ChangeNotifier {
   Set<String> _hiddenPlaceholders = {};
@@ -102,6 +118,7 @@ class PlaceholderNotifier extends ChangeNotifier {
 
 /// 根据当前卡片布局计算占位符位置列表。
 /// [cards] 用于判断已有类型（不重复展示同类型占位）；[cardsForLayout] 用于占用格（与网格实际显示的卡片一致，改尺寸后会重排）。
+/// [layoutOverride] 不为空时（如拖拽过程中的布局）用其作为占用格，替代由 cardsForLayout 推导的布局。
 List<PlaceholderPosition> computePlaceholderPositions({
   required List<CardItem> cards,
   required List<CardItem> cardsForLayout,
@@ -109,6 +126,7 @@ List<PlaceholderPosition> computePlaceholderPositions({
   required bool editable,
   required bool showPlaceholders,
   required Set<String> hiddenPlaceholders,
+  List<({int x, int y, int w, int h})>? layoutOverride,
 }) {
   if (!editable || !showPlaceholders) return [];
 
@@ -120,13 +138,18 @@ List<PlaceholderPosition> computePlaceholderPositions({
 
   if (filtered.isEmpty) return [];
 
-  final layout = <({int x, int y, int w, int h})>[];
-  for (final card in cardsForLayout) {
-    final pos = card.layout.mobile.position;
-    final dims = CardLayoutUtils.parseSizeString(card.layout.mobile.size);
-    final w = dims.w.clamp(1, columns);
-    final h = dims.h.clamp(1, 100);
-    layout.add((x: pos.x, y: pos.y, w: w, h: h));
+  final List<({int x, int y, int w, int h})> layout;
+  if (layoutOverride != null) {
+    layout = layoutOverride;
+  } else {
+    layout = <({int x, int y, int w, int h})>[];
+    for (final card in cardsForLayout) {
+      final pos = card.layout.mobile.position;
+      final dims = CardLayoutUtils.parseSizeString(card.layout.mobile.size);
+      final w = dims.w.clamp(1, columns);
+      final h = dims.h.clamp(1, 100);
+      layout.add((x: pos.x, y: pos.y, w: w, h: h));
+    }
   }
 
   final maxBottomY = layout.isEmpty

@@ -31,8 +31,235 @@ const List<String> advisorPlaceholders = [
 
 const double minHeight = 24.0;
 const double maxHeight = 240.0;
+
+/// find-advisor 区域约占用高度（Resume + Countries 等），用于计算输入区 maxHeight
+const double _kAdvisorSectionApproxHeight = 200.0;
 const int maxLength = 2000;
 const int showLimitThreshold = 1800;
+
+const List<String> _kCountryOptions = [
+  'USA',
+  'Canada',
+  'China',
+  'Hong Kong',
+  'Macao',
+  'Taiwan',
+  'UK',
+  'Germany',
+  'Australia',
+  'Singapore',
+  'Japan',
+  'France',
+  'Netherlands',
+];
+
+/// 虚线圆角矩形边框（用于 Resume 上传区域）
+class _DashedRectPainter extends CustomPainter {
+  _DashedRectPainter({
+    required this.color,
+    this.strokeWidth = 1,
+    this.borderRadius = 8,
+    this.dashWidth = 4,
+    this.dashSpace = 3,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double borderRadius;
+  final double dashWidth;
+  final double dashSpace;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(borderRadius),
+    );
+    final path = Path()..addRRect(rrect);
+    _drawDashedPath(canvas, path, paint);
+  }
+
+  void _drawDashedPath(Canvas canvas, Path path, Paint paint) {
+    final pathMetrics = path.computeMetrics();
+    for (final metric in pathMetrics) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final nextDistance = distance + dashWidth;
+        final extractPath = metric.extractPath(
+          distance,
+          nextDistance > metric.length ? metric.length : nextDistance,
+        );
+        canvas.drawPath(extractPath, paint);
+        distance = nextDistance + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// 国家选择底部弹窗（参考 CountrySelectModal.tsx）
+class _CountrySelectBottomSheet extends StatefulWidget {
+  const _CountrySelectBottomSheet({
+    required this.initialSelected,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  final List<String> initialSelected;
+  final void Function(List<String> countries) onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  State<_CountrySelectBottomSheet> createState() =>
+      _CountrySelectBottomSheetState();
+}
+
+class _CountrySelectBottomSheetState extends State<_CountrySelectBottomSheet> {
+  late List<String> _tempCountries;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempCountries = List<String>.from(widget.initialSelected);
+  }
+
+  void _toggleCountry(String country) {
+    setState(() {
+      if (_tempCountries.contains(country)) {
+        _tempCountries.remove(country);
+      } else {
+        _tempCountries.add(country);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Countries',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF171717),
+              ),
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 8.0;
+                final itemWidth = (constraints.maxWidth - spacing) / 2;
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.5,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: _kCountryOptions.map((country) {
+                        final isSelected = _tempCountries.contains(country);
+                        return SizedBox(
+                          width: itemWidth,
+                          child: Material(
+                            color: isSelected
+                                ? const Color(0xFFE5E5E5)
+                                : const Color(0xFFF5F5F5),
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              onTap: () => _toggleCountry(country),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        country,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF171717),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        Icons.check,
+                                        size: 16,
+                                        color: Color(0xFF171717),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: widget.onCancel,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      side: const BorderSide(color: Color(0xFF171717)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      foregroundColor: const Color(0xFF171717),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => widget.onConfirm(_tempCountries),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      backgroundColor: const Color(0xFF171717),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Confirm'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class AdvisorFormData {
   AdvisorFormData({
@@ -319,6 +546,25 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     });
   }
 
+  void _showCountrySelectModal() {
+    final initial = List<String>.from(_advisorCountries);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CountrySelectBottomSheet(
+        initialSelected: initial,
+        onConfirm: (countries) {
+          setState(() {
+            _advisorCountries = countries;
+          });
+          Navigator.of(context).pop();
+        },
+        onCancel: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SearchStore>(
@@ -344,7 +590,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
 
         return GestureDetector(
           onTap: () {
-            // 点击外部时关闭工具菜单
+            FocusScope.of(context).unfocus();
             if (_showToolsMenu) {
               setState(() {
                 _showToolsMenu = false;
@@ -372,152 +618,227 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                   width: 1,
                 ),
               ),
-              child: Stack(
-                children: [
-                  // 上方内容：由子元素决定高度，父容器自适应；总高度受 ConstrainedBox 的 maxHeight 限制
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // 剩余高度 = 总高 - 底部预留(76) - 底部按钮栏(52+8+14) - 顶部 padding(12) - find-advisor 区域(若显示)
+                  final bottomReserve = 76.0;
+                  final bottomBarHeight = 52.0 + 8 + 14;
+                  final topPadding = 12.0;
+                  final advisorHeight = searchStore.activeTool == 'find-advisor'
+                      ? _kAdvisorSectionApproxHeight
+                      : 0.0;
+                  final maxInputHeight =
+                      (constraints.maxHeight -
+                              bottomReserve -
+                              bottomBarHeight -
+                              topPadding -
+                              advisorHeight)
+                          .clamp(_textFieldHeight, double.infinity) -40;
+                  return Stack(
                     children: [
-                      if (searchStore.activeTool == 'find-advisor') _buildAdvisorOptions(),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: _textFieldHeight,
-                            maxHeight: 270,
-                          ),
-                          child: SingleChildScrollView(
-                            child: TextField(
-                              controller: _controller,
-                              focusNode: _focusNode,
-                              maxLines: null,
-                              maxLength: maxLength,
-                              decoration: InputDecoration(
-                                hintText: _currentPlaceholder(context),
-                                hintStyle: const TextStyle(
-                                  color: Color(0xFF9CA3AF),
-                                  fontSize: 14,
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (searchStore.activeTool == 'find-advisor')
+                            _buildAdvisorOptions(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight:
+                                    maxInputHeight < 0 ||
+                                        maxInputHeight > _textFieldHeight
+                                    ? _textFieldHeight
+                                    : maxInputHeight,
+                                maxHeight: maxInputHeight < 0
+                                    ? 270
+                                    : maxInputHeight,
+                              ),
+                              child: SingleChildScrollView(
+                                child: TextField(
+                                  controller: _controller,
+                                  focusNode: _focusNode,
+                                  maxLines: null,
+                                  maxLength: maxLength,
+                                  decoration: InputDecoration(
+                                    hintText: _currentPlaceholder(context),
+                                    hintStyle: const TextStyle(
+                                      color: Color(0xFF9CA3AF),
+                                      fontSize: 14,
+                                    ),
+                                    isDense: true,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    counterText: '',
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF171717),
+                                    height: 1,
+                                  ),
+                                  onChanged: (value) {
+                                    _adjustHeight();
+                                    widget.onChanged?.call(value);
+                                    if (value == '/' &&
+                                        searchStore.activeTool == null) {
+                                      setState(() => _showToolsMenu = true);
+                                    } else if (_showToolsMenu && value != '/') {
+                                      setState(() => _showToolsMenu = false);
+                                    } else {
+                                      setState(() {});
+                                    }
+                                  },
+                                  onSubmitted: (value) {
+                                    if (value.trim().isNotEmpty &&
+                                        !isLoading &&
+                                        canSearch) {
+                                      _handleSearch();
+                                    }
+                                  },
                                 ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
-                                counterText: '',
                               ),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF171717),
-                                height: 1,
-                              ),
-                              onChanged: (value) {
-                                _adjustHeight();
-                                widget.onChanged?.call(value);
-                                if (value == '/' && searchStore.activeTool == null) {
-                                  setState(() => _showToolsMenu = true);
-                                } else if (_showToolsMenu && value != '/') {
-                                  setState(() => _showToolsMenu = false);
-                                } else {
-                                  setState(() {});
-                                }
-                              },
-                              onSubmitted: (value) {
-                                if (value.trim().isNotEmpty &&
-                                    !isLoading &&
-                                    canSearch) {
-                                  _handleSearch();
-                                }
-                              },
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 76), // 为底部按钮栏预留高度 (8+52+16)
+                        ],
                       ),
-                      const SizedBox(height: 76), // 为底部按钮栏预留高度 (8+52+16)
-                    ],
-                  ),
-                  // 按钮栏：固定到整个搜索框容器底部
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
-                      child: SizedBox(
-                        height: 52,
-                        child: Stack(
-                          children: [
-                            if (showLimit)
-                              Positioned.fill(
-                                child: Center(
-                                  child: Text(
-                                    '$inputLength/$maxLength',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: inputLength >= maxLength
-                                          ? Colors.red
-                                          : const Color(0xFF9CA3AF),
+                      // 按钮栏：固定到整个搜索框容器底部；点击时收起键盘
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () => FocusScope.of(context).unfocus(),
+                          behavior: HitTestBehavior.translucent,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
+                            child: SizedBox(
+                            height: 52,
+                            child: Stack(
+                              children: [
+                                if (showLimit)
+                                  Positioned.fill(
+                                    child: Center(
+                                      child: Text(
+                                        '$inputLength/$maxLength',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: inputLength >= maxLength
+                                              ? Colors.red
+                                              : const Color(0xFF9CA3AF),
+                                        ),
+                                      ),
                                     ),
                                   ),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          if (searchStore.activeTool == null)
+                                            _buildTalentModeSelector(),
+                                          // if (searchStore.activeTool == null)
+                                          //   const SizedBox(width: 8),
+                                          // _buildToolsButton(),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (searchStore.activeTool ==
+                                              'find-advisor')
+                                            TextButton(
+                                              onPressed: _handleClearTool,
+                                              style: TextButton.styleFrom(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                    ),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                              child: const Text(
+                                                'Cancel',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Color(0xFF9CA3AF),
+                                                ),
+                                              ),
+                                            ),
+                                          if (searchStore.activeTool ==
+                                              'find-advisor')
+                                            const SizedBox(width: 12),
+                                          _buildSearchButton(
+                                            isLoading,
+                                            canSearch,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Row(
-                                    children: [
-                                      if (searchStore.activeTool == null)
-                                        _buildTalentModeSelector(),
-                                      // if (searchStore.activeTool == null)
-                                      //   const SizedBox(width: 8),
-                                      // _buildToolsButton(),
-                                    ],
-                                  ),
-                                  Row(
-                                    children: [
-                                      if (searchStore.activeTool == 'find-advisor')
-                                        TextButton(
-                                          onPressed: _handleClearTool,
-                                          style: TextButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                            ),
-                                            minimumSize: Size.zero,
-                                            tapTargetSize: MaterialTapTargetSize
-                                                .shrinkWrap,
-                                          ),
-                                          child: const Text(
-                                            'Cancel',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Color(0xFF9CA3AF),
-                                            ),
-                                          ),
-                                        ),
-                                      if (searchStore.activeTool == 'find-advisor')
-                                        const SizedBox(width: 12),
-                                      _buildSearchButton(isLoading, canSearch),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
+                        ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  /// PDF 文档图标 + 左下角红色 "PDF" 角标
+  Widget _buildPdfIconWithBadge() {
+    return SizedBox(
+      width: 28,
+      height: 32,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(
+            Icons.insert_drive_file,
+            size: 28,
+            color: Color(0xFFE5E7EB),
+          ),
+          Positioned(
+            left: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.red.shade700,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: const Text(
+                'PDF',
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -531,101 +852,203 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Resume row
+          // Find Advisor 标题行：毕业帽图标 + 文案 + 右侧圆形清除按钮（高度 48px，按钮 32px）
+          SizedBox(
+            height: 16,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.school_outlined,
+                  size: 16,
+                  color: Color(0xFF171717),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Find Advisor',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF171717)),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: Material(
+                    color: const Color(0xFFD9D9D9),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: _handleClearTool,
+                      customBorder: const CircleBorder(),
+                      child: const Center(
+                        child: Icon(
+                          Icons.close,
+                          size:12,
+                          color: Color(0xFFFFFFFF),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Resume row（按 UI：标签深灰加粗，上传区虚线框、浅底、居中图标与文案）
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.upload, size: 14, color: Color(0xFF6B7280)),
-                  const SizedBox(width: 6),
                   const Text(
                     'Resume',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF6B7280),
+                      color: Color(0xFF333333),
                     ),
                   ),
                   const SizedBox(width: 4),
                   const Text(
                     '*',
-                    style: TextStyle(fontSize: 12, color: Colors.amber),
+                    style: TextStyle(fontSize: 14, color: Colors.amber),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   if (_advisorFile == null)
-                    TextButton.icon(
-                      onPressed: _advisorUploading ? null : _handleFileSelect,
-                      icon: const Icon(Icons.description, size: 16),
-                      label: const Text('Choose PDF file'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        backgroundColor: Colors.transparent,
-                        foregroundColor: const Color(0xFF6B7280),
-                        side: BorderSide(
-                          color: const Color(0xFFD1D5DB),
-                          style: BorderStyle.solid,
-                        ),
-                        shape: RoundedRectangleBorder(
+                    Expanded(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _advisorUploading ? null : _handleFileSelect,
                           borderRadius: BorderRadius.circular(8),
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 20,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8F8F8),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.cloud_upload,
+                                      size: 20,
+                                      color: Color(0xFF888888),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Choose PDF file',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF888888),
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: _DashedRectPainter(
+                                    color: const Color(0xFFCCCCCC),
+                                    strokeWidth: 1,
+                                    borderRadius: 8,
+                                    dashWidth: 4,
+                                    dashSpace: 3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )
                   else
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    Expanded(
+                      child: Stack(
                         children: [
-                          if (_advisorUploading)
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.amber,
-                                ),
-                              ),
-                            )
-                          else
-                            const Icon(
-                              Icons.description,
-                              size: 16,
-                              color: Colors.amber,
+                          Container(
+                            height: 48,
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
                             ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 200,
-                            child: Text(
-                              _advisorFile!.path.split('/').last,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF374151),
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8F8F8),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                if (_advisorUploading)
+                                  const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF888888),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  _buildPdfIconWithBadge(),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _advisorFile!.path.split('/').last,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF171717),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                SizedBox(
+                                  height: 32,
+                                  child: TextButton(
+                                    onPressed: _handleRemoveFile,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 0,
+                                      ),
+                                      minimumSize: const Size(0, 32),
+                                      backgroundColor: const Color(0xFFFFFFFF),
+                                      foregroundColor: const Color(0xFF171717),
+                                      side: const BorderSide(
+                                        color: Color(0xFFD1D5DB),
+                                        width: 1,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text('Remove File'),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 16),
-                            color: const Color(0xFF9CA3AF),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: _handleRemoveFile,
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _DashedRectPainter(
+                                color: const Color(0xFFCCCCCC),
+                                strokeWidth: 1,
+                                borderRadius: 8,
+                                dashWidth: 4,
+                                dashSpace: 3,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -649,24 +1072,18 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.language,
-                    size: 14,
-                    color: Color(0xFF6B7280),
-                  ),
-                  const SizedBox(width: 6),
                   const Text(
                     'Preferred Countries',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF6B7280),
+                      color: Color(0xFF171717),
                     ),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     '(optional)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                    style: TextStyle(fontSize: 12, color: Color(0xA3303030)),
                   ),
                 ],
               ),
@@ -688,12 +1105,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                     ),
                   ),
                   TextButton.icon(
-                    onPressed: () {
-                      // TODO: 实现国家选择模态框
-                      // setState(() {
-                      //   _showCountryModal = true;
-                      // });
-                    },
+                    onPressed: _showCountrySelectModal,
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Add'),
                     style: TextButton.styleFrom(
@@ -776,19 +1188,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
               Row(
                 children: [
                   // Global Talent 选项
-                  Expanded(
-                    child: _buildToggleOption(
-                      'global',
-                      Icons.search,
-                    ),
-                  ),
+                  Expanded(child: _buildToggleOption('global', Icons.search)),
                   // DINQ Fellows 选项
-                  Expanded(
-                    child: _buildToggleOption(
-                      'dinq',
-                      Icons.bolt,
-                    ),
-                  ),
+                  Expanded(child: _buildToggleOption('dinq', Icons.bolt)),
                 ],
               ),
             ],
@@ -806,13 +1208,10 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       child: Icon(
         icon,
         size: 16,
-        color: isSelected
-            ? const Color(0xFF000000)
-            : const Color(0xFF9CA3AF),
+        color: isSelected ? const Color(0xFF000000) : const Color(0xFF9CA3AF),
       ),
     );
   }
-
 
   Widget _buildToolsButton() {
     final searchStore = context.read<SearchStore>();
@@ -1002,13 +1401,13 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
             borderRadius: BorderRadius.circular(36),
           ),
           child: isLoading
-              ? const Center(
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ? Center(
+                  child: Container(
+                    width: 9.6,
+                    height: 9.6,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(1.6),
                     ),
                   ),
                 )

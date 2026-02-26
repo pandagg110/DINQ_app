@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/discover_service.dart';
 import '../../stores/search_store.dart';
@@ -24,18 +25,24 @@ class AgenticMessageGroup {
   bool loading;
   List<Map<String, dynamic>> candidates;
   List<Map<String, dynamic>>? dinqResults;
+
   /// 'global' | 'dinq' | 'advisor'，与 TSX SearchType 一致（可空以兼容旧实例/热重载）
   final String? searchType;
+
   /// 与 TSX ThinkingStep[] 一致（可空以兼容旧实例/热重载）
   List<Map<String, dynamic>> thinkingSteps;
   bool thinkingExpanded;
+
   /// 与 TSX searchCompleted 一致：搜索流是否已结束
   bool searchCompleted;
   List<Map<String, dynamic>>? advisorResults;
+
   /// { url: string, name: string }，与 TSX pdfAttachment 一致
   Map<String, dynamic>? pdfAttachment;
+
   /// 流式 llm_end 事件的 message（AI 文字回复）
   String? llmMessage;
+
   /// 流式 completed 事件的 data.summary
   String? summary;
 }
@@ -51,7 +58,8 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   final DiscoverService discoverService;
   final SearchStore searchStore;
-  final void Function(List<Map<String, dynamic>> candidates, String query)? onSearchComplete;
+  final void Function(List<Map<String, dynamic>> candidates, String query)?
+  onSearchComplete;
   final VoidCallback? onScrollToBottom;
 
   List<AgenticMessageGroup> messageGroups = [];
@@ -93,7 +101,8 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   static bool _valueEquals(dynamic a, dynamic b) {
     if (a == b) return true;
-    if (a is List && b is List) return a.length == b.length && a.toString() == b.toString();
+    if (a is List && b is List)
+      return a.length == b.length && a.toString() == b.toString();
     return false;
   }
 
@@ -120,15 +129,16 @@ class AgenticSearchLogic extends ChangeNotifier {
   }
 
   /// 与 TSX getInputValue 一致
+  /// 与 TSX getInputValue 一致：先 JSON.parse，失败则用正则提取 key 对应的 quoted 值
   static String? _getInputValue(String input, String inputType) {
     if (inputType == 'file') return null;
     try {
-      // 简单 JSON 解析（Dart 无 JSON.parse 字符串，用 dart:convert）
-      final q = input.contains('"query"') ? _extractQuoted(input, 'query') : null;
-      final u = input.contains('"url"') ? _extractQuoted(input, 'url') : null;
-      if (inputType == 'query' && q != null) return q;
-      if (inputType == 'url' && u != null) return u;
-      return q ?? u;
+      final parsed = jsonDecode(input) as Map<String, dynamic>?;
+      if (parsed != null) {
+        final v = parsed['query'] ?? parsed['url'];
+        return v != null ? v.toString() : null;
+      }
+      return null;
     } catch (_) {
       final key = inputType == 'query' ? 'query' : 'url';
       return _extractQuoted(input, key);
@@ -213,80 +223,61 @@ class AgenticSearchLogic extends ChangeNotifier {
         notifyListeners();
         break;
 
-      case 'llm_end': {
-        final message = event['message']?.toString().trim();
-        g.thinkingSteps = g.thinkingSteps.map((s) {
-          if (s['type'] == 'tool_call' && s['completed'] != true) {
-            final m = Map<String, dynamic>.from(s);
-            m['completed'] = true;
-            return m;
-          }
-          return s;
-        }).toList();
-        g.thinkingSteps = g.thinkingSteps
-            .where((s) => !(s['content'] == 'Processing...' && s['completed'] != true))
-            .toList();
-        if (!_shouldIgnoreLlmMessage(message) && message != null && message.isNotEmpty) {
-          g.thinkingSteps.add({
-            'id': _generateStepId(),
-            'type': 'thinking',
-            'content': message,
-            'sources': _normalizeSources(event['sources']),
-            'completed': true,
-          });
-        }
-        notifyListeners();
-        break;
-      }
-
-      case 'tool_call': {
-        final toolName = event['tool_name'] as String?;
-        final data = event['data'];
-        final input = data is Map ? data['input']?.toString() : null;
-
-        if (toolName == 'write_todos' && input != null && input.isNotEmpty) {
-          _markPendingToolCallsCompleted(groupId);
-          _addThinkingStep(groupId, {
-            'type': 'todo',
-            'content': input,
-            'action': toolName,
-            'completed': true,
-          });
-          return;
-        }
-
-        if (input == null || input.isEmpty) return;
-
-        final inputType = _getInputType(input, toolName);
-        final inputValue = _getInputValue(input, inputType);
-        final steps = g.thinkingSteps;
-        if (steps.isEmpty) {
-          g.thinkingSteps = [
-            ...steps,
-            {
+      case 'llm_end':
+        {
+          final message = event['message']?.toString().trim();
+          g.thinkingSteps = g.thinkingSteps.map((s) {
+            if (s['type'] == 'tool_call' && s['completed'] != true) {
+              final m = Map<String, dynamic>.from(s);
+              m['completed'] = true;
+              return m;
+            }
+            return s;
+          }).toList();
+          g.thinkingSteps = g.thinkingSteps
+              .where(
+                (s) =>
+                    !(s['content'] == 'Processing...' &&
+                        s['completed'] != true),
+              )
+              .toList();
+          if (!_shouldIgnoreLlmMessage(message) &&
+              message != null &&
+              message.isNotEmpty) {
+            g.thinkingSteps.add({
               'id': _generateStepId(),
-              'type': 'tool_call',
+              'type': 'thinking',
+              'content': message,
+              'sources': _normalizeSources(event['sources']),
+              'completed': true,
+            });
+          }
+          notifyListeners();
+          break;
+        }
+
+      case 'tool_call':
+        {
+          final toolName = event['tool_name'] as String?;
+          final data = event['data'];
+          final input = data is Map ? data['input']?.toString() : null;
+
+          if (toolName == 'write_todos' && input != null && input.isNotEmpty) {
+            _markPendingToolCallsCompleted(groupId);
+            _addThinkingStep(groupId, {
+              'type': 'todo',
               'content': input,
-              'action': toolName ?? '',
-              'completed': false,
-              'inputType': inputType,
-              'inputs': inputValue != null ? [inputValue] : [],
-            },
-          ];
-        } else {
-          final last = steps.last;
-          if (last['type'] == 'tool_call' &&
-              last['completed'] != true &&
-              last['inputType'] == inputType) {
-            final prevInputs = (last['inputs'] as List<dynamic>?)?.cast<String>() ?? [];
-            final newInputs = [...prevInputs, if (inputValue != null) inputValue]
-                .where((e) => e.isNotEmpty)
-                .toList();
-            g.thinkingSteps = [
-              ...steps.sublist(0, steps.length - 1),
-              {...last, 'inputs': newInputs},
-            ];
-          } else {
+              'action': toolName,
+              'completed': true,
+            });
+            return;
+          }
+          if (input == null || input.isEmpty) return;
+
+          final inputType = _getInputType(input, toolName);
+          final inputValue = _getInputValue(input, inputType);
+          final steps = g.thinkingSteps;
+          if (steps.isEmpty) {
             g.thinkingSteps = [
               ...steps,
               {
@@ -299,23 +290,58 @@ class AgenticSearchLogic extends ChangeNotifier {
                 'inputs': inputValue != null ? [inputValue] : [],
               },
             ];
+          } else {
+            final last = steps.last;
+            if (last['type'] == 'tool_call' &&
+                last['completed'] != true &&
+                last['inputType'] == inputType) {
+              final prevInputs =
+                  (last['inputs'] as List<dynamic>?)?.cast<String>() ?? [];
+              final newInputs = [
+                ...prevInputs,
+                if (inputValue != null) inputValue,
+              ].where((e) => e.isNotEmpty).toList();
+              g.thinkingSteps = [
+                ...steps.sublist(0, steps.length - 1),
+                {...last, 'inputs': newInputs},
+              ];
+            } else {
+              g.thinkingSteps = [
+                ...steps,
+                {
+                  'id': _generateStepId(),
+                  'type': 'tool_call',
+                  'content': input,
+                  'action': toolName ?? '',
+                  'completed': false,
+                  'inputType': inputType,
+                  'inputs': inputValue != null ? [inputValue] : [],
+                },
+              ];
+            }
           }
+          notifyListeners();
+          break;
         }
-        notifyListeners();
-        break;
-      }
 
       case 'tool_result':
         if (event['tool_name'] == 'write_todos') return;
         final steps = g.thinkingSteps;
         for (var i = steps.length - 1; i >= 0; i--) {
-          if (steps[i]['type'] == 'tool_call' && steps[i]['completed'] != true) {
+          if (steps[i]['type'] == 'tool_call' &&
+              steps[i]['completed'] != true) {
             final prev = steps[i];
-            final prevSources = (prev['sources'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+            final prevSources =
+                (prev['sources'] as List<dynamic>?)
+                    ?.cast<Map<String, dynamic>>() ??
+                [];
             final newSources = _normalizeSources(event['sources']);
             g.thinkingSteps = [
               ...steps.sublist(0, i),
-              {...prev, 'sources': [...prevSources, ...newSources]},
+              {
+                ...prev,
+                'sources': [...prevSources, ...newSources],
+              },
               ...steps.sublist(i + 1),
             ];
             notifyListeners();
@@ -324,23 +350,24 @@ class AgenticSearchLogic extends ChangeNotifier {
         }
         break;
 
-      case 'current_results': {
-        final data = event['data'];
-        final scholars = data is Map ? data['scholars'] : null;
-        if (scholars is! List) return;
-        final newCandidates = scholars
-            .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
-            .toList();
-        final merged = _mergeCandidates(g.candidates, newCandidates);
-        g.candidates = merged;
-        if (searchStore.openTabs.isEmpty) {
-          searchStore.setTabsFromCandidates(merged);
-        } else {
-          searchStore.syncCandidatesToTabs(merged);
+      case 'current_results':
+        {
+          final data = event['data'];
+          final scholars = data is Map ? data['scholars'] : null;
+          if (scholars is! List) return;
+          final newCandidates = scholars
+              .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
+              .toList();
+          final merged = _mergeCandidates(g.candidates, newCandidates);
+          g.candidates = merged;
+          if (searchStore.openTabs.isEmpty) {
+            searchStore.setTabsFromCandidates(merged);
+          } else {
+            searchStore.syncCandidatesToTabs(merged);
+          }
+          notifyListeners();
+          break;
         }
-        notifyListeners();
-        break;
-      }
 
       case 'search_completed':
         g.searchCompleted = true;
@@ -360,6 +387,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     List<dynamic>? sseEvents,
     int groupId,
   ) {
+    debugPrint('sseEvents7777: $sseEvents');
     if (sseEvents == null || sseEvents.isEmpty) return [];
     const exactMatch = ['done', 'ok', 'success'];
     const partialMatch = ['llm response received', 'processing...'];
@@ -370,63 +398,76 @@ class AgenticSearchLogic extends ChangeNotifier {
       if (ev is! Map<String, dynamic>) continue;
       final type = ev['type'] as String?;
       switch (type) {
-        case 'llm_end': {
-          final message = ev['message']?.toString().trim() ?? '';
-          final msg = message.toLowerCase();
-          final shouldIgnore = message.isEmpty ||
-              exactMatch.contains(msg) ||
-              partialMatch.any((m) => msg.contains(m));
-          if (!shouldIgnore) {
-            steps.add({
-              'id': 'history-$groupId-$stepIndex',
-              'type': 'thinking',
-              'content': message,
-              'sources': _normalizeSources(ev['sources']),
-              'completed': true,
-            });
-            stepIndex++;
+        case 'llm_end':
+          {
+            final message = ev['message']?.toString().trim() ?? '';
+            final msg = message.toLowerCase();
+            final shouldIgnore =
+                message.isEmpty ||
+                exactMatch.contains(msg) ||
+                partialMatch.any((m) => msg.contains(m));
+            if (!shouldIgnore) {
+              steps.add({
+                'id': 'history-$groupId-$stepIndex',
+                'type': 'thinking',
+                'content': message,
+                'sources': _normalizeSources(ev['sources']),
+                'completed': true,
+              });
+              stepIndex++;
+            }
+            break;
           }
-          break;
-        }
-        case 'tool_call': {
-          if (ev['tool_name'] == 'write_todos') break;
-          final data = ev['data'];
-          if (data is! Map<String, dynamic>) break;
-          final input = data['input']?.toString();
-          if (input == null || input.isEmpty) break;
-          final toolName = ev['tool_name'] as String?;
-          final inputType = _getInputType(input, toolName);
-          final inputValue = _getInputValue(input, inputType);
-          final lastStep = steps.isNotEmpty ? steps.last : null;
-          if (lastStep != null &&
-              lastStep['type'] == 'tool_call' &&
-              lastStep['inputType'] == inputType) {
-            final inputs = (lastStep['inputs'] as List<dynamic>?)?.cast<String>() ?? [];
-            lastStep['inputs'] = [...inputs, if (inputValue != null) inputValue]
-                .where((e) => e.isNotEmpty)
-                .toList();
-          } else {
-            steps.add({
-              'id': 'history-$groupId-$stepIndex',
-              'type': 'tool_call',
-              'content': input,
-              'action': toolName ?? '',
-              'completed': true,
-              'inputType': inputType,
-              'inputs': inputValue != null ? [inputValue] : [],
-            });
-            stepIndex++;
+        case 'tool_call':
+          {
+            if (ev['tool_name'] == 'write_todos') break;
+            final data = ev['data'];
+            if (data is! Map<String, dynamic>) break;
+            final input = data['input']?.toString();
+            if (input == null || input.isEmpty) break;
+            final toolName = ev['tool_name'] as String?;
+            
+            final inputType = _getInputType(input, toolName);
+            final inputValue = _getInputValue(input, inputType);
+            final lastStep = steps.isNotEmpty ? steps.last : null;
+            debugPrint('input6666: $input');
+            debugPrint('inputValue6666: $inputValue');
+            if (lastStep != null &&
+                lastStep['type'] == 'tool_call' &&
+                lastStep['inputType'] == inputType) {
+              final inputs =
+                  (lastStep['inputs'] as List<dynamic>?)?.cast<String>() ?? [];
+              lastStep['inputs'] = [
+                ...inputs,
+                if (inputValue != null) inputValue,
+              ].where((e) => e.isNotEmpty).toList();
+            } else {
+              steps.add({
+                'id': 'history-$groupId-$stepIndex',
+                'type': 'tool_call',
+                'content': input,
+                'action': toolName ?? '',
+                'completed': true,
+                'inputType': inputType,
+                'inputs': inputValue != null ? [inputValue] : [],
+              });
+              stepIndex++;
+            }
+            break;
           }
-          break;
-        }
         case 'tool_result':
           if (ev['tool_name'] == 'write_todos') break;
           for (var i = steps.length - 1; i >= 0; i--) {
             if (steps[i]['type'] == 'tool_call') {
               final prev = steps[i];
               final prevSources =
-                  (prev['sources'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
-              prev['sources'] = [...prevSources, ..._normalizeSources(ev['sources'])];
+                  (prev['sources'] as List<dynamic>?)
+                      ?.cast<Map<String, dynamic>>() ??
+                  [];
+              prev['sources'] = [
+                ...prevSources,
+                ..._normalizeSources(ev['sources']),
+              ];
               break;
             }
           }
@@ -461,7 +502,11 @@ class AgenticSearchLogic extends ChangeNotifier {
       List<Map<String, dynamic>>? dinqResults;
       if (result is List) {
         final list = result
-            .map((e) => e is Map<String, dynamic> ? Map<String, dynamic>.from(e) : <String, dynamic>{})
+            .map(
+              (e) => e is Map<String, dynamic>
+                  ? Map<String, dynamic>.from(e)
+                  : <String, dynamic>{},
+            )
             .where((m) => m.isNotEmpty)
             .toList();
         if (searchType == 'people_search') {
@@ -471,8 +516,12 @@ class AgenticSearchLogic extends ChangeNotifier {
         }
       }
 
-      final groupId = id is int ? id : (id != null ? int.tryParse(id.toString()) : null) ?? 0;
-      final st = searchType == 'people_search' ? 'dinq' : (searchType ?? 'global');
+      final groupId = id is int
+          ? id
+          : (id != null ? int.tryParse(id.toString()) : null) ?? 0;
+      final st = searchType == 'people_search'
+          ? 'dinq'
+          : (searchType ?? 'global');
 
       List<Map<String, dynamic>> thinkingSteps;
       if (sseEvents != null && sseEvents.isNotEmpty) {
@@ -490,17 +539,19 @@ class AgenticSearchLogic extends ChangeNotifier {
         thinkingSteps = [];
       }
 
-      groups.add(AgenticMessageGroup(
-        id: groupId,
-        userQuery: query,
-        loading: false,
-        candidates: candidates,
-        dinqResults: dinqResults,
-        searchType: st,
-        thinkingSteps: thinkingSteps,
-        thinkingExpanded: false,
-        searchCompleted: true,
-      ));
+      groups.add(
+        AgenticMessageGroup(
+          id: groupId,
+          userQuery: query,
+          loading: false,
+          candidates: candidates,
+          dinqResults: dinqResults,
+          searchType: st,
+          thinkingSteps: thinkingSteps,
+          thinkingExpanded: false,
+          searchCompleted: true,
+        ),
+      );
     }
     messageGroups = groups;
     loading = false;
@@ -572,9 +623,16 @@ class AgenticSearchLogic extends ChangeNotifier {
                 final scholars = data['scholars'] ?? data['profile'];
                 if (scholars is List && scholars.isNotEmpty) {
                   final newCandidates = scholars
-                      .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
+                      .map(
+                        (e) => Map<String, dynamic>.from(
+                          e as Map<String, dynamic>,
+                        ),
+                      )
                       .toList();
-                  final merged = _mergeCandidates(messageGroups[idx].candidates, newCandidates);
+                  final merged = _mergeCandidates(
+                    messageGroups[idx].candidates,
+                    newCandidates,
+                  );
                   messageGroups[idx].candidates = merged;
                   if (searchStore.openTabs.isEmpty) {
                     searchStore.setTabsFromCandidates(merged);
@@ -583,7 +641,8 @@ class AgenticSearchLogic extends ChangeNotifier {
                   }
                 }
                 final summaryStr = data['summary'];
-                if (summaryStr != null && summaryStr.toString().trim().isNotEmpty) {
+                if (summaryStr != null &&
+                    summaryStr.toString().trim().isNotEmpty) {
                   messageGroups[idx].summary = summaryStr.toString().trim();
                 }
               }
@@ -601,7 +660,9 @@ class AgenticSearchLogic extends ChangeNotifier {
           if (data is Map) {
             final convId = data['conversation_id'] ?? data['session_id'];
             if (convId != null) {
-              final id = convId is int ? convId : int.tryParse(convId.toString());
+              final id = convId is int
+                  ? convId
+                  : int.tryParse(convId.toString());
               if (id != null) searchStore.setCurrentConversationId(id);
             }
           }
@@ -609,13 +670,18 @@ class AgenticSearchLogic extends ChangeNotifier {
       },
       onDone: () {
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
-        final finalCandidates = idx >= 0 ? messageGroups[idx].candidates : <Map<String, dynamic>>[];
+        final finalCandidates = idx >= 0
+            ? messageGroups[idx].candidates
+            : <Map<String, dynamic>>[];
         loading = false;
         if (idx >= 0) messageGroups[idx].loading = false;
         onSearchComplete?.call(finalCandidates, query.trim());
         searchStore.setIsSearching(false);
         notifyListeners();
-        Future.delayed(const Duration(milliseconds: 100), () => onScrollToBottom?.call());
+        Future.delayed(
+          const Duration(milliseconds: 100),
+          () => onScrollToBottom?.call(),
+        );
 
         // 与 TSX 一致：搜索完成后延迟 1 秒折叠 ThinkingBubble（仅当有候选人时）
         if (idx >= 0 && messageGroups[idx].candidates.isNotEmpty) {
@@ -670,7 +736,11 @@ class AgenticSearchLogic extends ChangeNotifier {
         if (id != null) searchStore.setCurrentConversationId(id);
       }
       final list = results is List
-          ? results.map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>)).toList()
+          ? results
+                .map(
+                  (e) => Map<String, dynamic>.from(e as Map<String, dynamic>),
+                )
+                .toList()
           : <Map<String, dynamic>>[];
       final idx = messageGroups.indexWhere((g) => g.id == groupId);
       if (idx >= 0) {
@@ -727,7 +797,8 @@ class AgenticSearchLogic extends ChangeNotifier {
   void setThinkingExpanded(int groupId) {
     final idx = messageGroups.indexWhere((g) => g.id == groupId);
     if (idx >= 0) {
-      messageGroups[idx].thinkingExpanded = !messageGroups[idx].thinkingExpanded;
+      messageGroups[idx].thinkingExpanded =
+          !messageGroups[idx].thinkingExpanded;
       notifyListeners();
     }
   }
