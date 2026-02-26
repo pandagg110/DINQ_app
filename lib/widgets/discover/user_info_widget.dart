@@ -220,12 +220,6 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
     }
   }
 
-  void _handleAnalyzeTap(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Analyze 功能暂未实现')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final candidate = widget.tabData.candidate;
@@ -443,20 +437,7 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: _ActionButton(
-                    icon: const AssetIcon(
-                      asset: 'icons/search/analyze.svg',
-                      size: 16,
-                      color: Colors.black,
-                    ),
-                    label: 'Analyze',
-                    loading: false,
-                    active: false,
-                    done: false,
-                    onTap: () => _handleAnalyzeTap(context),
-                  ),
-                ),
+                _AnalyzeButtonCardDropdown(candidate: candidate),
               ],
             ),
           ),
@@ -777,6 +758,150 @@ String? _extractUserId(String type, String? url) {
 /// 与 TSX buildFullAnalysisUrl 一致
 String _buildAnalysisUrl(String type, String userId) {
   return '$analysisBaseUrl/$type?user=${Uri.encodeComponent(userId)}';
+}
+
+/// 与 TSX getSocialLinkUrl 一致：从 candidate.social_links 数组中按 type 取 url（option id 与 social_links 的 type 一致，scholar 对应 google_scholar）
+String? _getSocialLinkUrl(Map<String, dynamic> candidate, String optionId) {
+  final links = candidate['social_links'] as List<dynamic>?;
+  if (links == null || links.isEmpty) return null;
+  final type = optionId == 'scholar' ? 'google_scholar' : optionId;
+  for (final e in links) {
+    final m = e is Map ? e as Map<String, dynamic> : null;
+    if (m != null && m['type']?.toString() == type) {
+      final u = m['url']?.toString();
+      if (u != null && u.isNotEmpty) return u;
+      return null;
+    }
+  }
+  return null;
+}
+
+/// Analyze 下拉选项（与 TSX AnalyzeButton options 一致）
+const List<({String id, String label, String icon})> _kAnalyzeOptions = [
+  (id: 'github', label: 'GitHub', icon: 'icons/search/lineicons/github.svg'),
+  (id: 'scholar', label: 'Google Scholar', icon: 'icons/search/lineicons/scholar.svg'),
+  (id: 'linkedin', label: 'LinkedIn', icon: 'icons/search/lineicons/linkedin.svg'),
+];
+
+/// 主卡片 Analyze 按钮+下拉（与 TSX AnalyzeButton 一致）
+class _AnalyzeButtonCardDropdown extends StatefulWidget {
+  const _AnalyzeButtonCardDropdown({required this.candidate});
+
+  final Map<String, dynamic> candidate;
+
+  @override
+  State<_AnalyzeButtonCardDropdown> createState() => _AnalyzeButtonCardDropdownState();
+}
+
+class _AnalyzeButtonCardDropdownState extends State<_AnalyzeButtonCardDropdown> {
+  bool _open = false;
+
+  static const Duration _duration = Duration(milliseconds: 200);
+
+  void _showOverlayMenu(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final screen = MediaQuery.sizeOf(context);
+    final topLeft = box.localToGlobal(Offset.zero);
+    final position = RelativeRect.fromLTRB(
+      topLeft.dx,
+      topLeft.dy + box.size.height,
+      screen.width - (topLeft.dx + box.size.width),
+      screen.height - (topLeft.dy + box.size.height),
+    );
+    setState(() => _open = true);
+    await showMenu<void>(
+      context: context,
+      position: position,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      color: const Color(0xFFF3F4F6),
+      items: _kAnalyzeOptions.map((option) {
+        final url = _getSocialLinkUrl(widget.candidate, option.id);
+        final hasUrl = _extractUserId(option.id, url) != null;
+        return PopupMenuItem<void>(
+          enabled: hasUrl,
+          onTap: () {
+            if (!hasUrl) return;
+            final userId = _extractUserId(option.id, url);
+            if (userId == null) return;
+            final targetUrl = _buildAnalysisUrl(option.id, userId);
+            if (!_isValidHttpUrl(targetUrl)) return;
+            try {
+              launchUrl(Uri.parse(targetUrl), mode: LaunchMode.externalApplication);
+            } catch (e) {
+              debugPrint('launchUrl failed: $e');
+            }
+          },
+          child: Row(
+            children: [
+              AssetIcon(
+                asset: option.icon,
+                size: 16,
+                color: hasUrl ? const Color(0xFF374151) : const Color(0xFFD1D5DB),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                option.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: hasUrl ? const Color(0xFF374151) : const Color(0xFFD1D5DB),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+    if (mounted) setState(() => _open = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Builder(
+        builder: (context) {
+          return Material(
+            color: _open ? const Color(0xFFF5F5F5) : const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              onTap: () => _showOverlayMenu(context),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const AssetIcon(
+                      asset: 'icons/search/analyze.svg',
+                      size: 16,
+                      color: Color(0xFF4B5563),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Analyze',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF4B5563),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    AnimatedRotation(
+                      turns: _open ? 0.5 : 0,
+                      duration: _duration,
+                      curve: Curves.easeOut,
+                      child: const Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF4B5563)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _NetworkSheetState extends State<_NetworkSheet> {
@@ -1208,12 +1333,6 @@ class _NetworkTooltipCard extends StatefulWidget {
 class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
   bool _analyzeDropdownOpen = false;
 
-  static const List<({String id, String label, String icon})> _analyzeOptions = [
-    (id: 'github', label: 'GitHub', icon: 'icons/search/lineicons/github.svg'),
-    (id: 'scholar', label: 'Google Scholar', icon: 'icons/search/lineicons/scholar.svg'),
-    (id: 'linkedin', label: 'LinkedIn', icon: 'icons/search/lineicons/linkedin.svg'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
@@ -1382,7 +1501,7 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
                 _AnalyzeDropdownSection(
                   user: user,
                   isOpen: _analyzeDropdownOpen,
-                  options: _analyzeOptions,
+                  options: _kAnalyzeOptions,
                   onToggle: () => setState(() => _analyzeDropdownOpen = !_analyzeDropdownOpen),
                   onSelect: (id, url) {
                     widget.onAnalyzeOption(id, url);
@@ -1544,11 +1663,7 @@ class _AnalyzeDropdownSection extends StatelessWidget {
                         for (final option in options) ...[
                           Builder(
                             builder: (context) {
-                              final url = option.id == 'github'
-                                  ? user['github_url']?.toString()
-                                  : option.id == 'scholar'
-                                      ? user['scholar_url']?.toString()
-                                      : user['linkedin_url']?.toString();
+                              final url = _getSocialLinkUrl(user, option.id);
                               final hasUrl = extractUserId(option.id, url) != null;
                               return Material(
                                 color: Colors.transparent,
