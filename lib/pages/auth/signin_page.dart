@@ -417,9 +417,7 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  Future<void> _googleSignIn() async {
-    ToastUtil.show("Need config google oauth");
-  }
+  Future<void> _googleSignIn() async {}
 
   Future<void> _githubSignIn() async {
     final GitHubSignIn gitHubSignIn = GitHubSignIn(
