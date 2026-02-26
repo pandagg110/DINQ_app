@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -63,9 +65,9 @@ class _ShareProfileBottomSheet extends StatefulWidget {
 
 class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   bool _viewModeCard = true; // true = Card, false = QR
-  bool _showMoreMenu = false;
   bool _isDownloading = false;
   String? _downloadError;
+  final GlobalKey _moreButtonKey = GlobalKey();
 
   String get _shareTitle {
     final userStore = context.read<UserStore>();
@@ -94,13 +96,14 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
         description: '',
       );
     }
-    setState(() => _showMoreMenu = false);
   }
 
   Future<void> _openShareUrl(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // 无法打开时静默忽略（如无浏览器、用户取消等）
     }
   }
 
@@ -122,6 +125,71 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     _openShareUrl(url);
   }
 
+  Future<void> _showMoreMenu() async {
+    final box = _moreButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !mounted) return;
+    final overlay = Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+    final buttonRect = box.localToGlobal(Offset.zero) & box.size;
+    const menuHeight = 100.0;
+    const gapAboveButton = 8.0;
+    // 菜单在 More 按钮正上方、宽度与按钮一致、右对齐
+    final menuWidth = buttonRect.width;
+    final position = RelativeRect.fromLTRB(
+      buttonRect.left,
+      buttonRect.top - menuHeight - gapAboveButton,
+      overlay.size.width - buttonRect.right,
+      overlay.size.height - buttonRect.top + gapAboveButton,
+    );
+    final result = await showMenu<String>(
+      context: context,
+      position: position,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      menuPadding:EdgeInsets.all(0),
+      color: Colors.white,
+      items: [
+        PopupMenuItem<String>(
+          value: 'download',
+          enabled: !_isDownloading,
+          child: Row(
+            children: [
+              _isDownloading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_outlined, size: 20, color: Color(0xFF374151)),
+              const SizedBox(width: 12),
+              const Text(
+                'Download',
+                style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'copy_link',
+          child: Row(
+            children: [
+              Icon(Icons.link, size: 20, color: Color(0xFF374151)),
+              SizedBox(width: 12),
+              Text(
+                'Copy link',
+                style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (result == 'download') {
+      await _handleDownload();
+    } else if (result == 'copy_link') {
+      await _copyLink();
+    }
+  }
+
   Future<void> _handleDownload() async {
     setState(() {
       _isDownloading = true;
@@ -130,10 +198,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     // 占位：实际下载需要 og-image 接口或本地生成图片，此处仅关闭 More 并提示
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) {
-      setState(() {
-        _isDownloading = false;
-        _showMoreMenu = false;
-      });
+      setState(() => _isDownloading = false);
       TopToastUtil.showCustom(
         context: context,
         icon: Icons.info_outline,
@@ -309,23 +374,17 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // More button
+                      // More button（使用 showMenu 弹出菜单）
                       SizedBox(
+                        key: _moreButtonKey,
                         width: 96,
                         height: 48,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            _ActionButton(
-                              label: 'More',
-                              backgroundColor: Colors.white,
-                              outline: true,
-                              icon: Icons.more_horiz,
-                              onTap: () =>
-                                  setState(() => _showMoreMenu = !_showMoreMenu),
-                            ),
-                            if (_showMoreMenu) _buildMoreMenu(),
-                          ],
+                        child: _ActionButton(
+                          label: 'More',
+                          backgroundColor: Colors.white,
+                          outline: true,
+                          icon: Icons.more_horiz,
+                          onTap: _showMoreMenu,
                         ),
                       ),
                     ],
@@ -339,93 +398,6 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     );
   }
 
-  Widget _buildMoreMenu() {
-    return Positioned(
-      right: 0,
-      bottom: 56,
-      child: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 160,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              InkWell(
-                onTap: _isDownloading ? null : _handleDownload,
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      _isDownloading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.download_outlined,
-                              size: 20,
-                              color: Color(0xFF374151),
-                            ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Download',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              InkWell(
-                onTap: _copyLink,
-                borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.link,
-                        size: 20,
-                        color: Color(0xFF374151),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Copy link',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _SegmentButton extends StatelessWidget {
