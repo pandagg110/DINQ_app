@@ -485,36 +485,35 @@ class ScholarsList extends StatelessWidget {
               avgPercent: avgPercent,
               candidates: candidates,
             ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 480),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: candidates.length,
-                itemBuilder: (context, idx) {
-                  final candidate = candidates[idx];
-                  final isSelected = _isSelected(context, idx);
-                  return _CandidateCard(
-                    candidate: candidate,
-                    isLast: idx == candidates.length - 1,
-                    isLoading: isLoading,
-                    isSelected: isSelected,
-                    onTap: () {
-                      if (onCandidateClick != null) {
-                        onCandidateClick!(candidate, idx, groupId);
-                      } else {
-                        final store = context.read<SearchStore>();
-                        final tabId = store.openTabWithClick(
-                              candidate,
-                              index: idx,
-                              groupId: groupId,
-                            );
-                        if (tabId != null) store.setTabPanelOpen(true);
-                      }
-                    },
-                  );
-                },
-              ),
+            // 不设内层滚动，由外层 ListView 统一滚动，滚到底后继续滑动即触发外层
+            ListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: candidates.length,
+              itemBuilder: (context, idx) {
+                final candidate = candidates[idx];
+                final isSelected = _isSelected(context, idx);
+                return _CandidateCard(
+                  candidate: candidate,
+                  isLast: idx == candidates.length - 1,
+                  isLoading: isLoading,
+                  isSelected: isSelected,
+                  onTap: () {
+                    if (onCandidateClick != null) {
+                      onCandidateClick!(candidate, idx, groupId);
+                    } else {
+                      final store = context.read<SearchStore>();
+                      final tabId = store.openTabWithClick(
+                            candidate,
+                            index: idx,
+                            groupId: groupId,
+                          );
+                      if (tabId != null) store.setTabPanelOpen(true);
+                    }
+                  },
+                );
+              },
             ),
           ],
         ),
@@ -778,7 +777,6 @@ class _CandidateCardState extends State<_CandidateCard> {
 
   Widget _buildAvatar(dynamic imageUrl, String name, bool loading) {
     final url = imageUrl?.toString() ?? '';
-    debugPrint('url3333333: $url');
     return SizedBox(
       width: 40,
       height: 40,

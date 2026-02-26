@@ -87,11 +87,16 @@ class _GroupedSourceTags extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                domain,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: _kTextGray500,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
+                child: Text(
+                  domain,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _kTextGray500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (count > 1) ...[
@@ -249,6 +254,7 @@ class _ThinkingStepItem extends StatelessWidget {
       label = completed ? 'Processed' : 'Processing';
       icon = const _ScrapeIcon();
     }
+    print('label3333: ${step}');
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: IntrinsicHeight(
