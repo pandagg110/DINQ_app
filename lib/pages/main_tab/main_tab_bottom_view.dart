@@ -11,37 +11,24 @@ import '../../widgets/common/base_page.dart';
 import 'main_tab_model.dart';
 
 class MainTabBottomView extends StatefulWidget {
+  /// 当前选中的 tab，由父组件传入，避免隐藏后重新创建时重置为默认 tab
+  final MainTabType currentTabType;
   final ValueChanged<MainTabType> onChanged;
 
-  const MainTabBottomView({super.key, required this.onChanged});
+  const MainTabBottomView({
+    super.key,
+    required this.currentTabType,
+    required this.onChanged,
+  });
 
   @override
   State<MainTabBottomView> createState() => _MainTabBottomViewState();
 }
 
 class _MainTabBottomViewState extends State<MainTabBottomView> {
-  MainTabType _currentTabType = MainTabType.myDinq;
-
-  set currentTabType(MainTabType value) {
-    if (mounted && value != _currentTabType) {
-      setState(() {
-        _currentTabType = value;
-      });
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final currentTabType = widget.currentTabType;
     List<MainTabModel> buttonData = getTabBarData();
     final totalUnreadCount = context.watch<MessagesStore>().totalUnreadCount;
     return Container(
@@ -76,7 +63,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
             return Stack(
               children: [
                 AnimatedPositioned(
-                  left: itemW * _currentTabType.pageIndex,
+                  left: itemW * currentTabType.pageIndex,
                   top: 3,
                   bottom: 3,
                   duration: Duration(milliseconds: 200),
@@ -108,7 +95,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: List.generate(buttonData.length, (index) {
-                    bool isSelected = index == _currentTabType.pageIndex;
+                    bool isSelected = index == currentTabType.pageIndex;
                     return Expanded(
                       child: NormalButton(
                         child: Stack(
@@ -186,9 +173,8 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
                           ],
                         ),
                         onTap: () {
-                          MainTabType currentType = MainTabType.fromIndex(index);
-                          currentTabType = currentType;
-                          widget.onChanged.call(currentType);
+                          final newType = MainTabType.fromIndex(index);
+                          widget.onChanged(newType);
                         },
                       ),
                     );

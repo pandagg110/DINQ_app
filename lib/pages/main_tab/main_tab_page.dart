@@ -22,6 +22,7 @@ class MainTabPage extends StatefulWidget {
 
 class _MainTabPageState extends State<MainTabPage> {
   late final PageController _pageController = PageController();
+  MainTabType _currentTabType = MainTabType.myDinq;
 
   @override
   void dispose() {
@@ -49,16 +50,14 @@ class _MainTabPageState extends State<MainTabPage> {
             left: 0,
             right: 0,
             child: MainTabBottomView(
+              currentTabType: _currentTabType,
               onChanged: (mainTabType) {
-                _clickTabButton(mainTabType);
+                setState(() => _currentTabType = mainTabType);
+                _pageController.jumpToPage(mainTabType.pageIndex);
               },
             ),
           ),
       ],
     );
-  }
-
-  void _clickTabButton(MainTabType mainTabType) {
-    _pageController.jumpToPage(mainTabType.pageIndex);
   }
 }
