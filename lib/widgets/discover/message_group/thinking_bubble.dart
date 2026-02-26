@@ -254,7 +254,6 @@ class _ThinkingStepItem extends StatelessWidget {
       label = completed ? 'Processed' : 'Processing';
       icon = const _ScrapeIcon();
     }
-    print('label3333: ${step}');
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: IntrinsicHeight(

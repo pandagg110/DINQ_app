@@ -191,7 +191,6 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   /// 与 TSX processStreamEvent 一致：处理 discover 流事件
   void _processStreamEvent(int groupId, Map<String, dynamic> event) {
-    debugPrint('event5555: $event');
     final type = event['type'] as String?;
     if (type == null) return;
 
@@ -273,7 +272,6 @@ class AgenticSearchLogic extends ChangeNotifier {
             });
             return;
           }
-          debugPrint('input4444: $input');
           if (input == null || input.isEmpty) return;
 
           final inputType = _getInputType(input, toolName);

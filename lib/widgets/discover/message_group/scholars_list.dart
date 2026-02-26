@@ -284,7 +284,7 @@ class _MilestoneProgress extends StatelessWidget {
     final stageProgress = stage == 'basic' ? maxCompleteness : avgPercent / 100.0;
     final perceived = _getPerceivedProgress(stageProgress);
     final displayPercent = (perceived * 100).round().clamp(0, 99);
-
+    debugPrint('displayPercent6666: $stage');
     // 移动端提示文案
     final stageHint = stage == 'basic'
         ? 'Found'
@@ -300,38 +300,47 @@ class _MilestoneProgress extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            '$candidateCount Candidates',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: _kTextGray600,
-            ),
+          // 左侧标题区（与 TSX shrink-0 一致）
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$candidateCount Candidates',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _kTextGray600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '·',
+                style: TextStyle(fontSize: 14, color: _kTextGray400),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                stageHint,
+                style: const TextStyle(fontSize: 14, color: _kTextGray500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          const Text(
-            '·',
-            style: TextStyle(fontSize: 14, color: _kTextGray400),
-          ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 16),
+          // 弹性空间，里程碑靠右（与 TSX flex-1 justify-end 一致）
           Expanded(
-            child: Text(
-              stageHint,
-              style: const TextStyle(fontSize: 14, color: _kTextGray500),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (!isComplete)
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _milestoneDot(0, stageIndex, displayPercent, true),
-                _connector(0, stageIndex),
-                _milestoneDot(1, stageIndex, displayPercent, false),
-                _connector(1, stageIndex),
-                _milestoneDot(2, stageIndex, displayPercent, false),
+                if (!isComplete) ...[
+                  _milestoneDot(0, stageIndex, displayPercent, false),
+                  Expanded(child: _connector(0, stageIndex)),
+                  _milestoneDot(1, stageIndex, displayPercent, false),
+                  Expanded(child: _connector(1, stageIndex)),
+                  _milestoneDot(2, stageIndex, displayPercent, true),
+                ],
               ],
             ),
+          ),
         ],
       ),
     );
@@ -383,14 +392,11 @@ class _MilestoneProgress extends StatelessWidget {
     final filled = stageIndex > idx;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: SizedBox(
-        width: 16,
+      child: Container(
         height: 2,
-        child: Container(
-          decoration: BoxDecoration(
-            color: filled ? _kGreen : _kGray200.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(1),
-          ),
+        decoration: BoxDecoration(
+          color: filled ? _kGreen : _kGray200.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(1),
         ),
       ),
     );
@@ -617,17 +623,27 @@ class _CandidateCardState extends State<_CandidateCard> {
         _fieldTimeline = [..._fieldTimeline, ...newFields];
         _isFlashing = true;
         _enrichingField = _firstUnfilledField(current);
+        _prevFilled = current;
       });
       _flashTimer?.cancel();
       _flashTimer = Timer(const Duration(milliseconds: 800), () {
         if (mounted) setState(() => _isFlashing = false);
       });
+      return;
     }
-    if (_enrichingField == null && widget.isLoading) {
-      _enrichingField = _firstUnfilledField(current);
+
+    // 更新 enriching 状态并触发重绘，否则 processing 文案不显示
+    final nextEnriching =
+        widget.isLoading ? _firstUnfilledField(current) : null;
+    if (_enrichingField != nextEnriching || _prevFilled != current) {
+      setState(() {
+        _enrichingField = nextEnriching;
+        _prevFilled = current;
+      });
+    } else {
+      _enrichingField = nextEnriching;
+      _prevFilled = current;
     }
-    if (!widget.isLoading) _enrichingField = null;
-    _prevFilled = current;
   }
 
   @override
