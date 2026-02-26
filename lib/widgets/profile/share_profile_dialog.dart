@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/card_models.dart';
@@ -87,6 +88,14 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     return '$_shareTitle\n\n$bio\n';
   }
 
+  /// 调起系统分享面板，可转发到微信、WhatsApp、邮件等任意已安装 App
+  Future<void> _shareToSystem() async {
+    await Share.share(
+      _shareContent,
+      subject: _shareTitle,
+    );
+  }
+
   Future<void> _copyLink() async {
     await Clipboard.setData(ClipboardData(text: widget.profileUrl));
     if (mounted) {
@@ -131,10 +140,9 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     final overlay = Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
     if (overlay == null) return;
     final buttonRect = box.localToGlobal(Offset.zero) & box.size;
-    const menuHeight = 100.0;
+    const menuHeight = 140.0;
     const gapAboveButton = 8.0;
     // 菜单在 More 按钮正上方、宽度与按钮一致、右对齐
-    final menuWidth = buttonRect.width;
     final position = RelativeRect.fromLTRB(
       buttonRect.left,
       buttonRect.top - menuHeight - gapAboveButton,
@@ -145,7 +153,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
       context: context,
       position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      menuPadding:EdgeInsets.all(0),
+      menuPadding: EdgeInsets.zero,
       color: Colors.white,
       items: [
         PopupMenuItem<String>(
@@ -181,12 +189,27 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
             ],
           ),
         ),
+        const PopupMenuItem<String>(
+          value: 'share',
+          child: Row(
+            children: [
+              Icon(Icons.share_outlined, size: 20, color: Color(0xFF374151)),
+              SizedBox(width: 12),
+              Text(
+                'Share to app',
+                style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+              ),
+            ],
+          ),
+        ),
       ],
     );
     if (result == 'download') {
       await _handleDownload();
     } else if (result == 'copy_link') {
       await _copyLink();
+    } else if (result == 'share') {
+      await _shareToSystem();
     }
   }
 
