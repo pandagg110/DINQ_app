@@ -427,7 +427,7 @@ class _SignInPageState extends State<SignInPage> {
       // final avatar = googleSignInAccount.photoUrl ?? "";
       // final platformId = googleSignInAccount.id;
       // final name = googleSignInAccount.displayName ?? "";
-      String platformAccessToken = googleSignInAuthentication.accessToken ?? "";
+      String platformAccessToken = googleSignInAuthentication.idToken ?? "";
       try {
         await ToastUtil.showLoading();
         if (!mounted) return;
