@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'placeholder_card.dart';
 import 'use_placeholders.dart';
 
-/// 占位网格：先不添加 gap，直接按格定位；宽高也不考虑 gap。
-/// left = x * contentSlotWidth，top = y * mainRowHeight；
-/// width = w * contentSlotWidth，height = h * mainRowHeight。
-/// child 暂时用红色 Container 渲染，便于对齐调试。
+/// 占位网格：与 GridLayoutWidget 对齐，按格点 + gap 定位。
+/// left = x * (contentSlotWidth + gap)，top = y * mainRowHeight；
+/// width/height = 格数 * contentSlotWidth + (格数 - 1) * gap。
+/// [dragSnapshot] 为拖拽过程中的数据，可用于高亮落点或避免与拖拽项重叠等。
 class PlaceholderGrid extends StatelessWidget {
   const PlaceholderGrid({
     super.key,
@@ -15,6 +15,7 @@ class PlaceholderGrid extends StatelessWidget {
     required this.onPlaceholderClick,
     required this.onPlaceholderDelete,
     required this.width,
+    this.dragSnapshot,
   });
 
   final List<PlaceholderPosition> positions;
@@ -23,10 +24,24 @@ class PlaceholderGrid extends StatelessWidget {
   final void Function(PlaceholderPosition pos) onPlaceholderClick;
   final void Function(String type) onPlaceholderDelete;
   final double width;
+  /// 拖拽过程中的数据（由外部从 GridLayoutState.dragState 转换后传入）
+  final GridDragSnapshot? dragSnapshot;
+
+  /// 与 GridLayoutWidget 一致：格宽 + 间隙 = 每格步长
+  static double _slotStep(double contentSlotWidth, double mainRowHeight) {
+    return mainRowHeight; // mainRowHeight == contentSlotWidth + gap
+  }
+
+  static double _cellSize(int count, double contentSlotWidth, double gap) {
+    if (count <= 0) return 0;
+    return count * contentSlotWidth + (count - 1) * gap;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (positions.isEmpty) return const SizedBox.shrink();
-    final cellWidth = width / 4;
+    final gap = mainRowHeight - contentSlotWidth;
+    final step = _slotStep(contentSlotWidth, mainRowHeight);
     return IgnorePointer(
       ignoring: false,
       child: Stack(
@@ -37,12 +52,12 @@ class PlaceholderGrid extends StatelessWidget {
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeInOut,
               key: ValueKey('placeholder_${pos.config.type}'),
-              left: pos.x * cellWidth,
-              top: pos.y * cellWidth,
-              width: pos.config.size.w * cellWidth,
-              height: pos.config.size.h * cellWidth,
+              left: pos.x * step,
+              top: pos.y * step,
+              width: _cellSize(pos.config.size.w, contentSlotWidth, gap),
+              height: _cellSize(pos.config.size.h, contentSlotWidth, gap),
               child: Container(
-                padding: EdgeInsets.fromLTRB(12, 0, 12, 24),
+                padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
                 child: PlaceholderCard(
                   config: pos.config,
                   onTap: () => onPlaceholderClick(pos),

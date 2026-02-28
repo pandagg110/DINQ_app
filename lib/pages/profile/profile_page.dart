@@ -17,6 +17,7 @@ import '../../widgets/common/add_card_dialog.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/change_status_modal.dart';
 import '../../widgets/profile/floating_toolbar.dart';
+import '../../widgets/profile/share_profile_dialog.dart';
 import '../../widgets/profile/card_toolbar.dart';
 import '../../widgets/profile/preview_edit_toggle.dart';
 
@@ -254,7 +255,13 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                         _showStatusModal(context, _userData!),
                                     onDataUpdated: _loadData,
                                     onShare: () {
-                                      // TODO: 打开分享
+                                      if (_userData == null) return;
+                                      ShareProfileDialog.show(
+                                        context: context,
+                                        username: widget.username,
+                                        userData: _userData!,
+                                        cards: _cardStore?.cards,
+                                      );
                                     },
                                     showToggle: false, // 不在 ProfileHeader 中显示，使用 Positioned 固定在顶部
                                   ),

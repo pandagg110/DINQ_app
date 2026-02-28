@@ -73,6 +73,43 @@ String _getFirstName(String name) {
   return name.split(' ').first;
 }
 
+/// 与 TSX renderMarkdownBold 一致：解析 **加粗**，加粗部分 font-medium text-gray-700
+List<InlineSpan> renderMarkdownBold(
+  String text, {
+  TextStyle? baseStyle,
+  TextStyle? boldStyle,
+}) {
+  const defaultBase = TextStyle(fontSize: 12, color: _kTextGray500);
+  const defaultBold = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    color: Color(0xFF374151), // gray-700
+  );
+  final base = baseStyle ?? defaultBase;
+  final bold = boldStyle ?? defaultBold;
+  const pattern = '**';
+  final spans = <InlineSpan>[];
+  var start = 0;
+  while (true) {
+    final i = text.indexOf(pattern, start);
+    if (i < 0) {
+      if (start < text.length) spans.add(TextSpan(text: text.substring(start), style: base));
+      break;
+    }
+    if (start < i) {
+      spans.add(TextSpan(text: text.substring(start, i), style: base));
+    }
+    final end = text.indexOf(pattern, i + pattern.length);
+    if (end < 0) {
+      spans.add(TextSpan(text: text.substring(i), style: base));
+      break;
+    }
+    spans.add(TextSpan(text: text.substring(i + pattern.length, end), style: bold));
+    start = end + pattern.length;
+  }
+  return spans;
+}
+
 // 与 TSX getEnrichingText 一致（确定性选择）
 final Map<String, List<String>> _kEnrichingTemplates = {
   'name': ['Identifying %s', "Confirming %s's identity", 'Verifying name'],
@@ -247,7 +284,7 @@ class _MilestoneProgress extends StatelessWidget {
     final stageProgress = stage == 'basic' ? maxCompleteness : avgPercent / 100.0;
     final perceived = _getPerceivedProgress(stageProgress);
     final displayPercent = (perceived * 100).round().clamp(0, 99);
-
+    debugPrint('displayPercent6666: $stage');
     // 移动端提示文案
     final stageHint = stage == 'basic'
         ? 'Found'
@@ -263,38 +300,47 @@ class _MilestoneProgress extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            '$candidateCount Candidates',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: _kTextGray600,
-            ),
+          // 左侧标题区（与 TSX shrink-0 一致）
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$candidateCount Candidates',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _kTextGray600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '·',
+                style: TextStyle(fontSize: 14, color: _kTextGray400),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                stageHint,
+                style: const TextStyle(fontSize: 14, color: _kTextGray500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          const Text(
-            '·',
-            style: TextStyle(fontSize: 14, color: _kTextGray400),
-          ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 16),
+          // 弹性空间，里程碑靠右（与 TSX flex-1 justify-end 一致）
           Expanded(
-            child: Text(
-              stageHint,
-              style: const TextStyle(fontSize: 14, color: _kTextGray500),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (!isComplete)
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _milestoneDot(0, stageIndex, displayPercent, true),
-                _connector(0, stageIndex),
-                _milestoneDot(1, stageIndex, displayPercent, false),
-                _connector(1, stageIndex),
-                _milestoneDot(2, stageIndex, displayPercent, false),
+                if (!isComplete) ...[
+                  _milestoneDot(0, stageIndex, displayPercent, false),
+                  Expanded(child: _connector(0, stageIndex)),
+                  _milestoneDot(1, stageIndex, displayPercent, false),
+                  Expanded(child: _connector(1, stageIndex)),
+                  _milestoneDot(2, stageIndex, displayPercent, true),
+                ],
               ],
             ),
+          ),
         ],
       ),
     );
@@ -346,14 +392,11 @@ class _MilestoneProgress extends StatelessWidget {
     final filled = stageIndex > idx;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: SizedBox(
-        width: 16,
+      child: Container(
         height: 2,
-        child: Container(
-          decoration: BoxDecoration(
-            color: filled ? _kGreen : _kGray200.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(1),
-          ),
+        decoration: BoxDecoration(
+          color: filled ? _kGreen : _kGray200.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(1),
         ),
       ),
     );
@@ -407,7 +450,7 @@ class _SourceTag extends StatelessWidget {
 }
 
 /// 与 TSX ScholarsList 对应，只保留移动端样式
-class ScholarsList extends StatelessWidget {
+class ScholarsList extends StatefulWidget {
   const ScholarsList({
     super.key,
     required this.candidates,
@@ -423,12 +466,25 @@ class ScholarsList extends StatelessWidget {
       onCandidateClick;
 
   @override
-  Widget build(BuildContext context) {
-    if (candidates.isEmpty) return const SizedBox.shrink();
+  State<ScholarsList> createState() => _ScholarsListState();
+}
 
-    final totalCompleteness =
-        candidates.fold<double>(0, (sum, c) => sum + getCandidateCompleteness(c));
-    final avgPercent = (totalCompleteness / candidates.length * 100).round();
+class _ScholarsListState extends State<ScholarsList> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.candidates.isEmpty) return const SizedBox.shrink();
+
+    final totalCompleteness = widget.candidates.fold<double>(
+        0, (sum, c) => sum + getCandidateCompleteness(c));
+    final avgPercent = (totalCompleteness / widget.candidates.length * 100).round();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -443,38 +499,45 @@ class ScholarsList extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _MilestoneProgress(
-              candidateCount: candidates.length,
-              isSearching: isLoading,
+              candidateCount: widget.candidates.length,
+              isSearching: widget.isLoading,
               avgPercent: avgPercent,
-              candidates: candidates,
+              candidates: widget.candidates,
             ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 480),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: candidates.length,
-                itemBuilder: (context, idx) {
-                  final candidate = candidates[idx];
-                  final isSelected = _isSelected(context, idx);
-                  return _CandidateCard(
-                    candidate: candidate,
-                    isLast: idx == candidates.length - 1,
-                    isLoading: isLoading,
-                    isSelected: isSelected,
-                    onTap: () {
-                      if (onCandidateClick != null) {
-                        onCandidateClick!(candidate, idx, groupId);
-                      } else {
-                        context.read<SearchStore>().openTabWithClick(
-                              candidate,
-                              index: idx,
-                              groupId: groupId,
-                            );
-                      }
-                    },
-                  );
-                },
+            Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 480),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: widget.candidates.length,
+                  itemBuilder: (context, idx) {
+                    final candidate = widget.candidates[idx];
+                    final isSelected = _isSelected(context, idx);
+                    return _CandidateCard(
+                      candidate: candidate,
+                      isLast: idx == widget.candidates.length - 1,
+                      isLoading: widget.isLoading,
+                      isSelected: isSelected,
+                      onTap: () {
+                        if (widget.onCandidateClick != null) {
+                          widget.onCandidateClick!(candidate, idx, widget.groupId);
+                        } else {
+                          final store = context.read<SearchStore>();
+                          final tabId = store.openTabWithClick(
+                                candidate,
+                                index: idx,
+                                groupId: widget.groupId,
+                              );
+                          if (tabId != null) store.setTabPanelOpen(true);
+                        }
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -490,7 +553,7 @@ class ScholarsList extends StatelessWidget {
     final c = active.candidate;
     final gId = c['groupId'];
     final orig = c['originalIndex'];
-    return gId == groupId && orig == idx;
+    return gId == widget.groupId && orig == idx;
   }
 }
 
@@ -560,17 +623,27 @@ class _CandidateCardState extends State<_CandidateCard> {
         _fieldTimeline = [..._fieldTimeline, ...newFields];
         _isFlashing = true;
         _enrichingField = _firstUnfilledField(current);
+        _prevFilled = current;
       });
       _flashTimer?.cancel();
       _flashTimer = Timer(const Duration(milliseconds: 800), () {
         if (mounted) setState(() => _isFlashing = false);
       });
+      return;
     }
-    if (_enrichingField == null && widget.isLoading) {
-      _enrichingField = _firstUnfilledField(current);
+
+    // 更新 enriching 状态并触发重绘，否则 processing 文案不显示
+    final nextEnriching =
+        widget.isLoading ? _firstUnfilledField(current) : null;
+    if (_enrichingField != nextEnriching || _prevFilled != current) {
+      setState(() {
+        _enrichingField = nextEnriching;
+        _prevFilled = current;
+      });
+    } else {
+      _enrichingField = nextEnriching;
+      _prevFilled = current;
     }
-    if (!widget.isLoading) _enrichingField = null;
-    _prevFilled = current;
   }
 
   @override
@@ -687,32 +760,24 @@ class _CandidateCardState extends State<_CandidateCard> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _kMatchBg,
-                            border: Border.all(color: _kMatchBorder),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'match',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: _kBlueDark,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
+                        
                         Expanded(
-                          child: Text(
-                            matchReason,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: _kTextGray500,
-                            ),
+                          child: RichText(
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                            text: TextSpan(
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _kTextGray500,
+                              ),
+                              children: renderMarkdownBold(
+                                matchReason,
+                                baseStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: _kTextGray500,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],

@@ -344,45 +344,53 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
 
   Widget _buildMessagesArea(AgenticSearchLogic logic) {
     final groups = logic.messageGroups;
-    return Scrollbar(
+    return PrimaryScrollController(
       controller: _scrollController,
-      thumbVisibility: true,
-      interactive: true,
-      child: ListView(
+      child: Scrollbar(
         controller: _scrollController,
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        children: [
-          for (var i = 0; i < groups.length; i++)
-            MessageGroupView(
-              key: ValueKey(groups[i].id),
-              group: MessageGroupData(
-                id: groups[i].id,
-                userQuery: groups[i].userQuery,
-                loading: groups[i].loading,
-                candidates: groups[i].candidates,
-                searchType: groups[i].searchType ?? 'global',
-                thinkingSteps: groups[i].thinkingSteps,
-                thinkingExpanded: groups[i].thinkingExpanded,
-                dinqResults: groups[i].dinqResults,
-                advisorResults: groups[i].advisorResults,
-                pdfAttachment: groups[i].pdfAttachment,
-                llmMessage: groups[i].llmMessage,
-                summary: groups[i].summary,
+        thumbVisibility: true,
+        interactive: true,
+        child: NestedScrollView(
+          physics: const ClampingScrollPhysics(),
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [],
+          body: ListView(
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            children: [
+            for (var i = 0; i < groups.length; i++)
+              MessageGroupView(
+                key: ValueKey(groups[i].id),
+                group: MessageGroupData(
+                  id: groups[i].id,
+                  userQuery: groups[i].userQuery,
+                  loading: groups[i].loading,
+                  candidates: groups[i].candidates,
+                  searchType: groups[i].searchType ?? 'global',
+                  thinkingSteps: groups[i].thinkingSteps,
+                  thinkingExpanded: groups[i].thinkingExpanded,
+                  dinqResults: groups[i].dinqResults,
+                  advisorResults: groups[i].advisorResults,
+                  pdfAttachment: groups[i].pdfAttachment,
+                  llmMessage: groups[i].llmMessage,
+                  summary: groups[i].summary,
+                ),
+                onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
+                onCandidateClick: (candidate, index, groupId) {
+                  final store = context.read<SearchStore>();
+                  final tabId = store.openTabWithClick(
+                    candidate,
+                    index: index,
+                    groupId: groupId,
+                    matchByName: true,
+                  );
+                  if (tabId != null) store.setTabPanelOpen(true);
+                },
+                isLatest: i == groups.length - 1,
               ),
-              onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
-              onCandidateClick: (candidate, index, groupId) {
-                final store = context.read<SearchStore>();
-                store.openTabWithClick(
-                  candidate,
-                  index: index,
-                  groupId: groupId,
-                );
-              },
-              isLatest: i == groups.length - 1,
-            ),
-          Container(key: _messagesEndKey, height: 80),
-        ],
+            Container(key: _messagesEndKey, height: 80),
+          ],
+        ),
+      ),
       ),
     );
   }

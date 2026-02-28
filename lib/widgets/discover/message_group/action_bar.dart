@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../common/asset_icon.dart';
+import 'dinq_logo.dart';
+
 /// 操作栏（与 TSX 中 DinqLogoButton + thumbs 一致）
 class MessageGroupActionBar extends StatelessWidget {
   const MessageGroupActionBar({
@@ -8,12 +9,14 @@ class MessageGroupActionBar extends StatelessWidget {
     required this.feedback,
     required this.onFeedbackUp,
     required this.onFeedbackDown,
+    this.onDinqLogoTap,
   });
 
   final bool isLatest;
   final String? feedback; // 'up' | 'down'
   final VoidCallback onFeedbackUp;
   final VoidCallback onFeedbackDown;
+  final VoidCallback? onDinqLogoTap;
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +24,12 @@ class MessageGroupActionBar extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          AssetIcon(asset: 'icons/logo/dinq-black.svg', size: 14),
+          DinqLogoButton(
+            size: 24,
+            onTap: onDinqLogoTap,
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -66,7 +72,7 @@ class MessageGroupActionBar extends StatelessWidget {
               ),
               if (isLatest)
                 const Padding(
-                  padding: EdgeInsets.only(top: 4),
+                  padding: EdgeInsets.only(top: 0),
                   child: Text(
                     'DINQ can make mistakes. Verify important info.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),

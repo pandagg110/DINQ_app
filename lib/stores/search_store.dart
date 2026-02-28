@@ -24,6 +24,8 @@ class SearchStore extends ChangeNotifier {
   String? pendingQuery;
   String? pendingFill;
   int tabClickVersion = 0; // 用于触发面板展开
+  /// 与 ChatHistoryStore.isMobileOpen 一致：tab 面板是否打开（底部滑入）
+  bool isTabPanelOpen = false;
   bool isLoadingConversation = false;
   int? currentConversationId;
   /// 待加载的会话详情（从 Chat History 点入时设置，AgenticChat 会消费并清空）
@@ -52,6 +54,7 @@ class SearchStore extends ChangeNotifier {
   }
 
   /// 与 TSX openTab 一致：支持 index/groupId/判重/MAX_TABS，返回标签页 id 或 null（不满足条件时）
+  /// 来自 Network 弹层（groupId == -1）时允许仅凭 name 开 tab，后续由 enrich 补全
   int? openTab(
     Map<String, dynamic> candidate, {
     int? index,
@@ -59,17 +62,24 @@ class SearchStore extends ChangeNotifier {
     bool matchByName = false,
     bool switchTab = true,
   }) {
-    final hasAvatar = (candidate['image_url']?.toString() ?? '').trim().isNotEmpty;
-    final completeness = _getCandidateCompleteness(candidate);
-    if (!hasAvatar && completeness < 0.7) return null;
-
     final originalIndex = index ?? 0;
     final gId = groupId ?? 0;
+    final fromNetwork = gId == -1;
+    final nameOk = (candidate['name']?.toString() ?? '').trim().isNotEmpty;
+    if (!fromNetwork) {
+      final hasAvatar = (candidate['image_url']?.toString() ?? '').trim().isNotEmpty;
+      final completeness = _getCandidateCompleteness(candidate);
+      if (!hasAvatar && completeness < 0.7) return null;
+    } else if (!nameOk) {
+      return null;
+    }
 
     SearchTabData? existing;
+    final candidateName = candidate['name']?.toString() ?? '';
     for (final t in openTabs) {
       if (matchByName) {
-        if (t.candidate['groupId'] == -1 && t.candidate['name'] == candidate['name']) {
+        // 按姓名判重：已有同名角色则复用该 tab，避免同一人出现多个 tab
+        if (candidateName.isNotEmpty && (t.candidate['name']?.toString() ?? '') == candidateName) {
           existing = t;
           break;
         }
@@ -110,11 +120,21 @@ class SearchStore extends ChangeNotifier {
     if (activeTabId == id) {
       activeTabId = openTabs.isEmpty ? null : openTabs.last.id;
     }
-    notifyListeners();
+    if (openTabs.isEmpty) {
+      setTabPanelOpen(false);
+    } else {
+      notifyListeners();
+    }
   }
 
   void setActiveTab(int id) {
     activeTabId = id;
+    notifyListeners();
+  }
+
+  void setTabPanelOpen(bool open) {
+    if (isTabPanelOpen == open) return;
+    isTabPanelOpen = open;
     notifyListeners();
   }
 

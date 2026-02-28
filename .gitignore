@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 example/
+react-grid-layout/
 config.txt
 
 # IntelliJ related

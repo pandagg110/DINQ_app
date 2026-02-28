@@ -4,8 +4,19 @@ import '../../stores/search_store.dart';
 
 const double normalTabUnit = 68.0; // 64px + 4px gap
 
+/// 仅允许 http/https，避免 file:/// 导致 "No host specified in URI"
+bool _isValidHttpUrl(String? s) {
+  if (s == null || s.trim().isEmpty) return false;
+  final lower = s.trim().toLowerCase();
+  if (lower.startsWith('file:')) return false;
+  return lower.startsWith('http://') || lower.startsWith('https://');
+}
+
 class TabBarWidget extends StatefulWidget {
-  const TabBarWidget({super.key});
+  const TabBarWidget({super.key, this.displayTabs});
+
+  /// 若传入则用此列表渲染（用于移动端按姓名去重），否则用 store.openTabs
+  final List<SearchTabData>? displayTabs;
 
   @override
   State<TabBarWidget> createState() => _TabBarWidgetState();
@@ -18,7 +29,7 @@ class _TabBarWidgetState extends State<TabBarWidget> {
   Widget build(BuildContext context) {
     return Consumer<SearchStore>(
       builder: (context, searchStore, _) {
-        final openTabs = searchStore.openTabs;
+        final openTabs = widget.displayTabs ?? searchStore.openTabs;
         final activeTabId = searchStore.activeTabId;
         final isSearching = searchStore.isSearching;
 
@@ -55,8 +66,7 @@ class _TabBarWidgetState extends State<TabBarWidget> {
               child: Row(
                 children: openTabs.map((tab) {
                   final candidate = tab.candidate;
-                  final candidateId = candidate['id'];
-                  final isActive = candidateId == activeTabId;
+                  final isActive = tab.id == activeTabId;
                   final isAnyLoading = tab.isLoading || tab.enrichLoading || tab.networkLoading;
                   final hasAnyComplete = tab.profile != null || tab.network != null;
 
@@ -121,7 +131,7 @@ class _TabBarWidgetState extends State<TabBarWidget> {
           height: 30,
           margin: const EdgeInsets.symmetric(horizontal: 0.5),
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF171717) : const Color(0xFFF5F5F5),
+            color: isActive ? Colors.black : const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(8),
           ),
           child: isActive
@@ -155,7 +165,7 @@ class _TabBarWidgetState extends State<TabBarWidget> {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF171717) : const Color(0xFFF5F5F5),
+            color: isActive ? Colors.black : const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -176,19 +186,27 @@ class _TabBarWidgetState extends State<TabBarWidget> {
                 ),
               ),
               const SizedBox(width: 3),
-              // 状态/关闭按钮
+              // loading 时优先显示 loading，选中且非 loading 时显示关闭
               SizedBox(
                 width: 20,
                 height: 20,
-                child: hasStatus
-                    ? _buildStatusIcon(isAnyLoading, completedCount, isActive)
-                    : IconButton(
+                child: (isActive && !isAnyLoading)
+                    ? IconButton(
                         padding: EdgeInsets.zero,
                         iconSize: 12,
                         icon: const Icon(Icons.close),
-                        color: isActive ? Colors.white : const Color(0xFF6B7280),
+                        color: Colors.white,
                         onPressed: () => searchStore.closeTab(tab.id),
-                      ),
+                      )
+                    : (hasStatus
+                        ? _buildStatusIcon(isAnyLoading, completedCount, isActive)
+                        : IconButton(
+                            padding: EdgeInsets.zero,
+                            iconSize: 12,
+                            icon: const Icon(Icons.close),
+                            color: isActive ? Colors.white : const Color(0xFF6B7280),
+                            onPressed: () => searchStore.closeTab(tab.id),
+                          )),
               ),
             ],
           ),
@@ -209,8 +227,8 @@ class _TabBarWidgetState extends State<TabBarWidget> {
     Widget avatar = CircleAvatar(
       radius: size / 2,
       backgroundColor: const Color(0xFFE5E5E5),
-      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-      child: imageUrl == null
+      backgroundImage: _isValidHttpUrl(imageUrl) ? NetworkImage(imageUrl!) : null,
+      child: !_isValidHttpUrl(imageUrl)
           ? const Icon(Icons.person, size: 12, color: Color(0xFF9CA3AF))
           : null,
     );

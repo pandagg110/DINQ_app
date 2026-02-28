@@ -87,11 +87,16 @@ class _GroupedSourceTags extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                domain,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: _kTextGray500,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
+                child: Text(
+                  domain,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _kTextGray500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (count > 1) ...[
@@ -628,7 +633,7 @@ class ThinkingBubble extends StatelessWidget {
                       : const BoxConstraints(),
                   child: SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 8, 12, 12),
+                      padding: const EdgeInsets.fromLTRB(6, 8, 8, 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
