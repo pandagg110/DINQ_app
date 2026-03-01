@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:github_oauth_signin/github_oauth_signin.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/app_constants.dart';
@@ -29,6 +30,7 @@ class _SignInPageState extends State<SignInPage> {
   bool _showPassword = false;
   String? _error;
   bool _isButtonEnabled = false;
+  late final GoogleSignIn _googleSignInClient = GoogleSignIn(scopes: ['email', 'profile']);
 
   @override
   void initState() {
@@ -418,7 +420,30 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Future<void> _googleSignIn() async {
-    ToastUtil.show("Need config google oauth");
+    GoogleSignInAccount? googleSignInAccount = await _googleSignInClient.signIn();
+    if (googleSignInAccount != null) {
+      GoogleSignInAuthentication googleSignInAuthentication =
+          await googleSignInAccount.authentication;
+      // final avatar = googleSignInAccount.photoUrl ?? "";
+      // final platformId = googleSignInAccount.id;
+      // final name = googleSignInAccount.displayName ?? "";
+      String platformAccessToken = googleSignInAuthentication.idToken ?? "";
+      try {
+        await ToastUtil.showLoading();
+        if (!mounted) return;
+        await context.read<UserStore>().thirdPartyLogin(
+          provider: 'google',
+          idToken: platformAccessToken,
+        );
+        await ToastUtil.dismiss();
+        if (!mounted) return;
+
+        _handleLoginSuccess();
+      } catch (error) {
+        await ToastUtil.dismiss();
+        await ToastUtil.show("Login failed: $error");
+      }
+    }
   }
 
   Future<void> _githubSignIn() async {
@@ -431,16 +456,16 @@ class _SignInPageState extends State<SignInPage> {
     final result = await gitHubSignIn.signIn(context);
     switch (result.status) {
       case GitHubSignInResultStatus.ok:
-        print('✅ Sign in successful!');
-        print('🔑 Access Token: ${result.token}');
+        // print('✅ Sign in successful!');
+        // print('🔑 Access Token: ${result.token}');
         if (result.userData != null) {
           final user = result.userData!;
-          print('👤 User: ${user['name']} (@${user['login']})');
-          print('📧 Email: ${user['email']}');
-          print('🏢 Company: ${user['company']}');
-          print('📍 Location: ${user['location']}');
-          print('📊 Public Repos: ${user['public_repos']}');
-          print('👥 Followers: ${user['followers']}');
+          // print('👤 User: ${user['name']} (@${user['login']})');
+          // print('📧 Email: ${user['email']}');
+          // print('🏢 Company: ${user['company']}');
+          // print('📍 Location: ${user['location']}');
+          // print('📊 Public Repos: ${user['public_repos']}');
+          // print('👥 Followers: ${user['followers']}');
         }
 
         try {

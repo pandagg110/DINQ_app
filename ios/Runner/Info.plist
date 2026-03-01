@@ -61,6 +61,17 @@
                 <string>dinq</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <!-- REVERSED_CLIENT_ID -->
+                <string>com.googleusercontent.apps.524554793738-aue0aqlaum7nfimom8uvjlucfgc2nepm</string>
+            </array>
+        </dict>
     </array>
+    <key>GIDClientID</key>
+    <string>524554793738-aue0aqlaum7nfimom8uvjlucfgc2nepm.apps.googleusercontent.com</string>
 </dict>
 </plist>
