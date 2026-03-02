@@ -170,16 +170,13 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       );
     }
 
-    // 从 Discover 进入时由路由提供 ViewerCardStore，此处 watch 使本页在 store 更新时重建
-    if (widget.showAppBar) {
+    // watch 使本页在 store（选中状态等）更新时重建，否则点击卡片后外部 CardToolbar/FloatingToolbar 不刷新
+    if (_cardStore != null) {
       context.watch<CardStore>();
     }
 
     final isEditable = _userData != null ? _isEditable(_userData!) : false;
     final mainStore = context.watch<MainStore>();
-    debugPrint('selectedCardIds1: ${_cardStore?.selectedCardIds}');
-    debugPrint('selectedCardIds2: ${_isPreviewMode}');
-    debugPrint('selectedCardIds3: ${isEditable}');
     return ChangeNotifierProvider<CardStore>.value(
       value: _cardStore!,
       child: Portal(
