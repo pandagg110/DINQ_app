@@ -246,9 +246,19 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
       selectedIds: cardStore.selectedCardIds,
       editable: widget.editable,
     );
+    // 选中卡片排在最后绘制，避免底部工具栏（bottom: -16）被下方卡片遮挡
+    final selectedIds = cardStore.selectedCardIds;
+    final layoutOrdered = [...layoutItems]
+      ..sort((a, b) {
+        final aSelected = selectedIds.contains(a.i);
+        final bSelected = selectedIds.contains(b.i);
+        if (aSelected && !bSelected) return 1;
+        if (!aSelected && bSelected) return -1;
+        return 0;
+      });
     if (_gridState == null) {
       _gridState = GridLayoutState(
-        layout: layoutItems,
+        layout: layoutOrdered,
         cols: columns,
         onMove: (newLayout) {
           setState(() {
@@ -265,7 +275,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         },
       );
     } else {
-      _gridState!.setLayoutFromProps(layoutItems);
+      _gridState!.setLayoutFromProps(layoutOrdered);
     }
     final cardById = {for (final c in filteredCards) c.id: c};
 
