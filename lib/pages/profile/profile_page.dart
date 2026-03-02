@@ -29,6 +29,7 @@ class ProfilePage extends StatefulWidget {
   });
 
   final String username;
+
   /// 为 true 时显示顶部 AppBar（含返回按钮），便于从 Discover 等 push 进入后返回
   final bool showAppBar;
 
@@ -169,8 +170,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       );
     }
 
-    // 从 Discover 进入时由路由提供 ViewerCardStore，此处 watch 使本页在 store 更新时重建
-    if (widget.showAppBar) {
+    // watch 使本页在 store（选中状态等）更新时重建，否则点击卡片后外部 CardToolbar/FloatingToolbar 不刷新
+    if (_cardStore != null) {
       context.watch<CardStore>();
     }
 
@@ -180,175 +181,180 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       value: _cardStore!,
       child: Portal(
         child: GestureDetector(
-        onTap: () {
-          // 点击页面外部区域时，清除选中状态
-          if (!_isPreviewMode &&
-              isEditable &&
-              _cardStore!.selectedCardIds.isNotEmpty) {
-            _cardStore!.clearSelection();
-          }
-        },
+          onTap: () {
+            // 点击页面外部区域时，清除选中状态
+            if (!_isPreviewMode &&
+                isEditable &&
+                _cardStore!.selectedCardIds.isNotEmpty) {
+              _cardStore!.clearSelection();
+            }
+          },
           behavior: HitTestBehavior.deferToChild,
           child: Stack(
             children: [
-            Scaffold(
-              appBar: widget.showAppBar
-                  ? AppBar(
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                      title: Text(
-                        (_userData?.name ?? '').isNotEmpty
-                            ? _userData!.name
-                            : widget.username,
-                      ),
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF171717),
-                      elevation: 0,
-                      scrolledUnderElevation: 0,
-                    )
-                  : null,
-              body: SafeArea(
-                bottom: false, // 底部由 MainTabBottomView 处理
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onHorizontalDragEnd: (details) {
-                          final v = details.primaryVelocity ?? 0;
-                          if (v < -100 && _isPreviewMode) {
-                            setState(() => _isPreviewMode = false);
-                            mainStore.hideBottomNavigation();
-                          } else if (v > 100 && !_isPreviewMode) {
-                            setState(() => _isPreviewMode = true);
-                            mainStore.showBottomNavigation();
-                          }
-                        },
-                        child: SingleChildScrollView(
-                          padding: EdgeInsets.only(
-                            // showAppBar 时无顶部悬浮切换按钮，用 24；否则为切换按钮留出空间（44 + 24）= 68
-                            top: widget.showAppBar ? 24 : 68,
-                            bottom: ConstantsTool.bottomTabHeight + 32,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              if (_userData != null) ...[
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                    left: 24,
-                                    right: 24,
-                                    top: 24,
-                                    bottom: 0,
+              Scaffold(
+                appBar: widget.showAppBar
+                    ? AppBar(
+                        leading: IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        title: Text(
+                          (_userData?.name ?? '').isNotEmpty
+                              ? _userData!.name
+                              : widget.username,
+                        ),
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF171717),
+                        elevation: 0,
+                        scrolledUnderElevation: 0,
+                      )
+                    : null,
+                body: SafeArea(
+                  bottom: false, // 底部由 MainTabBottomView 处理
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onHorizontalDragEnd: (details) {
+                            final v = details.primaryVelocity ?? 0;
+                            if (v < -100 && _isPreviewMode) {
+                              setState(() => _isPreviewMode = false);
+                              mainStore.hideBottomNavigation();
+                            } else if (v > 100 && !_isPreviewMode) {
+                              setState(() => _isPreviewMode = true);
+                              mainStore.showBottomNavigation();
+                            }
+                          },
+                          child: SingleChildScrollView(
+                            padding: EdgeInsets.only(
+                              // showAppBar 时无顶部悬浮切换按钮，用 24；否则为切换按钮留出空间（44 + 24）= 68
+                              top: widget.showAppBar ? 24 : 68,
+                              bottom: ConstantsTool.bottomTabHeight + 32,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                if (_userData != null) ...[
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      left: 24,
+                                      right: 24,
+                                      top: 24,
+                                      bottom: 0,
+                                    ),
+                                    child: ProfileHeader(
+                                      data: _userData!,
+                                      username: _userData?.name ?? '',
+                                      isPreviewMode: _isPreviewMode,
+                                      onPreviewModeChanged: (isPreview) =>
+                                          setState(
+                                            () => _isPreviewMode = isPreview,
+                                          ),
+                                      onAvatarUpdated: _loadData,
+                                      onStatusEdit: () =>
+                                          _showStatusModal(context, _userData!),
+                                      onDataUpdated: _loadData,
+                                      onShare: () {
+                                        if (_userData == null) return;
+                                        ShareProfileDialog.show(
+                                          context: context,
+                                          username: widget.username,
+                                          userData: _userData!,
+                                          cards: _cardStore?.cards,
+                                        );
+                                      },
+                                      showToggle:
+                                          false, // 不在 ProfileHeader 中显示，使用 Positioned 固定在顶部
+                                    ),
                                   ),
-                                  child: ProfileHeader(
-                                    data: _userData!,
-                                    username: _userData?.name ?? '',
-                                    isPreviewMode: _isPreviewMode,
-                                    onPreviewModeChanged: (isPreview) =>
-                                        setState(
-                                          () => _isPreviewMode = isPreview,
-                                        ),
-                                    onAvatarUpdated: _loadData,
-                                    onStatusEdit: () =>
-                                        _showStatusModal(context, _userData!),
-                                    onDataUpdated: _loadData,
-                                    onShare: () {
-                                      if (_userData == null) return;
-                                      ShareProfileDialog.show(
-                                        context: context,
-                                        username: widget.username,
-                                        userData: _userData!,
-                                        cards: _cardStore?.cards,
-                                      );
-                                    },
-                                    showToggle: false, // 不在 ProfileHeader 中显示，使用 Positioned 固定在顶部
+                                  const SizedBox(height: 24),
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      left: 12,
+                                      right: 12,
+                                      top: 0,
+                                      bottom: 0,
+                                    ),
+                                    child: CardGridStaggered(
+                                      editable: !_isPreviewMode && isEditable,
+                                      onPlaceholderClick:
+                                          _handlePlaceholderClick,
+                                      cardStore: _cardStore,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 24),
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                    left: 12,
-                                    right: 12,
-                                    top: 0,
-                                    bottom: 0,
-                                  ),
-                                  child: CardGridStaggered(
-                                    editable: !_isPreviewMode && isEditable,
-                                    onPlaceholderClick: _handlePlaceholderClick,
-                                    cardStore: _cardStore,
-                                  ),
-                                ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Preview/Edit 切换按钮 - 固定在顶部
-            if (isEditable && _userData != null)
-              Positioned(
-                top: 20,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    child: PreviewEditToggle(
-                      key: const ValueKey('preview_edit_toggle'),
-                      isPreviewMode: _isPreviewMode,
-                      onPreviewModeChanged: (isPreview) {
-                        setState(() => _isPreviewMode = isPreview);
-                        // 切换到 Edit 模式时隐藏底部导航栏
-                        if (!isPreview) {
-                          context.read<MainStore>().hideBottomNavigation();
-                        } else {
-                          context.read<MainStore>().showBottomNavigation();
-                        }
-                      },
-                    ),
+                    ],
                   ),
                 ),
               ),
-            // Status Modal
-            if (_userData != null)
-              ChangeStatusModal(
-                isOpen: _isStatusModalOpen,
-                onClose: _closeStatusModal,
-                currentStatus: _userData!.jobStatus ?? '',
-              ),
-            // 编辑模式下：有卡片选中时显示 CardToolbar，否则显示 FloatingToolbar
-            if (!_isPreviewMode && isEditable) ...[
-              if (_cardStore!.selectedCardIds.isNotEmpty) ...[
-                Builder(
-                  builder: (context) {
-                    final selectedId = _cardStore!.selectedCardIds.first;
-                    final idx = _cardStore!.cards.indexWhere(
-                      (c) => c.id == selectedId,
-                    );
-                    if (idx < 0) return const SizedBox.shrink();
-                    return CardToolbar(card: _cardStore!.cards[idx]);
-                  },
+              // Preview/Edit 切换按钮 - 固定在顶部
+              if (isEditable && _userData != null)
+                Positioned(
+                  top: 20,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      child: PreviewEditToggle(
+                        key: const ValueKey('preview_edit_toggle'),
+                        isPreviewMode: _isPreviewMode,
+                        onPreviewModeChanged: (isPreview) {
+                          setState(() => _isPreviewMode = isPreview);
+                          // 切换到 Edit 模式时隐藏底部导航栏
+                          if (!isPreview) {
+                            context.read<MainStore>().hideBottomNavigation();
+                          } else {
+                            context.read<MainStore>().showBottomNavigation();
+                          }
+                        },
+                      ),
+                    ),
+                  ),
                 ),
-              ] else
-                FloatingToolbar(
-                  isMobile: true,
-                  isSaving: _cardStore!.isSaving,
-                  username: widget.username,
-                  userData: _userData,
-                  cards: _cardStore!.cards,
+              // Status Modal
+              if (_userData != null)
+                ChangeStatusModal(
+                  isOpen: _isStatusModalOpen,
+                  onClose: _closeStatusModal,
+                  currentStatus: _userData!.jobStatus ?? '',
                 ),
+              // 编辑模式下：有卡片选中时显示 CardToolbar，否则显示 FloatingToolbar
+              if (!_isPreviewMode && isEditable) ...[
+                if (_cardStore!.selectedCardIds.isNotEmpty) ...[
+                  Builder(
+                    builder: (context) {
+                      final selectedId = _cardStore!.selectedCardIds.first;
+                      final idx = _cardStore!.cards.indexWhere(
+                        (c) => c.id == selectedId,
+                      );
+                      if (idx < 0) return const SizedBox.shrink();
+                      return CardToolbar(card: _cardStore!.cards[idx]);
+                    },
+                  ),
+                ] else
+                  FloatingToolbar(
+                    isMobile: true,
+                    isSaving: _cardStore!.isSaving,
+                    username: widget.username,
+                    userData: _userData,
+                    cards: _cardStore!.cards,
+                  ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
-    ),
     );
   }
 
