@@ -184,6 +184,7 @@ class CardStore extends ChangeNotifier {
   void removeCard(String cardId) {
     cards.removeWhere((card) => card.id == cardId);
     cardStates.remove(cardId);
+    compactLayoutAfterSizeChange();
     notifyListeners();
     _cardService.deleteCard(cardId);
   }
