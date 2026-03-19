@@ -2,6 +2,7 @@
 // 等价 RGL GridItem：单格项，按格点定位、拖拽回调（中心跟手）
 // ---------------------------------------------------------------------------
 
+import 'package:dinq_app/widgets/grid-layout/custom_draggable.dart';
 import 'package:flutter/material.dart';
 import '../../utils/grid_layout_core.dart';
 import 'grid_layout_types.dart';
@@ -47,7 +48,8 @@ class _GridItemWidgetState extends State<GridItemWidget> {
     final item = widget.item;
     final params = widget.params;
     final rect = calcGridItemPosition(params, item.x, item.y, item.w, item.h);
-    final canDrag = widget.isDraggable && (item.isDraggable ?? true) && !item.static_;
+    final canDrag =
+        widget.isDraggable && (item.isDraggable ?? true) && !item.static_;
 
     Widget content = SizedBox(
       width: rect.width,
@@ -55,7 +57,10 @@ class _GridItemWidgetState extends State<GridItemWidget> {
       child: widget.child,
     );
 
-    if (!canDrag || (widget.onDragStart == null && widget.onDragUpdate == null && widget.onDragEnd == null)) {
+    if (!canDrag ||
+        (widget.onDragStart == null &&
+            widget.onDragUpdate == null &&
+            widget.onDragEnd == null)) {
       return AnimatedPositioned(
         duration: widget.animationDuration,
         curve: widget.animationCurve,
@@ -69,42 +74,54 @@ class _GridItemWidgetState extends State<GridItemWidget> {
 
     final halfW = rect.width / 2;
     final halfH = rect.height / 2;
-    content = Draggable<LayoutItem>(
-      data: item,
-      feedback: Material(
-        type: MaterialType.transparency,
-        elevation: 8,
-        borderRadius: BorderRadius.circular(4),
-        color: Colors.transparent,
-        child: SizedBox(
-          width: rect.width,
-          height: rect.height,
-          child: widget.child,
-        ),
-      ),
-      feedbackOffset: Offset(-halfW, -halfH),
-      onDragStarted: widget.onDragStart,
-      onDragUpdate: (details) {
-        final stack = context.findAncestorRenderObjectOfType<RenderBox>();
-        if (stack == null) return;
-        final centerLocal = stack.globalToLocal(details.globalPosition);
-        final leftPx = centerLocal.dx - halfW;
-        final topPx = centerLocal.dy - halfH;
-        final (x, y) = calcXY(params, leftPx, topPx, item.w, item.h);
-        _lastDragX = x;
-        _lastDragY = y;
-        widget.onDragUpdate?.call(x, y);
-      },
-      onDragEnd: (_) {
-        // 使用最后一次 onDragUpdate 的格点，保证松手后位置与阴影一致
-        final x = _lastDragX ?? item.x;
-        final y = _lastDragY ?? item.y;
-        widget.onDragEnd?.call(x, y);
-      },
-      childWhenDragging: Opacity(opacity: 0.5, child: content),
-      child: content,
+    content = CustomGridHandleDraggable(
+      item: item,
+      params: params,
+      rectWidth: rect.width,
+      rectHeight: rect.height,
+      child: widget.child,
+      isDraggable: canDrag,
+      onDragStart: widget.onDragStart,
+      onDragUpdate: widget.onDragUpdate,
+      onDragEnd: widget.onDragEnd,
     );
-
+    // content = Draggable<LayoutItem>(
+    //   data: item,
+    //   feedback: Material(
+    //     type: MaterialType.transparency,
+    //     elevation: 8,
+    //     borderRadius: BorderRadius.circular(4),
+    //     color: Colors.transparent,
+    //     child: SizedBox(
+    //       width: rect.width,
+    //       height: rect.height,
+    //       child: widget.child,
+    //     ),
+    //   ),
+    //   feedbackOffset: Offset(-halfW, -halfH),
+    //   onDragStarted: widget.onDragStart,
+    //   onDragUpdate: (details) {
+    //     final stack = context.findAncestorRenderObjectOfType<RenderBox>();
+    //     if (stack == null) return;
+    //     final centerLocal = stack.globalToLocal(details.globalPosition);
+    //     final leftPx = centerLocal.dx - halfW;
+    //     final topPx = centerLocal.dy - halfH;
+    //     final (x, y) = calcXY(params, leftPx, topPx, item.w, item.h);
+    //     _lastDragX = x;
+    //     _lastDragY = y;
+    //     // debugPrint('onDragUpdate: $x, $y');
+    //     widget.onDragUpdate?.call(x, y);
+    //   },
+    //   onDragEnd: (_) {
+    //     // 使用最后一次 onDragUpdate 的格点，保证松手后位置与阴影一致
+    //     final x = _lastDragX ?? item.x;
+    //     final y = _lastDragY ?? item.y;
+    //     widget.onDragEnd?.call(x, y);
+    //   },
+    //   childWhenDragging: Opacity(opacity: 0.5, child: content),
+    //   child: content,
+    // );
+    
     return AnimatedPositioned(
       duration: widget.animationDuration,
       curve: widget.animationCurve,
