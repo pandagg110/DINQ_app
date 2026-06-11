@@ -129,6 +129,19 @@ class _MePageState extends State<MePage> {
                     const SizedBox(height: 16),
                     // Settings 入口
                     _buildSettingsButton(),
+                    const SizedBox(height: 16),
+                    // 帮助与合规
+                    _buildMenuRow(
+                      Icons.help_outline_rounded,
+                      'Help & Support',
+                      () => context.push('/guidelines'),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildMenuRow(
+                      Icons.description_outlined,
+                      'Terms & Privacy',
+                      () => context.push('/terms'),
+                    ),
                   ],
                 ),
               ),
@@ -362,6 +375,39 @@ class _MePageState extends State<MePage> {
             const SizedBox(width: 8),
             Text(
               'Settings',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Geist',
+                color: ColorUtil.textColor,
+              ),
+            ),
+            const Spacer(),
+            AssetImageView("gray_right", width: 20, height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 通用菜单行（帮助/法务等），样式与 Settings 入口一致。
+  Widget _buildMenuRow(IconData icon, String title, VoidCallback onTap) {
+    return NormalButton(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        height: 54,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: ColorUtil.textColor),
+            const SizedBox(width: 8),
+            Text(
+              title,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
