@@ -49,3 +49,10 @@ app.*.map.json
 /android/app/release
 .env.local
 /DINQ_client_react/
+
+# 本地参考代码库（设计稿 + 线上 H5 参考），仅本地查阅
+/my_first_app/
+/DINQ_client-main/
+
+# 本地预览/开发工具配置
+.claude/

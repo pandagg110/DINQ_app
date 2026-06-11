@@ -10,6 +10,7 @@ import 'stores/main_store.dart';
 import 'stores/messages_store.dart';
 import 'stores/notifications_store.dart';
 import 'stores/search_store.dart';
+import 'stores/shortlist_store.dart';
 import 'stores/settings_store.dart';
 import 'stores/user_store.dart';
 import 'theme/app_theme.dart';
@@ -32,6 +33,7 @@ class DinqApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MessagesStore()),
         ChangeNotifierProvider(create: (_) => NotificationsStore()),
         ChangeNotifierProvider(create: (_) => SearchStore()),
+        ChangeNotifierProvider(create: (_) => ShortlistStore()),
         ChangeNotifierProvider(create: (_) => ChatHistoryStore()),
         ChangeNotifierProvider(create: (_) => MainStore()),
         ChangeNotifierProvider(create: (_) => PlaceholderNotifier()),

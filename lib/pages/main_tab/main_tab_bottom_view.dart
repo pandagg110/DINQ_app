@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:dinq_app/constants/app_constants.dart';
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../stores/messages_store.dart';
@@ -129,13 +130,27 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
                                 child: Stack(
                                   clipBehavior: Clip.none,
                                   children: [
-                                    AssetImageView(
-                                      isSelected
-                                          ? buttonData[index].selIconName
-                                          : buttonData[index].iconName,
-                                      width: 24,
-                                      fit: BoxFit.contain,
-                                    ),
+                                    buttonData[index].iconSvg != null
+                                        ? SvgPicture.asset(
+                                            isSelected
+                                                ? buttonData[index].selIconSvg!
+                                                : buttonData[index].iconSvg!,
+                                            width: 24,
+                                            height: 24,
+                                            colorFilter: ColorFilter.mode(
+                                              isSelected
+                                                  ? const Color(0xFF1487FA)
+                                                  : ColorUtil.textColor,
+                                              BlendMode.srcIn,
+                                            ),
+                                          )
+                                        : AssetImageView(
+                                            isSelected
+                                                ? buttonData[index].selIconName
+                                                : buttonData[index].iconName,
+                                            width: 24,
+                                            fit: BoxFit.contain,
+                                          ),
                                     // Inbox 未读数角标
                                     if (buttonData[index].pageType == MainTabType.inBox &&
                                         totalUnreadCount > 0)
@@ -190,17 +205,28 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
 
   List<MainTabModel> getTabBarData() {
     return [
-      MainTabModel(
-        pageType: MainTabType.myDinq,
-        title: "My DINQ",
-        iconName: "tab_dinq",
-        selIconName: "tab_dinq_sel",
-      ),
+      // 文档原则2：原 Discover 改为 Search 作为底部 Tab
       MainTabModel(
         pageType: MainTabType.discover,
-        title: "Discover",
+        title: "Search",
         iconName: "tab_discover",
         selIconName: "tab_discover_sel",
+      ),
+      MainTabModel(
+        pageType: MainTabType.talentRadar,
+        title: "Radar",
+        iconName: "",
+        selIconName: "",
+        iconSvg: "assets/icons/nav-tasks-outline.svg",
+        selIconSvg: "assets/icons/nav-tasks-fill.svg",
+      ),
+      MainTabModel(
+        pageType: MainTabType.shortlist,
+        title: "Shortlist",
+        iconName: "",
+        selIconName: "",
+        iconSvg: "assets/icons/shortlist.svg",
+        selIconSvg: "assets/icons/shortlist-fill.svg",
       ),
       MainTabModel(
         pageType: MainTabType.inBox,
@@ -210,7 +236,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
       ),
       MainTabModel(
         pageType: MainTabType.me,
-        title: "Me",
+        title: "My",
         iconName: "tab_me",
         selIconName: "tab_me_sel",
       ),
