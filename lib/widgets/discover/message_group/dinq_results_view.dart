@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../common/asset_icon.dart';
 import '../../../pages/profile/profile_page.dart';
 import '../../../stores/card_store.dart';
@@ -717,11 +716,8 @@ class _DinqResultsViewState extends State<DinqResultsView> {
                               ),
                               onPressed: () {
                                 final url = linkMap['url'] as String?;
-                                if (url != null && url.isNotEmpty) {
-                                  launchUrl(
-                                    Uri.parse(url),
-                                    mode: LaunchMode.externalApplication,
-                                  );
+                                if (url != null) {
+                                  // TODO: 打开链接
                                 }
                               },
                               padding: EdgeInsets.zero,

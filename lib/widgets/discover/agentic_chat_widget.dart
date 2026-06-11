@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/discover_service.dart';
 import '../../stores/chat_history_store.dart';
@@ -450,7 +449,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                 ),
               ),
               TextButton(
-                onPressed: () => context.push('/pricing'),
+                onPressed: () {
+                  // TODO: 跳转升级页
+                },
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
