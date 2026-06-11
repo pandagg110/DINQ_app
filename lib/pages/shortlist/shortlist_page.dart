@@ -58,6 +58,23 @@ class _ShortlistPageState extends State<ShortlistPage> {
     await store.removeFavorites(ids);
   }
 
+  /// 批量移动到其他文件夹：选目标项目 → 接真实接口移动。
+  Future<void> _moveSelected() async {
+    final ids = Set<String>.from(_selectedIds);
+    if (ids.isEmpty) return;
+    final store = context.read<ShortlistStore>();
+    final target = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      builder: (_) => _FolderSheet(projects: store.projects, selectedId: null),
+    );
+    if (target == null || !mounted) return;
+    _exitSelection();
+    await store.moveFavorites(ids, target);
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ShortlistStore>();
@@ -122,7 +139,11 @@ class _ShortlistPageState extends State<ShortlistPage> {
                 left: 16 * s,
                 right: 16 * s,
                 bottom: 18 * s,
-                child: _BatchBar(scale: s, onRemove: _removeSelected),
+                child: _BatchBar(
+                  scale: s,
+                  onMove: _moveSelected,
+                  onRemove: _removeSelected,
+                ),
               ),
           ],
         ),
@@ -757,9 +778,14 @@ class _Checkbox extends StatelessWidget {
 // ───────────────────────── Batch bar / states ─────────────────────────
 
 class _BatchBar extends StatelessWidget {
-  const _BatchBar({required this.scale, required this.onRemove});
+  const _BatchBar({
+    required this.scale,
+    required this.onMove,
+    required this.onRemove,
+  });
 
   final double scale;
+  final VoidCallback onMove;
   final VoidCallback onRemove;
 
   @override
@@ -782,8 +808,7 @@ class _BatchBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _batchAction(Icons.drive_file_move_outline, 'Move', () {}),
-          _batchAction(Icons.ios_share, 'Export', () {}),
+          _batchAction(Icons.drive_file_move_outline, 'Move', onMove),
           _batchAction(Icons.delete_outline, 'Remove', onRemove,
               color: const Color(0xFFE24B3C)),
         ],

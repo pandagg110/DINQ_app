@@ -110,4 +110,24 @@ class ShortlistStore extends ChangeNotifier {
     _items = _items.where((item) => !ids.contains(item.id)).toList();
     notifyListeners();
   }
+
+  /// 批量移动收藏到指定项目（接真实接口），成功后本地同步更新 projectId。
+  Future<void> moveFavorites(Set<String> ids, String projectId) async {
+    if (ids.isEmpty || projectId.isEmpty) return;
+    await Future.wait(ids.map((id) => _service.moveFavorite(id, projectId)));
+    _items = _items.map((item) {
+      if (ids.contains(item.id)) {
+        return FavoriteItem(
+          id: item.id,
+          projectId: projectId,
+          title: item.title,
+          field: item.field,
+          tags: item.tags,
+          status: item.status,
+        );
+      }
+      return item;
+    }).toList();
+    notifyListeners();
+  }
 }
