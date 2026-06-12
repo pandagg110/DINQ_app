@@ -1,0 +1,154 @@
+import 'package:flutter/material.dart';
+
+import '../../services/account_service.dart';
+import '../../theme/dinq_tokens.dart';
+import '../../utils/color_util.dart';
+import '../../widgets/common/default_app_bar.dart';
+
+/// My → Organization。接 /orgs（我加入/创建的组织列表）。
+class OrganizationPage extends StatefulWidget {
+  const OrganizationPage({super.key});
+
+  @override
+  State<OrganizationPage> createState() => _OrganizationPageState();
+}
+
+class _OrganizationPageState extends State<OrganizationPage> {
+  final _service = AccountService();
+  List<dynamic> _orgs = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final orgs = await _service.getOrganizations();
+      if (!mounted) return;
+      setState(() {
+        _orgs = orgs;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: DinqTokens.bgPage,
+      appBar: DefaultAppBar(context, titleString: 'Organization'),
+      body: _body(),
+    );
+  }
+
+  Widget _body() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, style: const TextStyle(color: DinqTokens.textTertiary)),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    if (_orgs.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.business_outlined, size: 40, color: DinqTokens.textTertiary),
+            SizedBox(height: 12),
+            Text('No organizations yet',
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600, color: DinqTokens.textPrimary)),
+            SizedBox(height: 4),
+            Text('Organizations you join or create appear here.',
+                style: TextStyle(fontSize: 13, color: DinqTokens.textSecondary)),
+          ],
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [for (final o in _orgs) _orgRow(Map<String, dynamic>.from(o as Map))],
+    );
+  }
+
+  Widget _orgRow(Map<String, dynamic> o) {
+    final name = (o['name'] ?? o['title'] ?? 'Organization').toString();
+    final slug = (o['slug'] ?? o['handle'] ?? '').toString();
+    final role = (o['role'] ?? o['my_role'] ?? '').toString();
+    final members = (o['member_count'] ?? o['members'] ?? '').toString();
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: DinqTokens.bgCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: DinqTokens.borderLL),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: DinqTokens.bgSurface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(initial,
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w700, color: ColorUtil.textColor)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600, color: ColorUtil.textColor)),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    if (slug.isNotEmpty) '@$slug',
+                    if (role.isNotEmpty) role,
+                    if (members.isNotEmpty) '$members members',
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: DinqTokens.textTertiary),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: DinqTokens.textTertiary),
+        ],
+      ),
+    );
+  }
+}

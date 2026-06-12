@@ -52,6 +52,9 @@ import '../pages/settings/settings_subscription_page.dart';
 import '../pages/settings/settings_verification_page.dart';
 import '../pages/splash_page.dart';
 import '../pages/web_view_page.dart';
+import '../pages/me/invite_page.dart';
+import '../pages/me/api_keys_page.dart';
+import '../pages/me/organization_page.dart';
 import '../stores/user_store.dart';
 
 class AppRouter {
@@ -181,6 +184,10 @@ class AppRouter {
           },
         ),
         GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
+        // My 子页（邀请/开发者/组织等，线上H5 对应的原生实现）
+        GoRoute(path: '/me/invite', builder: (context, state) => const InvitePage()),
+        GoRoute(path: '/me/api-keys', builder: (context, state) => const ApiKeysPage()),
+        GoRoute(path: '/me/organization', builder: (context, state) => const OrganizationPage()),
         GoRoute(
           path: '/settings/profile',
           builder: (context, state) => const SettingsProfilePage(),

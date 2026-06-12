@@ -127,6 +127,27 @@ class _MePageState extends State<MePage> {
                     // 订阅卡片
                     _buildSubscriptionCard(plan, credits),
                     const SizedBox(height: 16),
+                    // 邀请赚积分
+                    _buildMenuRow(
+                      Icons.card_giftcard_outlined,
+                      'Invite friends, earn credits',
+                      () => context.push('/me/invite'),
+                    ),
+                    const SizedBox(height: 16),
+                    // 组织
+                    _buildMenuRow(
+                      Icons.business_outlined,
+                      'Organization',
+                      () => context.push('/me/organization'),
+                    ),
+                    const SizedBox(height: 16),
+                    // 开发者 API Keys
+                    _buildMenuRow(
+                      Icons.vpn_key_outlined,
+                      'API Keys',
+                      () => context.push('/me/api-keys'),
+                    ),
+                    const SizedBox(height: 16),
                     // Settings 入口
                     _buildSettingsButton(),
                     const SizedBox(height: 16),
