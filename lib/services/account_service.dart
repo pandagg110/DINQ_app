@@ -63,4 +63,67 @@ class AccountService {
     if (data is Map && data['orgs'] is List) return data['orgs'] as List;
     return const [];
   }
+
+  // ============== 简历 / Resume ==============
+
+  /// GET /resumes — 简历列表
+  Future<List<dynamic>> getResumes() async {
+    final resp = await _dio.get('/resumes');
+    final data = resp.data;
+    return data is List ? data : const [];
+  }
+
+  /// POST /resumes — 创建简历（上传 PDF 后用 source_url 创建）
+  Future<Map<String, dynamic>> createResume({
+    required String title,
+    required String sourceUrl,
+    required String fileName,
+  }) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/resumes',
+      data: {'title': title, 'source_url': sourceUrl, 'file_name': fileName},
+    );
+    return Map<String, dynamic>.from(resp.data as Map);
+  }
+
+  /// DELETE /resumes/:id
+  Future<void> deleteResume(String id) async {
+    await _dio.delete('/resumes/$id');
+  }
+
+  // ============== 文件上传（OSS 预签名）==============
+
+  /// POST /upload/url 取预签名 → PUT 字节到 OSS → 返回 file_url。
+  Future<String> uploadFile({
+    required String fileName,
+    required int fileSize,
+    required String contentType,
+    required List<int> bytes,
+  }) async {
+    final tokenResp = await _dio.post<Map<String, dynamic>>(
+      '/upload/url',
+      data: {
+        'file_name': fileName,
+        'file_size': fileSize,
+        'content_type': contentType,
+      },
+    );
+    final data = tokenResp.data as Map<String, dynamic>;
+    final uploadUrl = data['upload_url'] as String;
+    final fileUrl = data['file_url'] as String;
+
+    final ossDio = Dio();
+    final putResp = await ossDio.put<void>(
+      uploadUrl,
+      data: Stream<List<int>>.fromIterable([bytes]),
+      options: Options(
+        contentType: contentType,
+        headers: {Headers.contentLengthHeader: fileSize},
+      ),
+    );
+    if (putResp.statusCode != 200) {
+      throw Exception('OSS upload failed: ${putResp.statusCode}');
+    }
+    return fileUrl;
+  }
 }

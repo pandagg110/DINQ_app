@@ -55,6 +55,8 @@ import '../pages/web_view_page.dart';
 import '../pages/me/invite_page.dart';
 import '../pages/me/api_keys_page.dart';
 import '../pages/me/organization_page.dart';
+import '../pages/me/integration_page.dart';
+import '../pages/me/resume_page.dart';
 import '../stores/user_store.dart';
 
 class AppRouter {
@@ -188,6 +190,8 @@ class AppRouter {
         GoRoute(path: '/me/invite', builder: (context, state) => const InvitePage()),
         GoRoute(path: '/me/api-keys', builder: (context, state) => const ApiKeysPage()),
         GoRoute(path: '/me/organization', builder: (context, state) => const OrganizationPage()),
+        GoRoute(path: '/me/integration', builder: (context, state) => const IntegrationPage()),
+        GoRoute(path: '/me/resume', builder: (context, state) => const ResumePage()),
         GoRoute(
           path: '/settings/profile',
           builder: (context, state) => const SettingsProfilePage(),

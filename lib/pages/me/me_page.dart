@@ -134,11 +134,25 @@ class _MePageState extends State<MePage> {
                       () => context.push('/me/invite'),
                     ),
                     const SizedBox(height: 16),
+                    // 简历管理
+                    _buildMenuRow(
+                      Icons.description_outlined,
+                      'Resume',
+                      () => context.push('/me/resume'),
+                    ),
+                    const SizedBox(height: 16),
                     // 组织
                     _buildMenuRow(
                       Icons.business_outlined,
                       'Organization',
                       () => context.push('/me/organization'),
+                    ),
+                    const SizedBox(height: 16),
+                    // 集成（已连接平台）
+                    _buildMenuRow(
+                      Icons.hub_outlined,
+                      'Integration',
+                      () => context.push('/me/integration'),
                     ),
                     const SizedBox(height: 16),
                     // 开发者 API Keys
