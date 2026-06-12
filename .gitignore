@@ -56,3 +56,5 @@ app.*.map.json
 
 # 本地预览/开发工具配置
 .claude/
+
+.example/*
