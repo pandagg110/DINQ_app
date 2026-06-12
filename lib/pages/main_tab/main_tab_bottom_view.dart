@@ -31,6 +31,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
   Widget build(BuildContext context) {
     final currentTabType = widget.currentTabType;
     List<MainTabModel> buttonData = getTabBarData();
+    final selectedIndex = currentTabType.pageIndex.clamp(0, buttonData.length - 1);
     final totalUnreadCount = context.watch<MessagesStore>().totalUnreadCount;
     return Container(
       decoration: BoxDecoration(
@@ -64,7 +65,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
             return Stack(
               children: [
                 AnimatedPositioned(
-                  left: itemW * currentTabType.pageIndex,
+                  left: itemW * selectedIndex,
                   top: 3,
                   bottom: 3,
                   duration: Duration(milliseconds: 200),
@@ -96,7 +97,7 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: List.generate(buttonData.length, (index) {
-                    bool isSelected = index == currentTabType.pageIndex;
+                    bool isSelected = index == selectedIndex;
                     return Expanded(
                       child: NormalButton(
                         child: Stack(
@@ -205,9 +206,8 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
 
   List<MainTabModel> getTabBarData() {
     return [
-      // 文档原则2：原 Discover 改为 Search 作为底部 Tab
       MainTabModel(
-        pageType: MainTabType.discover,
+        pageType: MainTabType.search,
         title: "Search",
         iconName: "tab_discover",
         selIconName: "tab_discover_sel",

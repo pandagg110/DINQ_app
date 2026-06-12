@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/discover_service.dart';
+import '../../services/search_service.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
@@ -74,7 +74,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     if (!_logicInitialized) {
       _logicInitialized = true;
       _logic = AgenticSearchLogic(
-        discoverService: DiscoverService(),
+        searchService: SearchService(),
         searchStore: context.read<SearchStore>(),
         onSearchComplete: widget.onSearchComplete,
         onScrollToBottom: _scrollToBottom,

@@ -1,29 +1,24 @@
 enum MainTabType {
-  discover,
+  search,
   talentRadar,
   shortlist,
   inBox,
   me;
 
   int get pageIndex {
-    switch (this) {
-      case MainTabType.discover:
-        return 0;
-      case MainTabType.talentRadar:
-        return 1;
-      case MainTabType.shortlist:
-        return 2;
-      case MainTabType.inBox:
-        return 3;
-      case MainTabType.me:
-        return 4;
-    }
+    // Defensive fallback for hot-reload enum drift.
+    if (this == MainTabType.search) return 0;
+    if (this == MainTabType.talentRadar) return 1;
+    if (this == MainTabType.shortlist) return 2;
+    if (this == MainTabType.inBox) return 3;
+    if (this == MainTabType.me) return 4;
+    return 0;
   }
 
   static MainTabType fromIndex(int index) {
     switch (index) {
       case 0:
-        return MainTabType.discover;
+        return MainTabType.search;
       case 1:
         return MainTabType.talentRadar;
       case 2:
@@ -33,7 +28,7 @@ enum MainTabType {
       case 4:
         return MainTabType.me;
       default:
-        return MainTabType.discover;
+        return MainTabType.search;
     }
   }
 }

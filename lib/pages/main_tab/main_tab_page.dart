@@ -21,7 +21,7 @@ class MainTabPage extends StatefulWidget {
 
 class _MainTabPageState extends State<MainTabPage> {
   late final PageController _pageController = PageController();
-  MainTabType _currentTabType = MainTabType.discover;
+  MainTabType _currentTabType = MainTabType.search;
 
   @override
   void dispose() {
@@ -37,7 +37,7 @@ class _MainTabPageState extends State<MainTabPage> {
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
           children: [
-            KeepAliveWrapper(child: DiscoverPage()),
+            KeepAliveWrapper(child: SearchPage()),
             KeepAliveWrapper(child: TalentRadarPage()),
             KeepAliveWrapper(child: ShortlistPage()),
             KeepAliveWrapper(child: AdminInboxPage()),

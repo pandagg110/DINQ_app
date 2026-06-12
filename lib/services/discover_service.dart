@@ -5,8 +5,8 @@ import 'package:dio/dio.dart';
 
 import 'api_client.dart';
 
-/// Discover 相关 API（与 example 的 discoverApi 对齐）
-class DiscoverService {
+/// Search 相关 API（后端仍沿用 /discover 路径）
+class SearchService {
   final _dio = ApiClient.instance.dio;
 
   /// POST /discover/chat/stream — 流式搜索，返回 SSE 事件流
@@ -16,7 +16,7 @@ class DiscoverService {
     String mode = 'research',
     int? conversationId,
   }) async* {
-    print('[DiscoverService.chatStream] query: $query, mode: $mode, conversationId: $conversationId');
+    print('[SearchService.chatStream] query: $query, mode: $mode, conversationId: $conversationId');
     final body = <String, dynamic>{
       'query': query,
       'mode': mode,
@@ -31,7 +31,7 @@ class DiscoverService {
         receiveTimeout: const Duration(minutes: 5),
       ),
     );
-    print('[DiscoverService.chatStream] response: $response');
+    print('[SearchService.chatStream] response: $response');
 
     final responseBody = response.data;
     if (responseBody is! ResponseBody) return;
@@ -64,7 +64,7 @@ class DiscoverService {
         if (data != '[DONE]') {
           try {
             final map = jsonDecode(data) as Map<String, dynamic>;
-            print('[DiscoverService.chatStream] event: $map');
+            print('[SearchService.chatStream] event: $map');
             yield map;
           } catch (_) {}
         }
@@ -179,3 +179,6 @@ class DiscoverService {
     // 后端可能返回 code:0 data:null，不依赖 response 结构
   }
 }
+
+@Deprecated('Use SearchService instead.')
+class DiscoverService extends SearchService {}

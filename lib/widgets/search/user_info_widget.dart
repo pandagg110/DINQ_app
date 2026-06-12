@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../common/asset_icon.dart';
 import '../../constants/app_constants.dart';
-import '../../services/discover_service.dart';
+import '../../services/search_service.dart';
 import '../../stores/search_store.dart';
 import '../../utils/top_toast_util.dart';
 import 'network_loading_animation.dart';
@@ -101,7 +101,7 @@ class UserInfoWidget extends StatefulWidget {
 }
 
 class _UserInfoWidgetState extends State<UserInfoWidget> {
-  static final DiscoverService _discoverService = DiscoverService();
+  static final SearchService _searchService = SearchService();
 
   /// 与 TSX showProfile 一致：Contact 数据加载完成后是否展开内联区块
   bool _showProfile = false;
@@ -131,7 +131,7 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
     try {
       final tab = searchStore.openTabs.where((t) => t.id == candidateId).firstOrNull;
       if (tab == null) return;
-      final result = await _discoverService.getNetwork({'person': tab.candidate});
+      final result = await _searchService.getNetwork({'person': tab.candidate});
       final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
       searchStore.updateTabNetwork(candidateId, network);
     } catch (e) {
@@ -167,7 +167,7 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
     // 加载 network 数据
     searchStore.setTabNetworkLoading(candidateId, true);
     try {
-      final result = await _discoverService.getNetwork({'person': widget.tabData.candidate});
+      final result = await _searchService.getNetwork({'person': widget.tabData.candidate});
       final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
       searchStore.updateTabNetwork(candidateId, network);
 
@@ -206,7 +206,7 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
 
     searchStore.setTabEnrichLoading(candidateId, true);
     try {
-      final result = await _discoverService.getProfile({'person': widget.tabData.candidate});
+      final result = await _searchService.getProfile({'person': widget.tabData.candidate});
       searchStore.updateTabProfile(candidateId, result);
       if (mounted && searchStore.activeTabId == candidateId) {
         setState(() => _showProfile = true);
@@ -948,7 +948,7 @@ class _NetworkSheetState extends State<_NetworkSheet> {
       _sheetNetwork = null;
       _sheetNetworkLoading = true;
     });
-    DiscoverService().getNetwork({'person': candidate}).then((result) {
+    SearchService().getNetwork({'person': candidate}).then((result) {
       if (!mounted) return;
       final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
       setState(() {
@@ -1054,7 +1054,7 @@ class _NetworkSheetState extends State<_NetworkSheet> {
     searchStore.setTabLoading(tabId, true);
     try {
       final request = _localUserToEnrichRequest(user);
-      final result = await DiscoverService().enrich(request);
+      final result = await SearchService().enrich(request);
       final candidate = _enrichResultToCandidate(Map<String, dynamic>.from(result), centerUserName);
       searchStore.updateTabCandidate(tabId, candidate);
       if (mounted) {

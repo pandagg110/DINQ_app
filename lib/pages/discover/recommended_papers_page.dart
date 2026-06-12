@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/recommendation_models.dart' as rec;
 import '../../stores/user_store.dart';
-import '../../widgets/discover/recommended_papers_widget.dart';
+import '../../widgets/search/recommended_papers_widget.dart';
 import 'paper_filters_page.dart';
 
 /// Recommended Papers 页：类似 ChatHistoryPage，单独页面打开

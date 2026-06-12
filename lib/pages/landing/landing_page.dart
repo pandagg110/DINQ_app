@@ -395,7 +395,7 @@ class _LandingPageState extends State<LandingPage> {
         ),
         OutlinedButton.icon(
           onPressed: () {
-            context.push('/discover');
+            context.push('/search');
           },
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF171717),
@@ -404,7 +404,7 @@ class _LandingPageState extends State<LandingPage> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
           icon: SvgPicture.asset(assetPath('images/card/discover.svg'), width: 24, height: 24),
-          label: const Text('Discover'),
+          label: const Text('Search'),
         ),
         ElevatedButton(
           onPressed: () {

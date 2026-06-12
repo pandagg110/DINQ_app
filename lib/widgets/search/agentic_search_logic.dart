@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../services/discover_service.dart';
+import '../../services/search_service.dart';
 import '../../stores/search_store.dart';
 
 /// 单条搜索消息组（与 TSX MessageGroup 对应）
@@ -50,13 +50,13 @@ class AgenticMessageGroup {
 /// 与 TSX useAgenticSearch 对应：搜索状态与流式/会话逻辑集中在此文件
 class AgenticSearchLogic extends ChangeNotifier {
   AgenticSearchLogic({
-    required this.discoverService,
+    required this.searchService,
     required this.searchStore,
     this.onSearchComplete,
     this.onScrollToBottom,
   });
 
-  final DiscoverService discoverService;
+  final SearchService searchService;
   final SearchStore searchStore;
   final void Function(List<Map<String, dynamic>> candidates, String query)?
   onSearchComplete;
@@ -591,7 +591,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     loading = true;
     notifyListeners();
 
-    final stream = discoverService.chatStream(
+    final stream = searchService.chatStream(
       query: query.trim(),
       mode: simple ? 'fast' : 'research',
       conversationId: searchStore.currentConversationId,
@@ -723,7 +723,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await discoverService.searchUsers({
+      final response = await searchService.searchUsers({
         'query': query.trim(),
         'limit': 15,
         if (searchStore.currentConversationId != null)

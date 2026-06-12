@@ -4,18 +4,18 @@ import '../../stores/chat_history_store.dart';
 import '../../stores/main_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/settings_store.dart';
-import '../../widgets/discover/agentic_chat_widget.dart';
-import '../../widgets/discover/chat_history_mobile_widget.dart';
-import '../../widgets/discover/tab_panel_mobile_widget.dart';
+import '../../widgets/search/agentic_chat_widget.dart';
+import '../../widgets/search/chat_history_mobile_widget.dart';
+import '../../widgets/search/tab_panel_mobile_widget.dart';
 
-class DiscoverPage extends StatefulWidget {
-  const DiscoverPage({super.key});
+class SearchPage extends StatefulWidget {
+  const SearchPage({super.key});
 
   @override
-  State<DiscoverPage> createState() => _DiscoverPageState();
+  State<SearchPage> createState() => _SearchPageState();
 }
 
-class _DiscoverPageState extends State<DiscoverPage> {
+class _SearchPageState extends State<SearchPage> {
   bool _hasLoggedBuild = false;
   MediaQueryData? _fixedMediaQuery;
   bool _listenersRegistered = false;
@@ -33,7 +33,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   void initState() {
     super.initState();
-    print('🔍 DiscoverPage: initState - 进入 Discover 页面');
+    print('🔍 SearchPage: initState - 进入 Search 页面');
   }
 
   @override
@@ -41,7 +41,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     super.didChangeDependencies();
     _fixedMediaQuery ??= MediaQuery.of(context);
     if (!_hasLoggedBuild) {
-      print('🔍 DiscoverPage: didChangeDependencies - Discover 页面依赖已更新');
+      print('🔍 SearchPage: didChangeDependencies - Search 页面依赖已更新');
     }
     if (!_listenersRegistered) {
       _listenersRegistered = true;
@@ -65,7 +65,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   Widget build(BuildContext context) {
     if (!_hasLoggedBuild) {
-      print('🔍 DiscoverPage: build - 正在构建 Discover 页面');
+      print('🔍 SearchPage: build - 正在构建 Search 页面');
       _hasLoggedBuild = true;
     }
     return Consumer3<SearchStore, ChatHistoryStore, SettingsStore>(
@@ -131,4 +131,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
       ),
     );
   }
+}
+
+@Deprecated('Use SearchPage instead.')
+class DiscoverPage extends SearchPage {
+  const DiscoverPage({super.key});
 }

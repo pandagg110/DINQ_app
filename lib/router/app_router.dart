@@ -155,12 +155,13 @@ class AppRouter {
         GoRoute(path: '/waiting-list', builder: (context, state) => const WaitingListPage()),
         GoRoute(path: '/generation', builder: (context, state) => const GenerationPage()),
         GoRoute(
-          path: '/discover',
+          path: '/search',
           builder: (context, state) {
-            print('🔍 Router: 路由到 Discover 页面 (/discover)');
-            return const DiscoverPage();
+            print('🔍 Router: 路由到 Search 页面 (/search)');
+            return const SearchPage();
           },
         ),
+        GoRoute(path: '/discover', redirect: (context, state) => '/search'),
         GoRoute(path: '/pricing', builder: (context, state) => const PricingPage()),
         GoRoute(path: '/blogs', builder: (context, state) => const BlogsPage()),
         GoRoute(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/discover_service.dart';
+import '../services/search_service.dart';
 
 class ConversationItem {
   ConversationItem({
@@ -30,7 +30,7 @@ class ConversationItem {
 class ChatHistoryStore extends ChangeNotifier {
   static const int pageSize = 20;
 
-  final DiscoverService _discoverService = DiscoverService();
+  final SearchService _searchService = SearchService();
 
   List<ConversationItem> conversations = [];
   int total = 0;
@@ -54,7 +54,7 @@ class ChatHistoryStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _discoverService.getConversations(
+      final response = await _searchService.getConversations(
         keyword: searchQuery.isEmpty ? null : searchQuery,
         page: 1,
         pageSize: pageSize,
@@ -89,7 +89,7 @@ class ChatHistoryStore extends ChangeNotifier {
 
     try {
       final nextPage = page + 1;
-      final response = await _discoverService.getConversations(
+      final response = await _searchService.getConversations(
         keyword: searchQuery.isEmpty ? null : searchQuery,
         page: nextPage,
         pageSize: pageSize,
@@ -140,7 +140,7 @@ class ChatHistoryStore extends ChangeNotifier {
 
   Future<bool> renameConversation(int id, String title) async {
     try {
-      await _discoverService.updateConversation(id, {'title': title});
+      await _searchService.updateConversation(id, {'title': title});
 
       final index = conversations.indexWhere((item) => item.id == id);
       if (index >= 0) {
@@ -161,7 +161,7 @@ class ChatHistoryStore extends ChangeNotifier {
 
   Future<bool> deleteConversation(int id) async {
     try {
-      await _discoverService.deleteConversation(id);
+      await _searchService.deleteConversation(id);
 
       conversations.removeWhere((item) => item.id == id);
       total = total > 0 ? total - 1 : 0;
@@ -178,7 +178,7 @@ class ChatHistoryStore extends ChangeNotifier {
   /// 获取会话详情（含所有记录），供 SearchStore.loadConversation 使用
   Future<Map<String, dynamic>?> fetchConversationDetail(int id) async {
     try {
-      return await _discoverService.getConversationDetail(id);
+      return await _searchService.getConversationDetail(id);
     } catch (e) {
       return null;
     }
