@@ -12,7 +12,7 @@ class RenameDialog extends StatefulWidget {
 
   final ConversationItem conversation;
   final VoidCallback onClose;
-  final Future<bool> Function(int id, String title) onRename;
+  final Future<bool> Function(Object id, String title) onRename;
 
   @override
   State<RenameDialog> createState() => _RenameDialogState();

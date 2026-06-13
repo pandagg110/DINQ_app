@@ -39,8 +39,8 @@ class ChatHistoryItemWidget extends StatefulWidget {
   final VoidCallback onClick;
   final bool isActive;
   final bool isBlurred;
-  final Future<bool> Function(int id) onDelete;
-  final Future<bool> Function(int id, String title) onRename;
+  final Future<bool> Function(Object id) onDelete;
+  final Future<bool> Function(Object id, String title) onRename;
 
   @override
   State<ChatHistoryItemWidget> createState() => _ChatHistoryItemWidgetState();

@@ -161,6 +161,20 @@ class AppRouter {
             return const SearchPage();
           },
         ),
+        GoRoute(
+          path: '/search/:id',
+          builder: (context, state) {
+            print('🔍 Router: 路由到 Search 详情页 (/search/:id)');
+            return const SearchPage();
+          },
+        ),
+        GoRoute(
+          path: '/search/:type/:id',
+          builder: (context, state) {
+            print('🔍 Router: 路由到 Search 类型详情页 (/search/:type/:id)');
+            return const SearchPage();
+          },
+        ),
         GoRoute(path: '/discover', redirect: (context, state) => '/search'),
         GoRoute(path: '/pricing', builder: (context, state) => const PricingPage()),
         GoRoute(path: '/blogs', builder: (context, state) => const BlogsPage()),

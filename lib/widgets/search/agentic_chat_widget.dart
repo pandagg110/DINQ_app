@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/search_service.dart';
 import '../../stores/chat_history_store.dart';
@@ -30,11 +31,12 @@ const List<String> dinqPlaceholders = [
 ];
 
 class AgenticChatWidget extends StatefulWidget {
-  const AgenticChatWidget({super.key, this.onSearchComplete});
+  const AgenticChatWidget({super.key, this.onSearchComplete, this.showBackHome = false});
 
   /// 与 TSX onSearchComplete 一致：搜索完成且有关注人时回调
   final void Function(List<Map<String, dynamic>> candidates, String query)?
   onSearchComplete;
+  final bool showBackHome;
 
   @override
   State<AgenticChatWidget> createState() => _AgenticChatWidgetState();
@@ -219,7 +221,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                   // 顶部栏
                   Padding(
                     padding: const EdgeInsets.only(top: 0),
-                    child: _buildTopBar(),
+                    child: _buildTopBar(showBackHome: widget.showBackHome),
                   ),
                   // 内容在上，使用 Expanded；点击聊天区域时收起键盘
                   Expanded(
@@ -395,33 +397,57 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar({required bool showBackHome}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          TextButton.icon(
-            onPressed: () {
-              context.read<ChatHistoryStore>().setMobileOpen(true);
-            },
-            icon: Image.asset(
-              'assets/icons/discover/history.png',
-              width: 20,
-              height: 20,
-            ),
-            label: const Text(
-              '',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color.fromARGB(255, 0, 0, 0),
-                fontWeight: FontWeight.w500,
+          Row(
+            children: [
+              if (showBackHome)
+                TextButton.icon(
+                  onPressed: () {
+                    context.read<SearchStore>().clearAll();
+                    context.go('/search');
+                  },
+                  icon: const Icon(Icons.arrow_back, size: 20, color: Colors.black),
+                  label: const Text(
+                    '',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color.fromARGB(255, 0, 0, 0),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    foregroundColor: const Color(0xFF6B7280),
+                  ),
+                ),
+              TextButton.icon(
+                onPressed: () {
+                  context.read<ChatHistoryStore>().setMobileOpen(true);
+                },
+                icon: Image.asset(
+                  'assets/icons/discover/history.png',
+                  width: 20,
+                  height: 20,
+                ),
+                label: const Text(
+                  '',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color.fromARGB(255, 0, 0, 0),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  foregroundColor: const Color(0xFF6B7280),
+                ),
               ),
-            ),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              foregroundColor: const Color(0xFF6B7280),
-            ),
+            ],
           ),
           Row(
             children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_models.dart';
@@ -8,7 +9,6 @@ import '../../stores/user_store.dart';
 import '../../widgets/search/history/chat_history_empty_state_widget.dart';
 import '../../widgets/search/history/chat_history_item_widget.dart';
 import '../../widgets/search/history/chat_history_skeleton_widget.dart';
-import '../../widgets/search/history/mock_history_data.dart';
 import '../../widgets/search/history/new_chat_confirm_dialog.dart';
 
 /// Chat History 页：与 TSX ChatHistorySidebar/ChatHistoryMobile 逻辑一致
@@ -25,13 +25,17 @@ class ChatHistoryPage extends StatefulWidget {
 
 class _ChatHistoryPageState extends State<ChatHistoryPage> {
   bool _hasLoaded = false;
+  bool _isLoadingMoreScheduled = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_hasLoaded) {
       _hasLoaded = true;
-      context.read<ChatHistoryStore>().loadConversations();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<ChatHistoryStore>().loadConversations();
+      });
     }
   }
 
@@ -47,7 +51,6 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     final searchStore = context.read<SearchStore>();
     final subscription = userStore.subscription;
     final basePlan = _basePlan(subscription);
-    final isProOrPlus = basePlan == 'pro' || basePlan == 'plus';
 
     void doNewChat() {
       chatStore.setActiveConversationId(null);
@@ -89,8 +92,14 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                   child: SizedBox(
                     height: 40,
                     child: TextField(
-                      onChanged: (v) => chatStore.setSearchQuery(v),
-                      readOnly: !isProOrPlus,
+                      onChanged: (v) {
+                        chatStore.setSearchQuery(v);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          context.read<ChatHistoryStore>().loadConversations();
+                        });
+                      },
+                      readOnly: false,
                       decoration: InputDecoration(
                         isDense: true,
                         hintText: 'Search...',
@@ -157,17 +166,13 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                       return _buildList(
                         context,
                         chatStore: chatStore,
-                        basePlan: basePlan,
-                        isProOrPlus: isProOrPlus,
                         onItemClick: (item) => _handleItemClick(context, item),
                       );
                     },
                   ),
                 ),
                 // Footer - Total for Pro/Plus
-                if (basePlan != 'free' &&
-                    basePlan != 'basic' &&
-                    chatStore.total > 0)
+                if (chatStore.total > 0)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -196,117 +201,21 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
   Widget _buildList(
     BuildContext context, {
     required ChatHistoryStore chatStore,
-    required String basePlan,
-    required bool isProOrPlus,
     required void Function(ConversationItem) onItemClick,
   }) {
-    // 列表始终显示（Search 区域同上，list 内容按 plan 变化）
-    final listContent = _buildListContent(
+    return _buildListContent(
       context,
       chatStore: chatStore,
-      basePlan: basePlan,
       onItemClick: onItemClick,
     );
-
-    // Free/Basic：在 list 上覆盖一层遮罩，仅阻止操作，Unlock 卡悬浮在上
-    if (basePlan == 'free' || basePlan == 'basic') {
-      return Stack(
-        children: [
-          listContent,
-          Positioned.fill(
-            child: Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {},
-                  child: const SizedBox.expand(),
-                ),
-                Positioned(
-                  top: 60,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      width: 210,
-                      child: ChatHistoryEmptyStateWidget(
-                        type: basePlan == 'free' ? 'locked' : 'upgrade_pro',
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return listContent;
   }
 
-  /// 列表内容：始终渲染，free=仅 mock 模糊，basic=1 条真实+mock 模糊，pro/plus=骨架/错误/空/完整列表
+  /// 列表内容：所有用户都走统一真实会话接口（无 VIP 限制）
   Widget _buildListContent(
     BuildContext context, {
     required ChatHistoryStore chatStore,
-    required String basePlan,
     required void Function(ConversationItem) onItemClick,
   }) {
-    // Free: 仅 mock 模糊列表（列表一直显示）
-    if (basePlan == 'free') {
-      return SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ...mockHistoryItems.map(
-              (item) => ChatHistoryItemWidget(
-                conversation: item,
-                isBlurred: true,
-                onClick: () {},
-                onDelete: (_) async => false,
-                onRename: (_, __) async => false,
-              ),
-            ),
-            const SizedBox(height: 220),
-          ],
-        ),
-      );
-    }
-
-    // Basic: 1 条真实 + mock 模糊（列表一直显示）
-    if (basePlan == 'basic') {
-      return SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ...chatStore.conversations
-                .take(1)
-                .map(
-                  (item) => ChatHistoryItemWidget(
-                    conversation: item,
-                    isActive: item.id == chatStore.activeConversationId,
-                    onClick: () => onItemClick(item),
-                    onDelete: (id) => chatStore.deleteConversation(id),
-                    onRename: (id, title) =>
-                        chatStore.renameConversation(id, title),
-                  ),
-                ),
-            ...mockHistoryItems.map(
-              (item) => ChatHistoryItemWidget(
-                conversation: item,
-                isBlurred: true,
-                onClick: () {},
-                onDelete: (_) async => false,
-                onRename: (_, __) async => false,
-              ),
-            ),
-            const SizedBox(height: 220),
-          ],
-        ),
-      );
-    }
-
-    // Pro/Plus: loading / error / empty / list
     if (chatStore.isLoading && chatStore.conversations.isEmpty) {
       return const ChatHistorySkeletonWidget();
     }
@@ -315,7 +224,6 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
         child: ChatHistoryEmptyStateWidget(
           type: 'error',
           message: chatStore.error,
-          tier: basePlan,
         ),
       );
     }
@@ -333,7 +241,14 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       itemBuilder: (context, index) {
         if (index >= list.length) {
           if (chatStore.hasMore()) {
-            chatStore.loadMore();
+            if (!_isLoadingMoreScheduled) {
+              _isLoadingMoreScheduled = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                if (!mounted) return;
+                await context.read<ChatHistoryStore>().loadMore();
+                if (mounted) _isLoadingMoreScheduled = false;
+              });
+            }
             return const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -345,10 +260,10 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
         return ChatHistoryItemWidget(
           key: ValueKey('conv_${item.id}'),
           conversation: item,
-          isActive: item.id == chatStore.activeConversationId,
+          isActive: chatStore.isActiveConversation(item),
           onClick: () => onItemClick(item),
-          onDelete: (id) => chatStore.deleteConversation(id),
-          onRename: (id, title) => chatStore.renameConversation(id, title),
+          onDelete: (id) => chatStore.deleteConversationById(id, type: item.type),
+          onRename: (id, title) => chatStore.renameConversation(id, title, type: item.type),
         );
       },
     );
@@ -361,18 +276,15 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     final chatStore = context.read<ChatHistoryStore>();
     final searchStore = context.read<SearchStore>();
 
-    chatStore.setActiveConversationId(item.id);
-    searchStore.setLoadingConversation(true);
+    chatStore.setActiveConversation(item);
+    final route = item.type == 'discover'
+        ? '/search/${item.id}'
+        : '/search/${item.type}/${item.id}';
 
     try {
-      final detail = await chatStore.fetchConversationDetail(item.id);
+      searchStore.setLoadingConversation(true);
       if (!context.mounted) return;
-      if (detail != null) {
-        searchStore.setPendingConversation(detail);
-        // Navigator.of(context).pop();
-      } else {
-        chatStore.setActiveConversationId(null);
-      }
+      context.go(route);
       if (widget.onClose != null) {
         widget.onClose!();
       }

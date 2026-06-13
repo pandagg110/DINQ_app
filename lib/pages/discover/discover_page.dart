@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/main_store.dart';
@@ -21,6 +22,7 @@ class _SearchPageState extends State<SearchPage> {
   bool _listenersRegistered = false;
   ChatHistoryStore? _chatHistoryStoreForDispose;
   SearchStore? _searchStoreForDispose;
+  String? _lastRoutePath;
 
   void _syncBottomNav() {
     if (!mounted) return;
@@ -53,6 +55,72 @@ class _SearchPageState extends State<SearchPage> {
       _searchStoreForDispose = ss;
       _syncBottomNav();
     }
+    _syncRouteState();
+  }
+
+  void _syncRouteState() {
+    final state = GoRouterState.of(context);
+    final currentPath = state.uri.path;
+    if (currentPath == _lastRoutePath) return;
+    _lastRoutePath = currentPath;
+
+    final segments = state.uri.pathSegments;
+    if (segments.isEmpty || segments.first != 'search') return;
+
+    final searchStore = context.read<SearchStore>();
+    final chatHistoryStore = context.read<ChatHistoryStore>();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      // /search: clear detail context.
+      if (segments.length == 1) {
+        searchStore.clearExtraType();
+        searchStore.setCurrentConversationId(null);
+        return;
+      }
+
+      String? type;
+      String? idText;
+      if (segments.length >= 3) {
+        type = segments[1];
+        idText = segments[2];
+      } else {
+        idText = segments[1];
+      }
+      if (idText.isEmpty) {
+        searchStore.setCurrentConversationId(null);
+        return;
+      }
+
+      if (type != null && type.isNotEmpty) {
+        searchStore.setExtraType(type);
+      } else {
+        searchStore.clearExtraType();
+      }
+
+      final conversationId = int.tryParse(idText);
+      searchStore.setCurrentConversationId(conversationId);
+      searchStore.setLoadingConversation(true);
+      try {
+        final detail = await chatHistoryStore.fetchConversationDetail(
+          idText,
+          type ?? 'discover',
+        );
+        if (!mounted) return;
+        if (detail != null) {
+          chatHistoryStore.setActiveConversationId(
+            idText,
+            type: type ?? 'discover',
+          );
+          searchStore.setPendingConversation(detail);
+        }
+      } finally {
+        if (mounted) {
+          searchStore.setLoadingConversation(false);
+        }
+      }
+    });
   }
 
   @override
@@ -71,11 +139,20 @@ class _SearchPageState extends State<SearchPage> {
     return Consumer3<SearchStore, ChatHistoryStore, SettingsStore>(
       builder: (context, searchStore, chatHistoryStore, settingsStore, _) {
         final isMobileHeaderVisible = settingsStore.isMobileHeaderVisible;
+        final pathSegments = GoRouterState.of(context).uri.pathSegments;
+        final isSearchDetail = pathSegments.isNotEmpty &&
+            pathSegments.first == 'search' &&
+            pathSegments.length > 1;
+        final showBackHome = isSearchDetail ||
+            (pathSegments.length == 1 &&
+                pathSegments.first == 'search' &&
+                searchStore.activeTool != null);
         return _buildMobileLayout(
           context,
           searchStore,
           chatHistoryStore,
           isMobileHeaderVisible,
+          showBackHome,
         );
       },
     );
@@ -86,6 +163,7 @@ class _SearchPageState extends State<SearchPage> {
     SearchStore searchStore,
     ChatHistoryStore chatHistoryStore,
     bool isMobileHeaderVisible,
+    bool showBackHome,
   ) {
     final mq = MediaQuery.of(context);
     // 不修改内容高度：Scaffold 不 resize，用 Transform.translate 把整块内容顶上去
@@ -109,7 +187,7 @@ class _SearchPageState extends State<SearchPage> {
                 child: Stack(
                   children: [
                 // 主聊天区域
-                const AgenticChatWidget(),
+                AgenticChatWidget(showBackHome: showBackHome),
 
                 // 聊天历史移动端面板（左侧滑入）
                 ChatHistoryMobileWidget(
