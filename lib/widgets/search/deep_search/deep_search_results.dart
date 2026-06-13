@@ -1033,6 +1033,7 @@ class _TableResultsView extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       primary: false,
       child: DataTable(
+        showCheckboxColumn: false,
         headingRowHeight: 40,
         dataRowMinHeight: 44,
         dataRowMaxHeight: 56,
@@ -1092,12 +1093,18 @@ class _TableResultsView extends StatelessWidget {
     final selected = selectedRowId != null && selectedRowId == rowId;
     final confidence = formatConfidence(row['confidence']);
     final badge = matchBadgeStyle(confidence);
+    final rowTap = onRowClick == null ? null : () => onRowClick!(row);
     return DataRow(
-      selected: selected,
-      onSelectChanged: onRowClick == null ? null : (_) => onRowClick!(row),
+      color: WidgetStateProperty.resolveWith((states) {
+        if (selected) return const Color(0xFFF9F8F5);
+        if (states.contains(WidgetState.hovered)) {
+          return const Color(0xFFFDFCF9);
+        }
+        return Colors.white;
+      }),
       cells: [
-        DataCell(Text('$index')),
-        DataCell(Text(row['name']?.toString() ?? '')),
+        DataCell(Text('$index'), onTap: rowTap),
+        DataCell(Text(row['name']?.toString() ?? ''), onTap: rowTap),
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1115,9 +1122,10 @@ class _TableResultsView extends StatelessWidget {
               ),
             ),
           ),
+          onTap: rowTap,
         ),
-        DataCell(Text(row['company']?.toString() ?? '')),
-        DataCell(Text(row['title']?.toString() ?? '')),
+        DataCell(Text(row['company']?.toString() ?? ''), onTap: rowTap),
+        DataCell(Text(row['title']?.toString() ?? ''), onTap: rowTap),
         DataCell(
           SizedBox(
             width: 180,
@@ -1126,6 +1134,7 @@ class _TableResultsView extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          onTap: rowTap,
         ),
       ],
     );
