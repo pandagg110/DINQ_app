@@ -5,9 +5,9 @@ import '../../stores/chat_history_store.dart';
 import '../../stores/main_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/settings_store.dart';
-import '../../widgets/search_bak/agentic_chat_widget.dart';
-import '../../widgets/search_bak/chat_history_mobile_widget.dart';
-import '../../widgets/search_bak/tab_panel_mobile_widget.dart';
+import '../../widgets/search/agentic_chat_widget.dart';
+import '../../widgets/search/chat_history_mobile_widget.dart';
+import '../../widgets/search/tab_panel_mobile_widget.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});

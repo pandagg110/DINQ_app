@@ -6,10 +6,10 @@ import '../../models/user_models.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
-import '../../widgets/search_bak/history/chat_history_empty_state_widget.dart';
-import '../../widgets/search_bak/history/chat_history_item_widget.dart';
-import '../../widgets/search_bak/history/chat_history_skeleton_widget.dart';
-import '../../widgets/search_bak/history/new_chat_confirm_dialog.dart';
+import '../../widgets/search/history/chat_history_empty_state_widget.dart';
+import '../../widgets/search/history/chat_history_item_widget.dart';
+import '../../widgets/search/history/chat_history_skeleton_widget.dart';
+import '../../widgets/search/history/new_chat_confirm_dialog.dart';
 
 /// Chat History 页：与 TSX ChatHistorySidebar/ChatHistoryMobile 逻辑一致
 /// 含 Header、Search(Pro/Plus)、New Chat、列表( free→locked / basic→1+mock+upgrade / 加载|错误|空|列表 )、Footer、NewChatConfirmDialog
