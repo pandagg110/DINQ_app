@@ -9,35 +9,9 @@ import 'api_client.dart';
 class SearchService {
   final _dio = ApiClient.instance.dio;
 
-  /// POST /discover/chat/stream — 流式搜索，返回 SSE 事件流
-  /// [query] 搜索词，[mode] fast | research，[conversationId] 可选
-  Stream<Map<String, dynamic>> chatStream({
-    required String query,
-    String mode = 'research',
-    int? conversationId,
-  }) async* {
-    print('[SearchService.chatStream] query: $query, mode: $mode, conversationId: $conversationId');
-    final body = <String, dynamic>{
-      'query': query,
-      'mode': mode,
-    };
-    if (conversationId != null) body['conversation_id'] = conversationId;
-
-    final response = await _dio.post<ResponseBody>(
-      '/discover/chat/stream',
-      data: body,
-      options: Options(
-        responseType: ResponseType.stream,
-        receiveTimeout: const Duration(minutes: 5),
-      ),
-    );
-    print('[SearchService.chatStream] response: $response');
-
-    final responseBody = response.data;
-    if (responseBody is! ResponseBody) return;
+  /// 解析 Dio ResponseBody SSE 流为 JSON 事件
+  Stream<Map<String, dynamic>> _parseSseStream(ResponseBody responseBody) async* {
     final stream = responseBody.stream;
-
-    // 不用 transform(utf8.decoder)：Dio 的 stream 是 Stream<Uint8List>，与 Utf8Decoder 类型不兼容，改为逐 chunk 解码
     String buffer = '';
     await for (final chunk in stream) {
       buffer += utf8.decode(chunk);
@@ -50,26 +24,117 @@ class SearchService {
         final data = trimmed.substring(6);
         if (data == '[DONE]') return;
         try {
-          final map = jsonDecode(data) as Map<String, dynamic>;
-          yield map;
+          yield jsonDecode(data) as Map<String, dynamic>;
         } catch (_) {
           // ignore parse errors
         }
       }
     }
-    if (buffer.trim().isNotEmpty) {
-      final trimmed = buffer.trim();
-      if (trimmed.startsWith('data: ')) {
-        final data = trimmed.substring(6);
-        if (data != '[DONE]') {
-          try {
-            final map = jsonDecode(data) as Map<String, dynamic>;
-            print('[SearchService.chatStream] event: $map');
-            yield map;
-          } catch (_) {}
-        }
-      }
+    final trimmed = buffer.trim();
+    if (!trimmed.startsWith('data: ')) return;
+    final data = trimmed.substring(6);
+    if (data == '[DONE]') return;
+    try {
+      yield jsonDecode(data) as Map<String, dynamic>;
+    } catch (_) {
+      // ignore parse errors
     }
+  }
+
+  /// POST /scholar/deep-search/stream（主链路）;
+  /// 失败时回退到 /discover/chat/stream（兼容旧后端）
+  /// [query] 搜索词，[mode] fast | research
+  Stream<Map<String, dynamic>> chatStream({
+    String? query,
+    String mode = 'research',
+    int? conversationId,
+    String? sessionId,
+    String? attachment,
+    String modelProvider = 'anthropic',
+  }) async* {
+    final deepSearchBody = <String, dynamic>{
+      'scene': 'search_v2',
+      'model_provider': modelProvider,
+      'permission_mode': 'dontAsk',
+      'mode': mode,
+    };
+    if (query != null && query.trim().isNotEmpty) {
+      deepSearchBody['query'] = query.trim();
+    }
+    if (attachment != null && attachment.trim().isNotEmpty) {
+      deepSearchBody['attachment'] = attachment.trim();
+    }
+    if (conversationId != null) deepSearchBody['conversation_id'] = conversationId;
+    if (sessionId != null && sessionId.isNotEmpty) deepSearchBody['session_id'] = sessionId;
+
+    final streamOptions = Options(
+      responseType: ResponseType.stream,
+      receiveTimeout: const Duration(minutes: 8),
+    );
+
+    try {
+      final response = await _dio.post<ResponseBody>(
+        '/scholar/deep-search/stream',
+        data: deepSearchBody,
+        options: streamOptions,
+      );
+      final responseBody = response.data;
+      if (responseBody is ResponseBody) {
+        yield* _parseSseStream(responseBody);
+        return;
+      }
+    } catch (_) {
+      // fallback below
+    }
+
+    final legacyBody = <String, dynamic>{
+      if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+      'mode': mode,
+    };
+    if (conversationId != null) legacyBody['conversation_id'] = conversationId;
+    final fallback = await _dio.post<ResponseBody>(
+      '/discover/chat/stream',
+      data: legacyBody,
+      options: streamOptions,
+    );
+    final responseBody = fallback.data;
+    if (responseBody is! ResponseBody) return;
+    yield* _parseSseStream(responseBody);
+  }
+
+  /// POST /agent-recommendation/recommend-stream-simple?max_advisors=5
+  Stream<Map<String, dynamic>> advisorRecommendStream({
+    required String resumeUrl,
+    String? additionalInfo,
+    List<String>? preferredCountries,
+    int maxAdvisors = 5,
+  }) async* {
+    final body = <String, dynamic>{
+      'resume': resumeUrl,
+      if (additionalInfo != null && additionalInfo.trim().isNotEmpty)
+        'additional_info': additionalInfo.trim(),
+      if (preferredCountries != null && preferredCountries.isNotEmpty)
+        'preferred_country': preferredCountries,
+    };
+
+    final response = await _dio.post<ResponseBody>(
+      '/agent-recommendation/recommend-stream-simple',
+      queryParameters: {'max_advisors': maxAdvisors},
+      data: body,
+      options: Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(minutes: 8),
+      ),
+    );
+
+    final responseBody = response.data;
+    if (responseBody is! ResponseBody) return;
+    yield* _parseSseStream(responseBody);
+  }
+
+  /// POST /scholar/deep-search/{sessionId}/stop
+  Future<void> stopDeepSearch(String sessionId) async {
+    await _dio.post<void>('/scholar/deep-search/$sessionId/stop');
   }
 
   // ============== 聊天 ==============
@@ -119,6 +184,42 @@ class SearchService {
     final response = await _dio.post<Map<String, dynamic>>(
       '/discover/users/search',
       data: params,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// GET /citation/scholar-profile?author_name=...&limit=...
+  Future<Map<String, dynamic>> getScholarProfile({
+    required String authorName,
+    int limit = 20,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/citation/scholar-profile',
+      queryParameters: {'author_name': authorName, 'limit': limit},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// GET /citation/scholar-citations?query=...&citers_limit=...
+  Future<Map<String, dynamic>> getScholarCitations({
+    required String query,
+    int citersLimit = 20,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/citation/scholar-citations',
+      queryParameters: {'query': query, 'citers_limit': citersLimit},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// POST /citation/paper-citers
+  Future<Map<String, dynamic>> getPaperCiters({
+    required String paperIdentifier,
+    int limit = 20,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/citation/paper-citers',
+      data: {'paper_identifier': paperIdentifier, 'limit': limit},
     );
     return response.data as Map<String, dynamic>;
   }

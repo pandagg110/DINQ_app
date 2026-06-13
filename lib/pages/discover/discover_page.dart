@@ -99,21 +99,24 @@ class _SearchPageState extends State<SearchPage> {
         searchStore.clearExtraType();
       }
 
+      final convType = type ?? 'discover';
       final conversationId = int.tryParse(idText);
       searchStore.setCurrentConversationId(conversationId);
+      searchStore.clearPendingConversation();
       searchStore.setLoadingConversation(true);
+
       try {
         final detail = await chatHistoryStore.fetchConversationDetail(
           idText,
-          type ?? 'discover',
+          convType,
         );
         if (!mounted) return;
         if (detail != null) {
-          chatHistoryStore.setActiveConversationId(
-            idText,
-            type: type ?? 'discover',
-          );
-          searchStore.setPendingConversation(detail);
+          chatHistoryStore.setActiveConversationId(idText, type: convType);
+          searchStore.setPendingConversation({
+            ...detail,
+            if (!detail.containsKey('type')) 'type': convType,
+          });
         }
       } finally {
         if (mounted) {

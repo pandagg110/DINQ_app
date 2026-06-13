@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import '../../stores/search_store.dart';
+import '../../services/upload_service.dart';
 
 // Placeholder 常量
 const List<String> globalPlaceholders = [
@@ -284,6 +285,7 @@ class SearchBoxWidget extends StatefulWidget {
     this.onStop,
     this.loading = false,
     this.talentMode = 'global',
+    this.deepSearchMode = false,
     this.onTalentModeChange,
     this.onDinqSearchSubmit,
     this.onAdvisorSearch,
@@ -295,10 +297,17 @@ class SearchBoxWidget extends StatefulWidget {
     this.onChanged,
   });
 
-  final Function({required String query, bool simple}) onSearch;
+  final void Function({
+    required String query,
+    bool simple,
+    String? attachmentUrl,
+    String? attachmentName,
+  }) onSearch;
   final VoidCallback? onStop;
   final bool loading;
   final String talentMode; // 'global' or 'dinq'
+  /// 有消息时切换为 Deep Search 输入模式（Ask placeholder、隐藏 talent toggle）
+  final bool deepSearchMode;
   /// 输入内容变化时回调（便于父组件监听输入）
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onTalentModeChange;
@@ -329,7 +338,17 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   bool _advisorUploading = false;
   String _advisorUploadError = '';
   List<String> _advisorCountries = [];
+
+  // Deep search attachment states
+  String _deepSearchAttachmentUrl = '';
+  String _deepSearchAttachmentName = '';
+  bool _deepSearchUploading = false;
   // bool _showCountryModal = false; // TODO: 实现国家选择模态框时使用
+
+  String _fileNameOf(String path) {
+    final parts = path.split(RegExp(r'[\\/]'));
+    return parts.isNotEmpty ? parts.last : path;
+  }
 
   @override
   void initState() {
@@ -402,6 +421,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
 
   List<String> _currentPlaceholders(BuildContext context) {
     final searchStore = context.read<SearchStore>();
+    if (widget.deepSearchMode && searchStore.activeTool == null) {
+      return const ['Ask'];
+    }
     if (searchStore.activeTool == 'find-advisor') {
       return advisorPlaceholders;
     }
@@ -409,6 +431,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   }
 
   String _currentPlaceholder(BuildContext context) {
+    if (widget.deepSearchMode) return 'Ask';
     return _currentPlaceholders(context)[_placeholderIndex];
   }
 
@@ -420,7 +443,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       widget.onAdvisorSearch?.call(
         AdvisorFormData(
           resumeUrl: _advisorResumeUrl,
-          resumeName: _advisorFile?.path.split('/').last,
+          resumeName: _advisorFile == null ? null : _fileNameOf(_advisorFile!.path),
           additionalInfo: _controller.text.trim(),
           countries: _advisorCountries,
           maxAdvisors: 5,
@@ -441,20 +464,80 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     }
 
     final query = _controller.text.trim();
-    if (query.isEmpty) return;
+    final hasAttachment = _deepSearchAttachmentUrl.isNotEmpty && !_deepSearchUploading;
+    if (query.isEmpty && !hasAttachment) return;
 
     // DINQ 模式
-    if (widget.talentMode == 'dinq' && widget.onDinqSearchSubmit != null) {
+    if (!widget.deepSearchMode &&
+        widget.talentMode == 'dinq' &&
+        widget.onDinqSearchSubmit != null) {
       widget.onDinqSearchSubmit!(query);
       _controller.clear();
       _adjustHeight();
       return;
     }
 
-    // Global 模式
-    widget.onSearch(query: query, simple: simple);
+    // Global / Deep Search 模式
+    widget.onSearch(
+      query: query,
+      simple: simple,
+      attachmentUrl: hasAttachment ? _deepSearchAttachmentUrl : null,
+      attachmentName: _deepSearchAttachmentName.isNotEmpty
+          ? _deepSearchAttachmentName
+          : null,
+    );
     _controller.clear();
+    setState(() {
+      _deepSearchAttachmentUrl = '';
+      _deepSearchAttachmentName = '';
+      _deepSearchUploading = false;
+    });
     _adjustHeight();
+  }
+
+  Future<void> _handleDeepSearchFileSelect() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (result == null || result.files.single.path == null) return;
+
+      final file = File(result.files.single.path!);
+      if (file.lengthSync() > 10 * 1024 * 1024) return;
+
+      setState(() {
+        _deepSearchAttachmentName = _fileNameOf(file.path);
+        _deepSearchUploading = true;
+      });
+
+      final bytes = await file.readAsBytes();
+      final url = await UploadService().uploadFile(
+        bytes: bytes,
+        filename: _deepSearchAttachmentName,
+        contentType: 'application/pdf',
+      );
+      if (!mounted) return;
+      setState(() {
+        _deepSearchAttachmentUrl = url;
+        _deepSearchUploading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _deepSearchAttachmentUrl = '';
+        _deepSearchAttachmentName = '';
+        _deepSearchUploading = false;
+      });
+    }
+  }
+
+  void _handleRemoveDeepSearchFile() {
+    setState(() {
+      _deepSearchAttachmentUrl = '';
+      _deepSearchAttachmentName = '';
+      _deepSearchUploading = false;
+    });
   }
 
   Future<void> _handleFileSelect() async {
@@ -482,17 +565,16 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
         _advisorUploading = true;
       });
 
-      // TODO: 实现文件上传 API
-      // final url = await uploadApi.uploadFile(file);
-      // setState(() {
-      //   _advisorResumeUrl = url;
-      //   _advisorUploading = false;
-      // });
+      final bytes = await file.readAsBytes();
+      final fileName = _fileNameOf(file.path);
+      final url = await UploadService().uploadFile(
+        bytes: bytes,
+        filename: fileName,
+        contentType: 'application/pdf',
+      );
 
-      // 临时：模拟上传
-      await Future.delayed(const Duration(seconds: 1));
       setState(() {
-        _advisorResumeUrl = 'temp_url_${file.path}';
+        _advisorResumeUrl = url;
         _advisorUploading = false;
       });
     } catch (e) {
@@ -586,7 +668,8 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
         final isGlass = widget.variant == 'glass';
         final canSearch = searchStore.activeTool == 'find-advisor'
             ? (_advisorResumeUrl.isNotEmpty && !_advisorUploading)
-            : _controller.text.trim().isNotEmpty;
+            : (_controller.text.trim().isNotEmpty ||
+                (_deepSearchAttachmentUrl.isNotEmpty && !_deepSearchUploading));
 
         return GestureDetector(
           onTap: () {
@@ -642,6 +725,13 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                         children: [
                           if (searchStore.activeTool == 'find-advisor')
                             _buildAdvisorOptions(),
+                          if (widget.deepSearchMode &&
+                              (_deepSearchAttachmentName.isNotEmpty ||
+                                  _deepSearchUploading))
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                              child: _buildDeepSearchAttachmentChip(),
+                            ),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                             child: ConstrainedBox(
@@ -745,7 +835,21 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                     children: [
                                       Row(
                                         children: [
-                                          if (searchStore.activeTool == null)
+                                          if (widget.deepSearchMode &&
+                                              searchStore.activeTool == null)
+                                            IconButton(
+                                              onPressed: _deepSearchUploading
+                                                  ? null
+                                                  : _handleDeepSearchFileSelect,
+                                              icon: const Icon(Icons.add, size: 18),
+                                              color: const Color(0xFF6B6862),
+                                              style: IconButton.styleFrom(
+                                                minimumSize: const Size(32, 32),
+                                                padding: EdgeInsets.zero,
+                                              ),
+                                            ),
+                                          if (!widget.deepSearchMode &&
+                                              searchStore.activeTool == null)
                                             _buildTalentModeSelector(),
                                           // if (searchStore.activeTool == null)
                                           //   const SizedBox(width: 8),
@@ -802,6 +906,47 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDeepSearchAttachmentChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F4F0),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E3DE)),
+      ),
+      child: Row(
+        children: [
+          _buildPdfIconWithBadge(),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _deepSearchAttachmentName.isNotEmpty
+                  ? _deepSearchAttachmentName
+                  : 'Uploading...',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF2A2826)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (_deepSearchUploading)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            IconButton(
+              onPressed: _handleRemoveDeepSearchFile,
+              icon: const Icon(Icons.close, size: 16),
+              color: const Color(0xFF6B6862),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1003,7 +1148,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    _advisorFile!.path.split('/').last,
+                                    _fileNameOf(_advisorFile!.path),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,

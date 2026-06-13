@@ -139,8 +139,18 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         });
   }
 
-  void _handleSearch({required String query, bool simple = false}) {
-    _logic?.handleSearch(query: query, simple: simple);
+  void _handleSearch({
+    required String query,
+    bool simple = false,
+    String? attachmentUrl,
+    String? attachmentName,
+  }) {
+    _logic?.handleSearch(
+      query: query,
+      simple: simple,
+      attachmentUrl: attachmentUrl,
+      attachmentName: attachmentName,
+    );
     setState(() => _isNearBottom = true);
   }
 
@@ -150,7 +160,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   }
 
   void _handleAdvisorSearch(AdvisorFormData data) {
-    _logic?.handleAdvisorSearch();
+    _logic?.handleAdvisorSearch(data);
     setState(() => _isNearBottom = true);
   }
 
@@ -202,6 +212,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
           builder: (context, __) {
             final messageGroups = logic.messageGroups;
             final hasMessages = messageGroups.isNotEmpty;
+            final isToolActive =
+                (searchStore.activeTool ?? _activeTool) != null;
+            final showContentArea = hasMessages || isToolActive;
             final showSkeleton =
                 searchStore.isLoadingConversation && !hasMessages;
             final bgColor = (hasMessages || showSkeleton)
@@ -230,7 +243,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                       behavior: HitTestBehavior.translucent,
                       child: showSkeleton
                           ? _buildConversationSkeleton()
-                          : hasMessages
+                          : showContentArea
                           ? _buildMessagesArea(logic)
                           : const SizedBox.shrink(),
                     ),
@@ -244,7 +257,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                       userName: userName,
                       logic: logic,
                       searchStore: searchStore,
-                      hasMessages: hasMessages,
+                      showWelcome: !showContentArea,
                     ),
                   ),
                 ],
@@ -352,47 +365,65 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         controller: _scrollController,
         thumbVisibility: true,
         interactive: true,
-        child: NestedScrollView(
+        child: ListView(
+          controller: _scrollController,
           physics: const ClampingScrollPhysics(),
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [],
-          body: ListView(
-            physics: const ClampingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            children: [
-            for (var i = 0; i < groups.length; i++)
-              MessageGroupView(
-                key: ValueKey(groups[i].id),
-                group: MessageGroupData(
-                  id: groups[i].id,
-                  userQuery: groups[i].userQuery,
-                  loading: groups[i].loading,
-                  candidates: groups[i].candidates,
-                  searchType: groups[i].searchType ?? 'global',
-                  thinkingSteps: groups[i].thinkingSteps,
-                  thinkingExpanded: groups[i].thinkingExpanded,
-                  dinqResults: groups[i].dinqResults,
-                  advisorResults: groups[i].advisorResults,
-                  pdfAttachment: groups[i].pdfAttachment,
-                  llmMessage: groups[i].llmMessage,
-                  summary: groups[i].summary,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          children: [
+            for (var i = 0; i < groups.length; i++) ...[
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 768),
+                  child: MessageGroupView(
+                    key: ValueKey(groups[i].id),
+                    group: MessageGroupData(
+                      id: groups[i].id,
+                      userQuery: groups[i].userQuery,
+                      loading: groups[i].loading,
+                      candidates: groups[i].candidates,
+                      searchType: groups[i].searchType ?? 'global',
+                      thinkingSteps: groups[i].thinkingSteps,
+                      thinkingExpanded: groups[i].thinkingExpanded,
+                      dinqResults: groups[i].dinqResults,
+                      advisorResults: groups[i].advisorResults,
+                      pdfAttachment: groups[i].pdfAttachment,
+                      llmMessage: groups[i].llmMessage,
+                      summary: groups[i].summary,
+                      assistantText: groups[i].assistantText,
+                      assistantStreaming: groups[i].assistantStreaming,
+                      quickRepliesUsed: groups[i].quickRepliesUsed,
+                      isDeepSearch: groups[i].isDeepSearch,
+                      deepSearchToolCount: groups[i].deepSearchToolCount,
+                      deepSearchDurationMs: groups[i].deepSearchDurationMs,
+                      searchCompleted: groups[i].searchCompleted,
+                      subAgents: groups[i].subAgents,
+                    ),
+                    onToggleThinking: () =>
+                        logic.setThinkingExpanded(groups[i].id),
+                    onQuickReplySelect: i == groups.length - 1
+                        ? (option) {
+                            logic.markQuickRepliesUsed(groups[i].id);
+                            _handleSearch(query: option);
+                          }
+                        : null,
+                    onCandidateClick: (candidate, index, groupId) {
+                      final store = context.read<SearchStore>();
+                      final tabId = store.openTabWithClick(
+                        candidate,
+                        index: index,
+                        groupId: groupId,
+                        matchByName: true,
+                      );
+                      if (tabId != null) store.setTabPanelOpen(true);
+                    },
+                    isLatest: i == groups.length - 1,
+                  ),
                 ),
-                onToggleThinking: () => logic.setThinkingExpanded(groups[i].id),
-                onCandidateClick: (candidate, index, groupId) {
-                  final store = context.read<SearchStore>();
-                  final tabId = store.openTabWithClick(
-                    candidate,
-                    index: index,
-                    groupId: groupId,
-                    matchByName: true,
-                  );
-                  if (tabId != null) store.setTabPanelOpen(true);
-                },
-                isLatest: i == groups.length - 1,
               ),
+            ],
             Container(key: _messagesEndKey, height: 80),
           ],
         ),
-      ),
       ),
     );
   }
@@ -505,13 +536,16 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     required String userName,
     required AgenticSearchLogic logic,
     required SearchStore searchStore,
-    required bool hasMessages,
+    required bool showWelcome,
   }) {
+    final hasMessages = logic.messageGroups.isNotEmpty;
+    final deepSearchMode = hasMessages && searchStore.activeTool == null;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Welcome 和 Prompt Templates（只在没有消息时显示）
-        if (!hasMessages) ...[
+        if (showWelcome) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -582,7 +616,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (searchStore.activeTool != 'find-advisor')
+              if (!hasMessages && searchStore.activeTool != 'find-advisor')
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
@@ -597,7 +631,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                     ),
                   ),
                 ),
-              if (searchStore.activeTool != 'find-advisor')
+              if (!hasMessages && searchStore.activeTool != 'find-advisor')
                 const SizedBox(height: 16),
               Center(
                 child: Container(
@@ -618,6 +652,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                     onStop: _handleStop,
                     loading: logic.loading,
                     talentMode: _talentMode,
+                    deepSearchMode: deepSearchMode,
                     onTalentModeChange: (mode) {
                       setState(() {
                         _talentMode = mode;

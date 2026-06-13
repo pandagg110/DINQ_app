@@ -3,6 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/search_service.dart';
 import '../../stores/search_store.dart';
+import '../../utils/parse_quick_replies.dart';
+import 'deep_search/deep_search_event_handlers.dart';
+import 'deep_search/deep_search_models.dart';
+import 'deep_search/sub_agent_helpers.dart';
+import 'search_box_widget.dart';
 
 /// 单条搜索消息组（与 TSX MessageGroup 对应）
 class AgenticMessageGroup {
@@ -45,6 +50,30 @@ class AgenticMessageGroup {
 
   /// 流式 completed 事件的 data.summary
   String? summary;
+
+  /// Deep Search text_delta 累积的 assistant 叙述
+  String assistantText = '';
+
+  /// text_delta 流式中
+  bool assistantStreaming = false;
+
+  /// 快捷回复已使用（隐藏按钮）
+  bool quickRepliesUsed = false;
+
+  /// 是否走 deep-search 事件模型（text_delta / tool_message）
+  bool isDeepSearch = false;
+
+  /// Deep Search 工具调用次数（与 TSX toolCount 一致）
+  int deepSearchToolCount = 0;
+
+  /// Deep Search 耗时 ms（done 事件 duration_ms）
+  int? deepSearchDurationMs;
+
+  /// 与 TSX SearchRound.subAgents 对齐
+  Map<String, SubAgentInfo> subAgents = {};
+
+  /// 多 agent fallback 时的 round.contentBlocks
+  List<MessagePart> contentBlocks = [];
 }
 
 /// 与 TSX useAgenticSearch 对应：搜索状态与流式/会话逻辑集中在此文件
@@ -66,6 +95,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   bool loading = false;
   bool advisorLoading = false;
   StreamSubscription? _streamSubscription;
+  String? _activeSessionId;
 
   static List<Map<String, dynamic>> _mergeCandidates(
     List<Map<String, dynamic>> oldList,
@@ -152,6 +182,32 @@ class AgenticSearchLogic extends ChangeNotifier {
   }
 
   /// 与 TSX shouldIgnore（llm_end）一致
+  /// 与 TSX attachmentPreviewFromUrl 一致
+  static Map<String, dynamic>? attachmentFromUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+    final trimmed = url.trim();
+    var pathname = trimmed;
+    try {
+      pathname = Uri.parse(trimmed).path;
+    } catch (_) {}
+    final segments = pathname.split('/').where((s) => s.isNotEmpty).toList();
+    final rawName = segments.isNotEmpty ? segments.last : 'Attachment';
+    final name = Uri.decodeComponent(rawName);
+    return {'url': trimmed, 'name': name};
+  }
+
+  static Map<String, dynamic> _candidateRowToScholar(Map<String, dynamic> row) {
+    return {
+      'name': row['name'] ?? '',
+      'company': row['company'] ?? '',
+      'position': row['title'] ?? row['position'] ?? '',
+      'one_liner': row['evidence'] ?? row['one_liner'] ?? '',
+      if (row['profile_url'] != null) 'profile_url': row['profile_url'],
+      if (row['confidence'] != null) 'confidence': row['confidence'],
+      if (row['image_url'] != null) 'image_url': row['image_url'],
+    };
+  }
+
   static bool _shouldIgnoreLlmMessage(String? message) {
     if (message == null || message.trim().isEmpty) return true;
     const exactMatch = ['done', 'ok', 'success'];
@@ -197,6 +253,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     final idx = messageGroups.indexWhere((g) => g.id == groupId);
     if (idx < 0) return;
     final g = messageGroups[idx];
+    // Deep Search 走 text_delta / tool_message，不走 legacy thinkingSteps
+    if (g.isDeepSearch) return;
     if (g.searchCompleted) return;
 
     switch (type) {
@@ -244,6 +302,7 @@ class AgenticSearchLogic extends ChangeNotifier {
           if (!_shouldIgnoreLlmMessage(message) &&
               message != null &&
               message.isNotEmpty) {
+            g.assistantText = g.assistantText.isEmpty ? message : g.assistantText;
             g.thinkingSteps.add({
               'id': _generateStepId(),
               'type': 'thinking',
@@ -352,6 +411,7 @@ class AgenticSearchLogic extends ChangeNotifier {
 
       case 'current_results':
         {
+          if (g.isDeepSearch) return;
           final data = event['data'];
           final scholars = data is Map ? data['scholars'] : null;
           if (scholars is! List) return;
@@ -380,6 +440,221 @@ class AgenticSearchLogic extends ChangeNotifier {
         notifyListeners();
         break;
     }
+  }
+
+  /// 与 TSX dispatchStreamEvent 中 deep-search 事件一致
+  void _processDeepSearchEvent(int groupId, Map<String, dynamic> event) {
+    final type = event['type'] as String?;
+    if (type == null) return;
+
+    final idx = messageGroups.indexWhere((g) => g.id == groupId);
+    if (idx < 0) return;
+    final g = messageGroups[idx];
+    if (g.searchCompleted && type != 'done' && type != 'error') return;
+
+    if (!g.isDeepSearch) {
+      g.isDeepSearch = true;
+      g.thinkingSteps = [];
+    }
+
+    final dispatcher = DeepSearchEventDispatcher(
+      subAgents: g.subAgents,
+      contentBlocks: g.contentBlocks,
+      onCandidatesChanged: (candidates) {
+        final scholars = candidates.map(_candidateRowToScholar).toList();
+        final merged = _mergeCandidates(g.candidates, scholars);
+        g.candidates = merged;
+        g.quickRepliesUsed = true;
+        if (searchStore.openTabs.isEmpty) {
+          searchStore.setTabsFromCandidates(merged);
+        } else {
+          searchStore.syncCandidatesToTabs(merged);
+        }
+      },
+      onSessionId: (sessionId) {
+        if (sessionId.isNotEmpty) _activeSessionId = sessionId;
+      },
+      onDurationMs: (ms) => g.deepSearchDurationMs = ms,
+      onError: (message) {
+        if (g.assistantText.isEmpty) g.assistantText = message;
+      },
+      onStatusChange: (status) {
+        switch (status) {
+          case DeepSearchRoundStatus.searching:
+            g.loading = true;
+            g.assistantStreaming = true;
+          case DeepSearchRoundStatus.done:
+            g.searchCompleted = true;
+            g.loading = false;
+            g.assistantStreaming = false;
+            g.thinkingSteps = [];
+          case DeepSearchRoundStatus.error:
+          case DeepSearchRoundStatus.interrupted:
+            g.searchCompleted = true;
+            g.loading = false;
+            g.assistantStreaming = false;
+          case DeepSearchRoundStatus.idle:
+            break;
+        }
+      },
+    )..setCandidates(g.candidates);
+
+    dispatcher.dispatch(event);
+    g.subAgents = dispatcher.subAgents;
+    g.contentBlocks = dispatcher.contentBlocks;
+    g.deepSearchToolCount = countToolCalls(
+      g.subAgents[virtualAgentId]?.contentBlocks ?? g.contentBlocks,
+    );
+
+    if (type == 'text_delta') {
+      g.assistantStreaming = true;
+    } else if (type == 'text' || type == 'done') {
+      g.assistantStreaming = false;
+    }
+
+    final summaryText = getSingleAgentSummaryText(g.subAgents);
+    if (summaryText.isNotEmpty) {
+      g.assistantText = summaryText;
+    } else if (type == 'text_delta') {
+      g.assistantText += event['content']?.toString() ?? '';
+    }
+
+    if (type == 'session' || type == 'session_meta') {
+      final convId = event['conversation_id'] ?? event['session_id'];
+      if (convId != null) {
+        final id = convId is int ? convId : int.tryParse(convId.toString());
+        if (id != null) searchStore.setCurrentConversationId(id);
+      }
+    }
+
+    notifyListeners();
+  }
+
+  void _replayDeepSearchEvents(AgenticMessageGroup group, List<dynamic> sseEvents) {
+    final dispatcher = DeepSearchEventDispatcher(
+      subAgents: group.subAgents,
+      contentBlocks: group.contentBlocks,
+      onCandidatesChanged: (candidates) {
+        group.candidates = candidates.map(_candidateRowToScholar).toList();
+      },
+      onDurationMs: (ms) => group.deepSearchDurationMs = ms,
+      onStatusChange: (status) {
+        if (status == DeepSearchRoundStatus.done) {
+          group.searchCompleted = true;
+          group.loading = false;
+        }
+      },
+    )..setCandidates(group.candidates);
+
+    for (final ev in sseEvents) {
+      if (ev is! Map) continue;
+      dispatcher.dispatchHistoryEvent(Map<String, dynamic>.from(ev));
+    }
+    dispatcher.finalizeHistoryReplay();
+
+    group.subAgents = dispatcher.subAgents;
+    group.contentBlocks = dispatcher.contentBlocks;
+    group.isDeepSearch = group.subAgents.isNotEmpty;
+    group.deepSearchToolCount = countToolCalls(
+      group.subAgents[virtualAgentId]?.contentBlocks ?? group.contentBlocks,
+    );
+    final summaryText = getSingleAgentSummaryText(group.subAgents);
+    if (summaryText.isNotEmpty) {
+      group.assistantText = summaryText;
+    } else if (group.assistantText.isEmpty) {
+      group.assistantText = dispatcher.candidates.isNotEmpty
+          ? ''
+          : group.assistantText;
+    }
+  }
+
+  /// 与 TSX restoreDiscover SSE 回放一致
+  ({String assistantText, List<Map<String, dynamic>> candidates, bool isDeepSearch, int toolCount, int? durationMs})
+  _replaySseEvents(List<dynamic> sseEvents) {
+    var text = '';
+    var isDeep = false;
+    var toolCount = 0;
+    int? durationMs;
+    final rows = <Map<String, dynamic>>[];
+
+    for (final ev in sseEvents) {
+      if (ev is! Map) continue;
+      final type = ev['type']?.toString();
+      switch (type) {
+        case 'text_delta':
+          isDeep = true;
+          text += ev['content']?.toString() ?? '';
+          break;
+        case 'text':
+          isDeep = true;
+          final content = ev['content']?.toString() ?? '';
+          if (content.isNotEmpty) {
+            if (text.isEmpty) {
+              text = content;
+            } else if (!text.endsWith('\n\n')) {
+              text = '${text.trimRight()}\n\n$content';
+            } else {
+              text += content;
+            }
+          } else if (text.isNotEmpty && !text.endsWith('\n\n')) {
+            text = '${text.trimRight()}\n\n';
+          }
+          break;
+        case 'tool_use':
+        case 'tool_result':
+          isDeep = true;
+          if (type == 'tool_use') toolCount += 1;
+          break;
+        case 'tool_call':
+          {
+            final toolName = ev['tool_name']?.toString() ?? '';
+            if (toolName.contains('mcp__') || toolName.contains('talent_search')) {
+              isDeep = true;
+              toolCount += 1;
+            }
+            break;
+          }
+        case 'session':
+        case 'session_meta':
+          isDeep = true;
+          break;
+        case 'done':
+          isDeep = true;
+          final d = ev['duration_ms'];
+          if (d is int) {
+            durationMs = d;
+          } else if (d != null) {
+            durationMs = int.tryParse(d.toString());
+          }
+          break;
+        case 'tool_message':
+          isDeep = true;
+          final data = ev['data'];
+          if (data is Map && data['action']?.toString() == 'add_row') {
+            final row = data['row'];
+            if (row is Map) {
+              rows.add(_candidateRowToScholar(Map<String, dynamic>.from(row)));
+            }
+          }
+          break;
+        case 'llm_end':
+          final message = ev['message']?.toString().trim() ?? '';
+          if (!_shouldIgnoreLlmMessage(message) && message.isNotEmpty) {
+            if (text.isEmpty) text = message;
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+    return (
+      assistantText: text,
+      candidates: rows,
+      isDeepSearch: isDeep,
+      toolCount: toolCount,
+      durationMs: durationMs,
+    );
   }
 
   /// 将 sse_events 转为 thinkingSteps（与 TSX convertSseEventsToThinkingSteps 一致）
@@ -479,20 +754,46 @@ class AgenticSearchLogic extends ChangeNotifier {
     return steps;
   }
 
-  /// 与 TSX loadFromConversation 一致（含 recordToMessageGroup：sse_events -> thinkingSteps，searchCompleted: true）
+  /// 与 TSX restoreConversation / loadFromConversation 一致
   void loadFromConversation(Map<String, dynamic> conversation) {
     final records = conversation['records'];
     if (records is! List) return;
-    final convId = conversation['id'];
+
+    final convType =
+        (conversation['type'] as String?) ?? searchStore.extraType ?? 'discover';
+
+    final convId = conversation['session_id'] ?? conversation['id'];
     if (convId != null) {
+      _activeSessionId = convId.toString();
       final id = convId is int ? convId : int.tryParse(convId.toString());
       if (id != null) searchStore.setCurrentConversationId(id);
     }
+
+    // 与 dinq-client restoreMatch / restoreCitation / restoreAnalyze 对齐 activeTool
+    switch (convType) {
+      case 'match':
+        searchStore.setActiveTool('find-advisor');
+        break;
+      case 'citation':
+        searchStore.setActiveTool('who-cites-me');
+        break;
+      case 'analyze':
+        searchStore.setActiveTool('analysis');
+        break;
+      default:
+        searchStore.clearActiveTool();
+    }
+
     final groups = <AgenticMessageGroup>[];
     for (final r in records) {
       if (r is! Map<String, dynamic>) continue;
       final id = r['id'];
-      final query = r['query'] as String? ?? '';
+      final rawQuery = r['query'];
+      final query = rawQuery is String
+          ? rawQuery
+          : (rawQuery is Map ? rawQuery['name']?.toString() : null) ??
+                conversation['title']?.toString() ??
+                '';
       final searchType = r['search_type'] as String?;
       final result = r['result'];
       final sseEvents = r['sse_events'] as List<dynamic>?;
@@ -500,7 +801,21 @@ class AgenticSearchLogic extends ChangeNotifier {
 
       List<Map<String, dynamic>> candidates = [];
       List<Map<String, dynamic>>? dinqResults;
-      if (result is List) {
+      List<Map<String, dynamic>>? advisorResults;
+      Map<String, dynamic>? pdfAttachment;
+
+      if (convType == 'match' && result is Map<String, dynamic>) {
+        final advisors = result['advisors'];
+        if (advisors is List) {
+          advisorResults = advisors
+              .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
+              .toList();
+        }
+        final pdf = result['pdfAttachment'];
+        if (pdf is Map<String, dynamic>) {
+          pdfAttachment = Map<String, dynamic>.from(pdf);
+        }
+      } else if (result is List) {
         final list = result
             .map(
               (e) => e is Map<String, dynamic>
@@ -519,14 +834,36 @@ class AgenticSearchLogic extends ChangeNotifier {
       final groupId = id is int
           ? id
           : (id != null ? int.tryParse(id.toString()) : null) ?? 0;
-      final st = searchType == 'people_search'
-          ? 'dinq'
-          : (searchType ?? 'global');
+
+      String st;
+      if (convType == 'match') {
+        st = 'advisor';
+      } else if (searchType == 'people_search') {
+        st = 'dinq';
+      } else {
+        st = searchType ?? 'global';
+      }
 
       List<Map<String, dynamic>> thinkingSteps;
+      String assistantText = '';
+      bool isDeepSearch = false;
+      var deepSearchToolCount = 0;
+      int? deepSearchDurationMs;
+
       if (sseEvents != null && sseEvents.isNotEmpty) {
-        thinkingSteps = _convertSseEventsToThinkingSteps(sseEvents, groupId);
+        final replay = _replaySseEvents(sseEvents);
+        assistantText = replay.assistantText;
+        isDeepSearch = replay.isDeepSearch;
+        deepSearchToolCount = replay.toolCount;
+        deepSearchDurationMs = replay.durationMs;
+        if (replay.candidates.isNotEmpty && candidates.isEmpty) {
+          candidates = replay.candidates;
+        }
+        thinkingSteps = isDeepSearch
+            ? []
+            : _convertSseEventsToThinkingSteps(sseEvents, groupId);
       } else if (summary != null && summary.trim().isNotEmpty) {
+        assistantText = summary.trim();
         thinkingSteps = [
           {
             'id': 'history-summary-$groupId',
@@ -535,26 +872,82 @@ class AgenticSearchLogic extends ChangeNotifier {
             'completed': true,
           },
         ];
+      } else if (convType == 'citation' && result != null) {
+        thinkingSteps = [
+          {
+            'id': 'history-citation-$groupId',
+            'type': 'thinking',
+            'content': 'Citation results loaded from history.',
+            'completed': true,
+          },
+        ];
       } else {
         thinkingSteps = [];
       }
 
-      groups.add(
-        AgenticMessageGroup(
-          id: groupId,
-          userQuery: query,
-          loading: false,
-          candidates: candidates,
-          dinqResults: dinqResults,
-          searchType: st,
-          thinkingSteps: thinkingSteps,
-          thinkingExpanded: false,
-          searchCompleted: true,
-        ),
+      final attachment = r['attachment'];
+      if (pdfAttachment == null && attachment is String && attachment.isNotEmpty) {
+        pdfAttachment = attachmentFromUrl(attachment);
+      }
+
+      final group = AgenticMessageGroup(
+        id: groupId,
+        userQuery: query,
+        loading: false,
+        candidates: candidates,
+        dinqResults: dinqResults,
+        searchType: st,
+        thinkingSteps: thinkingSteps,
+        thinkingExpanded: false,
+        searchCompleted: true,
+        advisorResults: advisorResults,
+        pdfAttachment: pdfAttachment,
       );
+      group.assistantText = assistantText;
+      group.isDeepSearch = isDeepSearch;
+      group.deepSearchToolCount = deepSearchToolCount;
+      group.deepSearchDurationMs = deepSearchDurationMs;
+
+      if (sseEvents != null &&
+          sseEvents.isNotEmpty &&
+          (convType == 'discover' || st == 'global')) {
+        _replayDeepSearchEvents(group, sseEvents);
+        if (group.assistantText.isEmpty && assistantText.isNotEmpty) {
+          group.assistantText = assistantText;
+        }
+        group.deepSearchToolCount = countToolCalls(
+          group.subAgents[virtualAgentId]?.contentBlocks ?? group.contentBlocks,
+        );
+      }
+
+      groups.add(group);
     }
+
+    // 已有后续消息或已搜索的轮次，隐藏快捷回复按钮
+    for (var i = 0; i < groups.length; i++) {
+      final g = groups[i];
+      final hasOptions =
+          parseQuickReplies(g.assistantText).options.isNotEmpty;
+      if (!hasOptions) continue;
+      if (i < groups.length - 1) {
+        g.quickRepliesUsed = true;
+        continue;
+      }
+      if (g.candidates.isNotEmpty || g.searchCompleted) {
+        g.quickRepliesUsed = true;
+      }
+      if (i > 0) {
+        final prev = groups[i - 1];
+        final options = parseQuickReplies(prev.assistantText).options;
+        if (options.contains(g.userQuery.trim())) {
+          prev.quickRepliesUsed = true;
+        }
+      }
+    }
+
     messageGroups = groups;
     loading = false;
+    advisorLoading = false;
     searchStore.loadConversation(conversation);
     notifyListeners();
   }
@@ -563,6 +956,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   void clearMessages() {
     _streamSubscription?.cancel();
     _streamSubscription = null;
+    _activeSessionId = null;
     searchStore.setCurrentConversationId(null);
     messageGroups = [];
     loading = false;
@@ -571,20 +965,37 @@ class AgenticSearchLogic extends ChangeNotifier {
   }
 
   /// 与 TSX handleSearch 一致
-  void handleSearch({required String query, bool simple = false}) {
-    if (query.trim().isEmpty) return;
+  void handleSearch({
+    required String query,
+    bool simple = false,
+    String? attachmentUrl,
+    String? attachmentName,
+  }) {
+    final trimmedQuery = query.trim();
+    final attachment = attachmentUrl?.trim();
+    if (trimmedQuery.isEmpty && (attachment == null || attachment.isEmpty)) return;
 
     searchStore.setIsSearching(true);
     final groupId = DateTime.now().millisecondsSinceEpoch;
     final group = AgenticMessageGroup(
       id: groupId,
-      userQuery: query.trim(),
+      userQuery: trimmedQuery.isNotEmpty
+          ? trimmedQuery
+          : (attachmentName ?? 'Attachment'),
       loading: true,
       candidates: [],
       searchType: 'global',
       thinkingSteps: [],
       thinkingExpanded: false,
       searchCompleted: false,
+      pdfAttachment: attachment != null && attachment.isNotEmpty
+          ? {
+              'url': attachment,
+              'name': attachmentName ??
+                  attachmentFromUrl(attachment)?['name'] ??
+                  'Attachment',
+            }
+          : null,
     );
 
     messageGroups = [...messageGroups, group];
@@ -592,9 +1003,11 @@ class AgenticSearchLogic extends ChangeNotifier {
     notifyListeners();
 
     final stream = searchService.chatStream(
-      query: query.trim(),
+      query: trimmedQuery.isNotEmpty ? trimmedQuery : null,
       mode: simple ? 'fast' : 'research',
       conversationId: searchStore.currentConversationId,
+      sessionId: _activeSessionId,
+      attachment: attachment,
     );
 
     _streamSubscription?.cancel();
@@ -603,13 +1016,30 @@ class AgenticSearchLogic extends ChangeNotifier {
         final type = event['type'] as String?;
         if (type == null) return;
 
-        // 与 TSX processStreamEvent 一致的事件类型
         switch (type) {
+          case 'text_delta':
+          case 'text':
+          case 'session':
+          case 'session_meta':
+          case 'tool_message':
+          case 'tool_use':
+          case 'tool_result':
+          case 'thinking_delta':
+          case 'thinking':
+          case 'subagent_start':
+          case 'subagent_event':
+          case 'subagent_end':
+          case 'done':
+          case 'error':
+          case 'status':
+          case 'system':
+          case 'interrupted':
+            _processDeepSearchEvent(groupId, event);
+            break;
           case 'started':
           case 'llm_start':
           case 'llm_end':
           case 'tool_call':
-          case 'tool_result':
           case 'current_results':
           case 'search_completed':
             _processStreamEvent(groupId, event);
@@ -647,6 +1077,9 @@ class AgenticSearchLogic extends ChangeNotifier {
                 }
               }
               messageGroups[idx].loading = false;
+              if (messageGroups[idx].isDeepSearch) {
+                messageGroups[idx].thinkingSteps = [];
+              }
             }
             notifyListeners();
             break;
@@ -659,6 +1092,10 @@ class AgenticSearchLogic extends ChangeNotifier {
           final data = event['data'];
           if (data is Map) {
             final convId = data['conversation_id'] ?? data['session_id'];
+            final sessionId = data['session_id'];
+            if (sessionId != null && sessionId.toString().trim().isNotEmpty) {
+              _activeSessionId = sessionId.toString();
+            }
             if (convId != null) {
               final id = convId is int
                   ? convId
@@ -674,8 +1111,12 @@ class AgenticSearchLogic extends ChangeNotifier {
             ? messageGroups[idx].candidates
             : <Map<String, dynamic>>[];
         loading = false;
-        if (idx >= 0) messageGroups[idx].loading = false;
-        onSearchComplete?.call(finalCandidates, query.trim());
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].assistantStreaming = false;
+        }
+        final finalQuery = idx >= 0 ? messageGroups[idx].userQuery : trimmedQuery;
+        onSearchComplete?.call(finalCandidates, finalQuery);
         searchStore.setIsSearching(false);
         notifyListeners();
         Future.delayed(
@@ -702,6 +1143,13 @@ class AgenticSearchLogic extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  void markQuickRepliesUsed(int groupId) {
+    final idx = messageGroups.indexWhere((g) => g.id == groupId);
+    if (idx < 0) return;
+    messageGroups[idx].quickRepliesUsed = true;
+    notifyListeners();
   }
 
   /// 与 TSX handleDinqSearch 一致
@@ -761,20 +1209,150 @@ class AgenticSearchLogic extends ChangeNotifier {
     }
   }
 
-  /// 与 TSX handleAdvisorSearch 一致（占位，暂无 advisor 流式 API）
-  void handleAdvisorSearch() {
+  /// 与 TSX handleAdvisorSearch 一致
+  void handleAdvisorSearch(AdvisorFormData data) {
+    if (data.resumeUrl.trim().isEmpty) return;
+
+    final groupId = DateTime.now().millisecondsSinceEpoch;
+    final group = AgenticMessageGroup(
+      id: groupId,
+      userQuery: data.additionalInfo.trim().isNotEmpty
+          ? data.additionalInfo.trim()
+          : 'Find advisors for my resume',
+      loading: true,
+      candidates: const [],
+      advisorResults: const [],
+      searchType: 'advisor',
+      thinkingSteps: const [],
+      thinkingExpanded: true,
+      searchCompleted: false,
+      pdfAttachment: {
+        'url': data.resumeUrl,
+        'name': data.resumeName ?? 'Resume.pdf',
+      },
+    );
+
+    messageGroups = [...messageGroups, group];
     advisorLoading = true;
     notifyListeners();
-    // TODO: 接入 advisor 流式 API
-    Future.delayed(const Duration(milliseconds: 100), () {
-      advisorLoading = false;
-      notifyListeners();
-      onScrollToBottom?.call();
-    });
+
+    final stream = searchService.advisorRecommendStream(
+      resumeUrl: data.resumeUrl,
+      additionalInfo: data.additionalInfo,
+      preferredCountries: data.countries,
+      maxAdvisors: data.maxAdvisors,
+    );
+
+    _streamSubscription?.cancel();
+    _streamSubscription = stream.listen(
+      (event) {
+        final type = event['type'] as String?;
+        if (type == null) return;
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx < 0) return;
+        final g = messageGroups[idx];
+
+        switch (type) {
+          case 'tool_call':
+            {
+              final toolName = event['tool_name']?.toString();
+              if (toolName != null && toolName.isNotEmpty) {
+                _addThinkingStep(groupId, {
+                  'type': 'tool_call',
+                  'content': toolName,
+                  'action': toolName,
+                  'completed': false,
+                });
+              }
+              break;
+            }
+          case 'tool_result':
+            {
+              _markPendingToolCallsCompleted(groupId);
+              final sources = _normalizeSources(event['sources']);
+              if (sources.isNotEmpty) {
+                _addThinkingStep(groupId, {
+                  'type': 'thinking',
+                  'content': 'Found ${sources.length} source(s)',
+                  'sources': sources,
+                  'completed': true,
+                });
+              }
+              break;
+            }
+          case 'completed':
+            {
+              final data = event['data'];
+              final advisors = data is Map ? data['advisors'] : null;
+              if (advisors is List) {
+                g.advisorResults = advisors
+                    .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
+                    .toList();
+              }
+              g.loading = false;
+              g.searchCompleted = true;
+              _markPendingToolCallsCompleted(groupId);
+              notifyListeners();
+              break;
+            }
+          case 'error':
+            {
+              final message = event['message']?.toString().trim();
+              if (message != null && message.isNotEmpty) {
+                _addThinkingStep(groupId, {
+                  'type': 'thinking',
+                  'content': message,
+                  'completed': true,
+                });
+              }
+              g.loading = false;
+              g.searchCompleted = true;
+              _markPendingToolCallsCompleted(groupId);
+              notifyListeners();
+              break;
+            }
+          default:
+            break;
+        }
+      },
+      onDone: () {
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+        }
+        advisorLoading = false;
+        notifyListeners();
+        onScrollToBottom?.call();
+      },
+      onError: (_, __) {
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+        }
+        advisorLoading = false;
+        notifyListeners();
+      },
+    );
+
+    onScrollToBottom?.call();
   }
 
-  /// 与 TSX handleStop 一致
+  Future<void> _stopServerSearchIfNeeded() async {
+    final sid = _activeSessionId;
+    if (sid == null || sid.isEmpty) return;
+    try {
+      await searchService.stopDeepSearch(sid);
+    } catch (_) {
+      // ignore stop error
+    }
+  }
+
+  /// 与 TSX handleStop 一致（尽量通知服务端停止）
   void handleStop() {
+    unawaited(_stopServerSearchIfNeeded());
+    _activeSessionId = null;
     _streamSubscription?.cancel();
     _streamSubscription = null;
     searchStore.setIsSearching(false);

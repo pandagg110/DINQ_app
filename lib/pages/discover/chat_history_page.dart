@@ -269,33 +269,16 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     );
   }
 
-  Future<void> _handleItemClick(
-    BuildContext context,
-    ConversationItem item,
-  ) async {
+  void _handleItemClick(BuildContext context, ConversationItem item) {
     final chatStore = context.read<ChatHistoryStore>();
-    final searchStore = context.read<SearchStore>();
-
     chatStore.setActiveConversation(item);
+
+    // 与 dinq-client 一致：history 只负责路由跳转，详情拉取与恢复由 SearchPage 处理
     final route = item.type == 'discover'
         ? '/search/${item.id}'
         : '/search/${item.type}/${item.id}';
 
-    try {
-      searchStore.setLoadingConversation(true);
-      if (!context.mounted) return;
-      context.go(route);
-      if (widget.onClose != null) {
-        widget.onClose!();
-      }
-    } catch (_) {
-      if (context.mounted) {
-        chatStore.setActiveConversationId(null);
-      }
-    } finally {
-      if (context.mounted) {
-        searchStore.setLoadingConversation(false);
-      }
-    }
+    context.go(route);
+    widget.onClose?.call();
   }
 }

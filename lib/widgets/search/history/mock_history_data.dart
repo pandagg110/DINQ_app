@@ -5,6 +5,7 @@ List<ConversationItem> get mockHistoryItems => [
       ConversationItem(
         id: -1,
         title: 'Machine learning research trends',
+        type: 'discover',
         recordCount: 3,
         createdAt: DateTime.now().subtract(const Duration(days: 2)),
         updatedAt: DateTime.now().subtract(const Duration(days: 2)),
@@ -12,6 +13,7 @@ List<ConversationItem> get mockHistoryItems => [
       ConversationItem(
         id: -2,
         title: 'Best universities for PhD',
+        type: 'discover',
         recordCount: 5,
         createdAt: DateTime.now().subtract(const Duration(days: 5)),
         updatedAt: DateTime.now().subtract(const Duration(days: 5)),
@@ -19,6 +21,7 @@ List<ConversationItem> get mockHistoryItems => [
       ConversationItem(
         id: -3,
         title: 'Find collaborators in NLP',
+        type: 'discover',
         recordCount: 2,
         createdAt: DateTime.now().subtract(const Duration(days: 7)),
         updatedAt: DateTime.now().subtract(const Duration(days: 7)),
