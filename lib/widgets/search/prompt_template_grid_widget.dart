@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/prompts.dart';
 import '../../stores/search_store.dart';
-import '../../pages/discover/recommended_papers_page.dart';
+import '../../pages/search/recommended_papers_page.dart';
 
 const int displayCount = 4;
 

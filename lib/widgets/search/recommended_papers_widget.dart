@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/recommendation_models.dart' as rec;
-import '../../pages/discover/paper_filters_page.dart'
+import '../../pages/search/paper_filters_page.dart'
     show getSelectedFilterItems;
 import '../../services/recommendation_service.dart';
 

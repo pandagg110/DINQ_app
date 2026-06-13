@@ -1,5 +1,5 @@
 import 'package:dinq_app/pages/admin/inbox/admin_inbox_page.dart';
-import 'package:dinq_app/pages/discover/discover_page.dart';
+import 'package:dinq_app/pages/search/discover_page.dart';
 import 'package:dinq_app/pages/me/me_page.dart';
 import 'package:dinq_app/pages/shortlist/shortlist_page.dart';
 import 'package:dinq_app/pages/talent_radar/talent_radar_page.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../pages/discover/chat_history_page.dart';
+import '../../pages/search/chat_history_page.dart';
 
 /// 左侧滑出的聊天历史弹框，内容为 ChatHistoryPage，带滑入动画
 class ChatHistoryMobileWidget extends StatefulWidget {
