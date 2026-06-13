@@ -1,7 +1,7 @@
 const String appUrl = String.fromEnvironment('APP_URL', defaultValue: 'https://dinq.me');
 const String gatewayUrl = String.fromEnvironment(
   'GATEWAY_URL',
-  defaultValue: 'https://api.dinq.me',
+  defaultValue: 'https://testapi.dinq.me',
 );
 
 const String privacyUrl = '$appUrl/privacy';

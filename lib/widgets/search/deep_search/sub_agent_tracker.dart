@@ -7,8 +7,11 @@ import '../message_group/assistant_narration_view.dart';
 import 'deep_search_models.dart';
 import 'sub_agent_helpers.dart';
 
-const _indent = 20.0;
-const _indentL2 = 28.0;
+import 'sub_agent_tree_lines.dart';
+
+const _indent = treeIndent;
+const _indentL2 = treeIndentL2;
+const _l2LineLeft = treeL2LineLeft;
 
 /// 与 TSX `SubAgentTracker` 主入口对齐。
 class SubAgentTracker extends StatelessWidget {
@@ -243,29 +246,41 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
           if (classified.segments.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 12, top: 6),
-              child: Column(
-                children: classified.segments.asMap().entries.map((entry) {
-                  final segment = entry.value;
-                  final isLast = entry.key == classified.segments.length - 1;
-                  if (segment is ThinkingTreeSegment) {
-                    return _ThinkingTreeNode(
-                      blocks: segment.blocks,
-                      isLast: isLast,
-                      searchRunning: isRunning,
-                    );
-                  }
-                  if (segment is ToolGroupTreeSegment) {
-                    return _ToolGroupRow(
-                      group: segment.group,
-                      isLast: isLast,
-                      isActive: entry.key == lastToolGroupIdx && isRunning,
-                      searchRunning: isRunning,
-                      userExpanded: _userExpanded,
-                      onUserExpand: () => setState(() => _userExpanded = true),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                }).toList(),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  if (isRunning)
+                    const Positioned(
+                      left: 0,
+                      top: 0,
+                      child: TreeTopTrunk(animated: true),
+                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: classified.segments.asMap().entries.map((entry) {
+                      final segment = entry.value;
+                      final isLast = entry.key == classified.segments.length - 1;
+                      if (segment is ThinkingTreeSegment) {
+                        return _ThinkingTreeNode(
+                          blocks: segment.blocks,
+                          isLast: isLast,
+                          searchRunning: isRunning,
+                        );
+                      }
+                      if (segment is ToolGroupTreeSegment) {
+                        return _ToolGroupRow(
+                          group: segment.group,
+                          isLast: isLast,
+                          isActive: entry.key == lastToolGroupIdx && isRunning,
+                          searchRunning: isRunning,
+                          userExpanded: _userExpanded,
+                          onUserExpand: () => setState(() => _userExpanded = true),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }).toList(),
+                  ),
+                ],
               ),
             ),
         ],
@@ -330,80 +345,116 @@ class _SourceRowState extends State<SourceRow> {
     final showActivity =
         isRunning && agent.contentBlocks.isNotEmpty && latestTool != null && !_expanded;
 
-    return Padding(
-      padding: EdgeInsets.only(left: _indent, bottom: widget.isLast ? 0 : 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: hasDetail ? () => setState(() => _expanded = !_expanded) : null,
-            child: Row(
-              children: [
-                Icon(
-                  _sourceIcon(agent.name),
-                  size: 14,
-                  color: const Color(0xFF6B6962),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDone
-                          ? const Color(0xFF6B6962)
-                          : const Color(0xFF2A2826),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (hasDetail)
-                  Icon(
-                    _expanded ? Icons.expand_more : Icons.chevron_right,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                const SizedBox(width: 8),
-                Text(
-                  [
-                    if (toolBlocks.isNotEmpty) '${toolBlocks.length} tool uses',
-                    if (agent.candidatesFound > 0) '${agent.candidatesFound} found',
-                    if (isDone && agent.durationS != null)
-                      '${agent.durationS!.round()}s',
-                  ].join(' · '),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
-                ),
-              ],
-            ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 0,
+          top: 0,
+          child: TreeSolidLConnector(
+            width: _indent - 2,
+            height: 14,
+            radius: 8,
           ),
-          if (showInitializing)
-            _SubActivityLine(text: 'Initializing…', showSpinner: true),
-          if (showActivity)
-            _SubActivityLine(text: toolToGerund(latestTool!.name)),
-          if (_expanded)
-            ...detailBlocks.map(
-              (block) => Padding(
-                padding: const EdgeInsets.only(left: _indentL2, top: 4),
-                child: block is ToolCallPart
-                    ? _ToolNodeContent(block: block.block)
-                    : block is ReasoningPart
-                        ? Text(
-                            block.block.text.length > 150
-                                ? block.block.text
-                                    .substring(block.block.text.length - 150)
-                                    .trim()
-                                : block.block.text.trim(),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF4A4843),
-                              height: 1.45,
-                            ),
-                          )
-                        : const SizedBox.shrink(),
+        ),
+        if (!widget.isLast)
+          TreeVerticalTrunk(
+            left: 0,
+            top: 6,
+            bottom: 0,
+            color: treeLineColor,
+          ),
+        Padding(
+          padding: EdgeInsets.only(
+            left: _indent,
+            bottom: widget.isLast ? 0 : 8,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: hasDetail ? () => setState(() => _expanded = !_expanded) : null,
+                child: Row(
+                  children: [
+                    Icon(
+                      _sourceIcon(agent.name),
+                      size: 14,
+                      color: const Color(0xFF6B6962),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDone
+                              ? const Color(0xFF6B6962)
+                              : const Color(0xFF2A2826),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (hasDetail)
+                      Icon(
+                        _expanded ? Icons.expand_more : Icons.chevron_right,
+                        size: 16,
+                        color: Colors.grey,
+                      ),
+                    const SizedBox(width: 8),
+                    Text(
+                      [
+                        if (toolBlocks.isNotEmpty) '${toolBlocks.length} tool uses',
+                        if (agent.candidatesFound > 0)
+                          '${agent.candidatesFound} found',
+                        if (isDone && agent.durationS != null)
+                          '${agent.durationS!.round()}s',
+                      ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8A8880),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-        ],
-      ),
+              if (showInitializing)
+                const _SubActivityLine(text: 'Initializing…', showSpinner: true),
+              if (showActivity)
+                _SubActivityLine(text: toolToGerund(latestTool.name)),
+              if (_expanded)
+                ...detailBlocks.map(
+                  (block) => block is ToolCallPart
+                      ? _ToolTreeNode(
+                          block: block.block,
+                          isLastChild: false,
+                          isActiveParent: false,
+                          toolRunning:
+                              block.block.status == ToolCallStatus.running,
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.only(left: _indentL2, top: 4),
+                          child: block is ReasoningPart
+                              ? Text(
+                                  block.block.text.length > 150
+                                      ? block.block.text
+                                          .substring(
+                                            block.block.text.length - 150,
+                                          )
+                                          .trim()
+                                      : block.block.text.trim(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF4A4843),
+                                    height: 1.45,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -459,58 +510,103 @@ class _ToolGroupRowState extends State<_ToolGroupRow> {
       }
     }
     latestTool ??= group.tools.isNotEmpty ? group.tools.last : null;
-    final showActivity = !showTools && hasTools && latestTool?.status == ToolCallStatus.running;
+    final showActivity = !showTools &&
+        hasTools &&
+        latestTool != null &&
+        latestTool.status == ToolCallStatus.running;
 
-    return Padding(
-      padding: const EdgeInsets.only(left: _indent, top: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: hasTools && !widget.isActive
-                ? () {
-                    if (!widget.userExpanded) {
-                      widget.onUserExpand();
-                    } else {
-                      setState(() => _manualCollapsed = !_manualCollapsed);
-                    }
-                  }
-                : null,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: widget.isActive
-                          ? const Color(0xFF2A2826)
-                          : const Color(0xFF4A4843),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 0,
+          top: 0,
+          child: widget.isActive
+              ? TreeMarchingAntsL(
+                  width: _indent - 2,
+                  height: 16,
+                  radius: 8,
+                )
+              : TreeSolidLConnector(
+                  width: _indent - 2,
+                  height: 16,
+                  radius: 8,
+                  showLeftBorder: !widget.searchRunning,
                 ),
-                if (!showTools && hasTools)
-                  Text(
-                    '${group.tools.length} tools',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
-                  ),
-              ],
-            ),
+        ),
+        if (!widget.isLast)
+          TreeVerticalTrunk(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            color: treeLineColor,
+            animated: widget.searchRunning,
           ),
-          if (showInitializing)
-            _SubActivityLine(text: 'Preparing tools…', showSpinner: true),
-          if (showActivity)
-            _SubActivityLine(text: toolToGerund(latestTool!.name)),
-          if (showTools && hasTools)
-            ...group.tools.map(
-              (block) => Padding(
-                padding: const EdgeInsets.only(left: _indentL2, top: 4),
-                child: _ToolNodeContent(block: block),
+        Padding(
+          padding: const EdgeInsets.only(left: _indent, top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: hasTools && !widget.isActive
+                    ? () {
+                        if (!widget.userExpanded) {
+                          widget.onUserExpand();
+                        } else {
+                          setState(() => _manualCollapsed = !_manualCollapsed);
+                        }
+                      }
+                    : null,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.75,
+                          color: widget.isActive
+                              ? const Color(0xFF2A2826)
+                              : const Color(0xFF4A4843),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!showTools && hasTools)
+                      Text(
+                        '${group.tools.length} tools',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8A8880),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-        ],
-      ),
+              if (showInitializing)
+                const _SubActivityLine(
+                  text: 'Preparing tools…',
+                  showSpinner: true,
+                ),
+              if (showActivity)
+                _SubActivityLine(text: toolToGerund(latestTool.name)),
+              if (showTools && hasTools)
+                ...group.tools.asMap().entries.map((entry) {
+                  final bi = entry.key;
+                  final block = entry.value;
+                  final isLastChild = bi == group.tools.length - 1;
+                  final toolRunning = block.status == ToolCallStatus.running;
+                  return _ToolTreeNode(
+                    block: block,
+                    isLastChild: isLastChild,
+                    isActiveParent: widget.isActive,
+                    toolRunning: toolRunning,
+                  );
+                }),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -528,9 +624,32 @@ class _ThinkingTreeNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: _indent, top: 8),
-      child: _ThinkingBubbleView(blocks: blocks),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 0,
+          top: 0,
+          child: TreeSolidLConnector(
+            width: _indent - 2,
+            height: 16,
+            radius: 8,
+            showLeftBorder: !searchRunning,
+          ),
+        ),
+        if (!isLast)
+          TreeVerticalTrunk(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            color: treeLineColor,
+            animated: searchRunning,
+          ),
+        Padding(
+          padding: const EdgeInsets.only(left: _indent, top: 8),
+          child: _ThinkingBubbleView(blocks: blocks),
+        ),
+      ],
     );
   }
 }
@@ -764,28 +883,101 @@ class _ToolNodeContent extends StatelessWidget {
 }
 
 class _SubActivityLine extends StatelessWidget {
-  const _SubActivityLine({required this.text, this.showSpinner = false});
+  const _SubActivityLine({
+    required this.text,
+    this.showSpinner = false,
+  });
 
   final String text;
   final bool showSpinner;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: _indentL2, top: 4),
-      child: Row(
-        children: [
-          if (showSpinner) const _BounceSpinner(),
-          if (showSpinner) const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
-              overflow: TextOverflow.ellipsis,
-            ),
+    final connectorWidth = _indentL2 - _l2LineLeft - 2;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: _l2LineLeft,
+          top: 0,
+          child: TreeSolidLConnector(
+            width: connectorWidth,
+            height: 10,
+            radius: 7,
+            color: treeLineColorL2,
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: _indentL2, top: 2),
+          child: Row(
+            children: [
+              if (showSpinner) const _BounceSpinner(),
+              if (showSpinner) const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  text,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ToolTreeNode extends StatelessWidget {
+  const _ToolTreeNode({
+    required this.block,
+    required this.isLastChild,
+    required this.isActiveParent,
+    required this.toolRunning,
+  });
+
+  final ToolCallBlock block;
+  final bool isLastChild;
+  final bool isActiveParent;
+  final bool toolRunning;
+
+  @override
+  Widget build(BuildContext context) {
+    final connectorWidth = _indentL2 - _l2LineLeft - 2;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: _l2LineLeft,
+          top: 0,
+          child: toolRunning
+              ? TreeMarchingAntsL(
+                  width: connectorWidth,
+                  height: 12,
+                  radius: 7,
+                  color: treeLineColorL2,
+                )
+              : TreeSolidLConnector(
+                  width: connectorWidth,
+                  height: 12,
+                  radius: 7,
+                  color: treeLineColorL2,
+                  showLeftBorder: !isActiveParent,
+                ),
+        ),
+        if (!isLastChild)
+          TreeVerticalTrunk(
+            left: _l2LineLeft,
+            top: toolRunning ? 0 : 6,
+            bottom: 0,
+            color: treeLineColorL2,
+            animated: isActiveParent,
+          ),
+        Padding(
+          padding: const EdgeInsets.only(left: _indentL2 + 2, top: 4),
+          child: _ToolNodeContent(block: block),
+        ),
+      ],
     );
   }
 }

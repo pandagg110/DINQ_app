@@ -2,7 +2,7 @@
 # 使用方法: .\build_apk_release.ps1
 
 param(
-    [string]$gatewayUrl = "https://api.dinq.me",
+    [string]$gatewayUrl = "https://testapi.dinq.me",
     [string]$appUrl = "https://dinq.me",
     [switch]$splitPerAbi = $false
 )

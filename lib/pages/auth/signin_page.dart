@@ -450,7 +450,7 @@ class _SignInPageState extends State<SignInPage> {
     final GitHubSignIn gitHubSignIn = GitHubSignIn(
       clientId: 'Ov23livoAOOYkvlzKccK',
       clientSecret: '2cd66054c8c0659968925bcd9fec842636703bd6',
-      redirectUrl: 'https://api.dinq.me/auth/oauth/github/callback',
+      redirectUrl: '$gatewayUrl/auth/oauth/github/callback',
     );
 
     final result = await gitHubSignIn.signIn(context);
