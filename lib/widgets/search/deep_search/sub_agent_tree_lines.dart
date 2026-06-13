@@ -6,6 +6,18 @@ const treeL2LineLeft = 8.0;
 const treeLineColor = Color(0xFFB5B3AE);
 const treeLineColorL2 = Color(0xFFD5D3CE);
 
+/// 与 TSX `leading-7` / `leading-6` / `leading-5` 对齐的行高
+const treeLeading7 = 28.0;
+const treeLeading6 = 24.0;
+const treeLeading5 = 20.0;
+const treeRowTopPad = 8.0; // TSX `pt-2`
+
+/// L 形水平分支应对齐的首行垂直中心
+const treeL1BranchCenter = treeRowTopPad + treeLeading7 / 2; // pt-2 + leading-7/2
+const treeL1BranchCenterNoPad = treeLeading7 / 2;
+const treeL2BranchCenter = treeLeading6 / 2;
+const treeL2ActivityBranchCenter = 2 + treeLeading5 / 2; // mt-0.5 + leading-5/2
+
 /// 静态 L 形连接线（与 TSX rounded-bl-lg border 一致）
 class TreeSolidLConnector extends StatelessWidget {
   const TreeSolidLConnector({

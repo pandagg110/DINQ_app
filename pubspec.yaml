@@ -65,6 +65,7 @@ flutter:
     - assets/icons/line-icons/
     - assets/icons/logo/
     - assets/icons/search/
+    - assets/icons/search/deep_search/
     - assets/icons/search/lineicons/
     - assets/icons/settings/
     - assets/icons/social-icons/

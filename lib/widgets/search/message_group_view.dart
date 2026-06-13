@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'deep_search/deep_search_results.dart';
+import 'deep_search/deep_search_results_helpers.dart';
 import 'deep_search/sub_agent_tracker.dart';
 import 'message_group/action_bar.dart';
 import 'message_group/advisors_list.dart';
@@ -9,7 +11,6 @@ import 'message_group/dinq_logo.dart';
 import 'message_group/dinq_results_view.dart';
 import 'message_group/message_group_types.dart';
 import 'message_group/pdf_preview_modal.dart';
-import 'message_group/scholars_list.dart';
 import 'message_group/thinking_bubble.dart';
 
 // 对外统一导出类型，与 TSX 的 types 对应
@@ -192,20 +193,27 @@ class _MessageGroupViewState extends State<MessageGroupView>
                     onToggle: widget.onToggleThinking ?? () {},
                   ),
 
-                if (!isDinqSearch && !isAdvisorSearch && hasCandidates)
+                if (group.isDeepSearch && hasCandidates)
                   Padding(
-                    padding: EdgeInsets.only(
-                      top: showLegacyAssistantText ||
-                              showDeepSearchHeader ||
-                              hasSubAgents
-                          ? 24
-                          : 0,
-                    ),
-                    child: ScholarsList(
+                    padding: EdgeInsets.only(top: hasSubAgents ? 24 : 0),
+                    child: DeepSearchResults(
                       candidates: group.candidates,
-                      groupId: group.id,
-                      isLoading: group.loading,
-                      onCandidateClick: widget.onCandidateClick,
+                      isSearching: group.loading && !group.searchCompleted,
+                      onRowClick: widget.onCandidateClick == null
+                          ? null
+                          : (row) {
+                              final idx = group.candidates.indexWhere(
+                                (c) =>
+                                    c['row_id']?.toString() ==
+                                        row['row_id']?.toString() ||
+                                    c['name'] == row['name'],
+                              );
+                              widget.onCandidateClick!(
+                                candidateRowToTabCandidate(row),
+                                idx >= 0 ? idx : 0,
+                                group.id,
+                              );
+                            },
                     ),
                   ),
 

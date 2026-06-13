@@ -21,9 +21,48 @@ class DeepSearchEventDispatcher {
   final void Function(DeepSearchRoundStatus status)? onStatusChange;
 
   List<Map<String, dynamic>> _candidates = [];
+  final Map<String, Map<String, dynamic>> _candidateRows = {};
+  final List<String> _candidateOrder = [];
+
+  String _rowKey(Map<String, dynamic> row) {
+    final rowId = row['row_id']?.toString();
+    if (rowId != null && rowId.isNotEmpty) return rowId;
+    return 'anon:${row['name']}|${row['company']}|${row['title']}';
+  }
+
+  List<Map<String, dynamic>> _rowsSnapshot() {
+    return _candidateOrder
+        .map((key) => Map<String, dynamic>.from(_candidateRows[key]!))
+        .toList();
+  }
+
+  void _emitCandidates() {
+    _candidates = _rowsSnapshot();
+    onCandidatesChanged(_candidates);
+  }
+
+  void _upsertCandidate(Map<String, dynamic> row) {
+    final map = Map<String, dynamic>.from(row);
+    final key = _rowKey(map);
+    if (!_candidateRows.containsKey(key)) {
+      _candidateOrder.add(key);
+    }
+    _candidateRows[key] = map;
+    _emitCandidates();
+  }
 
   void setCandidates(List<Map<String, dynamic>> candidates) {
-    _candidates = candidates;
+    _candidateRows.clear();
+    _candidateOrder.clear();
+    for (final row in candidates) {
+      final map = Map<String, dynamic>.from(row);
+      final key = _rowKey(map);
+      if (!_candidateRows.containsKey(key)) {
+        _candidateOrder.add(key);
+      }
+      _candidateRows[key] = map;
+    }
+    _candidates = _rowsSnapshot();
   }
 
   List<Map<String, dynamic>> get candidates => _candidates;
@@ -321,29 +360,27 @@ class DeepSearchEventDispatcher {
     if (action == 'add_row') {
       final row = data['row'];
       if (row is Map) {
-        final scholar = Map<String, dynamic>.from(row);
-        _candidates = [..._candidates, scholar];
-        onCandidatesChanged(_candidates);
+        _upsertCandidate(Map<String, dynamic>.from(row));
       }
     } else if (action == 'delete_row') {
       final rowId = data['row_id']?.toString();
       if (rowId != null) {
-        _candidates = _candidates
-            .where((c) => c['row_id']?.toString() != rowId)
-            .toList();
-        onCandidatesChanged(_candidates);
+        _candidateRows.remove(rowId);
+        _candidateOrder.remove(rowId);
+        _emitCandidates();
       }
     } else if (action == 'update_row') {
       final rowId = data['row_id']?.toString();
       final patch = data['patch'];
       if (rowId != null && patch is Map) {
-        _candidates = _candidates.map((c) {
-          if (c['row_id']?.toString() == rowId) {
-            return {...c, ...Map<String, dynamic>.from(patch)};
-          }
-          return c;
-        }).toList();
-        onCandidatesChanged(_candidates);
+        final existing = _candidateRows[rowId];
+        if (existing != null) {
+          _candidateRows[rowId] = {
+            ...existing,
+            ...Map<String, dynamic>.from(patch),
+          };
+          _emitCandidates();
+        }
       }
     }
     onStatusChange?.call(DeepSearchRoundStatus.searching);

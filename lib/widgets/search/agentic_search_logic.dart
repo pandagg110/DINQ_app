@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../services/search_service.dart';
 import '../../stores/search_store.dart';
 import '../../utils/parse_quick_replies.dart';
+import 'deep_search/deep_search_results_helpers.dart';
 import 'deep_search/deep_search_event_handlers.dart';
 import 'deep_search/deep_search_models.dart';
 import 'deep_search/sub_agent_helpers.dart';
@@ -101,26 +102,35 @@ class AgenticSearchLogic extends ChangeNotifier {
     List<Map<String, dynamic>> oldList,
     List<Map<String, dynamic>> newList,
   ) {
-    return newList.asMap().entries.map((entry) {
-      final newC = Map<String, dynamic>.from(entry.value);
-      final newIndex = entry.key;
+    return newList.map((newC) {
+      final newMap = Map<String, dynamic>.from(newC);
+      final rowId = newMap['row_id']?.toString();
       Map<String, dynamic>? existing;
-      if (newIndex < oldList.length) {
-        final o = oldList[newIndex];
-        if (o['name'] == newC['name']) existing = o;
-      }
-      if (existing == null) {
+      if (rowId != null && rowId.isNotEmpty) {
         for (final c in oldList) {
-          if (c['name'] == newC['name']) {
+          if (c['row_id']?.toString() == rowId) {
             existing = c;
             break;
           }
         }
       }
-      if (existing == null) return newC;
+      final newIndex = newList.indexOf(newC);
+      if (existing == null && newIndex < oldList.length) {
+        final o = oldList[newIndex];
+        if (o['name'] == newMap['name']) existing = o;
+      }
+      if (existing == null) {
+        for (final c in oldList) {
+          if (c['name'] == newMap['name']) {
+            existing = c;
+            break;
+          }
+        }
+      }
+      if (existing == null) return newMap;
       final merged = Map<String, dynamic>.from(existing);
-      for (final k in newC.keys) {
-        final nv = newC[k];
+      for (final k in newMap.keys) {
+        final nv = newMap[k];
         final ov = existing[k];
         if (_valueEquals(ov, nv)) continue;
         merged[k] = nv;
@@ -194,18 +204,6 @@ class AgenticSearchLogic extends ChangeNotifier {
     final rawName = segments.isNotEmpty ? segments.last : 'Attachment';
     final name = Uri.decodeComponent(rawName);
     return {'url': trimmed, 'name': name};
-  }
-
-  static Map<String, dynamic> _candidateRowToScholar(Map<String, dynamic> row) {
-    return {
-      'name': row['name'] ?? '',
-      'company': row['company'] ?? '',
-      'position': row['title'] ?? row['position'] ?? '',
-      'one_liner': row['evidence'] ?? row['one_liner'] ?? '',
-      if (row['profile_url'] != null) 'profile_url': row['profile_url'],
-      if (row['confidence'] != null) 'confidence': row['confidence'],
-      if (row['image_url'] != null) 'image_url': row['image_url'],
-    };
   }
 
   static bool _shouldIgnoreLlmMessage(String? message) {
@@ -461,14 +459,13 @@ class AgenticSearchLogic extends ChangeNotifier {
       subAgents: g.subAgents,
       contentBlocks: g.contentBlocks,
       onCandidatesChanged: (candidates) {
-        final scholars = candidates.map(_candidateRowToScholar).toList();
-        final merged = _mergeCandidates(g.candidates, scholars);
-        g.candidates = merged;
+        g.candidates = candidates;
         g.quickRepliesUsed = true;
+        final tabCandidates = candidates.map(candidateRowToTabCandidate).toList();
         if (searchStore.openTabs.isEmpty) {
-          searchStore.setTabsFromCandidates(merged);
+          searchStore.setTabsFromCandidates(tabCandidates);
         } else {
-          searchStore.syncCandidatesToTabs(merged);
+          searchStore.syncCandidatesToTabs(tabCandidates);
         }
       },
       onSessionId: (sessionId) {
@@ -535,7 +532,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       subAgents: group.subAgents,
       contentBlocks: group.contentBlocks,
       onCandidatesChanged: (candidates) {
-        group.candidates = candidates.map(_candidateRowToScholar).toList();
+        group.candidates = candidates;
       },
       onDurationMs: (ms) => group.deepSearchDurationMs = ms,
       onStatusChange: (status) {
@@ -633,7 +630,7 @@ class AgenticSearchLogic extends ChangeNotifier {
           if (data is Map && data['action']?.toString() == 'add_row') {
             final row = data['row'];
             if (row is Map) {
-              rows.add(_candidateRowToScholar(Map<String, dynamic>.from(row)));
+              rows.add(Map<String, dynamic>.from(row));
             }
           }
           break;
@@ -856,9 +853,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         isDeepSearch = replay.isDeepSearch;
         deepSearchToolCount = replay.toolCount;
         deepSearchDurationMs = replay.durationMs;
-        if (replay.candidates.isNotEmpty && candidates.isEmpty) {
-          candidates = replay.candidates;
-        }
+        // candidates 由 _replayDeepSearchEvents 从 sse_events 重建，避免与 _replaySseEvents 重复
         thinkingSteps = isDeepSearch
             ? []
             : _convertSseEventsToThinkingSteps(sseEvents, groupId);

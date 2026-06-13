@@ -353,14 +353,14 @@ class _SourceRowState extends State<SourceRow> {
           top: 0,
           child: TreeSolidLConnector(
             width: _indent - 2,
-            height: 14,
+            height: treeL1BranchCenterNoPad,
             radius: 8,
           ),
         ),
         if (!widget.isLast)
           TreeVerticalTrunk(
             left: 0,
-            top: 6,
+            top: treeL1BranchCenterNoPad - 8,
             bottom: 0,
             color: treeLineColor,
           ),
@@ -387,6 +387,7 @@ class _SourceRowState extends State<SourceRow> {
                         label,
                         style: TextStyle(
                           fontSize: 14,
+                          height: treeLeading7 / 14,
                           color: isDone
                               ? const Color(0xFF6B6962)
                               : const Color(0xFF2A2826),
@@ -524,12 +525,12 @@ class _ToolGroupRowState extends State<_ToolGroupRow> {
           child: widget.isActive
               ? TreeMarchingAntsL(
                   width: _indent - 2,
-                  height: 16,
+                  height: treeL1BranchCenter,
                   radius: 8,
                 )
               : TreeSolidLConnector(
                   width: _indent - 2,
-                  height: 16,
+                  height: treeL1BranchCenter,
                   radius: 8,
                   showLeftBorder: !widget.searchRunning,
                 ),
@@ -543,7 +544,7 @@ class _ToolGroupRowState extends State<_ToolGroupRow> {
             animated: widget.searchRunning,
           ),
         Padding(
-          padding: const EdgeInsets.only(left: _indent, top: 8),
+          padding: const EdgeInsets.only(left: _indent, top: treeRowTopPad),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -564,7 +565,7 @@ class _ToolGroupRowState extends State<_ToolGroupRow> {
                         label,
                         style: TextStyle(
                           fontSize: 14,
-                          height: 1.75,
+                          height: treeLeading7 / 14,
                           color: widget.isActive
                               ? const Color(0xFF2A2826)
                               : const Color(0xFF4A4843),
@@ -632,7 +633,7 @@ class _ThinkingTreeNode extends StatelessWidget {
           top: 0,
           child: TreeSolidLConnector(
             width: _indent - 2,
-            height: 16,
+            height: treeL1BranchCenter,
             radius: 8,
             showLeftBorder: !searchRunning,
           ),
@@ -646,7 +647,7 @@ class _ThinkingTreeNode extends StatelessWidget {
             animated: searchRunning,
           ),
         Padding(
-          padding: const EdgeInsets.only(left: _indent, top: 8),
+          padding: const EdgeInsets.only(left: _indent, top: treeRowTopPad),
           child: _ThinkingBubbleView(blocks: blocks),
         ),
       ],
@@ -761,7 +762,11 @@ class _ToolNodeContent extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Submitted candidates',
-                  style: TextStyle(fontSize: 12, color: Color(0xFFA5A39E)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: treeLeading6 / 12,
+                    color: Color(0xFFA5A39E),
+                  ),
                 ),
               ),
               Text(
@@ -821,6 +826,7 @@ class _ToolNodeContent extends StatelessWidget {
                           : toolToPast(block.name),
                       style: TextStyle(
                         fontSize: 12,
+                        height: treeLeading6 / 12,
                         color: toolRunning
                             ? const Color(0xFF8A8880)
                             : const Color(0xFFA5A39E),
@@ -902,7 +908,7 @@ class _SubActivityLine extends StatelessWidget {
           top: 0,
           child: TreeSolidLConnector(
             width: connectorWidth,
-            height: 10,
+            height: treeL2ActivityBranchCenter,
             radius: 7,
             color: treeLineColorL2,
           ),
@@ -916,7 +922,11 @@ class _SubActivityLine extends StatelessWidget {
               Expanded(
                 child: Text(
                   text,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: treeLeading5 / 12,
+                    color: Color(0xFF8A8880),
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -953,13 +963,13 @@ class _ToolTreeNode extends StatelessWidget {
           child: toolRunning
               ? TreeMarchingAntsL(
                   width: connectorWidth,
-                  height: 12,
+                  height: treeL2BranchCenter,
                   radius: 7,
                   color: treeLineColorL2,
                 )
               : TreeSolidLConnector(
                   width: connectorWidth,
-                  height: 12,
+                  height: treeL2BranchCenter,
                   radius: 7,
                   color: treeLineColorL2,
                   showLeftBorder: !isActiveParent,
@@ -968,13 +978,13 @@ class _ToolTreeNode extends StatelessWidget {
         if (!isLastChild)
           TreeVerticalTrunk(
             left: _l2LineLeft,
-            top: toolRunning ? 0 : 6,
+            top: toolRunning ? 0 : treeL2BranchCenter - 7,
             bottom: 0,
             color: treeLineColorL2,
             animated: isActiveParent,
           ),
         Padding(
-          padding: const EdgeInsets.only(left: _indentL2 + 2, top: 4),
+          padding: const EdgeInsets.only(left: _indentL2 + 2),
           child: _ToolNodeContent(block: block),
         ),
       ],
