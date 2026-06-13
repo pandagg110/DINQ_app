@@ -7,7 +7,6 @@ import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
 import 'discover_quick_actions_widget.dart';
 import 'prompt_template_grid_widget.dart';
-import '../../pages/discover/recommended_papers_page.dart';
 import 'agentic_search_logic.dart';
 import 'message_group_view.dart';
 import 'search_box_widget.dart';
@@ -114,29 +113,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         curve: Curves.easeOut,
       );
     }
-  }
-
-  void _openPapersPage() {
-    Navigator.of(context)
-        .push<Object?>(
-          MaterialPageRoute<Object?>(
-            builder: (_) => const RecommendedPapersPage(),
-          ),
-        )
-        .then((result) {
-          // 返回后下一帧再收起焦点，避免 Flutter 焦点恢复后再把键盘带出来
-          if (mounted) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                FocusScope.of(context).unfocus();
-                FocusManager.instance.primaryFocus?.unfocus();
-              }
-            });
-          }
-          if (result != null && result is String) {
-            _handleSearch(query: result);
-          }
-        });
   }
 
   void _handleSearch({
@@ -476,53 +452,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   foregroundColor: const Color(0xFF6B7280),
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: _openPapersPage,
-                icon: const Icon(
-                  Icons.article,
-                  size: 20,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                ),
-                label: const Text(
-                  'Papers',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color.fromARGB(255, 0, 0, 0),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  foregroundColor: const Color(0xFF6B7280),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  // TODO: 跳转升级页
-                },
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  foregroundColor: const Color(0xFF6B7280),
-                ),
-                child: const Text(
-                  'Upgrade',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
-                    fontWeight: FontWeight.w500,
-                  ),
                 ),
               ),
             ],
