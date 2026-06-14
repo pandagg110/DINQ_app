@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import '../../../utils/parse_quick_replies.dart';
 import '../message_group/assistant_narration_view.dart';
 import 'deep_search_models.dart';
 import 'sub_agent_helpers.dart';
@@ -80,10 +81,49 @@ class SubAgentTracker extends StatelessWidget {
 }
 
 /// 与 TSX `SingleAgentSummary` 对齐：候选人表格之后的 wrap-up 叙述。
+/// 使用 NarrationBlockView 同款逻辑——stripSummaryPrefix + Markdown 全文渲染，
+/// 不走 displayAssistantText（会截断多段叙述）。
 class SingleAgentSummary extends StatelessWidget {
   const SingleAgentSummary({super.key, required this.subAgents});
 
   final Map<String, SubAgentInfo> subAgents;
+
+  static MarkdownStyleSheet get _summaryMarkdownStyle => MarkdownStyleSheet(
+        p: const TextStyle(
+          fontSize: 14,
+          height: 1.5,
+          color: Color(0xFF4A4845),
+        ),
+        strong: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF3A3835),
+        ),
+        h1: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF2A2826),
+        ),
+        h2: const TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF2A2826),
+        ),
+        h3: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF3A3835),
+        ),
+        blockquote: const TextStyle(
+          color: Color(0xFF8A8880),
+          fontStyle: FontStyle.normal,
+        ),
+        code: const TextStyle(
+          fontSize: 13,
+          color: Color(0xFF4A4845),
+          backgroundColor: Color(0xFFF5F4EF),
+        ),
+        listBullet: const TextStyle(color: Color(0xFFA5A39E)),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -96,17 +136,90 @@ class SingleAgentSummary extends StatelessWidget {
           virtualAgent.status != DeepSearchRoundStatus.searching,
     );
     final summary = classified.summary;
-    if (summary == null || summary.text.trim().isEmpty) {
-      return const SizedBox.shrink();
+    if (summary == null) return const SizedBox.shrink();
+
+    final displayText = stripSummaryPrefix(summary.text);
+    final parsed = parseQuickReplies(displayText);
+    final cleanText = parsed.cleanText.trim();
+    final hasContent = cleanText.isNotEmpty;
+
+    if (!hasContent && summary.isStreaming) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 40),
+        child: _SummaryTypingDots(),
+      );
     }
 
+    if (!hasContent) return const SizedBox.shrink();
+
     return Padding(
-      padding: const EdgeInsets.only(top: 24),
-      child: AssistantNarrationView(
-        text: summary.text,
-        blockId: summary.id,
-        isStreaming: summary.isStreaming,
+      padding: const EdgeInsets.only(top: 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MarkdownBody(
+            data: cleanText,
+            selectable: true,
+            styleSheet: _summaryMarkdownStyle,
+          ),
+          if (summary.isStreaming)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: _SummaryTypingDots(),
+            ),
+        ],
       ),
+    );
+  }
+}
+
+class _SummaryTypingDots extends StatefulWidget {
+  const _SummaryTypingDots();
+
+  @override
+  State<_SummaryTypingDots> createState() => _SummaryTypingDotsState();
+}
+
+class _SummaryTypingDotsState extends State<_SummaryTypingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(3, (i) {
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = (_controller.value + i * 0.2) % 1.0;
+            final opacity = 0.3 + (t < 0.5 ? t : 1 - t) * 1.4;
+            return Container(
+              width: 6,
+              height: 6,
+              margin: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                color: Color(0xFFD1D5DB).withValues(alpha: opacity.clamp(0.3, 1)),
+                shape: BoxShape.circle,
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }
