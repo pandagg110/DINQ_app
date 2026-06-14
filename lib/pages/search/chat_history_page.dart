@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -90,13 +91,22 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: _handleNewChat,
-                      tooltip: 'Go to Discover home',
-                      icon: const Icon(
-                        Icons.home_outlined,
-                        size: 24,
-                        color: Color(0xFF171717),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _handleNewChat,
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/logo/dinq-black.svg',
+                              width: 24,
+                              height: 24,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -108,7 +118,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                       hintText: 'Search history',
                       prefixIcon: const Icon(
                         Icons.search,
-                        size: 18,
+                        size: 16,
                         color: Color(0xFF9e9b93),
                       ),
                       filled: true,
@@ -134,7 +144,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     height: 40,
                     child: TextButton.icon(
                       onPressed: _handleNewChat,
-                      icon: const Icon(Icons.add, size: 18, color: Color(0xFF171717)),
+                      icon: const Icon(Icons.add, size: 16, color: Color(0xFF171717)),
                       label: const Text(
                         'New chat',
                         style: TextStyle(
@@ -220,8 +230,12 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.bolt, size: 16, color: Color(0xFF171717)),
-                    const SizedBox(width: 4),
+                    SvgPicture.asset(
+                      'assets/images/card/thunder-fold.svg',
+                      width: 16,
+                      height: 16,
+                    ),
+                    const SizedBox(width: 6),
                     Text(
                       credits.toString(),
                       style: const TextStyle(
@@ -232,7 +246,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     ),
                     const Icon(
                       Icons.chevron_right,
-                      size: 16,
+                      size: 14,
                       color: Color(0xFF8a8880),
                     ),
                   ],
@@ -243,7 +257,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           const SizedBox(height: 6),
           const Row(
             children: [
-              Icon(Icons.card_giftcard, size: 16, color: Color(0xFF6b6862)),
+              Icon(Icons.card_giftcard_outlined, size: 16, color: Color(0xFF6b6862)),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -367,8 +381,6 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           onClick: () => onItemClick(item),
           onDelete: (id) =>
               chatStore.deleteConversationById(id, type: item.type),
-          onRename: (id, title) =>
-              chatStore.renameConversation(id, title, type: item.type),
         );
       },
     );
