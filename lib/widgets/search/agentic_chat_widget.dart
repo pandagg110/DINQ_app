@@ -16,23 +16,6 @@ import 'agentic_search_logic.dart';
 import 'search_box_widget.dart';
 import 'search_panel_widget.dart';
 
-// Placeholder 常量（与 React 版本一致）
-const List<String> globalPlaceholders = [
-  'Search millions of AI talents worldwide…',
-  'Find my Alec Radford',
-  'Find my Jianlin Su',
-  'Find my Ilya Sutskever',
-  'Find my Sam Gao',
-];
-
-const List<String> dinqPlaceholders = [
-  'Search verified experts on DINQ Fellows…',
-  'Find my Alec Radford',
-  'Find my Jianlin Su',
-  'Find my Ilya Sutskever',
-  'Find my Sam Gao',
-];
-
 class AgenticChatWidget extends StatefulWidget {
   const AgenticChatWidget({super.key, this.onSearchComplete, this.showBackHome = false});
 
@@ -48,8 +31,9 @@ class AgenticChatWidget extends StatefulWidget {
 class _AgenticChatWidgetState extends State<AgenticChatWidget>
     with SingleTickerProviderStateMixin {
   // UI 状态
-  String _talentMode = 'global'; // 'global' or 'dinq'
   bool _creditsOpen = false;
+  CitationMode _citationMode = CitationMode.author;
+  String _analysisPlatform = 'scholar';
   final GlobalKey _creditsAnchorKey = GlobalKey();
 
   // 滚动相关
@@ -113,22 +97,27 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     }
   }
 
-  void _handleSearch({
-    required String query,
-    bool simple = false,
-    String? attachmentUrl,
-    String? attachmentName,
-  }) {
+  void _handleDeepSearch(DeepSearchSubmitParams params) {
     _logic?.handleSearch(
-      query: query,
-      simple: simple,
-      attachmentUrl: attachmentUrl,
-      attachmentName: attachmentName,
+      query: params.query,
+      attachmentUrl: params.attachment,
+      attachmentName: params.attachmentName,
     );
   }
 
-  Future<void> _handleDinqSearchSubmit(String query) async {
-    await _logic?.handleDinqSearch(query);
+  void _handleCitationSearch(({String query}) params) {
+    _logic?.handleCitationSearch(
+      query: params.query,
+      mode: _citationMode,
+    );
+  }
+
+  void _handleAnalysisSearch(AnalysisSearchParams params) {
+    _logic?.handleAnalysisSearch(
+      platform: params.platform,
+      query: params.query,
+      candidateData: params.candidateData,
+    );
   }
 
   void _handleAdvisorSearch(AdvisorFormData data) {
@@ -245,7 +234,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
             final searchBox = _buildSearchBox(
               logic: logic,
               searchStore: searchStore,
-              deepSearchMode: hasDeepSearchContent && searchStore.activeTool == null,
+              isMobile: isMobile,
             );
 
             return Stack(
@@ -281,7 +270,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                             logic.markQuickRepliesUsed(
                                               messageGroups.last.id,
                                             );
-                                            _handleSearch(query: option);
+                                            _handleDeepSearch(
+                                              DeepSearchSubmitParams(query: option),
+                                            );
                                           },
                                           onCandidateClick: (
                                             candidate,
@@ -299,6 +290,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                             }
                                           },
                                           bottomInset: 20,
+                                          analysisPlatform: _analysisPlatform,
+                                          citationMode: _citationMode.name,
                                         ),
                                       ),
                                       Padding(
@@ -414,28 +407,32 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   Widget _buildSearchBox({
     required AgenticSearchLogic logic,
     required SearchStore searchStore,
-    required bool deepSearchMode,
+    required bool isMobile,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: SearchBoxWidget(
-        onSearch: _handleSearch,
-        onStop: _handleStop,
-        loading: logic.loading,
-        talentMode: _talentMode,
-        deepSearchMode: deepSearchMode,
-        onTalentModeChange: (mode) {
-          setState(() => _talentMode = mode);
-        },
-        onDinqSearchSubmit: _handleDinqSearchSubmit,
-        onAdvisorSearch: _handleAdvisorSearch,
-        advisorLoading: logic.advisorLoading,
-        onActiveToolChange: (tool) => _handleActiveToolChange(searchStore, tool),
-        dropdownPosition: 'up',
-      ),
+    return SearchBoxWidget(
+      activeTool: searchStore.activeTool,
+      onActiveToolChange: (tool) => _handleActiveToolChange(searchStore, tool),
+      onDeepSearch: _handleDeepSearch,
+      onDeepSearchStop: _handleStop,
+      deepSearchLoading: logic.loading,
+      onAdvisorSearch: _handleAdvisorSearch,
+      advisorLoading: logic.advisorLoading,
+      onCitationSearch: _handleCitationSearch,
+      citationLoading: logic.citationLoading,
+      citationMode: _citationMode,
+      onCitationModeChange: (mode) => setState(() => _citationMode = mode),
+      onAnalysisSearch: _handleAnalysisSearch,
+      analysisLoading: logic.analysisLoading,
+      analysisCandidates: logic.analysisCandidates,
+      onClearAnalysisCandidates: logic.clearAnalysisCandidates,
+      analysisPlatform: _analysisPlatform,
+      onAnalysisPlatformChange: (platform) =>
+          setState(() => _analysisPlatform = platform),
+      confirmToolSwitch: logic.messageGroups.isNotEmpty,
+      dropdownPosition: 'up',
+      variant: 'glass',
+      fullWidth: true,
+      isMobile: isMobile,
     );
   }
 
@@ -511,13 +508,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: searchBox,
-          ),
+          child: searchBox,
         ),
       ],
     );

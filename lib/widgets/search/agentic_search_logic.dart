@@ -116,6 +116,9 @@ class AgenticSearchLogic extends ChangeNotifier {
   List<AgenticMessageGroup> messageGroups = [];
   bool loading = false;
   bool advisorLoading = false;
+  bool citationLoading = false;
+  bool analysisLoading = false;
+  List<Map<String, dynamic>>? analysisCandidates;
   StreamSubscription? _streamSubscription;
   String? _activeSessionId;
 
@@ -980,6 +983,9 @@ class AgenticSearchLogic extends ChangeNotifier {
     messageGroups = [];
     loading = false;
     advisorLoading = false;
+    citationLoading = false;
+    analysisLoading = false;
+    analysisCandidates = null;
     notifyListeners();
   }
 
@@ -1358,6 +1364,141 @@ class AgenticSearchLogic extends ChangeNotifier {
     onScrollToBottom?.call();
   }
 
+  /// 与 TSX handleCitationSearch 一致
+  Future<void> handleCitationSearch({
+    required String query,
+    CitationMode mode = CitationMode.author,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+
+    final groupId = DateTime.now().millisecondsSinceEpoch;
+    final group = AgenticMessageGroup(
+      id: groupId,
+      userQuery: 'Who cites $trimmed?',
+      loading: true,
+      candidates: const [],
+      searchType: 'citation',
+      thinkingSteps: const [],
+      searchCompleted: false,
+    );
+    group.toolResult = {'phase': 'searching', 'data': null};
+    group.roundStatus = DeepSearchRoundStatus.searching;
+
+    messageGroups = [...messageGroups, group];
+    citationLoading = true;
+    notifyListeners();
+
+    try {
+      final Map<String, dynamic> response;
+      if (mode == CitationMode.paper) {
+        response = await searchService.getPaperCiters(paperIdentifier: trimmed);
+      } else {
+        response = await searchService.getScholarCitations(query: trimmed);
+      }
+      final idx = messageGroups.indexWhere((g) => g.id == groupId);
+      if (idx >= 0) {
+        messageGroups[idx].loading = false;
+        messageGroups[idx].searchCompleted = true;
+        messageGroups[idx].roundStatus = DeepSearchRoundStatus.done;
+        messageGroups[idx].toolResult = {'phase': null, 'data': response};
+      }
+    } catch (_) {
+      final idx = messageGroups.indexWhere((g) => g.id == groupId);
+      if (idx >= 0) {
+        messageGroups[idx].loading = false;
+        messageGroups[idx].searchCompleted = true;
+        messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
+        messageGroups[idx].errorMessage = 'Citation search failed';
+      }
+    } finally {
+      citationLoading = false;
+      notifyListeners();
+      onScrollToBottom?.call();
+    }
+  }
+
+  /// 与 TSX handleAnalysisSearch 对齐（移动端简化：Scholar 走 profile API）
+  Future<void> handleAnalysisSearch({
+    required String platform,
+    required String query,
+    Map<String, dynamic>? candidateData,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+
+    final groupId = DateTime.now().millisecondsSinceEpoch;
+    final group = AgenticMessageGroup(
+      id: groupId,
+      userQuery: trimmed,
+      loading: true,
+      candidates: const [],
+      searchType: 'analyze',
+      thinkingSteps: const [],
+      searchCompleted: false,
+    );
+    group.roundStatus = DeepSearchRoundStatus.searching;
+    group.toolResult = {
+      'platform': platform,
+      'query': trimmed,
+      'cards': <String, dynamic>{},
+      'progress': 0,
+    };
+
+    messageGroups = [...messageGroups, group];
+    analysisLoading = true;
+    analysisCandidates = null;
+    notifyListeners();
+
+    try {
+      if (platform == 'scholar') {
+        final response = await searchService.getScholarProfile(
+          authorName: candidateData?['name']?.toString() ?? trimmed,
+        );
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+          messageGroups[idx].roundStatus = DeepSearchRoundStatus.done;
+          messageGroups[idx].toolResult = {
+            'platform': platform,
+            'query': trimmed,
+            'cards': {
+              'profile': {'status': 'completed', 'data': response},
+            },
+            'progress': 100,
+          };
+        }
+      } else {
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+          messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
+          messageGroups[idx].errorMessage =
+              'Analysis for $platform is not available on mobile yet.';
+        }
+      }
+    } catch (_) {
+      final idx = messageGroups.indexWhere((g) => g.id == groupId);
+      if (idx >= 0) {
+        messageGroups[idx].loading = false;
+        messageGroups[idx].searchCompleted = true;
+        messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
+        messageGroups[idx].errorMessage = 'Analysis failed';
+      }
+    } finally {
+      analysisLoading = false;
+      notifyListeners();
+      onScrollToBottom?.call();
+    }
+  }
+
+  void clearAnalysisCandidates() {
+    analysisCandidates = null;
+    notifyListeners();
+  }
+
   Future<void> _stopServerSearchIfNeeded() async {
     final sid = _activeSessionId;
     if (sid == null || sid.isEmpty) return;
@@ -1377,6 +1518,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     searchStore.setIsSearching(false);
     loading = false;
     advisorLoading = false;
+    citationLoading = false;
+    analysisLoading = false;
     for (final g in messageGroups) {
       if (g.loading) g.loading = false;
     }
