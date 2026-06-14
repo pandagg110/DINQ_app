@@ -272,14 +272,14 @@ class _RoundSectionState extends State<RoundSection> {
             toolType == null &&
             !hasPendingConfirmBlock &&
             !widget.hideUserQueryBubble)
-          Container(
-            margin: EdgeInsets.only(
-              top: showMarkdownCopy ? 4 : -8,
-              bottom: 4,
-            ),
-            child: DinqLogoButton(
-              isLoading: isSearching,
-              size: 20,
+          Transform.translate(
+            offset: Offset(0, showMarkdownCopy ? 4 : -8),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: DinqLogoButton(
+                isLoading: isSearching,
+                size: 20,
+              ),
             ),
           ),
       ],

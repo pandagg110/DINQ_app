@@ -46,62 +46,64 @@ class _CollapsibleBubbleState extends State<CollapsibleBubble> {
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () => setState(() => _showCopyAction = true),
-                child: AnimatedContainer(
+                child: AnimatedSize(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
-                  constraints: collapsed
-                      ? const BoxConstraints(maxHeight: 11 * 16)
-                      : const BoxConstraints(),
+                  alignment: Alignment.topCenter,
                   clipBehavior: Clip.hardEdge,
-                  decoration: const BoxDecoration(),
-                  child: Stack(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.fromLTRB(
-                          16,
-                          12,
-                          16,
-                          collapsed ? 32 : 12,
-                        ),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF0EFE9),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                            bottomLeft: Radius.circular(16),
-                            bottomRight: Radius.circular(4),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: collapsed ? 11 * 16.0 : double.infinity,
+                    ),
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            12,
+                            16,
+                            collapsed ? 32 : 12,
                           ),
-                        ),
-                        child: Text(
-                          text,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            color: Color(0xFF111827),
-                            height: 1.45,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF0EFE9),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(16),
+                              bottomRight: Radius.circular(4),
+                            ),
                           ),
-                        ),
-                      ),
-                      if (collapsed)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          height: 36,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  const Color(0xFFFBFBF9).withValues(alpha: 0),
-                                  const Color(0xFFFBFBF9).withValues(alpha: 0.8),
-                                  const Color(0xFFFBFBF9),
-                                ],
-                              ),
+                          child: Text(
+                            text,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              color: Color(0xFF111827),
+                              height: 1.45,
                             ),
                           ),
                         ),
-                    ],
+                        if (collapsed)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            height: 36,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    const Color(0xFFFBFBF9).withValues(alpha: 0),
+                                    const Color(0xFFFBFBF9).withValues(alpha: 0.8),
+                                    const Color(0xFFFBFBF9),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
