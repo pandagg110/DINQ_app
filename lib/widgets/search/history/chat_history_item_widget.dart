@@ -5,7 +5,7 @@ import 'conversation_type_config.dart';
 import 'delete_conversation_confirm_dialog.dart';
 
 /// 与 TSX MobileSearchHistory 列表项一致：类型图标 + 标题 + More 菜单删除
-class ChatHistoryItemWidget extends StatelessWidget {
+class ChatHistoryItemWidget extends StatefulWidget {
   const ChatHistoryItemWidget({
     super.key,
     required this.conversation,
@@ -21,8 +21,18 @@ class ChatHistoryItemWidget extends StatelessWidget {
   final bool isBlurred;
   final Future<bool> Function(Object id) onDelete;
 
-  Future<void> _confirmDelete(BuildContext context) async {
-    final id = conversation.id;
+  @override
+  State<ChatHistoryItemWidget> createState() => _ChatHistoryItemWidgetState();
+}
+
+class _ChatHistoryItemWidgetState extends State<ChatHistoryItemWidget> {
+  static const Color _deleteRed = Color(0xFFDC2626);
+  static const double _menuWidth = 128;
+
+  final GlobalKey _moreButtonKey = GlobalKey();
+
+  Future<void> _confirmDelete() async {
+    final id = widget.conversation.id;
     final messenger = ScaffoldMessenger.maybeOf(context);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -35,30 +45,86 @@ class ChatHistoryItemWidget extends StatelessWidget {
     );
     if (confirmed != true) return;
 
-    final ok = await onDelete(id);
-    if (ok == false && messenger != null && context.mounted) {
+    final ok = await widget.onDelete(id);
+    if (ok == false && messenger != null && mounted) {
       messenger.showSnackBar(
         const SnackBar(content: Text('删除失败，请重试')),
       );
     }
   }
 
+  Future<void> _showDeleteMenu() async {
+    final box = _moreButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlayBox = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlayBox == null || !box.hasSize) return;
+
+    final buttonTopLeft = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final menuLeft = buttonTopLeft.dx + box.size.width - _menuWidth;
+    final menuTop = buttonTopLeft.dy + box.size.height + 4;
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(menuLeft, menuTop, _menuWidth, 0),
+        Offset.zero & overlayBox.size,
+      ),
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      constraints: const BoxConstraints(
+        minWidth: _menuWidth,
+        maxWidth: _menuWidth,
+      ),
+      items: const [
+        PopupMenuItem<String>(
+          value: 'delete',
+          height: 40,
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Icon(
+                Icons.delete_outline,
+                size: 14,
+                color: _deleteRed,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Delete',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _deleteRed,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (selected == 'delete' && mounted) {
+      await _confirmDelete();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final displayText =
-        conversation.title.isNotEmpty ? conversation.title : 'Untitled';
-    final typeIcon = conversationTypeIcon(conversation.type);
+    final displayText = widget.conversation.title.isNotEmpty
+        ? widget.conversation.title
+        : 'Untitled';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: isActive ? Colors.white : Colors.transparent,
+        color: widget.isActive ? Colors.white : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: isBlurred ? null : onClick,
+          onTap: widget.isBlurred ? null : widget.onClick,
           borderRadius: BorderRadius.circular(12),
           child: Opacity(
-            opacity: isBlurred ? 0.45 : 1,
+            opacity: widget.isBlurred ? 0.45 : 1,
             child: Row(
               children: [
                 Expanded(
@@ -66,11 +132,7 @@ class ChatHistoryItemWidget extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
                     child: Row(
                       children: [
-                        Icon(
-                          typeIcon,
-                          size: 16,
-                          color: kConversationTypeIconColor,
-                        ),
+                        ConversationTypeIcon(type: widget.conversation.type),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -89,49 +151,27 @@ class ChatHistoryItemWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!isBlurred)
+                if (!widget.isBlurred)
                   Padding(
                     padding: const EdgeInsets.only(right: 4),
-                    child: PopupMenuButton<String>(
-                      padding: EdgeInsets.zero,
-                      offset: const Offset(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      icon: const Icon(
-                        Icons.more_horiz,
-                        size: 16,
-                        color: Color(0xFFB5B3AE),
-                      ),
-                      onSelected: (value) {
-                        if (value == 'delete') {
-                          _confirmDelete(context);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem<String>(
-                          value: 'delete',
-                          height: 40,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline,
-                                size: 14,
-                                color: Colors.red.shade600,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Delete',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.red.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
+                    child: Material(
+                      key: _moreButtonKey,
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showDeleteMenu,
+                        borderRadius: BorderRadius.circular(8),
+                        hoverColor: Colors.black.withValues(alpha: 0.05),
+                        splashColor: Colors.black.withValues(alpha: 0.05),
+                        child: const SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: Icon(
+                            Icons.more_horiz,
+                            size: 16,
+                            color: Color(0xFFB5B3AE),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
               ],
