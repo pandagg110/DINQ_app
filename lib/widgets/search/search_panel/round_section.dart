@@ -249,11 +249,10 @@ class _RoundSectionState extends State<RoundSection> {
           onEnter: (_) => setState(() => _isHovered = true),
           onExit: (_) => setState(() => _isHovered = false),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (group.subAgents.isNotEmpty)
                 SingleAgentSummary(subAgents: group.subAgents),
-                // new Text('1111111'),
               if (hasMessageParts)
                 MessagePartListSummary(
                   blocks: group.contentBlocks,
@@ -273,9 +272,9 @@ class _RoundSectionState extends State<RoundSection> {
             toolType == null &&
             !hasPendingConfirmBlock &&
             !widget.hideUserQueryBubble)
-          Padding(
-            padding: EdgeInsets.only(
-              top: showMarkdownCopy ? 4 : 0,
+          Container(
+            margin: EdgeInsets.only(
+              top: showMarkdownCopy ? 4 : -8,
               bottom: 4,
             ),
             child: DinqLogoButton(
@@ -313,39 +312,43 @@ class RoundMarkdownCopyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Spacer(),
-        InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onCopy,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 120),
-            opacity: alwaysVisible || copied ? 1 : 0,
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Icon(
-                copied ? Icons.check : Icons.content_copy,
-                size: 14,
-                color: const Color(0xFF9E9B93),
+    // 与 TSX RoundMarkdownCopyButton：左对齐 flex h-6 items-center，无 Spacer
+    return SizedBox(
+      height: 24,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: onCopy,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 120),
+              opacity: alwaysVisible || copied ? 1 : 0,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  copied ? Icons.check : Icons.content_copy,
+                  size: 14,
+                  color: const Color(0xFF9E9B93),
+                ),
               ),
             ),
           ),
-        ),
-        if (copied)
-          Container(
-            margin: const EdgeInsets.only(left: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3D3B37),
-              borderRadius: BorderRadius.circular(10),
+          if (copied)
+            Container(
+              margin: const EdgeInsets.only(left: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3D3B37),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Copied',
+                style: TextStyle(fontSize: 12, color: Colors.white),
+              ),
             ),
-            child: const Text(
-              'Copied',
-              style: TextStyle(fontSize: 11, color: Colors.white),
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
