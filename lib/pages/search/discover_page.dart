@@ -145,6 +145,11 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
+  bool _isEmbeddedInMainTab(BuildContext context) {
+    final path = GoRouterState.of(context).uri.path;
+    return path == '/' || path == '/search';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_hasLoggedBuild) {
@@ -153,20 +158,13 @@ class _SearchPageState extends State<SearchPage> {
     return Consumer3<SearchStore, ChatHistoryStore, SettingsStore>(
       builder: (context, searchStore, chatHistoryStore, settingsStore, _) {
         final isMobileHeaderVisible = settingsStore.isMobileHeaderVisible;
-        final pathSegments = GoRouterState.of(context).uri.pathSegments;
-        final isSearchDetail = pathSegments.isNotEmpty &&
-            pathSegments.first == 'search' &&
-            pathSegments.length > 1;
-        final showBackHome = isSearchDetail ||
-            (pathSegments.length == 1 &&
-                pathSegments.first == 'search' &&
-                searchStore.activeTool != null);
+        final embeddedInMainTab = _isEmbeddedInMainTab(context);
         return _buildMobileLayout(
           context,
           searchStore,
           chatHistoryStore,
           isMobileHeaderVisible,
-          showBackHome,
+          embeddedInMainTab: embeddedInMainTab,
         );
       },
     );
@@ -176,9 +174,9 @@ class _SearchPageState extends State<SearchPage> {
     BuildContext context,
     SearchStore searchStore,
     ChatHistoryStore chatHistoryStore,
-    bool isMobileHeaderVisible,
-    bool showBackHome,
-  ) {
+    bool isMobileHeaderVisible, {
+    required bool embeddedInMainTab,
+  }) {
     final mq = MediaQuery.of(context);
     // 不修改内容高度：Scaffold 不 resize，用 Transform.translate 把整块内容顶上去
     final keyboardHeight = mq.viewInsets.bottom;
@@ -202,7 +200,9 @@ class _SearchPageState extends State<SearchPage> {
                 child: Stack(
                   children: [
                 // 主聊天区域
-                AgenticChatWidget(showBackHome: showBackHome),
+                AgenticChatWidget(
+                  embeddedInMainTab: embeddedInMainTab,
+                ),
 
                 // 聊天历史移动端面板（左侧滑入）
                 ChatHistoryMobileWidget(

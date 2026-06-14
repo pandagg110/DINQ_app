@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -17,12 +18,17 @@ import 'search_box_widget.dart';
 import 'search_panel_widget.dart';
 
 class AgenticChatWidget extends StatefulWidget {
-  const AgenticChatWidget({super.key, this.onSearchComplete, this.showBackHome = false});
+  const AgenticChatWidget({
+    super.key,
+    this.onSearchComplete,
+    this.embeddedInMainTab = true,
+  });
 
   /// 与 TSX onSearchComplete 一致：搜索完成且有关注人时回调
   final void Function(List<Map<String, dynamic>> candidates, String query)?
   onSearchComplete;
-  final bool showBackHome;
+  /// 在 MainTab 内时为 true，单独 /search/:id 页面为 false，不预留底栏高度。
+  final bool embeddedInMainTab;
 
   @override
   State<AgenticChatWidget> createState() => _AgenticChatWidgetState();
@@ -140,20 +146,26 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
   String? _routeToolFromPath(BuildContext context) {
     final segments = GoRouterState.of(context).uri.pathSegments;
-    if (segments.length != 2 || segments.first != 'search') return null;
+    if (segments.length < 2 || segments.first != 'search') return null;
     return _toolByRoute[segments[1]];
   }
 
-  bool _isToolRoute(BuildContext context) => _routeToolFromPath(context) != null;
+  /// 仅 /search/advisor|citation|analyze（无会话 id）
+  bool _isToolRoute(BuildContext context) {
+    final segments = GoRouterState.of(context).uri.pathSegments;
+    return segments.length == 2 &&
+        segments.first == 'search' &&
+        _toolByRoute.containsKey(segments[1]);
+  }
 
   void _syncToolWithRoute(SearchStore searchStore) {
     final routeTool = _routeToolFromPath(context);
-    if (routeTool == searchStore.activeTool) return;
     if (routeTool != null) {
+      if (routeTool == searchStore.activeTool) return;
       searchStore.setActiveTool(routeTool);
       return;
     }
-    if (searchStore.activeTool != null && !_isToolRoute(context)) {
+    if (searchStore.activeTool != null) {
       searchStore.clearActiveTool();
     }
   }
@@ -229,7 +241,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                 searchStore.isLoadingConversation && messageGroups.isEmpty;
             final showChatContent = hasDeepSearchContent || isToolActive;
             final path = GoRouterState.of(context).uri.path;
-            final showMobileHeader = isMobile;
+            final showBackHome =
+                !widget.embeddedInMainTab || searchStore.activeTool != null;
 
             final searchBox = _buildSearchBox(
               logic: logic,
@@ -238,17 +251,13 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
             );
 
             return Stack(
+              clipBehavior: Clip.none,
               children: [
                 Container(
                   color: const Color(0xFFFAF9F6),
                   width: double.infinity,
                   child: Column(
                     children: [
-                      if (showMobileHeader)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 12, 10, 0),
-                          child: _buildTopBar(showBackHome: widget.showBackHome),
-                        ),
                       Expanded(
                         child: showRestoring
                             ? Center(
@@ -289,7 +298,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                               searchStore.setTabPanelOpen(true);
                                             }
                                           },
-                                          bottomInset: 20,
+                                          bottomInset: widget.embeddedInMainTab ? 20 : 12,
                                           analysisPlatform: _analysisPlatform,
                                           citationMode: _citationMode.name,
                                         ),
@@ -325,6 +334,18 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                     ],
                   ),
                 ),
+                if (isMobile)
+                  Positioned(
+                    top: MediaQuery.paddingOf(context).top + 16,
+                    left: 16,
+                    child: _buildHistoryButton(),
+                  ),
+                if (isMobile && showBackHome)
+                  Positioned(
+                    top: MediaQuery.paddingOf(context).top + 16,
+                    right: 16,
+                    child: _buildBackHomeButton(),
+                  ),
                 if (!isMobile)
                   Positioned(
                     top: 12,
@@ -343,61 +364,116 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     );
   }
 
-  Widget _buildTopBar({required bool showBackHome}) {
-    return SizedBox(
-      height: 44,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              if (showBackHome)
-                TextButton.icon(
-                  onPressed: () {
-                    context.read<SearchStore>().clearAll();
-                    context.go('/search');
-                  },
-                  icon: const Icon(Icons.arrow_back, size: 20, color: Colors.black),
-                  label: const Text(
-                    '',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color.fromARGB(255, 0, 0, 0),
-                      fontWeight: FontWeight.w500,
+  static const Color _chromeForeground = Color(0xFF2A2826);
+  static const List<BoxShadow> _chromeShadow = [
+    BoxShadow(
+      color: Color.fromRGBO(42, 40, 38, 0.07),
+      blurRadius: 18,
+      offset: Offset(0, 8),
+    ),
+  ];
+
+  /// 与 TSX MobileSearchHistoryButton / MobileSearchBackHomeButton 一致的玻璃态浮层按钮。
+  Widget _mobileChromeButton({
+    required Widget child,
+    required VoidCallback onPressed,
+    EdgeInsetsGeometry? padding,
+    double? width,
+    double height = 40,
+    String? tooltip,
+  }) {
+    final borderRadius = BorderRadius.circular(999);
+    final button = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: borderRadius,
+        child: Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            boxShadow: _chromeShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: borderRadius,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: const ColoredBox(color: Colors.transparent),
+                  ),
+                ),
+                Container(
+                  width: width,
+                  height: height,
+                  padding: padding,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: borderRadius,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    foregroundColor: const Color(0xFF6B7280),
-                  ),
+                  alignment: Alignment.center,
+                  child: child,
                 ),
-              TextButton.icon(
-                onPressed: () {
-                  context.read<ChatHistoryStore>().setMobileOpen(true);
-                },
-                icon: Image.asset(
-                  'assets/icons/discover/history.png',
-                  width: 20,
-                  height: 20,
-                ),
-                label: const Text(
-                  '',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color.fromARGB(255, 0, 0, 0),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  foregroundColor: const Color(0xFF6B7280),
-                ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (tooltip == null) return button;
+
+    return Tooltip(
+      message: tooltip,
+      preferBelow: false,
+      child: button,
+    );
+  }
+
+  Widget _buildHistoryButton() {
+    return _mobileChromeButton(
+      width: 40,
+      tooltip: 'Open history',
+      onPressed: () {
+        context.read<ChatHistoryStore>().setMobileOpen(true);
+      },
+      child: SvgPicture.asset(
+        'assets/icons/search/history.svg',
+        width: 20,
+        height: 20,
+        colorFilter: const ColorFilter.mode(
+          _chromeForeground,
+          BlendMode.srcIn,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackHomeButton() {
+    return _mobileChromeButton(
+      tooltip: 'Home',
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      onPressed: () {
+        context.read<SearchStore>().clearAll();
+        context.go('/search');
+      },
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.home_outlined, size: 16, color: _chromeForeground),
+          SizedBox(width: 6),
+          Text(
+            'Home',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: _chromeForeground,
+            ),
           ),
         ],
       ),
@@ -439,6 +515,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   /// 为 MainTab 浮动底栏预留空间（与 main_tab_bottom_view 高度一致）。
   double _mobileBottomBarInset(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
+    if (!widget.embeddedInMainTab) {
+      return math.max(12, safeBottom);
+    }
     return ConstantsTool.bottomTabHeight +
         math.max(26, safeBottom) +
         12;
