@@ -456,7 +456,7 @@ class _CitationToolSection extends StatelessWidget {
         ),
         if (data is Map && citers.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(top: 12, bottom: 12),
             child: Column(
               children: citers.take(20).map((c) {
                 final map = Map<String, dynamic>.from(c as Map);
@@ -525,6 +525,9 @@ class _AnalysisToolSection extends StatelessWidget {
                 : cardCount > 0
                     ? 'Analysis complete · $cardCount ${cardCount == 1 ? 'card' : 'cards'}'
                     : 'No results found',
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
           ),
           AnalysisResultsView(
             platform: platform,

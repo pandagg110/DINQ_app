@@ -66,6 +66,7 @@ flutter:
     - assets/icons/line-icons/
     - assets/icons/logo/
     - assets/icons/search/
+    - assets/icons/search/progress/
     - assets/icons/search/history.svg
     - assets/icons/search/deep_search/
     - assets/icons/search/history/

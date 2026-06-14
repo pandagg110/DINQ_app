@@ -10,8 +10,18 @@ List<ToolSearchPhase> buildAnalysisPhases({
   String? platform,
 }) {
   const analysisPhases = [
-    _PhaseDef(key: 'resolving', active: 'Resolving profile', done: 'Profile resolved'),
-    _PhaseDef(key: 'analyzing', active: 'Analyzing data', done: 'Analysis generated'),
+    _PhaseDef(
+      key: 'resolving',
+      icon: 'i-lucide-user-search',
+      active: 'Resolving profile',
+      done: 'Profile resolved',
+    ),
+    _PhaseDef(
+      key: 'analyzing',
+      icon: 'i-lucide-bar-chart-3',
+      active: 'Analyzing data',
+      done: 'Analysis generated',
+    ),
   ];
 
   final phases = <ToolSearchPhase>[];
@@ -33,6 +43,7 @@ List<ToolSearchPhase> buildAnalysisPhases({
         ToolSearchPhase(
           key: 'sel-$ri',
           label: 'Selected: ${nextRound!['selectedCandidate']}',
+          icon: 'i-lucide-user-check',
           status: 'done',
         ),
       );
@@ -54,6 +65,8 @@ List<ToolSearchPhase> buildAnalysisPhases({
           : (isActive && currentAction != null && currentAction.isNotEmpty)
               ? currentAction
               : p.active;
+
+      final icon = isDisambiguation ? 'i-lucide-users' : p.icon;
 
       if (isDone && p.key == 'analyzing' && isFinished && (cardCount ?? 0) == 0) {
         label = 'No results found';
@@ -93,6 +106,7 @@ List<ToolSearchPhase> buildAnalysisPhases({
         ToolSearchPhase(
           key: '$ri-${p.key}',
           label: label,
+          icon: icon,
           status: isDone ? 'done' : 'active',
           waiting: isDisambiguation,
           children: children,
@@ -105,9 +119,15 @@ List<ToolSearchPhase> buildAnalysisPhases({
 }
 
 class _PhaseDef {
-  const _PhaseDef({required this.key, required this.active, required this.done});
+  const _PhaseDef({
+    required this.key,
+    required this.icon,
+    required this.active,
+    required this.done,
+  });
 
   final String key;
+  final String icon;
   final String active;
   final String done;
 }
