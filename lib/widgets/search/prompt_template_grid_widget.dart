@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/prompts.dart';
 import '../../stores/search_store.dart';
-import '../../pages/search/recommended_papers_page.dart';
 
 const int displayCount = 4;
 
@@ -81,35 +80,45 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
     }
 
     // 单列垂直排列，只显示前3条 prompts
-    const spacing = 12.0;
+    const spacing = 10.0;
     final displayCount = _displayedPrompts.length.clamp(0, 3);
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 768),
       width: double.infinity,
-      // margin: const EdgeInsets.only(top: 24),
-      // padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Featured prompt card with Explore button
-          // _FeaturedPromptCard(
-          //   title: 'Find Talent in Research',
-          //   description: 'Discover top researchers',
-          //   onTap: () {
-          //     Navigator.of(context).push<Object?>(
-          //       MaterialPageRoute<Object?>(
-          //         builder: (_) => const RecommendedPapersPage(),
-          //       ),
-          //     ).then((result) {
-          //       if (result != null && result is String) {
-          //         widget.onQueryFromPapers?.call(result);
-          //       }
-          //     });
-          //   },
-          // ),
-          // const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text(
+                'Prompt Examples',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF9E9B93),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: _isShuffling ? null : _handleShuffle,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: AnimatedRotation(
+                    duration: const Duration(milliseconds: 220),
+                    turns: _isShuffling ? 0.5 : 0,
+                    child: const Icon(
+                      Icons.refresh,
+                      size: 15,
+                      color: Color(0xFF9E9B93),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Column(
             children: List.generate(displayCount, (index) {
               final prompt = _displayedPrompts[index];
@@ -152,110 +161,34 @@ class _PromptCardState extends State<_PromptCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24), // 更大的圆角，pill形状
-          border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Text(
-          widget.prompt.title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            color: Color(0xFF171717),
-            height: 1.4,
-          ),
-          textAlign: TextAlign.left,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
-  }
-}
-
-class _FeaturedPromptCard extends StatelessWidget {
-  const _FeaturedPromptCard({
-    required this.title,
-    required this.description,
-    required this.onTap,
-  });
-
-  final String title;
-  final String description;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE6E1DA), width: 1),
         ),
         child: Row(
           children: [
-            // Left side: Title and description
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF171717),
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF6B7280),
-                      height: 1.4,
-                    ),
-                  ),
-                ],
+              child: Text(
+                widget.prompt.title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF171717),
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.left,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 16),
-            // Right side: Explore button
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF171717),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Explore',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: Color(0xFF9E9B93),
             ),
           ],
         ),
@@ -263,3 +196,4 @@ class _FeaturedPromptCard extends StatelessWidget {
     );
   }
 }
+

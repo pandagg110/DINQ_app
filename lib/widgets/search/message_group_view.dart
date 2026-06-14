@@ -25,6 +25,7 @@ class MessageGroupView extends StatefulWidget {
     this.onCandidateClick,
     this.onQuickReplySelect,
     this.isLatest = false,
+    this.externalSubAgentLayout = false,
   });
 
   final MessageGroupData group;
@@ -33,6 +34,7 @@ class MessageGroupView extends StatefulWidget {
       onCandidateClick;
   final ValueChanged<String>? onQuickReplySelect;
   final bool isLatest;
+  final bool externalSubAgentLayout;
 
   @override
   State<MessageGroupView> createState() => _MessageGroupViewState();
@@ -78,6 +80,8 @@ class _MessageGroupViewState extends State<MessageGroupView>
         group.candidates.isEmpty;
     // 与 Dinq-client 一致：Search complete 标题仅在搜索进行中显示，完成后隐藏工具树/标题行
     final hasSubAgents = group.subAgents.isNotEmpty;
+    final shouldRenderSubAgentInternally =
+        hasSubAgents && !widget.externalSubAgentLayout;
     final showDeepSearchHeader = group.isDeepSearch &&
         group.loading &&
         !group.searchCompleted &&
@@ -108,7 +112,8 @@ class _MessageGroupViewState extends State<MessageGroupView>
                     ),
                     const SizedBox(height: 8),
                   ],
-                  if (group.userQuery.trim().isNotEmpty)
+                  if (!group.hideUserQueryBubble &&
+                      group.userQuery.trim().isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(
@@ -168,7 +173,7 @@ class _MessageGroupViewState extends State<MessageGroupView>
                         showQuickReplies ? widget.onQuickReplySelect : null,
                   ),
 
-                if (hasSubAgents)
+                if (shouldRenderSubAgentInternally)
                   SubAgentTracker(
                     subAgents: group.subAgents,
                   ),
@@ -195,7 +200,9 @@ class _MessageGroupViewState extends State<MessageGroupView>
 
                 if (group.isDeepSearch && hasCandidates)
                   Padding(
-                    padding: EdgeInsets.only(top: hasSubAgents ? 24 : 0),
+                    padding: EdgeInsets.only(
+                      top: shouldRenderSubAgentInternally ? 24 : 0,
+                    ),
                     child: DeepSearchResults(
                       candidates: group.candidates,
                       isSearching: group.loading && !group.searchCompleted,
@@ -217,7 +224,7 @@ class _MessageGroupViewState extends State<MessageGroupView>
                     ),
                   ),
 
-                if (hasSubAgents && hasCandidates)
+                if (shouldRenderSubAgentInternally && hasCandidates)
                   SingleAgentSummary(subAgents: group.subAgents),
 
                 if (isAdvisorSearch && hasAdvisorResults)

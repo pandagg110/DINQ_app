@@ -23,6 +23,7 @@ class MessageGroupData {
     this.deepSearchDurationMs,
     this.searchCompleted = false,
     this.subAgents = const {},
+    this.hideUserQueryBubble = false,
   });
 
   final int id;
@@ -52,4 +53,6 @@ class MessageGroupData {
   final bool searchCompleted;
   /// 与 TSX SearchRound.subAgents 对齐
   final Map<String, SubAgentInfo> subAgents;
+  /// 与 SearchPanel `hideUserQueryBubble` 对齐
+  final bool hideUserQueryBubble;
 }

@@ -75,6 +75,27 @@ class AgenticMessageGroup {
 
   /// 多 agent fallback 时的 round.contentBlocks
   List<MessagePart> contentBlocks = [];
+
+  /// 与 TSX SearchRound 对齐的扩展字段
+  String? errorMessage;
+  String? displayQuery;
+  String? recordCreatedAt;
+  Map<String, dynamic>? toolResult;
+  DeepSearchRoundStatus roundStatus = DeepSearchRoundStatus.idle;
+
+  /// 与 TSX round.toolType 对齐（null = deep search）
+  String? get toolType {
+    switch (searchType) {
+      case 'advisor':
+        return 'find-advisor';
+      case 'citation':
+        return 'who-cites-me';
+      case 'analyze':
+        return 'analysis';
+      default:
+        return null;
+    }
+  }
 }
 
 /// 与 TSX useAgenticSearch 对应：搜索状态与流式/会话逻辑集中在此文件
@@ -473,9 +494,12 @@ class AgenticSearchLogic extends ChangeNotifier {
       },
       onDurationMs: (ms) => g.deepSearchDurationMs = ms,
       onError: (message) {
+        g.errorMessage = message;
+        g.roundStatus = DeepSearchRoundStatus.error;
         if (g.assistantText.isEmpty) g.assistantText = message;
       },
       onStatusChange: (status) {
+        g.roundStatus = status;
         switch (status) {
           case DeepSearchRoundStatus.searching:
             g.loading = true;

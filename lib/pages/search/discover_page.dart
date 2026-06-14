@@ -35,16 +35,12 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
-    print('🔍 SearchPage: initState - 进入 Search 页面');
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _fixedMediaQuery ??= MediaQuery.of(context);
-    if (!_hasLoggedBuild) {
-      print('🔍 SearchPage: didChangeDependencies - Search 页面依赖已更新');
-    }
     if (!_listenersRegistered) {
       _listenersRegistered = true;
       final ch = context.read<ChatHistoryStore>();
@@ -67,6 +63,12 @@ class _SearchPageState extends State<SearchPage> {
     final segments = state.uri.pathSegments;
     if (segments.isEmpty || segments.first != 'search') return;
 
+    const toolRouteMap = <String, String>{
+      'advisor': 'find-advisor',
+      'citation': 'who-cites-me',
+      'analyze': 'analysis',
+    };
+
     final searchStore = context.read<SearchStore>();
     final chatHistoryStore = context.read<ChatHistoryStore>();
 
@@ -77,6 +79,16 @@ class _SearchPageState extends State<SearchPage> {
       if (segments.length == 1) {
         searchStore.clearExtraType();
         searchStore.setCurrentConversationId(null);
+        return;
+      }
+
+      // /search/advisor | /search/citation | /search/analyze: tool route only.
+      if (segments.length == 2 && toolRouteMap.containsKey(segments[1])) {
+        searchStore.clearExtraType();
+        searchStore.setCurrentConversationId(null);
+        searchStore.clearPendingConversation();
+        searchStore.setLoadingConversation(false);
+        searchStore.setActiveTool(toolRouteMap[segments[1]]);
         return;
       }
 
@@ -136,7 +148,6 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     if (!_hasLoggedBuild) {
-      print('🔍 SearchPage: build - 正在构建 Search 页面');
       _hasLoggedBuild = true;
     }
     return Consumer3<SearchStore, ChatHistoryStore, SettingsStore>(

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/search_service.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
+import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
-import 'discover_quick_actions_widget.dart';
+import 'message_group/dinq_logo.dart';
 import 'prompt_template_grid_widget.dart';
 import 'agentic_search_logic.dart';
-import 'message_group_view.dart';
 import 'search_box_widget.dart';
-import '../../constants/app_constants.dart';
+import 'search_panel_widget.dart';
 
 // Placeholder 常量（与 React 版本一致）
 const List<String> globalPlaceholders = [
@@ -41,15 +42,16 @@ class AgenticChatWidget extends StatefulWidget {
   State<AgenticChatWidget> createState() => _AgenticChatWidgetState();
 }
 
-class _AgenticChatWidgetState extends State<AgenticChatWidget> {
+class _AgenticChatWidgetState extends State<AgenticChatWidget>
+    with SingleTickerProviderStateMixin {
   // UI 状态
   String _talentMode = 'global'; // 'global' or 'dinq'
-  String? _activeTool; // ToolType | null
-  bool _isNearBottom = true;
+  bool _creditsOpen = false;
+  final GlobalKey _creditsAnchorKey = GlobalKey();
 
   // 滚动相关
   final ScrollController _scrollController = ScrollController();
-  final GlobalKey _messagesEndKey = GlobalKey();
+  late final AnimationController _breathingController;
 
   /// 与 TSX useAgenticSearch 对应，逻辑在 agentic_search_logic.dart
   AgenticSearchLogic? _logic;
@@ -64,8 +66,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   @override
   void initState() {
     super.initState();
-    // 监听滚动
-    _scrollController.addListener(_handleScroll);
+    _breathingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+    _breathingController.repeat(reverse: true);
   }
 
   @override
@@ -91,18 +96,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     _logic?.removeListener(_onLogicUpdate);
     _logic?.dispose();
     _scrollController.dispose();
+    _breathingController.dispose();
     super.dispose();
-  }
-
-  void _handleScroll() {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
-    if (isNearBottom != _isNearBottom) {
-      setState(() {
-        _isNearBottom = isNearBottom;
-      });
-    }
   }
 
   void _scrollToBottom() {
@@ -127,20 +122,66 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
       attachmentUrl: attachmentUrl,
       attachmentName: attachmentName,
     );
-    setState(() => _isNearBottom = true);
   }
 
   Future<void> _handleDinqSearchSubmit(String query) async {
     await _logic?.handleDinqSearch(query);
-    setState(() => _isNearBottom = true);
   }
 
   void _handleAdvisorSearch(AdvisorFormData data) {
     _logic?.handleAdvisorSearch(data);
-    setState(() => _isNearBottom = true);
   }
 
   void _handleStop() => _logic?.handleStop();
+
+  static const Map<String, String> _toolRouteByTool = {
+    'find-advisor': 'advisor',
+    'who-cites-me': 'citation',
+    'analysis': 'analyze',
+  };
+
+  static const Map<String, String> _toolByRoute = {
+    'advisor': 'find-advisor',
+    'citation': 'who-cites-me',
+    'analyze': 'analysis',
+  };
+
+  String? _routeToolFromPath(BuildContext context) {
+    final segments = GoRouterState.of(context).uri.pathSegments;
+    if (segments.length != 2 || segments.first != 'search') return null;
+    return _toolByRoute[segments[1]];
+  }
+
+  bool _isToolRoute(BuildContext context) => _routeToolFromPath(context) != null;
+
+  void _syncToolWithRoute(SearchStore searchStore) {
+    final routeTool = _routeToolFromPath(context);
+    if (routeTool == searchStore.activeTool) return;
+    if (routeTool != null) {
+      searchStore.setActiveTool(routeTool);
+      return;
+    }
+    if (searchStore.activeTool != null && !_isToolRoute(context)) {
+      searchStore.clearActiveTool();
+    }
+  }
+
+  void _handleActiveToolChange(SearchStore searchStore, String? tool) {
+    final currentTool = searchStore.activeTool;
+    if (currentTool == tool) return;
+    if (tool == null) {
+      searchStore.clearActiveTool();
+      if (_isToolRoute(context)) context.go('/search');
+      return;
+    }
+    searchStore.setActiveTool(tool);
+    final segment = _toolRouteByTool[tool];
+    if (segment == null) return;
+    final nextPath = '/search/$segment';
+    if (GoRouterState.of(context).uri.path != nextPath) {
+      context.go(nextPath);
+    }
+  }
 
   // 处理候选人点击
   // void _handleCandidateClick(Map<String, dynamic> candidate, int index, int groupId) {
@@ -153,8 +194,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
   Widget build(BuildContext context) {
     final logic = _logic;
     if (logic == null) return const SizedBox.shrink();
-    return Consumer2<SearchStore, UserStore>(
-      builder: (context, searchStore, userStore, _) {
+    return Consumer3<SearchStore, UserStore, SettingsStore>(
+      builder: (context, searchStore, userStore, settingsStore, _) {
+        _syncToolWithRoute(searchStore);
         if (!mounted) return const SizedBox.shrink();
         if (searchStore.resetVersion != _lastResetVersion) {
           _lastResetVersion = searchStore.resetVersion;
@@ -180,64 +222,119 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
         final user = userStore.user;
         final userName = user?.userData.name.isNotEmpty == true
             ? user!.userData.name
-            : (user?.user.name.isNotEmpty == true ? user!.user.name : '');
+            : (user?.user.name.isNotEmpty == true ? user!.user.name : 'DINQer');
+        final creditsBalance = userStore.subscription?.creditsBalance ?? 0;
+        final planLabel = userStore.subscription?.basePlan ?? 'free';
+        final isMobile = settingsStore.isMobile;
 
-        // 监听 logic 变化，流事件更新 messageGroups 后触发重建，才能渲染返回值
         return ListenableBuilder(
           listenable: logic,
-          builder: (context, __) {
+          builder: (context, child) {
             final messageGroups = logic.messageGroups;
-            final hasMessages = messageGroups.isNotEmpty;
-            final isToolActive =
-                (searchStore.activeTool ?? _activeTool) != null;
-            final showContentArea = hasMessages || isToolActive;
-            final showSkeleton =
-                searchStore.isLoadingConversation && !hasMessages;
-            final bgColor = (hasMessages || showSkeleton)
-                ? Colors.white
-                : const Color(0xFFFDFDFD);
+            final hasDeepSearchContent = messageGroups.isNotEmpty;
+            final isToolActive = searchStore.activeTool != null;
+            final showRestoring =
+                searchStore.isLoadingConversation && messageGroups.isEmpty;
+            final showChatContent = hasDeepSearchContent || isToolActive;
+            final path = GoRouterState.of(context).uri.path;
+            final showMobileHeader = isMobile;
 
-            final mq = MediaQuery.of(context);
-            // 父级用 Transform.translate 顶起，这里保持一屏高度不压缩
-            final contentHeight = mq.size.height;
+            final searchBox = _buildSearchBox(
+              logic: logic,
+              searchStore: searchStore,
+              deepSearchMode: hasDeepSearchContent && searchStore.activeTool == null,
+            );
 
-            return Container(
-              color: bgColor,
-              height: contentHeight,
-              width: double.infinity,
-              child: Column(
-                children: [
-                  // 顶部栏
-                  Padding(
-                    padding: const EdgeInsets.only(top: 0),
-                    child: _buildTopBar(showBackHome: widget.showBackHome),
+            return Stack(
+              children: [
+                Container(
+                  color: const Color(0xFFF8F7F3),
+                  width: double.infinity,
+                  child: Column(
+                    children: [
+                      if (showMobileHeader)
+                        _buildTopBar(showBackHome: widget.showBackHome),
+                      Expanded(
+                        child: showRestoring
+                            ? Center(
+                                child: BreathingLogo(
+                                  size: 28,
+                                  animation: _breathingController,
+                                ),
+                              )
+                            : showChatContent
+                                ? Column(
+                                    children: [
+                                      Expanded(
+                                        child: SearchPanelWidget(
+                                          messageGroups: messageGroups,
+                                          scrollController: _scrollController,
+                                          activeTool: searchStore.activeTool,
+                                          hideUserQueryBubble: false,
+                                          onQuickReplySelect: (option) {
+                                            logic.markQuickRepliesUsed(
+                                              messageGroups.last.id,
+                                            );
+                                            _handleSearch(query: option);
+                                          },
+                                          onCandidateClick: (
+                                            candidate,
+                                            index,
+                                            groupId,
+                                          ) {
+                                            final tabId = searchStore.openTabWithClick(
+                                              candidate,
+                                              index: index,
+                                              groupId: groupId,
+                                              matchByName: true,
+                                            );
+                                            if (tabId != null) {
+                                              searchStore.setTabPanelOpen(true);
+                                            }
+                                          },
+                                          bottomInset: 20,
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: EdgeInsets.fromLTRB(
+                                          isMobile ? 12 : 24,
+                                          0,
+                                          isMobile ? 12 : 24,
+                                          12,
+                                        ),
+                                        child: Center(
+                                          child: ConstrainedBox(
+                                            constraints: const BoxConstraints(maxWidth: 768),
+                                            child: searchBox,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : isMobile
+                                    ? _buildMobileWelcome(
+                                        userName: userName,
+                                        searchBox: searchBox,
+                                      )
+                                    : _buildDesktopWelcome(
+                                        userName: userName,
+                                        searchBox: searchBox,
+                                      ),
+                      ),
+                    ],
                   ),
-                  // 内容在上，使用 Expanded；点击聊天区域时收起键盘
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => FocusScope.of(context).unfocus(),
-                      behavior: HitTestBehavior.translucent,
-                      child: showSkeleton
-                          ? _buildConversationSkeleton()
-                          : showContentArea
-                          ? _buildMessagesArea(logic)
-                          : const SizedBox.shrink(),
+                ),
+                if (!isMobile)
+                  Positioned(
+                    top: 12,
+                    right: 14,
+                    child: _buildCreditsButton(
+                      creditsBalance: creditsBalance,
+                      planLabel: planLabel,
+                      path: path,
                     ),
                   ),
-                  // 搜索框和 Prompt 在下；键盘弹起时底部 padding 设为 0
-                  Padding(
-                    padding: EdgeInsets.only(
-                      bottom: ConstantsTool.bottomTabHeight + 32,
-                    ),
-                    child: _buildBottomSection(
-                      userName: userName,
-                      logic: logic,
-                      searchStore: searchStore,
-                      showWelcome: !showContentArea,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             );
           },
         );
@@ -245,168 +342,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     );
   }
 
-  Widget _buildConversationSkeleton() {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          // 用户消息骨架 - 右对齐
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Container(
-                constraints: const BoxConstraints(maxWidth: 280),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 16,
-                      width: 160,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF636363).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 16,
-                      width: 96,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF636363).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // AI 回复骨架 - 左对齐
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Container(
-                constraints: const BoxConstraints(maxWidth: 320),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 16,
-                      width: 256,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF636363).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 16,
-                      width: 192,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF636363).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 16,
-                      width: 224,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF636363).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessagesArea(AgenticSearchLogic logic) {
-    final groups = logic.messageGroups;
-    return PrimaryScrollController(
-      controller: _scrollController,
-      child: Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: true,
-        interactive: true,
-        child: ListView(
-          controller: _scrollController,
-          physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          children: [
-            for (var i = 0; i < groups.length; i++) ...[
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 768),
-                  child: MessageGroupView(
-                    key: ValueKey(groups[i].id),
-                    group: MessageGroupData(
-                      id: groups[i].id,
-                      userQuery: groups[i].userQuery,
-                      loading: groups[i].loading,
-                      candidates: groups[i].candidates,
-                      searchType: groups[i].searchType ?? 'global',
-                      thinkingSteps: groups[i].thinkingSteps,
-                      thinkingExpanded: groups[i].thinkingExpanded,
-                      dinqResults: groups[i].dinqResults,
-                      advisorResults: groups[i].advisorResults,
-                      pdfAttachment: groups[i].pdfAttachment,
-                      llmMessage: groups[i].llmMessage,
-                      summary: groups[i].summary,
-                      assistantText: groups[i].assistantText,
-                      assistantStreaming: groups[i].assistantStreaming,
-                      quickRepliesUsed: groups[i].quickRepliesUsed,
-                      isDeepSearch: groups[i].isDeepSearch,
-                      deepSearchToolCount: groups[i].deepSearchToolCount,
-                      deepSearchDurationMs: groups[i].deepSearchDurationMs,
-                      searchCompleted: groups[i].searchCompleted,
-                      subAgents: groups[i].subAgents,
-                    ),
-                    onToggleThinking: () =>
-                        logic.setThinkingExpanded(groups[i].id),
-                    onQuickReplySelect: i == groups.length - 1
-                        ? (option) {
-                            logic.markQuickRepliesUsed(groups[i].id);
-                            _handleSearch(query: option);
-                          }
-                        : null,
-                    onCandidateClick: (candidate, index, groupId) {
-                      final store = context.read<SearchStore>();
-                      final tabId = store.openTabWithClick(
-                        candidate,
-                        index: index,
-                        groupId: groupId,
-                        matchByName: true,
-                      );
-                      if (tabId != null) store.setTabPanelOpen(true);
-                    },
-                    isLatest: i == groups.length - 1,
-                  ),
-                ),
-              ),
-            ],
-            Container(key: _messagesEndKey, height: 80),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTopBar({required bool showBackHome}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+      padding: const EdgeInsets.fromLTRB(6, 0, 6, 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -461,147 +399,274 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget> {
     );
   }
 
-  Widget _buildBottomSection({
-    required String userName,
+  Widget _buildSearchBox({
     required AgenticSearchLogic logic,
     required SearchStore searchStore,
-    required bool showWelcome,
+    required bool deepSearchMode,
   }) {
-    final hasMessages = logic.messageGroups.isNotEmpty;
-    final deepSearchMode = hasMessages && searchStore.activeTool == null;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: SearchBoxWidget(
+        onSearch: _handleSearch,
+        onStop: _handleStop,
+        loading: logic.loading,
+        talentMode: _talentMode,
+        deepSearchMode: deepSearchMode,
+        onTalentModeChange: (mode) {
+          setState(() => _talentMode = mode);
+        },
+        onDinqSearchSubmit: _handleDinqSearchSubmit,
+        onAdvisorSearch: _handleAdvisorSearch,
+        advisorLoading: logic.advisorLoading,
+        onActiveToolChange: (tool) => _handleActiveToolChange(searchStore, tool),
+        dropdownPosition: 'up',
+      ),
+    );
+  }
 
+  Widget _buildMobileWelcome({
+    required String userName,
+    required Widget searchBox,
+  }) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        // Welcome 和 Prompt Templates（只在没有消息时显示）
-        if (showWelcome) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        userName.isNotEmpty ? 'Welcome,' : 'Welcome',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xA3303030),
-                          letterSpacing: 0.02,
-                          fontFamily: 'Editor Note',
-                          height: 2,
+                const SizedBox(height: 56),
+                Row(
+                  children: [
+                    SvgPicture.asset('assets/logo/dinq-black.svg', width: 22, height: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          text: 'Welcome, ',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontFamily: 'Editor Note',
+                            color: Color(0xFF6B6862),
+                            fontWeight: FontWeight.w400,
+                            height: 1.1,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: userName,
+                              style: const TextStyle(
+                                color: Color(0xFF171717),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        userName.isNotEmpty ? '$userName' : '',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF171717),
-                          letterSpacing: 0.02,
-                          fontFamily: 'Editor Note',
-                          height: 2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
-                SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: AnimatedSize(
-                    duration: Duration(
-                      milliseconds: _activeTool != null ? 200 : 400,
-                    ),
-                    curve: Curves.easeOut,
-                    child: AnimatedOpacity(
-                      duration: Duration(
-                        milliseconds: _activeTool != null ? 150 : 300,
-                      ),
-                      opacity: _activeTool != null ? 0.0 : 1.0,
-                      child: _activeTool == null
-                          ? PromptTemplateGridWidget(
-                              onQueryFromPapers: (query) =>
-                                  _handleSearch(query: query),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
+                const PromptTemplateGridWidget(),
+                const Spacer(),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-        ],
-        // 搜索框区域（始终显示）
+        ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: searchBox,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopWelcome({
+    required String userName,
+    required Widget searchBox,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 768),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (!hasMessages && searchStore.activeTool != 'find-advisor')
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 768),
-                    child: DiscoverQuickActionsWidget(
-                      onFindAdvisor: () {
-                        // TODO: 打开 Find Advisor 流程（如与搜索框顾问入口一致）
-                      },
-                      onSalaryAnalysis: () {
-                        // TODO: 打开 Salary Analysis 流程
-                      },
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SvgPicture.asset('assets/logo/dinq-black.svg', width: 24, height: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Welcome, $userName',
+                    style: const TextStyle(
+                      fontSize: 38,
+                      height: 1.2,
+                      fontFamily: 'Editor Note',
+                      color: Color(0xFF171717),
                     ),
                   ),
-                ),
-              if (!hasMessages && searchStore.activeTool != 'find-advisor')
-                const SizedBox(height: 16),
-              Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 768),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: SearchBoxWidget(
-                    onSearch: _handleSearch,
-                    onStop: _handleStop,
-                    loading: logic.loading,
-                    talentMode: _talentMode,
-                    deepSearchMode: deepSearchMode,
-                    onTalentModeChange: (mode) {
-                      setState(() {
-                        _talentMode = mode;
-                      });
-                    },
-                    onDinqSearchSubmit: _handleDinqSearchSubmit,
-                    onAdvisorSearch: _handleAdvisorSearch,
-                    advisorLoading: logic.advisorLoading,
-                    onActiveToolChange: (tool) {
-                      setState(() {
-                        _activeTool = tool;
-                      });
-                    },
-                    dropdownPosition: 'up',
-                  ),
-                ),
+                ],
               ),
+              const SizedBox(height: 20),
+              searchBox,
+              const SizedBox(height: 16),
+              const PromptTemplateGridWidget(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCreditsButton({
+    required int creditsBalance,
+    required String planLabel,
+    required String path,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        TextButton.icon(
+          key: _creditsAnchorKey,
+          onPressed: () => setState(() => _creditsOpen = !_creditsOpen),
+          icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF171717)),
+          label: Text(
+            creditsBalance.toString(),
+            style: const TextStyle(
+              color: Color(0xFF171717),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            backgroundColor: Colors.white.withAlpha(220),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+              side: const BorderSide(color: Color(0xFFE8E4DF)),
+            ),
+          ),
+        ),
+        if (_creditsOpen)
+          Positioned(
+            top: 42,
+            right: 0,
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              elevation: 6,
+              child: Container(
+                width: 248,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFEAE8E3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            planLabel,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF171717),
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _creditsOpen = false);
+                            context.go('/settings/subscription');
+                          },
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFF1C1B1A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          child: const Text('Upgrade'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6F4F0),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Available Credits',
+                              style: TextStyle(fontSize: 13, color: Color(0xFF8A8880)),
+                            ),
+                          ),
+                          Text(
+                            creditsBalance.toString(),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF171717),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        setState(() => _creditsOpen = false);
+                        context.go('/settings/subscription');
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                      ),
+                      child: const Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Usage details',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF8A8880),
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: Color(0xFF8A8880),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      path,
+                      style: const TextStyle(fontSize: 10, color: Color(0xFFB7B3AB)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
