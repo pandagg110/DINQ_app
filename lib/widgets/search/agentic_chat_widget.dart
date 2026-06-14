@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../constants/app_constants.dart';
 import '../../services/search_service.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
@@ -248,12 +251,15 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
             return Stack(
               children: [
                 Container(
-                  color: const Color(0xFFF8F7F3),
+                  color: const Color(0xFFFAF9F6),
                   width: double.infinity,
                   child: Column(
                     children: [
                       if (showMobileHeader)
-                        _buildTopBar(showBackHome: widget.showBackHome),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 12, 10, 0),
+                          child: _buildTopBar(showBackHome: widget.showBackHome),
+                        ),
                       Expanded(
                         child: showRestoring
                             ? Center(
@@ -300,7 +306,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                           isMobile ? 12 : 24,
                                           0,
                                           isMobile ? 12 : 24,
-                                          12,
+                                          isMobile
+                                              ? _mobileBottomBarInset(context)
+                                              : 12,
                                         ),
                                         child: Center(
                                           child: ConstrainedBox(
@@ -343,8 +351,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   }
 
   Widget _buildTopBar({required bool showBackHome}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 0, 6, 4),
+    return SizedBox(
+      height: 44,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -366,7 +374,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     foregroundColor: const Color(0xFF6B7280),
                   ),
                 ),
@@ -388,7 +398,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                   ),
                 ),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: const Color(0xFF6B7280),
                 ),
               ),
@@ -427,56 +439,78 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     );
   }
 
+  /// 为 MainTab 浮动底栏预留空间（与 main_tab_bottom_view 高度一致）。
+  double _mobileBottomBarInset(BuildContext context) {
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    return ConstantsTool.bottomTabHeight +
+        math.max(26, safeBottom) +
+        12;
+  }
+
   Widget _buildMobileWelcome({
     required String userName,
     required Widget searchBox,
   }) {
+    final bottomInset = _mobileBottomBarInset(context);
+
     return Column(
       children: [
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                const SizedBox(height: 56),
-                Row(
-                  children: [
-                    SvgPicture.asset('assets/logo/dinq-black.svg', width: 22, height: 22),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          text: 'Welcome, ',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontFamily: 'Editor Note',
-                            color: Color(0xFF6B6862),
-                            fontWeight: FontWeight.w400,
-                            height: 1.1,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SvgPicture.asset(
+                            'assets/logo/dinq-black.svg',
+                            width: 22,
+                            height: 22,
                           ),
-                          children: [
-                            TextSpan(
-                              text: userName,
-                              style: const TextStyle(
-                                color: Color(0xFF171717),
-                                fontWeight: FontWeight.w600,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'Welcome, ',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontFamily: 'Editor Note',
+                                  color: Color(0xFF6B6862),
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.1,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: userName,
+                                    style: const TextStyle(
+                                      color: Color(0xFF171717),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      const PromptTemplateGridWidget(),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                const PromptTemplateGridWidget(),
-                const Spacer(),
-              ],
-            ),
+              );
+            },
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,

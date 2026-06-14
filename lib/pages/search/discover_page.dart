@@ -184,6 +184,7 @@ class _SearchPageState extends State<SearchPage> {
     final keyboardHeight = mq.viewInsets.bottom;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFAF9F6),
       resizeToAvoidBottomInset: false,
       extendBody: true,
       extendBodyBehindAppBar: true,
@@ -196,8 +197,8 @@ class _SearchPageState extends State<SearchPage> {
             child: SizedBox(
               height: mq.size.height,
               width: double.infinity,
-              child: Container(
-                padding: EdgeInsets.only(top: isMobileHeaderVisible ? 56 : 0),
+              child: SafeArea(
+                bottom: false,
                 child: Stack(
                   children: [
                 // 主聊天区域
