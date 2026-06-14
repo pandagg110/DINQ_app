@@ -94,7 +94,10 @@ class _ChatHistoryMobileWidgetState extends State<ChatHistoryMobileWidget>
               child: SizedBox(
                 width: width,
                 height: MediaQuery.of(context).size.height,
-                child: ChatHistoryPage(onClose: widget.onClose),
+                child: ChatHistoryPage(
+                  isOpen: widget.isOpen,
+                  onClose: widget.onClose,
+                ),
               ),
             ),
           ),

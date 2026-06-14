@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/user_models.dart';
+import '../../pages/settings/settings_subscription_page.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
-import '../../widgets/search/history/chat_history_empty_state_widget.dart';
 import '../../widgets/search/history/chat_history_item_widget.dart';
 import '../../widgets/search/history/chat_history_skeleton_widget.dart';
-import '../../widgets/search/history/new_chat_confirm_dialog.dart';
 
-/// Chat History 页：与 TSX ChatHistorySidebar/ChatHistoryMobile 逻辑一致
-/// 含 Header、Search(Pro/Plus)、New Chat、列表( free→locked / basic→1+mock+upgrade / 加载|错误|空|列表 )、Footer、NewChatConfirmDialog
+/// 与 TSX MobileSearchHistory 一致：New Chat = fullReset + 关闭侧栏 + /search
 class ChatHistoryPage extends StatefulWidget {
-  const ChatHistoryPage({super.key, this.onClose});
+  const ChatHistoryPage({
+    super.key,
+    this.onClose,
+    this.isOpen = true,
+  });
 
-  /// 在左侧弹框内展示时传入，返回按钮和 New Chat 将调用此回调而非 Navigator.pop
   final VoidCallback? onClose;
+  final bool isOpen;
 
   @override
   State<ChatHistoryPage> createState() => _ChatHistoryPageState();
@@ -26,259 +27,361 @@ class ChatHistoryPage extends StatefulWidget {
 class _ChatHistoryPageState extends State<ChatHistoryPage> {
   bool _hasLoaded = false;
   bool _isLoadingMoreScheduled = false;
+  String _query = '';
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_hasLoaded) {
-      _hasLoaded = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context.read<ChatHistoryStore>().loadConversations();
-      });
+    _loadIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(ChatHistoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isOpen && !oldWidget.isOpen) {
+      _loadIfNeeded();
     }
   }
 
-  String _basePlan(Subscription? sub) {
-    if (sub == null) return 'free';
-    return sub.basePlan;
+  void _loadIfNeeded() {
+    if (_hasLoaded || !widget.isOpen) return;
+    _hasLoaded = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<ChatHistoryStore>().loadConversations('');
+    });
+  }
+
+  void _handleNewChat() {
+    context.read<ChatHistoryStore>().setActiveConversationId(null);
+    context.read<SearchStore>().clearAll();
+    widget.onClose?.call();
+    context.go('/search');
+  }
+
+  List<ConversationItem> _filteredConversations(List<ConversationItem> items) {
+    final normalized = _query.trim().toLowerCase();
+    if (normalized.isEmpty) return items;
+    return items
+        .where(
+          (c) => (c.title.isNotEmpty ? c.title : 'Untitled')
+              .toLowerCase()
+              .contains(normalized),
+        )
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final chatStore = context.watch<ChatHistoryStore>();
     final userStore = context.watch<UserStore>();
-    final searchStore = context.read<SearchStore>();
     final subscription = userStore.subscription;
-    final basePlan = _basePlan(subscription);
-
-    void doNewChat() {
-      chatStore.setActiveConversationId(null);
-      searchStore.clearAll();
-      if (widget.onClose != null) {
-        widget.onClose!();
-      } else {
-        Navigator.of(context).pop();
-      }
-    }
-
-    void handleNewChat() {
-      // 使用根 Navigator 弹框，使确认框居中在整个窗口而非当前组件
-      showDialog<void>(
-        context: context,
-        useRootNavigator: true,
-        barrierDismissible: false,
-        builder: (dialogContext) => NewChatConfirmDialog(
-          isOpen: true,
-          onClose: () => Navigator.of(dialogContext).pop(),
-          onConfirm: () {
-            doNewChat();
-            Navigator.of(dialogContext).pop();
-          },
-          userPlan: basePlan,
-        ),
-      );
-    }
+    final basePlan = subscription?.basePlan ?? 'free';
+    final credits = subscription?.creditsBalance ?? 0;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: SizedBox(
-                    height: 40,
-                    child: TextField(
-                      onChanged: (v) {
-                        chatStore.setSearchQuery(v);
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (!mounted) return;
-                          context.read<ChatHistoryStore>().loadConversations();
-                        });
-                      },
-                      readOnly: false,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: 'Search...',
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          size: 20,
-                          color: Color(0xFF9CA3AF),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE5E7EB),
-                            width: 1,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 12,
-                        ),
+      backgroundColor: const Color(0xFFF8F7F3),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: _handleNewChat,
+                      tooltip: 'Go to Discover home',
+                      icon: const Icon(
+                        Icons.home_outlined,
+                        size: 24,
+                        color: Color(0xFF171717),
                       ),
-                      style: const TextStyle(fontSize: 14),
                     ),
                   ),
-                ),
-
-                // New Chat button
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: TextButton.icon(
-                      onPressed: handleNewChat,
-                      icon: const Icon(
-                        Icons.add,
-                        size: 20,
-                        color: Colors.black,
+                  const SizedBox(height: 8),
+                  TextField(
+                    onChanged: (v) => setState(() => _query = v),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Search history',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: Color(0xFF9e9b93),
                       ),
-                      label: const Text('New Chat'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF6F6F6),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        textStyle: const TextStyle(
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE6E1DA)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE6E1DA)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: TextButton.icon(
+                      onPressed: _handleNewChat,
+                      icon: const Icon(Icons.add, size: 18, color: Color(0xFF171717)),
+                      label: const Text(
+                        'New chat',
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black,
+                          color: Color(0xFF171717),
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: const Color(0xFFEEEDE9),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
                   ),
-                ),
-                // Search box - 始终显示（与 list 一致）
-                // Conversation list：用 Selector 依赖 conversations，列表更新时必重建
-                Expanded(
-                  child: Selector<ChatHistoryStore, List<ConversationItem>>(
-                    selector: (_, store) => store.conversations,
-                    builder: (context, _, child) {
-                      final chatStore = context.watch<ChatHistoryStore>();
-                      return _buildList(
-                        context,
-                        chatStore: chatStore,
-                        onItemClick: (item) => _handleItemClick(context, item),
-                      );
-                    },
-                  ),
-                ),
-                // Footer - Total for Pro/Plus
-                if (chatStore.total > 0)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: const BoxDecoration(
-                      border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
-                      color: Color(0xFFF9FAFB),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${chatStore.total} ${chatStore.total == 1 ? 'Conversation' : 'Conversations'} Total',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF636363),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
+            Expanded(
+              child: Selector<ChatHistoryStore, List<ConversationItem>>(
+                selector: (_, store) => store.conversations,
+                builder: (context, conversations, _) {
+                  final chatStore = context.watch<ChatHistoryStore>();
+                  final normalizedQuery = _query.trim();
+                  final filteredItems = _filteredConversations(conversations);
+                  return _buildList(
+                    chatStore: chatStore,
+                    filteredItems: filteredItems,
+                    normalizedQuery: normalizedQuery,
+                    onItemClick: (item) => _handleItemClick(context, item),
+                  );
+                },
+              ),
+            ),
+            _buildFooter(
+              context,
+              basePlan: basePlan,
+              credits: credits,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter(
+    BuildContext context, {
+    required String basePlan,
+    required int credits,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0xFFE6E1DA))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  getPlanLabel(basePlan),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF171717),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  widget.onClose?.call();
+                  context.push('/settings/subscription');
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.bolt, size: 16, color: Color(0xFF171717)),
+                    const SizedBox(width: 4),
+                    Text(
+                      credits.toString(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF171717),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: Color(0xFF8a8880),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Row(
+            children: [
+              Icon(Icons.card_giftcard, size: 16, color: Color(0xFF6b6862)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Invite friends, earn credits',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF6b6862)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    widget.onClose?.call();
+                    context.push('/me/invite');
+                  },
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF2a2826),
+                    side: BorderSide.none,
+                    minimumSize: const Size(0, 32),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Invite', style: TextStyle(fontSize: 14)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () {
+                    widget.onClose?.call();
+                    context.push('/pricing');
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF171717),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 32),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Upgrade', style: TextStyle(fontSize: 14)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildList(
-    BuildContext context, {
+  Widget _buildList({
     required ChatHistoryStore chatStore,
-    required void Function(ConversationItem) onItemClick,
-  }) {
-    return _buildListContent(
-      context,
-      chatStore: chatStore,
-      onItemClick: onItemClick,
-    );
-  }
-
-  /// 列表内容：所有用户都走统一真实会话接口（无 VIP 限制）
-  Widget _buildListContent(
-    BuildContext context, {
-    required ChatHistoryStore chatStore,
+    required List<ConversationItem> filteredItems,
+    required String normalizedQuery,
     required void Function(ConversationItem) onItemClick,
   }) {
     if (chatStore.isLoading && chatStore.conversations.isEmpty) {
       return const ChatHistorySkeletonWidget();
     }
     if (chatStore.error != null) {
-      return SingleChildScrollView(
-        child: ChatHistoryEmptyStateWidget(
-          type: 'error',
-          message: chatStore.error,
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            chatStore.error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF8a8880)),
+          ),
         ),
       );
     }
-    if (chatStore.conversations.isEmpty) {
-      return SingleChildScrollView(
-        child: ChatHistoryEmptyStateWidget(type: 'empty'),
+    if (chatStore.conversations.isEmpty && !chatStore.hasMore()) {
+      return const Center(
+        child: Text(
+          'No history yet',
+          style: TextStyle(fontSize: 14, color: Color(0xFF8a8880)),
+        ),
+      );
+    }
+    if (normalizedQuery.isNotEmpty && filteredItems.isEmpty) {
+      return const Center(
+        child: Text(
+          'No matching history',
+          style: TextStyle(fontSize: 14, color: Color(0xFF8a8880)),
+        ),
       );
     }
 
-    final list = chatStore.conversations;
+    final showLoadMore =
+        normalizedQuery.isEmpty && chatStore.hasMore();
+
     return ListView.builder(
-      key: ValueKey('conversations_${list.length}_${list.hashCode}'),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      itemCount: list.length + (chatStore.hasMore() ? 1 : 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      itemCount: filteredItems.length + (showLoadMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index >= list.length) {
-          if (chatStore.hasMore()) {
-            if (!_isLoadingMoreScheduled) {
-              _isLoadingMoreScheduled = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) async {
-                if (!mounted) return;
-                await context.read<ChatHistoryStore>().loadMore();
-                if (mounted) _isLoadingMoreScheduled = false;
-              });
-            }
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            );
+        if (index >= filteredItems.length) {
+          if (!_isLoadingMoreScheduled) {
+            _isLoadingMoreScheduled = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              if (!mounted) return;
+              await context.read<ChatHistoryStore>().loadMore();
+              if (mounted) _isLoadingMoreScheduled = false;
+            });
           }
-          return const SizedBox.shrink();
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
         }
-        final item = list[index];
+        final item = filteredItems[index];
         return ChatHistoryItemWidget(
-          key: ValueKey('conv_${item.id}'),
+          key: ValueKey('conv_${item.type}_${item.id}'),
           conversation: item,
           isActive: chatStore.isActiveConversation(item),
           onClick: () => onItemClick(item),
-          onDelete: (id) => chatStore.deleteConversationById(id, type: item.type),
-          onRename: (id, title) => chatStore.renameConversation(id, title, type: item.type),
+          onDelete: (id) =>
+              chatStore.deleteConversationById(id, type: item.type),
+          onRename: (id, title) =>
+              chatStore.renameConversation(id, title, type: item.type),
         );
       },
     );
   }
 
   void _handleItemClick(BuildContext context, ConversationItem item) {
-    final chatStore = context.read<ChatHistoryStore>();
-    chatStore.setActiveConversation(item);
+    context.read<ChatHistoryStore>().setActiveConversation(item);
 
-    // 与 dinq-client 一致：history 只负责路由跳转，详情拉取与恢复由 SearchPage 处理
     final route = item.type == 'discover'
         ? '/search/${item.id}'
         : '/search/${item.type}/${item.id}';
 
-    context.go(route);
     widget.onClose?.call();
+    context.go(route);
   }
 }
