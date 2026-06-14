@@ -120,6 +120,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   bool analysisLoading = false;
   List<Map<String, dynamic>>? analysisCandidates;
   StreamSubscription? _streamSubscription;
+  StreamSubscription? _analysisStreamSubscription;
   String? _activeSessionId;
 
   static List<Map<String, dynamic>> _mergeCandidates(
@@ -862,6 +863,10 @@ class AgenticSearchLogic extends ChangeNotifier {
       String st;
       if (convType == 'match') {
         st = 'advisor';
+      } else if (convType == 'analyze') {
+        st = 'analyze';
+      } else if (convType == 'citation') {
+        st = 'citation';
       } else if (searchType == 'people_search') {
         st = 'dinq';
       } else {
@@ -930,6 +935,43 @@ class AgenticSearchLogic extends ChangeNotifier {
       group.deepSearchToolCount = deepSearchToolCount;
       group.deepSearchDurationMs = deepSearchDurationMs;
 
+      if (convType == 'analyze' && result is Map) {
+        final cards = <String, dynamic>{};
+        for (final entry in result.entries) {
+          final key = entry.key.toString().replaceAll(RegExp(r'_card$'), '');
+          cards[key] = {
+            'status': 'completed',
+            'data': entry.value,
+          };
+        }
+        group.toolResult = {
+          'platform': r['source']?.toString() ?? 'scholar',
+          'cards': cards,
+          'query': query,
+          'progress': 100,
+          'rounds': [
+            {'phase': null},
+          ],
+        };
+        group.roundStatus = DeepSearchRoundStatus.done;
+      } else if (convType == 'citation') {
+        group.toolResult = {'phase': null, 'data': result};
+        group.roundStatus = DeepSearchRoundStatus.done;
+      } else if (convType == 'match' && result is Map<String, dynamic>) {
+        group.toolResult = {
+          'advisors': advisorResults ?? result['advisors'] ?? [],
+          'pdfAttachment': result['pdfAttachment'],
+          'countries': result['countries'],
+          'rounds': [
+            {
+              'phase': null,
+              'advisorCount': result['total_advisors'] ?? advisorResults?.length ?? 0,
+            },
+          ],
+        };
+        group.roundStatus = DeepSearchRoundStatus.done;
+      }
+
       if (sseEvents != null &&
           sseEvents.isNotEmpty &&
           (convType == 'discover' || st == 'global')) {
@@ -978,6 +1020,8 @@ class AgenticSearchLogic extends ChangeNotifier {
   void clearMessages() {
     _streamSubscription?.cancel();
     _streamSubscription = null;
+    _analysisStreamSubscription?.cancel();
+    _analysisStreamSubscription = null;
     _activeSessionId = null;
     searchStore.setCurrentConversationId(null);
     messageGroups = [];
@@ -1418,7 +1462,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     }
   }
 
-  /// 与 TSX handleAnalysisSearch 对齐（移动端简化：Scholar 走 profile API）
+  /// 与 TSX handleAnalysisSearch + scholar/github/linkedinAnalyzeStream 对齐
   Future<void> handleAnalysisSearch({
     required String platform,
     required String query,
@@ -1427,71 +1471,324 @@ class AgenticSearchLogic extends ChangeNotifier {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
 
-    final groupId = DateTime.now().millisecondsSinceEpoch;
-    final group = AgenticMessageGroup(
-      id: groupId,
-      userQuery: trimmed,
-      loading: true,
-      candidates: const [],
-      searchType: 'analyze',
-      thinkingSteps: const [],
-      searchCompleted: false,
-    );
-    group.roundStatus = DeepSearchRoundStatus.searching;
-    group.toolResult = {
-      'platform': platform,
-      'query': trimmed,
-      'cards': <String, dynamic>{},
-      'progress': 0,
-    };
+    final analysisQuery = platform == 'github'
+        ? (_extractGitHubUsername(trimmed) ?? trimmed)
+        : trimmed;
+    if (analysisQuery.isEmpty) return;
 
-    messageGroups = [...messageGroups, group];
-    analysisLoading = true;
+    _analysisStreamSubscription?.cancel();
     analysisCandidates = null;
+
+    final lastGroup = messageGroups.isNotEmpty ? messageGroups.last : null;
+    final isResuming = lastGroup != null &&
+        lastGroup.toolType == 'analysis' &&
+        lastGroup.roundStatus != DeepSearchRoundStatus.done &&
+        lastGroup.roundStatus != DeepSearchRoundStatus.interrupted;
+
+    final needsResolving = platform == 'scholar' || platform == 'linkedin';
+    late final int groupId;
+
+    if (isResuming) {
+      groupId = lastGroup.id;
+      final existing = Map<String, dynamic>.from(
+        lastGroup.toolResult ?? const {},
+      );
+      final rounds = existing['rounds'] is List
+          ? List<Map<String, dynamic>>.from(
+              (existing['rounds'] as List).map(
+                (e) => Map<String, dynamic>.from(e as Map),
+              ),
+            )
+          : <Map<String, dynamic>>[
+              {
+                'phase': needsResolving ? 'analyzing' : 'analyzing',
+              },
+            ];
+      lastGroup.loading = true;
+      lastGroup.searchCompleted = false;
+      lastGroup.roundStatus = DeepSearchRoundStatus.searching;
+      lastGroup.toolResult = {
+        ...existing,
+        'platform': platform,
+        'query': analysisQuery,
+        'cards': existing['cards'] is Map
+            ? Map<String, dynamic>.from(existing['cards'] as Map)
+            : <String, dynamic>{},
+        'progress': existing['progress'] ?? 0,
+        'rounds': rounds,
+      };
+    } else {
+      groupId = DateTime.now().millisecondsSinceEpoch;
+      final group = AgenticMessageGroup(
+        id: groupId,
+        userQuery: trimmed,
+        loading: true,
+        candidates: const [],
+        searchType: 'analyze',
+        thinkingSteps: const [],
+        searchCompleted: false,
+      );
+      group.roundStatus = DeepSearchRoundStatus.searching;
+      group.toolResult = {
+        'platform': platform,
+        'query': analysisQuery,
+        'cards': <String, dynamic>{},
+        'progress': 0,
+        'rounds': [
+          {
+            'phase': needsResolving ? 'resolving' : 'analyzing',
+          },
+        ],
+      };
+      messageGroups = [...messageGroups, group];
+    }
+
+    analysisLoading = true;
     notifyListeners();
 
-    try {
-      if (platform == 'scholar') {
-        final response = await searchService.getScholarProfile(
-          authorName: candidateData?['name']?.toString() ?? trimmed,
-        );
-        final idx = messageGroups.indexWhere((g) => g.id == groupId);
-        if (idx >= 0) {
-          messageGroups[idx].loading = false;
-          messageGroups[idx].searchCompleted = true;
-          messageGroups[idx].roundStatus = DeepSearchRoundStatus.done;
-          messageGroups[idx].toolResult = {
-            'platform': platform,
-            'query': trimmed,
-            'cards': {
-              'profile': {'status': 'completed', 'data': response},
+    var firstCardSeen = false;
+
+    void updateGroup(void Function(AgenticMessageGroup group, Map<String, dynamic> result) fn) {
+      final idx = messageGroups.indexWhere((g) => g.id == groupId);
+      if (idx < 0) return;
+      final result = Map<String, dynamic>.from(
+        messageGroups[idx].toolResult ?? const {},
+      );
+      fn(messageGroups[idx], result);
+      messageGroups[idx].toolResult = result;
+      notifyListeners();
+    }
+
+    void setAnalysisPhase(String? phase) {
+      updateGroup((group, result) {
+        final rounds = result['rounds'] is List
+            ? List<Map<String, dynamic>>.from(
+                (result['rounds'] as List).map(
+                  (e) => Map<String, dynamic>.from(e as Map),
+                ),
+              )
+            : <Map<String, dynamic>>[{'phase': phase}];
+        if (rounds.isEmpty) {
+          rounds.add({'phase': phase});
+        } else {
+          final last = Map<String, dynamic>.from(rounds.last);
+          if (last['phase']?.toString() != phase) {
+            rounds[rounds.length - 1] = {...last, 'phase': phase};
+          }
+        }
+        result['rounds'] = rounds;
+        group.toolResult = result;
+      });
+    }
+
+    void applyAnalysisEvent(Map<String, dynamic> event) {
+      final status = event['status']?.toString();
+      if (status == 'heartbeat') return;
+
+      if (status == 'need_selection') {
+        final candidates = event['candidates'];
+        if (candidates is List) {
+          analysisCandidates = candidates
+              .whereType<Map>()
+              .map((c) => Map<String, dynamic>.from(c))
+              .map((c) {
+                if (platform == 'linkedin') {
+                  return {
+                    'name': c['title']?.toString() ?? '',
+                    'content': c['content']?.toString() ?? '',
+                    'subtext': c['url']?.toString() ?? '',
+                    'url': c['url']?.toString() ?? '',
+                  };
+                }
+                return {
+                  'name': c['name']?.toString() ?? '',
+                  'content': c['content']?.toString() ?? '',
+                  'subtext': c['scholar_id']?.toString() ?? '',
+                  'url': c['url']?.toString() ?? c['scholar_id']?.toString() ?? '',
+                  'scholar_id': c['scholar_id']?.toString(),
+                };
+              })
+              .toList();
+        }
+        updateGroup((group, result) {
+          group.loading = false;
+          group.searchCompleted = false;
+          group.roundStatus = DeepSearchRoundStatus.idle;
+          if (event['current_action'] != null) {
+            final rounds = result['rounds'] is List
+                ? List<Map<String, dynamic>>.from(
+                    (result['rounds'] as List).map(
+                      (e) => Map<String, dynamic>.from(e as Map),
+                    ),
+                  )
+                : <Map<String, dynamic>>[{}];
+            if (rounds.isNotEmpty) {
+              rounds[rounds.length - 1] = {
+                ...rounds.last,
+                'currentAction': event['current_action'],
+              };
+            }
+            result['rounds'] = rounds;
+          }
+        });
+        analysisLoading = false;
+        notifyListeners();
+        _analysisStreamSubscription?.cancel();
+        _analysisStreamSubscription = null;
+        return;
+      }
+
+      updateGroup((group, result) {
+        final progress = event['overall'];
+        if (progress is num) {
+          result['progress'] = progress.toInt();
+        }
+
+        final cards = result['cards'] is Map
+            ? Map<String, dynamic>.from(result['cards'] as Map)
+            : <String, dynamic>{};
+        final eventCards = event['cards'];
+        if (eventCards is Map) {
+          if (!firstCardSeen) {
+            final hasActive = eventCards.values.any((cardInfo) {
+              if (cardInfo is! Map) return false;
+              final cardStatus = cardInfo['status']?.toString();
+              return cardStatus == 'done' || cardStatus == 'error';
+            });
+            if (hasActive) {
+              firstCardSeen = true;
+              final rounds = result['rounds'] is List
+                  ? List<Map<String, dynamic>>.from(
+                      (result['rounds'] as List).map(
+                        (e) => Map<String, dynamic>.from(e as Map),
+                      ),
+                    )
+                  : <Map<String, dynamic>>[{'phase': 'analyzing'}];
+              if (rounds.isNotEmpty) {
+                rounds[rounds.length - 1] = {
+                  ...rounds.last,
+                  'phase': 'analyzing',
+                };
+              }
+              result['rounds'] = rounds;
+            }
+          }
+
+          for (final entry in eventCards.entries) {
+            final cardInfo = entry.value;
+            if (cardInfo is! Map) continue;
+            final normalizedName =
+                entry.key.toString().replaceAll(RegExp(r'_card$'), '');
+            cards[normalizedName] = {
+              'status': _normalizeAnalysisCardStatus(cardInfo['status']),
+              'data': cardInfo['data'],
+              'error': cardInfo['error'],
+            };
+          }
+        }
+
+        final profileData = event['result'];
+        if (profileData is Map && profileData['profile_data'] is Map) {
+          final existingProfile = cards['profile'];
+          final existingData = existingProfile is Map &&
+                  existingProfile['data'] is Map
+              ? Map<String, dynamic>.from(existingProfile['data'] as Map)
+              : <String, dynamic>{};
+          cards['profile'] = {
+            'status': 'completed',
+            'data': {
+              ...existingData,
+              ...Map<String, dynamic>.from(
+                profileData['profile_data'] as Map,
+              ),
             },
-            'progress': 100,
           };
         }
-      } else {
-        final idx = messageGroups.indexWhere((g) => g.id == groupId);
-        if (idx >= 0) {
-          messageGroups[idx].loading = false;
-          messageGroups[idx].searchCompleted = true;
-          messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
-          messageGroups[idx].errorMessage =
-              'Analysis for $platform is not available on mobile yet.';
+
+        if (event['current_action'] != null) {
+          final rounds = result['rounds'] is List
+              ? List<Map<String, dynamic>>.from(
+                  (result['rounds'] as List).map(
+                    (e) => Map<String, dynamic>.from(e as Map),
+                  ),
+                )
+              : <Map<String, dynamic>>[{}];
+          if (rounds.isNotEmpty) {
+            rounds[rounds.length - 1] = {
+              ...rounds.last,
+              'currentAction': event['current_action'],
+            };
+          }
+          result['rounds'] = rounds;
         }
-      }
+
+        result['cards'] = cards;
+        group.toolResult = result;
+      });
+    }
+
+    try {
+      _analysisStreamSubscription = searchService
+          .analyzeStream(
+            platform: platform,
+            query: analysisQuery,
+            candidateData: candidateData,
+          )
+          .listen(
+            applyAnalysisEvent,
+            onDone: () {
+              setAnalysisPhase(null);
+              updateGroup((group, _) {
+                group.loading = false;
+                group.searchCompleted = true;
+                group.roundStatus = DeepSearchRoundStatus.done;
+              });
+              analysisLoading = false;
+              _analysisStreamSubscription = null;
+              notifyListeners();
+              onScrollToBottom?.call();
+            },
+            onError: (_, __) {
+              updateGroup((group, _) {
+                group.loading = false;
+                group.searchCompleted = true;
+                group.roundStatus = DeepSearchRoundStatus.error;
+                group.errorMessage = 'Analysis failed';
+              });
+              analysisLoading = false;
+              _analysisStreamSubscription = null;
+              notifyListeners();
+            },
+          );
     } catch (_) {
-      final idx = messageGroups.indexWhere((g) => g.id == groupId);
-      if (idx >= 0) {
-        messageGroups[idx].loading = false;
-        messageGroups[idx].searchCompleted = true;
-        messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
-        messageGroups[idx].errorMessage = 'Analysis failed';
-      }
-    } finally {
+      updateGroup((group, _) {
+        group.loading = false;
+        group.searchCompleted = true;
+        group.roundStatus = DeepSearchRoundStatus.error;
+        group.errorMessage = 'Analysis failed';
+      });
       analysisLoading = false;
       notifyListeners();
-      onScrollToBottom?.call();
     }
+  }
+
+  static String _normalizeAnalysisCardStatus(dynamic status) {
+    final value = status?.toString();
+    if (value == 'done') return 'completed';
+    if (value == 'error') return 'failed';
+    if (value == 'running') return 'running';
+    return 'pending';
+  }
+
+  static String? _extractGitHubUsername(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return null;
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null && uri.host.contains('github.com')) {
+      final parts = uri.pathSegments.where((part) => part.isNotEmpty).toList();
+      if (parts.isNotEmpty) return parts.first;
+    }
+    return trimmed.replaceFirst(RegExp(r'^@'), '');
   }
 
   void clearAnalysisCandidates() {
@@ -1515,6 +1812,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     _activeSessionId = null;
     _streamSubscription?.cancel();
     _streamSubscription = null;
+    _analysisStreamSubscription?.cancel();
+    _analysisStreamSubscription = null;
     searchStore.setIsSearching(false);
     loading = false;
     advisorLoading = false;

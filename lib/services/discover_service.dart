@@ -132,6 +132,32 @@ class SearchService {
     yield* _parseSseStream(responseBody);
   }
 
+  /// POST /analyze/{platform} — Scholar / GitHub / LinkedIn 分析 SSE 流
+  /// 与 TSX scholarAnalyzeStream / githubAnalyzeStream / linkedinAnalyzeStream 对齐
+  Stream<Map<String, dynamic>> analyzeStream({
+    required String platform,
+    required String query,
+    Map<String, dynamic>? candidateData,
+  }) async* {
+    final body = <String, dynamic>{
+      'query': query,
+      if (candidateData != null && candidateData.isNotEmpty) 'data': candidateData,
+    };
+
+    final response = await _dio.post<ResponseBody>(
+      '/analyze/$platform',
+      data: body,
+      options: Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(minutes: 8),
+      ),
+    );
+
+    final responseBody = response.data;
+    if (responseBody is! ResponseBody) return;
+    yield* _parseSseStream(responseBody);
+  }
+
   /// POST /scholar/deep-search/{sessionId}/stop
   Future<void> stopDeepSearch(String sessionId) async {
     await _dio.post<void>('/scholar/deep-search/$sessionId/stop');

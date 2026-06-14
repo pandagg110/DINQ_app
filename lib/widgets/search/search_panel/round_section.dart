@@ -6,6 +6,9 @@ import '../deep_search/deep_search_models.dart';
 import '../deep_search/deep_search_results.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import '../deep_search/sub_agent_tracker.dart';
+import '../analysis/analysis_config.dart';
+import '../analysis/analysis_results_view.dart';
+import '../analysis/analysis_tool_phases.dart';
 import '../message_group/advisors_list.dart';
 import '../message_group/assistant_narration_view.dart';
 import '../message_group/dinq_logo.dart';
@@ -220,7 +223,10 @@ class _RoundSectionState extends State<RoundSection> {
           AdvisorsList(advisors: group.advisorResults!),
 
         if (toolType == 'analysis' && group.toolResult != null)
-          _AnalysisToolSection(group: group),
+          _AnalysisToolSection(
+            group: group,
+            onCandidateClick: widget.onCandidateClick,
+          ),
 
         if (toolType == null && showResults)
           Padding(
@@ -469,37 +475,93 @@ class _CitationToolSection extends StatelessWidget {
 }
 
 class _AnalysisToolSection extends StatelessWidget {
-  const _AnalysisToolSection({required this.group});
+  const _AnalysisToolSection({
+    required this.group,
+    required this.onCandidateClick,
+  });
 
   final AgenticMessageGroup group;
+  final void Function(Map<String, dynamic> candidate, int index, int groupId)
+      onCandidateClick;
 
   @override
   Widget build(BuildContext context) {
     final result = group.toolResult!;
     final cards = result['cards'];
+    final platform = result['platform']?.toString() ?? 'scholar';
+    final platformOrder = AnalysisPlatformConfig.cardOrder(platform);
     final cardCount = cards is Map
-        ? cards.values
-            .where((c) => c is Map && c['status'] == 'completed')
+        ? platformOrder
+            .where(
+              (key) =>
+                  cards[key] is Map &&
+                  (cards[key] as Map)['status'] == 'completed',
+            )
             .length
         : 0;
     final isDone = _roundStatus(group) == DeepSearchRoundStatus.done ||
         group.roundStatus == DeepSearchRoundStatus.interrupted;
+    final isStopped = group.roundStatus == DeepSearchRoundStatus.interrupted;
+    final rounds = result['rounds'] is List ? result['rounds'] as List : const [];
+    final analysisPhases = buildAnalysisPhases(
+      rounds: rounds,
+      isFinished: isDone,
+      cardCount: cardCount,
+      cards: cards is Map ? Map<String, dynamic>.from(cards as Map) : null,
+      platform: platform,
+    );
+    final query = result['query']?.toString() ?? group.userQuery;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: ToolSearchProgress(
-        phases: [
-          ToolSearchPhase(
-            key: 'analysis',
-            label: isDone ? 'Analysis complete' : 'Analyzing data',
-            status: isDone ? 'done' : 'active',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ToolSearchProgress(
+            phases: analysisPhases,
+            isFinished: isDone,
+            finishedLabel: isStopped
+                ? (group.errorMessage ?? 'Stopped')
+                : cardCount > 0
+                    ? 'Analysis complete · $cardCount ${cardCount == 1 ? 'card' : 'cards'}'
+                    : 'No results found',
+          ),
+          AnalysisResultsView(
+            platform: platform,
+            cards: Map<String, dynamic>.from(
+              cards is Map ? cards as Map : const {},
+            ),
+            query: query,
+            loading: !isDone,
+            onEnrich: () => onCandidateClick(
+              _analysisToRow(query, platform),
+              0,
+              group.id,
+            ),
           ),
         ],
-        isFinished: isDone,
-        finishedLabel: cardCount > 0
-            ? 'Analysis complete · $cardCount ${cardCount == 1 ? 'card' : 'cards'}'
-            : 'No results found',
       ),
     );
+  }
+
+  Map<String, dynamic> _analysisToRow(String query, String platform) {
+    var profileUrl = '';
+    if (platform == 'scholar' && query.contains('scholar.google.com')) {
+      profileUrl = query;
+    } else if (platform == 'github') {
+      profileUrl = query.startsWith('http') ? query : 'https://github.com/$query';
+    } else if (platform == 'linkedin' && query.contains('linkedin.com')) {
+      profileUrl = query;
+    }
+    return {
+      'row_id': 'analysis-$platform-$query',
+      'name': query,
+      'title': '',
+      'company': '',
+      'evidence': '$platform analysis',
+      'profile_url': profileUrl,
+      'source': platform,
+      'confidence': 0,
+    };
   }
 }
