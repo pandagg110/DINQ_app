@@ -88,7 +88,10 @@ class AppRouter {
     // 匹配 /blogs/:slug 路由
     if (location.startsWith('/blogs/')) return true;
     // 匹配用户资料页 /:username（排除其他路由前缀）
-    if (location.startsWith('/') && !location.contains('/') && location.length > 1) return true;
+    if (location.startsWith('/') &&
+        !location.contains('/') &&
+        location.length > 1)
+      return true;
     return false;
   }
 
@@ -117,7 +120,10 @@ class AppRouter {
 
         final isGenerationPage = location == '/generation';
 
-        if (isLoggedIn && !isGenerationPage && flow?.status != null && flow?.status != 'success') {
+        if (isLoggedIn &&
+            !isGenerationPage &&
+            flow?.status != null &&
+            flow?.status != 'success') {
           return '/generation';
         }
 
@@ -134,11 +140,23 @@ class AppRouter {
         return null;
       },
       routes: [
-        GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
+        GoRoute(
+          path: '/splash',
+          builder: (context, state) => const SplashPage(),
+        ),
         GoRoute(path: '/', builder: (context, state) => const MainTabPage()),
-        GoRoute(path: '/landing', builder: (context, state) => const LandingPage()),
-        GoRoute(path: '/signin', builder: (context, state) => const SignInPage()),
-        GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
+        GoRoute(
+          path: '/landing',
+          builder: (context, state) => const LandingPage(),
+        ),
+        GoRoute(
+          path: '/signin',
+          builder: (context, state) => const SignInPage(),
+        ),
+        GoRoute(
+          path: '/signup',
+          builder: (context, state) => const SignUpPage(),
+        ),
         GoRoute(path: '/reset', builder: (context, state) => const ResetPage()),
         GoRoute(
           path: '/verify',
@@ -150,16 +168,22 @@ class AppRouter {
             return VerifyCodePage(email: email, password: password);
           },
         ),
-        GoRoute(path: '/reset/callback', builder: (context, state) => const ResetCallbackPage()),
+        GoRoute(
+          path: '/reset/callback',
+          builder: (context, state) => const ResetCallbackPage(),
+        ),
         GoRoute(path: '/demo', builder: (context, state) => const DemoPage()),
-        GoRoute(path: '/waiting-list', builder: (context, state) => const WaitingListPage()),
-        GoRoute(path: '/generation', builder: (context, state) => const GenerationPage()),
+        GoRoute(
+          path: '/waiting-list',
+          builder: (context, state) => const WaitingListPage(),
+        ),
+        GoRoute(
+          path: '/generation',
+          builder: (context, state) => const GenerationPage(),
+        ),
         GoRoute(
           path: '/search',
-          builder: (context, state) {
-            print('🔍 Router: 路由到 Search 页面 (/search)');
-            return const SearchPage();
-          },
+          builder: (context, state) => const MainTabPage(),
         ),
         GoRoute(
           path: '/search/:id',
@@ -176,16 +200,29 @@ class AppRouter {
           },
         ),
         GoRoute(path: '/discover', redirect: (context, state) => '/search'),
-        GoRoute(path: '/pricing', builder: (context, state) => const PricingPage()),
+        GoRoute(
+          path: '/pricing',
+          builder: (context, state) => const PricingPage(),
+        ),
         GoRoute(path: '/blogs', builder: (context, state) => const BlogsPage()),
         GoRoute(
           path: '/blogs/:slug',
-          builder: (context, state) => BlogDetailPage(slug: state.pathParameters['slug'] ?? ''),
+          builder: (context, state) =>
+              BlogDetailPage(slug: state.pathParameters['slug'] ?? ''),
         ),
         GoRoute(path: '/terms', builder: (context, state) => const TermsPage()),
-        GoRoute(path: '/privacy', builder: (context, state) => const PrivacyPage()),
-        GoRoute(path: '/guidelines', builder: (context, state) => const GuidelinesPage()),
-        GoRoute(path: '/cookies', builder: (context, state) => const CookiesPage()),
+        GoRoute(
+          path: '/privacy',
+          builder: (context, state) => const PrivacyPage(),
+        ),
+        GoRoute(
+          path: '/guidelines',
+          builder: (context, state) => const GuidelinesPage(),
+        ),
+        GoRoute(
+          path: '/cookies',
+          builder: (context, state) => const CookiesPage(),
+        ),
         GoRoute(
           path: '/webview',
           builder: (context, state) {
@@ -200,13 +237,31 @@ class AppRouter {
             );
           },
         ),
-        GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsPage(),
+        ),
         // My 子页（邀请/开发者/组织等，线上H5 对应的原生实现）
-        GoRoute(path: '/me/invite', builder: (context, state) => const InvitePage()),
-        GoRoute(path: '/me/api-keys', builder: (context, state) => const ApiKeysPage()),
-        GoRoute(path: '/me/organization', builder: (context, state) => const OrganizationPage()),
-        GoRoute(path: '/me/integration', builder: (context, state) => const IntegrationPage()),
-        GoRoute(path: '/me/resume', builder: (context, state) => const ResumePage()),
+        GoRoute(
+          path: '/me/invite',
+          builder: (context, state) => const InvitePage(),
+        ),
+        GoRoute(
+          path: '/me/api-keys',
+          builder: (context, state) => const ApiKeysPage(),
+        ),
+        GoRoute(
+          path: '/me/organization',
+          builder: (context, state) => const OrganizationPage(),
+        ),
+        GoRoute(
+          path: '/me/integration',
+          builder: (context, state) => const IntegrationPage(),
+        ),
+        GoRoute(
+          path: '/me/resume',
+          builder: (context, state) => const ResumePage(),
+        ),
         GoRoute(
           path: '/settings/profile',
           builder: (context, state) => const SettingsProfilePage(),
@@ -235,7 +290,10 @@ class AppRouter {
             // 获取路径参数
             final currentEmail = map['currentEmail'].toString();
             final onSuccess = map['onSuccess'];
-            return SettingsSetEmailPage(currentEmail: currentEmail, onSuccess: onSuccess);
+            return SettingsSetEmailPage(
+              currentEmail: currentEmail,
+              onSuccess: onSuccess,
+            );
           },
         ),
         GoRoute(
@@ -262,21 +320,39 @@ class AppRouter {
           path: '/settings/subscription',
           builder: (context, state) => const SettingsSubscriptionPage(),
         ),
-        GoRoute(path: '/payment/success', builder: (context, state) => const PaymentSuccessPage()),
+        GoRoute(
+          path: '/payment/success',
+          builder: (context, state) => const PaymentSuccessPage(),
+        ),
         GoRoute(
           path: '/payment/cancelled',
           builder: (context, state) => const PaymentCancelledPage(),
         ),
-        GoRoute(path: '/social-callback', builder: (context, state) => const SocialCallbackPage()),
+        GoRoute(
+          path: '/social-callback',
+          builder: (context, state) => const SocialCallbackPage(),
+        ),
         GoRoute(
           path: '/account-callback',
           builder: (context, state) => const AccountCallbackPage(),
         ),
         GoRoute(path: '/admin', builder: (context, state) => const AdminPage()),
-        GoRoute(path: '/admin/mydinq', builder: (context, state) => const AdminMyDinqPage()),
-        GoRoute(path: '/admin/search', builder: (context, state) => const AdminSearchPage()),
-        GoRoute(path: '/admin/openings', builder: (context, state) => const AdminOpeningsPage()),
-        GoRoute(path: '/admin/inbox', builder: (context, state) => const AdminInboxPage()),
+        GoRoute(
+          path: '/admin/mydinq',
+          builder: (context, state) => const AdminMyDinqPage(),
+        ),
+        GoRoute(
+          path: '/admin/search',
+          builder: (context, state) => const AdminSearchPage(),
+        ),
+        GoRoute(
+          path: '/admin/openings',
+          builder: (context, state) => const AdminOpeningsPage(),
+        ),
+        GoRoute(
+          path: '/admin/inbox',
+          builder: (context, state) => const AdminInboxPage(),
+        ),
         GoRoute(
           path: '/admin/inbox/notifications',
           builder: (context, state) => const AdminInboxNotificationsPage(),
@@ -287,8 +363,14 @@ class AppRouter {
             conversationId: state.pathParameters['conversationId'] ?? '',
           ),
         ),
-        GoRoute(path: '/analysis', builder: (context, state) => const AnalysisPage()),
-        GoRoute(path: '/analysis/github', builder: (context, state) => const GitHubAnalysisPage()),
+        GoRoute(
+          path: '/analysis',
+          builder: (context, state) => const AnalysisPage(),
+        ),
+        GoRoute(
+          path: '/analysis/github',
+          builder: (context, state) => const GitHubAnalysisPage(),
+        ),
         GoRoute(
           path: '/analysis/github_compare',
           builder: (context, state) => const GitHubComparePage(),

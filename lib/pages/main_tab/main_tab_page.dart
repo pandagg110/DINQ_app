@@ -5,6 +5,7 @@ import 'package:dinq_app/pages/shortlist/shortlist_page.dart';
 import 'package:dinq_app/pages/talent_radar/talent_radar_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../stores/main_store.dart';
@@ -22,9 +23,33 @@ class MainTabPage extends StatefulWidget {
 class _MainTabPageState extends State<MainTabPage> {
   late final PageController _pageController = PageController();
   MainTabType _currentTabType = MainTabType.search;
+  String? _lastRoutePath;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncTabFromRoute();
+  }
+
+  void _syncTabFromRoute() {
+    final path = GoRouterState.of(context).uri.path;
+    if (path == _lastRoutePath) return;
+    _lastRoutePath = path;
+
+    if (path == '/' || path.startsWith('/search')) {
+      _selectTab(MainTabType.search);
+    }
+  }
+
+  void _selectTab(MainTabType tabType) {
+    if (_currentTabType == tabType) return;
+    setState(() => _currentTabType = tabType);
+    _pageController.jumpToPage(tabType.pageIndex);
+  }
 
   @override
   void dispose() {
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -51,10 +76,7 @@ class _MainTabPageState extends State<MainTabPage> {
             right: 0,
             child: MainTabBottomView(
               currentTabType: _currentTabType,
-              onChanged: (mainTabType) {
-                setState(() => _currentTabType = mainTabType);
-                _pageController.jumpToPage(mainTabType.pageIndex);
-              },
+              onChanged: _selectTab,
             ),
           ),
       ],
