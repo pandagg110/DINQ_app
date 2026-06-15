@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:provider/provider.dart';
 
+import '../../stores/search_store.dart';
 import 'agentic_search_logic.dart';
 import 'deep_search/deep_search_models.dart';
 import 'deep_search/deep_search_results_helpers.dart';
+import 'message_group/quick_replies_widget.dart';
 import 'search_panel/round_section.dart';
 
 class SearchPanelWidget extends StatefulWidget {
@@ -246,7 +249,11 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
         return Stack(
           children: [
             if (groups.isEmpty)
-              _ToolWelcome(activeTool: widget.activeTool)
+              _ToolWelcome(
+                activeTool: widget.activeTool,
+                analysisPlatform: widget.analysisPlatform ?? 'scholar',
+                citationMode: widget.citationMode ?? 'author',
+              )
             else
               ListView(
                 key: _listViewKey,
@@ -382,108 +389,134 @@ class _MeasureSizeRenderObject extends RenderProxyBox {
   }
 }
 
+/// 与 TSX DeepSearchWelcome 对齐
 class _ToolWelcome extends StatelessWidget {
-  const _ToolWelcome({required this.activeTool});
+  const _ToolWelcome({
+    required this.activeTool,
+    this.analysisPlatform = 'scholar',
+    this.citationMode = 'author',
+  });
 
   final String? activeTool;
+  final String analysisPlatform;
+  final String citationMode;
 
-  static const _title = <String, String>{
-    'find-advisor': 'Find Advisors',
-    'who-cites-me': 'Who Cites Me',
-    'analysis': 'Post Analysis',
-  };
+  static const _advisorWelcomeText =
+      "Hi! I'm your **Advisor Matching** assistant 👋\n\n"
+      'Describe your ideal advisor below. You\'ll also need to **upload your resume** '
+      'and **pick a target region** so I can find the best matches.';
 
-  static const _subtitle = <String, String>{
-    'find-advisor': 'Upload a resume and add context to discover suitable advisors.',
-    'who-cites-me': 'Track who cited your work and get citation insights quickly.',
-    'analysis': 'Analyze post performance and audience engagement patterns.',
-  };
+  static const _advisorExamples = [
+    'Advisors working on AI safety',
+    'Computer vision researchers at top US schools',
+    'LLM alignment researchers',
+  ];
 
-  static const _examples = <String, List<String>>{
-    'find-advisor': [
-      'Find advisors with strong startup GTM background',
-      'Match advisors for AI infra product strategy',
-    ],
-    'who-cites-me': [
-      'Who cited my NeurIPS 2023 paper?',
-      'Find recent citations by top universities',
-    ],
-    'analysis': [
-      'Analyze this post for conversion potential',
-      'Which audience segment engaged the most?',
-    ],
-  };
+  static const _citationWelcomeText =
+      "Hi! I'm your **Citation Finder** 👋\n\n"
+      'Switch between **By Author** and **By Paper** below, then enter what you want to look up.';
+
+  static const _citationExamplesAuthor = [
+    'Andrew Ng',
+    'Yann LeCun',
+    'Geoffrey Hinton',
+  ];
+
+  static const _citationExamplesPaper = [
+    'Attention Is All You Need',
+    'Deep Residual Learning',
+    'Word2Vec',
+  ];
+
+  static const _analysisWelcomeText =
+      "Hi! I'm your **Profile Analyzer** 👋\n\n"
+      'Enter a name or paste a **LinkedIn / GitHub / Google Scholar** URL below — '
+      "I'll auto-detect the platform and break down what makes them interesting.";
+
+  static const _analysisExamplesScholar = [
+    'Andrew Ng',
+    'Yann LeCun',
+    'Geoffrey Hinton',
+  ];
+
+  static const _analysisExamplesGithub = [
+    'torvalds',
+    'sindresorhus',
+    'gaearon',
+  ];
+
+  static const _analysisExamplesLinkedin = [
+    'Satya Nadella',
+    'Reid Hoffman',
+    'Jensen Huang',
+  ];
+
+  bool get _isWelcomeTool =>
+      activeTool == 'find-advisor' ||
+      activeTool == 'who-cites-me' ||
+      activeTool == 'analysis';
+
+  (String text, List<String> examples) _welcomeContent() {
+    switch (activeTool) {
+      case 'find-advisor':
+        return (_advisorWelcomeText, _advisorExamples);
+      case 'who-cites-me':
+        return (
+          _citationWelcomeText,
+          citationMode == 'paper'
+              ? _citationExamplesPaper
+              : _citationExamplesAuthor,
+        );
+      case 'analysis':
+        switch (analysisPlatform) {
+          case 'github':
+            return (_analysisWelcomeText, _analysisExamplesGithub);
+          case 'linkedin':
+            return (_analysisWelcomeText, _analysisExamplesLinkedin);
+          default:
+            return (_analysisWelcomeText, _analysisExamplesScholar);
+        }
+      default:
+        return ('', const []);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tool = activeTool ?? '';
-    final title = _title[tool] ?? 'Deep Search';
-    final subtitle =
-        _subtitle[tool] ?? 'Search and reason across candidates and public profiles.';
-    final examples = _examples[tool] ?? const ['Find AI researchers in NLP'];
+    if (!_isWelcomeTool) return const SizedBox.shrink();
+
+    final (text, examples) = _welcomeContent();
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
+    // 移动端浮动 History/Home 按钮：safe-area + 16 + 40(h) + 12(gap)
+    final topPadding = isMobile ? MediaQuery.paddingOf(context).top + 68.0 : 48.0;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 38, 16, 12),
+      padding: EdgeInsets.fromLTRB(16, topPadding, 16, 12),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 768),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  color: Color(0xFF171717),
-                  fontWeight: FontWeight.w600,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6B6862),
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 20),
-              for (final text in examples)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  height: 42,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE6E1DA)),
+              MarkdownBody(
+                data: text,
+                selectable: true,
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Color(0xFF4A4845),
                   ),
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      color: Color(0xFF6B6862),
-                    ),
+                  strong: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3A3835),
                   ),
                 ),
-              if (activeTool == null || activeTool == 'deep-search') ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    SvgPicture.asset('assets/logo/dinq-black.svg', width: 16, height: 16),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Start with a prompt below',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF9E9B93)),
-                    ),
-                  ],
-                ),
-              ],
+              ),
+              QuickRepliesWidget(
+                options: examples,
+                onSelect: context.read<SearchStore>().fillSearchBox,
+              ),
             ],
           ),
         ),

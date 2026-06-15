@@ -107,6 +107,7 @@ class _AdvisorPanelState extends State<AdvisorPanel> {
     store.clearPendingFill();
     _adjustHeight();
     widget.onCanSubmitChange(_canSubmit);
+    setState(() {});
   }
 
   void _adjustHeight() {
@@ -184,6 +185,19 @@ class _AdvisorPanelState extends State<AdvisorPanel> {
 
   @override
   Widget build(BuildContext context) {
+    return Consumer<SearchStore>(
+      builder: (context, store, _) {
+        if (store.pendingFill != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _consumePendingFill();
+          });
+        }
+        return _buildContent();
+      },
+    );
+  }
+
+  Widget _buildContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

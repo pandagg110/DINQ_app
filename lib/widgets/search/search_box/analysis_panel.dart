@@ -65,8 +65,15 @@ class _AnalysisPanelState extends State<AnalysisPanel> {
     final store = context.read<SearchStore>();
     final fill = store.pendingFill?.trim();
     if (fill == null || fill.isEmpty) return;
+    _controller.text = fill;
     store.clearPendingFill();
-    widget.onSearch(AnalysisSearchParams(platform: _platform, query: fill));
+    final detected = _detectPlatform(fill);
+    if (detected != null && detected != _platform) {
+      _platform = detected;
+      widget.onPlatformChange?.call(detected);
+    }
+    widget.onCanSubmitChange(_canSubmit);
+    setState(() {});
   }
 
   String? _detectPlatform(String text) {
@@ -85,6 +92,19 @@ class _AnalysisPanelState extends State<AnalysisPanel> {
 
   @override
   Widget build(BuildContext context) {
+    return Consumer<SearchStore>(
+      builder: (context, store, _) {
+        if (store.pendingFill != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _consumePendingFill();
+          });
+        }
+        return _buildContent();
+      },
+    );
+  }
+
+  Widget _buildContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
