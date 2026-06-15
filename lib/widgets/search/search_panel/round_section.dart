@@ -6,6 +6,7 @@ import '../deep_search/deep_search_models.dart';
 import '../deep_search/deep_search_results.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import '../deep_search/sub_agent_tracker.dart';
+import '../citation/citation_results_view.dart';
 import '../analysis/analysis_config.dart';
 import '../analysis/analysis_results_view.dart';
 import '../analysis/analysis_tool_phases.dart';
@@ -444,32 +445,28 @@ class _CitationToolSection extends StatelessWidget {
         : <dynamic>[];
     final citationCount = citers.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ToolSearchProgress(
-          phases: buildCitationPhases(phase, !isSearching),
-          isFinished: !isSearching || isStopped,
-          finishedLabel: isStopped
-              ? (group.errorMessage ?? 'Stopped')
-              : 'Found $citationCount citing ${citationCount == 1 ? 'author' : 'authors'}',
-        ),
-        if (data is Map && citers.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 12),
-            child: Column(
-              children: citers.take(20).map((c) {
-                final map = Map<String, dynamic>.from(c as Map);
-                final name = map['name']?.toString() ?? 'Author';
-                return ListTile(
-                  dense: true,
-                  title: Text(name, style: const TextStyle(fontSize: 13)),
-                  onTap: () => onCandidateClick(map, 0, group.id),
-                );
-              }).toList(),
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ToolSearchProgress(
+            phases: buildCitationPhases(phase, !isSearching),
+            isFinished: !isSearching || isStopped,
+            finishedLabel: isStopped
+                ? (group.errorMessage ?? 'Stopped')
+                : 'Found $citationCount citing ${citationCount == 1 ? 'author' : 'authors'}',
           ),
-      ],
+          if (data is Map)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: CitationResultsView(
+                data: Map<String, dynamic>.from(data),
+                onEnrich: (row) => onCandidateClick(row, 0, group.id),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
