@@ -30,8 +30,12 @@ Dart 侧代码已完成（`lib/services/push_service.dart` + 登录/登出/启�
 `push_service.dart` 里目前按约定调用，请后端确认或告知实际契约（已用 TODO 标注）：
 - 注册/更新 Token：`POST /api/v1/devices`，body `{ "token": "...", "platform": "ios|android" }`
 - 登出解绑：`DELETE /api/v1/devices/{token}`
-- 推送 payload 的 `data` 里约定带 `conversation_id`（或 `route`），用于点击通知后跳转。
-  当前映射：`conversation_id` → `/admin/inbox/{id}`。
+- 推送 payload 的 `data` 约定（今早与 fyr 确认：推送含 4 类，不止 inbox）：
+  带 `type` + 对应 id，客户端按 type 跳转：
+  - `type=message` / `type=team_recruit` + `conversation_id` → 会话页 `/admin/inbox/{conversation_id}`
+  - `type=radar`（新候选人）→ 暂落通知中心（候选人详情深链路由待补）
+  - `type=system`（系统通知/公告）→ 通知中心 `/admin/inbox/notifications`
+  - 也兼容直接给 `route` 字段（优先），或仅给 `conversation_id`（按会话跳）。
 
 ## 5. 已实现的客户端能力（对应 Notion「消息推送」）
 - ✅ 设备 Token：注册 / 刷新自动上报 / 登出解绑

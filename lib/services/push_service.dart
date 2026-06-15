@@ -155,14 +155,30 @@ class PushService {
     }
   }
 
-  /// 从推送 data 解析跳转路由。约定后端在 data 里带 conversation_id 或 route。
+  /// 从推送 data 解析跳转路由。
+  /// 与后端约定（今早 fyr 确认推送含 4 类通知）：data 带 `type` + 对应 id。
+  ///   message / team_recruit → 会话页 /admin/inbox/{conversation_id}
+  ///   radar                  → 通知中心（暂无候选人详情深链路由，先落通知中心）
+  ///   system（系统通知/公告）  → 通知中心 /admin/inbox/notifications
+  /// 兼容：直接给 `route` 时优先用；只给 conversation_id（无 type）时按会话跳。
   String? _routeFromData(Map<String, dynamic> data) {
-    final conv = data['conversation_id'] ?? data['conversationId'];
-    if (conv != null && conv.toString().isNotEmpty) {
-      return '/admin/inbox/$conv';
-    }
     final route = data['route'];
     if (route is String && route.isNotEmpty) return route;
+
+    final conv = (data['conversation_id'] ?? data['conversationId'])?.toString();
+    final type = (data['type'] ?? '').toString();
+    switch (type) {
+      case 'message':
+      case 'team_recruit':
+        if (conv != null && conv.isNotEmpty) return '/admin/inbox/$conv';
+        return '/admin/inbox';
+      case 'radar':
+      case 'system':
+        return '/admin/inbox/notifications';
+    }
+
+    // 无 type 时的兜底：有会话 id 就进会话
+    if (conv != null && conv.isNotEmpty) return '/admin/inbox/$conv';
     return null;
   }
 
