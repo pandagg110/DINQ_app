@@ -68,6 +68,7 @@ flutter:
     - assets/icons/search/
     - assets/icons/search/progress/
     - assets/icons/search/citation/
+    - assets/icons/search/advisor/
     - assets/icons/search/history.svg
     - assets/icons/search/deep_search/
     - assets/icons/search/history/

@@ -116,6 +116,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   List<AgenticMessageGroup> messageGroups = [];
   bool loading = false;
   bool advisorLoading = false;
+  bool advisorShuffleLoading = false;
   bool citationLoading = false;
   bool analysisLoading = false;
   List<Map<String, dynamic>>? analysisCandidates;
@@ -965,6 +966,7 @@ class AgenticSearchLogic extends ChangeNotifier {
           'rounds': [
             {
               'phase': null,
+              'phaseSources': {},
               'advisorCount': result['total_advisors'] ?? advisorResults?.length ?? 0,
             },
           ],
@@ -1012,6 +1014,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     messageGroups = groups;
     loading = false;
     advisorLoading = false;
+    advisorShuffleLoading = false;
     searchStore.loadConversation(conversation);
     notifyListeners();
   }
@@ -1027,6 +1030,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     messageGroups = [];
     loading = false;
     advisorLoading = false;
+    advisorShuffleLoading = false;
     citationLoading = false;
     analysisLoading = false;
     analysisCandidates = null;
@@ -1278,16 +1282,248 @@ class AgenticSearchLogic extends ChangeNotifier {
     }
   }
 
+  static const _advisorToolPhase = {
+    'analyze_student_profile': 'analyzing',
+    'translate_keywords': 'analyzing',
+    'batch_local_search': 'searching',
+    'batch_external_search': 'searching',
+    'batch_find_scholar_ids': 'resolving',
+  };
+
+  static Map<String, dynamic> _advisorPhaseSourceEntry(String url) {
+    try {
+      final domain = Uri.parse(url).host.replaceFirst(RegExp(r'^www\.'), '');
+      return {'url': url, 'domain': domain};
+    } catch (_) {
+      return {'url': url, 'domain': url};
+    }
+  }
+
+  void _updateAdvisorToolResult(
+    int groupId,
+    void Function(Map<String, dynamic> result) fn,
+  ) {
+    final idx = messageGroups.indexWhere((g) => g.id == groupId);
+    if (idx < 0) return;
+    final result = Map<String, dynamic>.from(
+      messageGroups[idx].toolResult ?? const {},
+    );
+    fn(result);
+    messageGroups[idx].toolResult = result;
+    final advisors = result['advisors'];
+    if (advisors is List) {
+      messageGroups[idx].advisorResults = advisors
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    notifyListeners();
+  }
+
+  void _processAdvisorStreamEvent(Map<String, dynamic> event, int groupId) {
+    final type = event['type']?.toString();
+    if (type == null) return;
+
+    switch (type) {
+      case 'tool_call':
+        final toolName = event['tool_name']?.toString();
+        if (toolName == null || toolName.isEmpty) return;
+        final nextPhase = _advisorToolPhase[toolName] ?? 'searching';
+        _updateAdvisorToolResult(groupId, (result) {
+          final rounds = result['rounds'] is List
+              ? List<Map<String, dynamic>>.from(
+                  (result['rounds'] as List).map(
+                    (e) => Map<String, dynamic>.from(e as Map),
+                  ),
+                )
+              : <Map<String, dynamic>>[
+                  {'phase': null, 'phaseSources': {}, 'advisorCount': 0},
+                ];
+          if (rounds.isEmpty) {
+            rounds.add({'phase': null, 'phaseSources': {}, 'advisorCount': 0});
+          }
+          final cur = Map<String, dynamic>.from(rounds.last);
+          if (cur['phase']?.toString() != nextPhase) {
+            rounds[rounds.length - 1] = {...cur, 'phase': nextPhase};
+            result['rounds'] = rounds;
+          }
+        });
+        _addThinkingStep(groupId, {
+          'type': 'tool_call',
+          'content': toolName,
+          'action': toolName,
+          'completed': false,
+        });
+        break;
+      case 'tool_result':
+        _markPendingToolCallsCompleted(groupId);
+        final rawSources = event['sources'];
+        final urls = rawSources is List
+            ? rawSources.map((s) => s.toString()).where((s) => s.isNotEmpty).toList()
+            : <String>[];
+        if (urls.isNotEmpty) {
+          _updateAdvisorToolResult(groupId, (result) {
+            final rounds = result['rounds'] is List
+                ? List<Map<String, dynamic>>.from(
+                    (result['rounds'] as List).map(
+                      (e) => Map<String, dynamic>.from(e as Map),
+                    ),
+                  )
+                : <Map<String, dynamic>>[];
+            if (rounds.isEmpty) return;
+            final cur = Map<String, dynamic>.from(rounds.last);
+            final currentPhase = cur['phase']?.toString();
+            if (currentPhase == null || currentPhase.isEmpty) return;
+            final phaseSources = cur['phaseSources'] is Map
+                ? Map<String, dynamic>.from(cur['phaseSources'] as Map)
+                : <String, dynamic>{};
+            final existing = phaseSources[currentPhase] is List
+                ? (phaseSources[currentPhase] as List)
+                    .whereType<Map>()
+                    .map((e) => Map<String, dynamic>.from(e))
+                    .toList()
+                : <Map<String, dynamic>>[];
+            final seen = existing.map((s) => s['url']?.toString()).toSet();
+            final newSources = urls
+                .where((url) => !seen.contains(url))
+                .map(_advisorPhaseSourceEntry)
+                .toList();
+            if (newSources.isEmpty) return;
+            phaseSources[currentPhase] = [...existing, ...newSources];
+            rounds[rounds.length - 1] = {...cur, 'phaseSources': phaseSources};
+            result['rounds'] = rounds;
+          });
+          _addThinkingStep(groupId, {
+            'type': 'thinking',
+            'content': 'Found ${urls.length} source(s)',
+            'sources': _normalizeSources(rawSources),
+            'completed': true,
+          });
+        }
+        break;
+      case 'completed':
+        final payload = event['data'];
+        final newAdvisors = payload is Map && payload['advisors'] is List
+            ? (payload['advisors'] as List)
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList()
+            : <Map<String, dynamic>>[];
+        _updateAdvisorToolResult(groupId, (result) {
+          final existing = result['advisors'] is List
+              ? (result['advisors'] as List)
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList()
+              : <Map<String, dynamic>>[];
+          result['advisors'] = [...newAdvisors, ...existing];
+          final rounds = result['rounds'] is List
+              ? List<Map<String, dynamic>>.from(
+                  (result['rounds'] as List).map(
+                    (e) => Map<String, dynamic>.from(e as Map),
+                  ),
+                )
+              : <Map<String, dynamic>>[];
+          if (rounds.isNotEmpty) {
+            final cur = Map<String, dynamic>.from(rounds.last);
+            rounds[rounds.length - 1] = {
+              ...cur,
+              'phase': null,
+              'advisorCount': newAdvisors.length,
+            };
+            result['rounds'] = rounds;
+          }
+        });
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+          messageGroups[idx].roundStatus = DeepSearchRoundStatus.done;
+        }
+        _markPendingToolCallsCompleted(groupId);
+        notifyListeners();
+        break;
+      case 'error':
+        final message = event['message']?.toString().trim() ??
+            (event['data'] is Map
+                ? (event['data'] as Map)['error']?.toString()
+                : null);
+        if (message != null && message.isNotEmpty) {
+          _addThinkingStep(groupId, {
+            'type': 'thinking',
+            'content': message,
+            'completed': true,
+          });
+        }
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+          messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
+          messageGroups[idx].errorMessage =
+              message ?? 'Advisor search failed';
+        }
+        _markPendingToolCallsCompleted(groupId);
+        notifyListeners();
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _runAdvisorStream({
+    required int groupId,
+    required Stream<Map<String, dynamic>> stream,
+    required void Function(bool loading) setLoading,
+  }) {
+    _streamSubscription?.cancel();
+    _streamSubscription = stream.listen(
+      (event) => _processAdvisorStreamEvent(event, groupId),
+      onDone: () {
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+          if (messageGroups[idx].roundStatus == DeepSearchRoundStatus.searching) {
+            messageGroups[idx].roundStatus = DeepSearchRoundStatus.done;
+          }
+        }
+        setLoading(false);
+        notifyListeners();
+        onScrollToBottom?.call();
+      },
+      onError: (_, __) {
+        final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        if (idx >= 0) {
+          messageGroups[idx].loading = false;
+          messageGroups[idx].searchCompleted = true;
+          messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
+          messageGroups[idx].errorMessage ??= 'Advisor search failed';
+        }
+        setLoading(false);
+        notifyListeners();
+      },
+    );
+  }
+
   /// 与 TSX handleAdvisorSearch 一致
   void handleAdvisorSearch(AdvisorFormData data) {
     if (data.resumeUrl.trim().isEmpty) return;
 
+    var displayQuery = data.additionalInfo.trim().isNotEmpty
+        ? data.additionalInfo.trim()
+        : 'Find advisors for my resume';
+    if (data.countries.isNotEmpty) {
+      final countryText = data.countries.length == 1
+          ? 'Preferred country: ${data.countries.first}'
+          : 'Preferred countries: ${data.countries.join(', ')}';
+      displayQuery = '$displayQuery\n$countryText';
+    }
+
     final groupId = DateTime.now().millisecondsSinceEpoch;
     final group = AgenticMessageGroup(
       id: groupId,
-      userQuery: data.additionalInfo.trim().isNotEmpty
-          ? data.additionalInfo.trim()
-          : 'Find advisors for my resume',
+      userQuery: displayQuery,
       loading: true,
       candidates: const [],
       advisorResults: const [],
@@ -1300,6 +1536,19 @@ class AgenticSearchLogic extends ChangeNotifier {
         'name': data.resumeName ?? 'Resume.pdf',
       },
     );
+    group.displayQuery = displayQuery;
+    group.roundStatus = DeepSearchRoundStatus.searching;
+    group.toolResult = {
+      'advisors': <dynamic>[],
+      'pdfAttachment': {
+        'url': data.resumeUrl,
+        'name': data.resumeName ?? 'Resume.pdf',
+      },
+      'countries': data.countries,
+      'rounds': [
+        {'phase': null, 'phaseSources': {}, 'advisorCount': 0},
+      ],
+    };
 
     messageGroups = [...messageGroups, group];
     advisorLoading = true;
@@ -1312,100 +1561,64 @@ class AgenticSearchLogic extends ChangeNotifier {
       maxAdvisors: data.maxAdvisors,
     );
 
-    _streamSubscription?.cancel();
-    _streamSubscription = stream.listen(
-      (event) {
-        final type = event['type'] as String?;
-        if (type == null) return;
-        final idx = messageGroups.indexWhere((g) => g.id == groupId);
-        if (idx < 0) return;
-        final g = messageGroups[idx];
-
-        switch (type) {
-          case 'tool_call':
-            {
-              final toolName = event['tool_name']?.toString();
-              if (toolName != null && toolName.isNotEmpty) {
-                _addThinkingStep(groupId, {
-                  'type': 'tool_call',
-                  'content': toolName,
-                  'action': toolName,
-                  'completed': false,
-                });
-              }
-              break;
-            }
-          case 'tool_result':
-            {
-              _markPendingToolCallsCompleted(groupId);
-              final sources = _normalizeSources(event['sources']);
-              if (sources.isNotEmpty) {
-                _addThinkingStep(groupId, {
-                  'type': 'thinking',
-                  'content': 'Found ${sources.length} source(s)',
-                  'sources': sources,
-                  'completed': true,
-                });
-              }
-              break;
-            }
-          case 'completed':
-            {
-              final data = event['data'];
-              final advisors = data is Map ? data['advisors'] : null;
-              if (advisors is List) {
-                g.advisorResults = advisors
-                    .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
-                    .toList();
-              }
-              g.loading = false;
-              g.searchCompleted = true;
-              _markPendingToolCallsCompleted(groupId);
-              notifyListeners();
-              break;
-            }
-          case 'error':
-            {
-              final message = event['message']?.toString().trim();
-              if (message != null && message.isNotEmpty) {
-                _addThinkingStep(groupId, {
-                  'type': 'thinking',
-                  'content': message,
-                  'completed': true,
-                });
-              }
-              g.loading = false;
-              g.searchCompleted = true;
-              _markPendingToolCallsCompleted(groupId);
-              notifyListeners();
-              break;
-            }
-          default:
-            break;
-        }
-      },
-      onDone: () {
-        final idx = messageGroups.indexWhere((g) => g.id == groupId);
-        if (idx >= 0) {
-          messageGroups[idx].loading = false;
-          messageGroups[idx].searchCompleted = true;
-        }
-        advisorLoading = false;
-        notifyListeners();
-        onScrollToBottom?.call();
-      },
-      onError: (_, __) {
-        final idx = messageGroups.indexWhere((g) => g.id == groupId);
-        if (idx >= 0) {
-          messageGroups[idx].loading = false;
-          messageGroups[idx].searchCompleted = true;
-        }
-        advisorLoading = false;
-        notifyListeners();
-      },
+    _runAdvisorStream(
+      groupId: groupId,
+      stream: stream,
+      setLoading: (v) => advisorLoading = v,
     );
 
     onScrollToBottom?.call();
+  }
+
+  /// 与 TSX shuffleAdvisors 一致
+  void shuffleAdvisors() {
+    if (messageGroups.isEmpty) return;
+    final group = messageGroups.lastWhere(
+      (g) => g.toolType == 'find-advisor',
+      orElse: () => messageGroups.last,
+    );
+    if (group.toolType != 'find-advisor') return;
+
+    final result = Map<String, dynamic>.from(group.toolResult ?? const {});
+    final pdfAttachment = result['pdfAttachment'] is Map
+        ? Map<String, dynamic>.from(result['pdfAttachment'] as Map)
+        : group.pdfAttachment;
+    final resumeUrl = pdfAttachment?['url']?.toString() ?? '';
+    if (resumeUrl.isEmpty) return;
+
+    final countries = result['countries'] is List
+        ? (result['countries'] as List).map((e) => e.toString()).toList()
+        : <String>[];
+    final rounds = result['rounds'] is List
+        ? List<Map<String, dynamic>>.from(
+            (result['rounds'] as List).map(
+              (e) => Map<String, dynamic>.from(e as Map),
+            ),
+          )
+        : <Map<String, dynamic>>[];
+    rounds.add({'phase': null, 'phaseSources': {}, 'advisorCount': 0});
+    result['rounds'] = rounds;
+    group.toolResult = result;
+    group.loading = true;
+    group.searchCompleted = false;
+    group.roundStatus = DeepSearchRoundStatus.searching;
+
+    advisorShuffleLoading = true;
+    notifyListeners();
+
+    final stream = searchService.advisorRecommendStream(
+      resumeUrl: resumeUrl,
+      additionalInfo:
+          'Find 5 more advisors that are different from the ones you already recommended. Same criteria as before.',
+      preferredCountries: countries,
+      maxAdvisors: 5,
+    );
+
+    _runAdvisorStream(
+      groupId: group.id,
+      stream: stream,
+      setLoading: (v) => advisorShuffleLoading = v,
+    );
   }
 
   /// 与 TSX handleCitationSearch 一致
@@ -1817,6 +2030,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     searchStore.setIsSearching(false);
     loading = false;
     advisorLoading = false;
+    advisorShuffleLoading = false;
     citationLoading = false;
     analysisLoading = false;
     for (final g in messageGroups) {

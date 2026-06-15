@@ -298,6 +298,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                               searchStore.setTabPanelOpen(true);
                                             }
                                           },
+                                          onAdvisorShuffle: logic.shuffleAdvisors,
+                                          advisorShuffleLoading:
+                                              logic.advisorShuffleLoading,
                                           bottomInset: widget.embeddedInMainTab ? 20 : 12,
                                           analysisPlatform: _analysisPlatform,
                                           citationMode: _citationMode.name,

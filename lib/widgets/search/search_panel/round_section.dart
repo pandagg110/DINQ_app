@@ -10,7 +10,7 @@ import '../citation/citation_results_view.dart';
 import '../analysis/analysis_config.dart';
 import '../analysis/analysis_results_view.dart';
 import '../analysis/analysis_tool_phases.dart';
-import '../message_group/advisors_list.dart';
+import '../advisor/advisors_results_view.dart';
 import '../message_group/assistant_narration_view.dart';
 import '../message_group/dinq_logo.dart';
 import '../message_group/dinq_results_view.dart';
@@ -214,14 +214,14 @@ class _RoundSectionState extends State<RoundSection> {
             onCandidateClick: widget.onCandidateClick,
           ),
 
-        if (toolType == 'find-advisor' && group.toolResult != null)
-          AdvisorsList(
-            advisors: _advisorList(group),
+        if (toolType == 'find-advisor' &&
+            (group.toolResult != null || (group.advisorResults?.isNotEmpty ?? false)))
+          _AdvisorToolSection(
+            group: group,
+            onCandidateClick: widget.onCandidateClick,
+            onShuffle: widget.onAdvisorShuffle,
+            shuffleLoading: widget.advisorShuffleLoading,
           ),
-
-        if (toolType == 'find-advisor' && group.toolResult == null &&
-            (group.advisorResults?.isNotEmpty ?? false))
-          AdvisorsList(advisors: group.advisorResults!),
 
         if (toolType == 'analysis' && group.toolResult != null)
           _AnalysisToolSection(
@@ -292,16 +292,45 @@ class _RoundSectionState extends State<RoundSection> {
       ],
     );
   }
+}
 
-  List<Map<String, dynamic>> _advisorList(AgenticMessageGroup group) {
+class _AdvisorToolSection extends StatelessWidget {
+  const _AdvisorToolSection({
+    required this.group,
+    required this.onCandidateClick,
+    this.onShuffle,
+    this.shuffleLoading = false,
+  });
+
+  final AgenticMessageGroup group;
+  final void Function(Map<String, dynamic> candidate, int index, int groupId)
+      onCandidateClick;
+  final VoidCallback? onShuffle;
+  final bool shuffleLoading;
+
+  @override
+  Widget build(BuildContext context) {
     final result = group.toolResult;
-    final advisors = result?['advisors'];
-    if (advisors is List) {
-      return advisors
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-    }
-    return group.advisorResults ?? [];
+    final advisors = result?['advisors'] is List
+        ? (result!['advisors'] as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : (group.advisorResults ?? []);
+    final rounds = result?['rounds'] is List ? result!['rounds'] as List : null;
+    final isSearching = _roundStatus(group) == DeepSearchRoundStatus.searching;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AdvisorsResultsView(
+        advisors: advisors,
+        rounds: rounds,
+        isSearching: isSearching,
+        onShuffle: onShuffle,
+        shuffleLoading: shuffleLoading,
+        onEnrich: (row) => onCandidateClick(row, 0, group.id),
+      ),
+    );
   }
 }
 
