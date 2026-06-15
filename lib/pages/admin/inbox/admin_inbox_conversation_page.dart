@@ -13,6 +13,7 @@ import '../../../widgets/common/base_page.dart';
 import '../../../widgets/inbox/delete_conversation_modal.dart';
 import '../../../widgets/inbox/message_bubble.dart';
 import '../../../widgets/inbox/message_input.dart';
+import '../../../widgets/inbox/team_recruit_card.dart';
 
 /// 对话详情页面
 class AdminInboxConversationPage extends StatefulWidget {
@@ -542,6 +543,13 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
 
         final msgIndex = index - 1;
         final message = messages[msgIndex];
+
+        // 组队招募：被删除（recalled）的隐藏；否则渲染专用卡片
+        if (message.messageType == MessageType.teamRecruit) {
+          if (message.isRecalled) return const SizedBox.shrink();
+          return TeamRecruitCard(message: message, currentUserId: currentUserId);
+        }
+
         final isOwnMessage = message.senderId == currentUserId;
         final sender = memberMap[message.senderId];
 

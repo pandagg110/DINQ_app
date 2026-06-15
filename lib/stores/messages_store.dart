@@ -293,6 +293,14 @@ class MessagesStore extends ChangeNotifier {
     }
   }
 
+  /// 用服务端返回的最新消息整条替换（Team Recruit 加入/退出/关闭后刷新卡片）
+  void replaceMessage(Message updated) {
+    if (currentConversation != null && updated.conversationId == currentConversation!.id) {
+      messages = messages.map((m) => m.id == updated.id ? updated : m).toList();
+      notifyListeners();
+    }
+  }
+
   /// 更新对话
   void updateConversation(String conversationId, Map<String, dynamic> updates) {
     conversations = conversations.map((conv) {
