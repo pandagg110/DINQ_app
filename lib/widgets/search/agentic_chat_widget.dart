@@ -50,6 +50,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   AgenticSearchLogic? _logic;
   bool _logicInitialized = false;
   int _lastResetVersion = 0;
+  String? _lastSyncedToolKey;
 
   // bool _initialQueryProcessed = false; // TODO: 实现 URL 参数处理时使用
 
@@ -158,29 +159,46 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         _toolByRoute.containsKey(segments[1]);
   }
 
-  void _syncToolWithRoute(SearchStore searchStore) {
+  void _syncToolWithRoute(SearchStore searchStore, AgenticSearchLogic logic) {
+    final segments = GoRouterState.of(context).uri.pathSegments;
     final routeTool = _routeToolFromPath(context);
+
     if (routeTool != null) {
-      if (routeTool == searchStore.activeTool) return;
+      final key = 'tool-$routeTool';
+      if (_lastSyncedToolKey == key && searchStore.activeTool == routeTool) {
+        return;
+      }
+      logic.handleStop();
+      logic.clearMessages();
+      logic.clearAnalysisCandidates();
       searchStore.setActiveTool(routeTool);
+      _lastSyncedToolKey = key;
       return;
     }
-    if (searchStore.activeTool != null) {
+
+    // 仅 bare /search（非 /search/:id 会话页）
+    if (segments.length == 1 && segments.first == 'search') {
+      const key = 'deep-search';
+      if (_lastSyncedToolKey == key && searchStore.activeTool == null) {
+        return;
+      }
+      logic.handleStop();
+      logic.clearMessages();
+      logic.clearAnalysisCandidates();
       searchStore.clearActiveTool();
+      _lastSyncedToolKey = key;
     }
   }
 
   void _handleActiveToolChange(SearchStore searchStore, String? tool) {
-    final currentTool = searchStore.activeTool;
-    if (currentTool == tool) return;
     if (tool == null) {
-      searchStore.clearActiveTool();
       if (_isToolRoute(context)) context.go('/search');
       return;
     }
-    searchStore.setActiveTool(tool);
+
     final segment = _toolRouteByTool[tool];
     if (segment == null) return;
+
     final nextPath = '/search/$segment';
     if (GoRouterState.of(context).uri.path != nextPath) {
       context.go(nextPath);
@@ -200,12 +218,17 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     if (logic == null) return const SizedBox.shrink();
     return Consumer3<SearchStore, UserStore, SettingsStore>(
       builder: (context, searchStore, userStore, settingsStore, _) {
-        _syncToolWithRoute(searchStore);
+        _syncToolWithRoute(searchStore, logic);
         if (!mounted) return const SizedBox.shrink();
         if (searchStore.resetVersion != _lastResetVersion) {
           _lastResetVersion = searchStore.resetVersion;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) logic.clearMessages();
+            if (mounted) {
+              logic.clearMessages();
+              _lastSyncedToolKey = searchStore.activeTool != null
+                  ? 'tool-${searchStore.activeTool}'
+                  : 'deep-search';
+            }
           });
         }
         if (searchStore.pendingConversation != null) {
@@ -214,6 +237,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
             if (!mounted) return;
             logic.loadFromConversation(pending);
             searchStore.clearPendingConversation();
+            _lastSyncedToolKey = searchStore.activeTool != null
+                ? 'tool-${searchStore.activeTool}'
+                : 'deep-search';
           });
         }
         if (searchStore.isLoadingConversation &&

@@ -11,6 +11,7 @@ import 'analysis_panel.dart';
 import 'citation_panel.dart';
 import 'search_box_types.dart';
 import 'tool_badge.dart';
+import 'tool_switch_confirm_dialog.dart';
 import 'tools_menu.dart';
 
 export 'search_box_types.dart';
@@ -220,11 +221,26 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     }
   }
 
-  void _handleToolSelect(SearchToolDefinition tool) {
+  void _handleToolSelect(SearchToolDefinition tool) async {
     setState(() => _showToolsMenu = false);
     if (widget.activeTool == tool.id) return;
-    _clearAttachment();
-    widget.onActiveToolChange?.call(tool.id);
+
+    Future<void> apply() async {
+      _clearAttachment();
+      widget.onActiveToolChange?.call(tool.id);
+    }
+
+    if (widget.confirmToolSwitch) {
+      final confirmed = await showToolSwitchConfirm(
+        context: context,
+        toolLabel: tool.label,
+        toolId: tool.id,
+        isMobile: widget.isMobile,
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    await apply();
   }
 
   void _handleClearTool() {
