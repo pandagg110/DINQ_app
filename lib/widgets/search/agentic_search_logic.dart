@@ -1348,15 +1348,8 @@ class AgenticSearchLogic extends ChangeNotifier {
             result['rounds'] = rounds;
           }
         });
-        _addThinkingStep(groupId, {
-          'type': 'tool_call',
-          'content': toolName,
-          'action': toolName,
-          'completed': false,
-        });
         break;
       case 'tool_result':
-        _markPendingToolCallsCompleted(groupId);
         final rawSources = event['sources'];
         final urls = rawSources is List
             ? rawSources.map((s) => s.toString()).where((s) => s.isNotEmpty).toList()
@@ -1392,12 +1385,6 @@ class AgenticSearchLogic extends ChangeNotifier {
             phaseSources[currentPhase] = [...existing, ...newSources];
             rounds[rounds.length - 1] = {...cur, 'phaseSources': phaseSources};
             result['rounds'] = rounds;
-          });
-          _addThinkingStep(groupId, {
-            'type': 'thinking',
-            'content': 'Found ${urls.length} source(s)',
-            'sources': _normalizeSources(rawSources),
-            'completed': true,
           });
         }
         break;
@@ -1440,7 +1427,6 @@ class AgenticSearchLogic extends ChangeNotifier {
           messageGroups[idx].searchCompleted = true;
           messageGroups[idx].roundStatus = DeepSearchRoundStatus.done;
         }
-        _markPendingToolCallsCompleted(groupId);
         notifyListeners();
         break;
       case 'error':
@@ -1448,13 +1434,6 @@ class AgenticSearchLogic extends ChangeNotifier {
             (event['data'] is Map
                 ? (event['data'] as Map)['error']?.toString()
                 : null);
-        if (message != null && message.isNotEmpty) {
-          _addThinkingStep(groupId, {
-            'type': 'thinking',
-            'content': message,
-            'completed': true,
-          });
-        }
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
         if (idx >= 0) {
           messageGroups[idx].loading = false;
@@ -1463,7 +1442,6 @@ class AgenticSearchLogic extends ChangeNotifier {
           messageGroups[idx].errorMessage =
               message ?? 'Advisor search failed';
         }
-        _markPendingToolCallsCompleted(groupId);
         notifyListeners();
         break;
       default:
@@ -1529,7 +1507,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       advisorResults: const [],
       searchType: 'advisor',
       thinkingSteps: const [],
-      thinkingExpanded: true,
+      thinkingExpanded: false,
       searchCompleted: false,
       pdfAttachment: {
         'url': data.resumeUrl,

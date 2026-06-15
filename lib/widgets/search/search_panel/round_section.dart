@@ -175,6 +175,7 @@ class _RoundSectionState extends State<RoundSection> {
                   ),
                 if (!isDinqSearch &&
                     !group.isDeepSearch &&
+                    toolType == null &&
                     group.thinkingSteps.isNotEmpty)
                   ThinkingBubble(
                     steps: group.thinkingSteps,
