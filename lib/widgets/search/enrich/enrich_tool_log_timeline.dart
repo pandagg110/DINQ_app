@@ -28,11 +28,13 @@ class EnrichToolLogTimeline extends StatelessWidget {
 
     final totalItems = toolLogs.length + (errorMessage != null ? 1 : 0);
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           for (var i = 0; i < toolLogs.length; i++)
             _LogItem(
               log: toolLogs[i],
@@ -58,6 +60,7 @@ class EnrichToolLogTimeline extends StatelessWidget {
               ],
             ),
         ],
+        ),
       ),
     );
   }
@@ -111,7 +114,7 @@ class _LogItem extends StatelessWidget {
               child: Container(width: 1, color: const Color(0xFFEAE7E0)),
             ),
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 log.message.isNotEmpty ? log.message : log.tool,
@@ -135,6 +138,7 @@ class _LogItem extends StatelessWidget {
                 ),
               if (log.sources != null && log.sources!.isNotEmpty)
                 Container(
+                  width: double.infinity,
                   margin: const EdgeInsets.only(top: 6),
                   decoration: BoxDecoration(
                     border: Border.all(color: const Color(0xFFEAE7E0)),

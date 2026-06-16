@@ -88,20 +88,24 @@ String _hostnameFromUrl(String url) {
   }
 }
 
-InlineSpan _oneLinerSpan(String text, {TextStyle? base}) {
-  final style = base ?? const TextStyle(fontSize: 14, color: _C.textBody);
+/// 对齐 Web `EnrichProfileView.tsx` renderOneLiner (96-108)。
+List<InlineSpan> _renderOneLinerParts(String text) {
   final parts = text.split(RegExp(r'(\*\*[^*]+\*\*)'));
+  return parts.map((part) {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return TextSpan(
+        text: part.substring(2, part.length - 2),
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      );
+    }
+    return TextSpan(text: part);
+  }).toList();
+}
+
+TextSpan _oneLinerSpan(String text, {TextStyle? base}) {
   return TextSpan(
-    style: style,
-    children: parts.map((part) {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return TextSpan(
-          text: part.substring(2, part.length - 2),
-          style: style.copyWith(fontWeight: FontWeight.w600),
-        );
-      }
-      return TextSpan(text: part);
-    }).toList(),
+    style: base,
+    children: _renderOneLinerParts(text),
   );
 }
 
@@ -181,14 +185,18 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
         !_refreshing;
 
     final logSection = hasLogs
-        ? Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: _C.border),
-              borderRadius: BorderRadius.circular(8),
-              color: _C.bgPanel,
-            ),
-            child: Column(
-              children: [
+        ? SizedBox(
+            width: double.infinity,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: _C.border),
+                borderRadius: BorderRadius.circular(8),
+                color: _C.bgPanel,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 if (isFinished && !_logsExpanded)
                   InkWell(
                     onTap: () => setState(() => _logsExpanded = true),
@@ -262,29 +270,36 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                   ),
                 if (showFullLogs)
                   Stack(
+                    clipBehavior: Clip.none,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 40, 12),
+                        padding: EdgeInsets.fromLTRB(
+                          12,
+                          12,
+                          isFinished ? 40 : 12,
+                          12,
+                        ),
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxHeight: 200),
                           child: SingleChildScrollView(
                             child: EnrichToolLogTimeline(
                               toolLogs: entry.toolLogs,
                               errorMessage: entry.errorMessage,
+                              hasMore: isDone,
                             ),
                           ),
                         ),
                       ),
-                      Positioned(
-                        top: 4,
-                        right: 32,
-                        child: IconButton(
-                          visualDensity: VisualDensity.compact,
-                          onPressed: canRefresh ? _handleRefresh : null,
-                          icon: const Icon(Icons.refresh, size: 14),
+                      if (isFinished) ...[
+                        Positioned(
+                          top: 4,
+                          right: 32,
+                          child: IconButton(
+                            visualDensity: VisualDensity.compact,
+                            onPressed: canRefresh ? _handleRefresh : null,
+                            icon: const Icon(Icons.refresh, size: 14),
+                          ),
                         ),
-                      ),
-                      if (isFinished)
                         Positioned(
                           top: 4,
                           right: 4,
@@ -295,11 +310,13 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                             icon: const Icon(Icons.keyboard_arrow_up, size: 14),
                           ),
                         ),
+                      ],
                     ],
                   ),
               ],
             ),
-          )
+          ),
+        )
         : const SizedBox.shrink();
 
     final profile = _ProfileSection(
@@ -311,7 +328,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
 
     if (widget.isMobile) {
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           logSection,
           if (hasLogs) const SizedBox(height: 16),
@@ -506,8 +523,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
         entry.status != EnrichStatus.done &&
         entry.status != EnrichStatus.error;
     final isStreaming = entry.status == EnrichStatus.streaming;
-    bool sectionSkeleton(bool hasData) =>
-        !hasData && (isAwaitingPerson || isStreaming);
+    bool sectionSkeleton(bool hasData) => !hasData && isStreaming;
     final rowId = widget.selectedRowId;
     final favoriteId = rowId != null ? _favoriteMap[rowId] : null;
     final isFavorited = favoriteId != null;
@@ -527,8 +543,10 @@ class _ProfileSectionState extends State<_ProfileSection> {
         ? 'not-found'
         : 'get';
 
+    final oneLiner = person?.oneLiner;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // space-y-4 block: avatar + social + buttons
         Column(
@@ -723,17 +741,16 @@ class _ProfileSectionState extends State<_ProfileSection> {
           ],
         ),
 
-        // space-y-6 gap before match context
+        // space-y-6 gap before match context — 对齐 Web ProfileSection
         if (person?.oneLiner != null ||
             (person?.researchAreas?.isNotEmpty ?? false) ||
-            isAwaitingPerson ||
             isStreaming) ...[
           const SizedBox(height: 24),
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _SectionHeader(title: 'Match context'),
-              if (person?.oneLiner != null)
+              if (oneLiner != null)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -744,32 +761,32 @@ class _ProfileSectionState extends State<_ProfileSection> {
                     color: _C.bgMatch,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        if (widget.confidencePct != null) ...[
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: _MatchBadge(match: widget.confidencePct!),
-                            ),
-                          ),
-                        ],
-                        _oneLinerSpan(
-                          person!.oneLiner!,
-                          base: const TextStyle(
-                            fontSize: 14,
-                            height: 1.625,
-                            color: _C.textBody,
-                          ),
+                  // 不用 WidgetSpan：徽章 + 正文分行时首行文字会被裁切
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.confidencePct != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8, top: 2),
+                          child: _MatchBadge(match: widget.confidencePct!),
                         ),
-                      ],
-                    ),
+                      Expanded(
+                        child: new Text(oneLiner),
+                        // child: Text.rich(
+                        //   _oneLinerSpan(
+                        //     oneLiner,
+                        //     base: const TextStyle(
+                        //       fontSize: 14,
+                        //       height: 1.625,
+                        //       color: _C.textBody,
+                        //     ),
+                        //   ),
+                        // ),
+                      ),
+                    ],
                   ),
                 ),
-              if (isAwaitingPerson || (isStreaming && person?.oneLiner == null))
-                const _SkeletonBlock(),
+              if (isStreaming) const _SkeletonBlock(),
               if (person?.researchAreas != null &&
                   person!.researchAreas!.isNotEmpty)
                 Padding(
@@ -802,7 +819,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
                         .toList(),
                   ),
                 ),
-              if (sectionSkeleton(person?.researchAreas?.isNotEmpty != true))
+              if (isStreaming)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Row(
@@ -1256,10 +1273,9 @@ class _TimelineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 72,
+    return IntrinsicHeight(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
             width: 8,
@@ -1285,9 +1301,14 @@ class _TimelineRow extends StatelessWidget {
                   Positioned(
                     top: 28,
                     left: 3,
-                    child: CustomPaint(
-                      size: const Size(1, 56),
-                      painter: _DashedLinePainter(),
+                    bottom: -8,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return CustomPaint(
+                          size: Size(1, constraints.maxHeight),
+                          painter: _DashedLinePainter(),
+                        );
+                      },
                     ),
                   ),
               ],
@@ -1296,80 +1317,89 @@ class _TimelineRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
+                SizedBox(
                   height: 48,
-                  decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: _C.border)),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 48,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: isFirst ? _C.textMuted : _C.border,
-                                width: 2,
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: _C.border)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: isFirst ? _C.textMuted : _C.border,
+                                  width: 2,
+                                ),
                               ),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: _C.bgSkeleton,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(icon, size: 14, color: _C.textMuted),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: _C.textDark,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: _C.bgSkeleton,
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  child: Icon(
+                                    icon,
+                                    size: 14,
+                                    color: _C.textMuted,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: _C.textDark,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      if (period != null) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          period!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: _C.textMuted,
+                        if (period != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            period!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: _C.textMuted,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        height: 32 / 12,
-                        color: _C.textBody,
+                SizedBox(
+                  height: 32,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _C.textBody,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -1410,7 +1440,7 @@ class _EducationSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _SectionHeader(title: 'Education'),
           for (var i = 0; i < items.length; i++)
@@ -1443,7 +1473,7 @@ class _WorkSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _SectionHeader(title: 'Work experience'),
           for (var i = 0; i < items.length; i++)

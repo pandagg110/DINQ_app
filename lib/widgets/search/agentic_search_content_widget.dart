@@ -218,7 +218,6 @@ class _EnrichBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = entry?.person?.name;
     return Positioned.fill(
       child: GestureDetector(
         onTap: onClose,
@@ -229,6 +228,7 @@ class _EnrichBottomSheet extends StatelessWidget {
             child: GestureDetector(
               onTap: () {},
               child: FractionallySizedBox(
+                widthFactor: 1,
                 heightFactor: 0.85,
                 child: Material(
                   color: Colors.white,
@@ -236,33 +236,14 @@ class _EnrichBottomSheet extends StatelessWidget {
                     top: Radius.circular(16),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                name ?? 'Enriching...',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: onClose,
-                              icon: const Icon(Icons.close),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: entry == null
-                            ? const SizedBox.shrink()
-                            : SingleChildScrollView(
-                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: entry == null
+                      ? const SizedBox.shrink()
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                              child: SizedBox(
+                                width: constraints.maxWidth,
                                 child: EnrichProfileView(
                                   entry: entry!,
                                   isMobile: true,
@@ -271,9 +252,9 @@ class _EnrichBottomSheet extends StatelessWidget {
                                   onRefresh: onRefresh,
                                 ),
                               ),
-                      ),
-                    ],
-                  ),
+                            );
+                          },
+                        ),
                 ),
               ),
             ),

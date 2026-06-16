@@ -190,25 +190,68 @@ class EnrichResultPerson {
     );
   }
 
-  EnrichResultPerson merge(EnrichResultPerson other) {
-    return EnrichResultPerson(
-      name: other.name.isNotEmpty ? other.name : name,
-      company: other.company ?? company,
-      position: other.position ?? position,
-      university: other.university ?? university,
-      location: other.location ?? location,
-      researchAreas: other.researchAreas ?? researchAreas,
-      educationHistory: other.educationHistory ?? educationHistory,
-      workExperience: other.workExperience ?? workExperience,
-      email: other.email ?? email,
-      personalHomepage: other.personalHomepage ?? personalHomepage,
-      imageUrl: other.imageUrl ?? imageUrl,
-      oneLiner: other.oneLiner ?? oneLiner,
-      socialLinks: other.socialLinks ?? socialLinks,
-      keyPublications: other.keyPublications ?? keyPublications,
-      news: other.news ?? news,
-    );
-  }
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        if (company != null) 'company': company,
+        if (position != null) 'position': position,
+        if (university != null) 'university': university,
+        if (location != null) 'location': location,
+        if (researchAreas != null) 'research_areas': researchAreas,
+        if (educationHistory != null)
+          'education_history': educationHistory!
+              .map(
+                (e) => {
+                  'institution': e.institution,
+                  if (e.degree != null) 'degree': e.degree,
+                  if (e.field != null) 'field': e.field,
+                  if (e.period != null) 'period': e.period,
+                },
+              )
+              .toList(),
+        if (workExperience != null)
+          'work_experience': workExperience!
+              .map(
+                (e) => {
+                  'organization': e.organization,
+                  if (e.role != null) 'role': e.role,
+                  if (e.period != null) 'period': e.period,
+                  if (e.details != null) 'details': e.details,
+                },
+              )
+              .toList(),
+        if (email != null) 'email': email,
+        if (personalHomepage != null) 'personal_homepage': personalHomepage,
+        if (imageUrl != null) 'image_url': imageUrl,
+        if (oneLiner != null) 'one_liner': oneLiner,
+        if (socialLinks != null)
+          'social_links': socialLinks!
+              .map((l) => {'type': l.type, 'url': l.url})
+              .toList(),
+        if (keyPublications != null)
+          'key_publications': keyPublications!
+              .map((p) => {
+                    'title': p.title,
+                    if (p.url != null) 'url': p.url,
+                  })
+              .toList(),
+        if (news != null)
+          'news': news!
+              .map(
+                (n) => {
+                  'description': n.description,
+                  if (n.url != null) 'url': n.url,
+                },
+              )
+              .toList(),
+      };
+}
+
+/// 对齐 Web `{ ...entry.person, ...person }` 浅合并。
+Map<String, dynamic> mergePersonJson(
+  Map<String, dynamic> base,
+  Map<String, dynamic> patch,
+) {
+  return {...base, ...patch};
 }
 
 /// Tool log 条目，对齐 Web `ToolLogTimeline`。
@@ -265,6 +308,7 @@ enum EnrichStatus { idle, streaming, done, error }
 class EnrichEntry {
   EnrichEntry({
     this.person,
+    Map<String, dynamic>? personJson,
     this.status = EnrichStatus.idle,
     List<EnrichToolLog>? toolLogs,
     this.errorMessage,
@@ -276,10 +320,12 @@ class EnrichEntry {
     this.emailRevealError = false,
     this.savedAt,
     this.requestParams,
-  })  : toolLogs = toolLogs ?? [],
+  })  : personJson = personJson ?? {},
+        toolLogs = toolLogs ?? [],
         seenUrls = seenUrls ?? {};
 
   EnrichResultPerson? person;
+  Map<String, dynamic> personJson;
   EnrichStatus status;
   List<EnrichToolLog> toolLogs;
   String? errorMessage;

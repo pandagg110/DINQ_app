@@ -38,6 +38,12 @@ class DeepSearchEnrichStore extends ChangeNotifier {
       rowId,
       () => EnrichEntry(status: EnrichStatus.streaming),
     );
+    final entry = _cache[rowId];
+    if (entry != null &&
+        entry.person != null &&
+        entry.personJson.isEmpty) {
+      entry.personJson = entry.person!.toJson();
+    }
     notifyListeners();
   }
 
@@ -49,6 +55,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
   void resetEntry(String rowId, EnrichStreamRequest? requestParams) {
     _cache[rowId] = EnrichEntry(
       status: EnrichStatus.streaming,
+      personJson: {},
       requestParams: requestParams,
     );
     notifyListeners();
@@ -95,6 +102,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
       case 'start':
         _cache[rowId] = EnrichEntry(
           status: EnrichStatus.streaming,
+          personJson: {},
           toolLogs: [
             EnrichToolLog(
               tool: 'start',
@@ -148,10 +156,10 @@ class DeepSearchEnrichStore extends ChangeNotifier {
             final personData = data['data'];
             final email = data['email']?.toString();
             if (personData is Map) {
-              final person = EnrichResultPerson.fromJson(
+              _mergePersonIntoEntry(
+                entry,
                 Map<String, dynamic>.from(personData),
               );
-              _mergePersonIntoEntry(entry, person);
               entry.fromCache = true;
               entry.savedAt = DateTime.now().millisecondsSinceEpoch;
               if (email != null && email.isNotEmpty) {
@@ -171,10 +179,10 @@ class DeepSearchEnrichStore extends ChangeNotifier {
           final entry = _cache[rowId] ?? EnrichEntry();
           final data = event['data'];
           if (data is Map) {
-            final person = EnrichResultPerson.fromJson(
+            _mergePersonIntoEntry(
+              entry,
               Map<String, dynamic>.from(data),
             );
-            _mergePersonIntoEntry(entry, person);
             entry.savedAt = DateTime.now().millisecondsSinceEpoch;
           }
           _cache[rowId] = entry;
@@ -186,9 +194,9 @@ class DeepSearchEnrichStore extends ChangeNotifier {
           final entry = _cache[rowId] ?? EnrichEntry();
           final data = event['data'];
           if (data is Map) {
-            entry.person = EnrichResultPerson.fromJson(
-              Map<String, dynamic>.from(data),
-            );
+            final personMap = Map<String, dynamic>.from(data);
+            entry.personJson = personMap;
+            entry.person = EnrichResultPerson.fromJson(personMap);
           }
           entry.status = EnrichStatus.done;
           entry.toolLogs = entry.toolLogs
@@ -225,11 +233,12 @@ class DeepSearchEnrichStore extends ChangeNotifier {
     return -1;
   }
 
-  void _mergePersonIntoEntry(EnrichEntry entry, EnrichResultPerson person) {
-    entry.person =
-        entry.person == null ? person : entry.person!.merge(person);
+  void _mergePersonIntoEntry(EnrichEntry entry, Map<String, dynamic> patch) {
+    entry.personJson = mergePersonJson(entry.personJson, patch);
+    entry.person = EnrichResultPerson.fromJson(entry.personJson);
 
-    final allUrls = _extractUrls(entry.person!);
+    final person = entry.person!;
+    final allUrls = _extractUrls(person);
     final newSources =
         allUrls.where((s) => !entry.seenUrls.contains(s.url)).toList();
     for (final s in newSources) {
