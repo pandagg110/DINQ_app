@@ -42,6 +42,14 @@ class _QuickRepliesWidgetState extends State<QuickRepliesWidget> {
     widget.onSelect(trimmed);
   }
 
+  double _resolveMaxWidth(BoxConstraints constraints) {
+    if (constraints.maxWidth.isFinite && constraints.maxWidth > 0) {
+      return constraints.maxWidth;
+    }
+    final media = MediaQuery.sizeOf(context);
+    return media.width - MediaQuery.paddingOf(context).horizontal;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isUsed = context.watch<QuickRepliesStore>().isUsed(widget.blockId);
@@ -52,18 +60,18 @@ class _QuickRepliesWidgetState extends State<QuickRepliesWidget> {
     if (widget.options.length == 2) {
       final primary = widget.options[0];
       final secondary = widget.options[1];
-      final screenWidth = MediaQuery.sizeOf(context).width;
-      final horizontalPadding = MediaQuery.paddingOf(context).horizontal;
-      final maxWidth = screenWidth - horizontalPadding;
-
       return Padding(
         padding: const EdgeInsets.only(top: 12),
-        child: _BinaryQuickReplies(
-          maxWidth: maxWidth,
-          primary: primary,
-          secondary: secondary,
-          onPrimary: () => _submit(primary),
-          onSecondary: () => _submit(secondary),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return _BinaryQuickReplies(
+              maxWidth: _resolveMaxWidth(constraints),
+              primary: primary,
+              secondary: secondary,
+              onPrimary: () => _submit(primary),
+              onSecondary: () => _submit(secondary),
+            );
+          },
         ),
       );
     }
@@ -113,7 +121,7 @@ class _QuickRepliesWidgetState extends State<QuickRepliesWidget> {
   }
 }
 
-/// 双选项：窄屏纵向堆叠，宽屏横向排列（Web `flex gap-5`）。
+/// 双选项：Web `mt-3 flex items-center gap-5`，主按钮文字在按钮内换行。
 class _BinaryQuickReplies extends StatelessWidget {
   const _BinaryQuickReplies({
     required this.maxWidth,
@@ -133,47 +141,20 @@ class _BinaryQuickReplies extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textDirection = Directionality.of(context);
-    const primaryStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
-    const secondaryStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
-
-    double measure(String text, TextStyle style) {
-      final painter = TextPainter(
-        text: TextSpan(text: text, style: style),
-        textDirection: textDirection,
-        maxLines: 1,
-      )..layout();
-      return painter.size.width;
-    }
-
-    const primaryChrome = 32.0 + 8.0 + 14.0;
-    const secondaryChrome = 8.0;
-    final useRow = measure(primary, primaryStyle) +
-            primaryChrome +
-            _binaryGap +
-            measure(secondary, secondaryStyle) +
-            secondaryChrome <=
-        maxWidth;
-
-    if (useRow) {
-      return Wrap(
-        spacing: _binaryGap,
-        runSpacing: 10,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          _PrimaryButton(label: primary, onTap: onPrimary),
-          _SecondaryButton(label: secondary, onTap: onSecondary),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _PrimaryButton(label: primary, onTap: onPrimary, expanded: true),
-        const SizedBox(height: 10),
-        _SecondaryButton(label: secondary, onTap: onSecondary),
-      ],
+    return SizedBox(
+      width: maxWidth,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Flexible(
+              child: _PrimaryButton(label: primary, onTap: onPrimary),
+            ),
+            const SizedBox(width: _binaryGap),
+            _SecondaryButton(label: secondary, onTap: onSecondary),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -182,46 +163,42 @@ class _PrimaryButton extends StatelessWidget {
   const _PrimaryButton({
     required this.label,
     required this.onTap,
-    this.expanded = false,
   });
 
   final String label;
   final VoidCallback onTap;
-  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: const Color(0xFF2A2826),
       borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
         hoverColor: const Color(0xFF3A3836),
-        child: Container(
-          width: expanded ? double.infinity : null,
+        child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 40),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
-            children: [
-              if (expanded)
-                Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
                   child: Text(
                     label,
                     style: _labelStyle,
                     softWrap: true,
                   ),
-                )
-              else
-                Text(label, style: _labelStyle),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.subdirectory_arrow_left,
-                size: 14,
-                color: Colors.white,
-              ),
-            ],
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.subdirectory_arrow_left,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -247,24 +224,35 @@ class _SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFFA5A39E),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-        minimumSize: const Size(0, 40),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        alignment: Alignment.centerLeft,
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          height: 1.25,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        hoverColor: const Color(0xFF6B6862).withValues(alpha: 0.08),
+        splashColor: const Color(0xFF6B6862).withValues(alpha: 0.12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 40),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                  color: Color(0xFFA5A39E),
+                ),
+                softWrap: true,
+                textAlign: TextAlign.left,
+              ),
+            ),
+          ),
         ),
-        softWrap: true,
-        textAlign: TextAlign.left,
       ),
     );
   }
