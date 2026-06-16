@@ -241,7 +241,7 @@ class _EnrichBottomSheet extends StatelessWidget {
                       : LayoutBuilder(
                           builder: (context, constraints) {
                             return SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                              padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
                               child: SizedBox(
                                 width: constraints.maxWidth,
                                 child: EnrichProfileView(
