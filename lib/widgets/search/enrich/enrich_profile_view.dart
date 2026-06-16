@@ -15,6 +15,7 @@ import '../../../stores/deep_search_enrich_store.dart';
 import '../../../stores/search_store.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import 'enrich_contact_email_modal.dart';
+import 'enrich_icons.dart';
 import 'enrich_tool_log_timeline.dart';
 import 'shortlist_folder_modal.dart';
 
@@ -54,18 +55,6 @@ String parseUniversity(String raw) {
     if (val != null && val.isNotEmpty) fields.add(val);
   }
   return fields.isNotEmpty ? fields.join(', ') : raw;
-}
-
-String _socialIconAsset(String type) {
-  const map = {
-    'google_scholar': 'assets/icons/social-icons/Scholar.svg',
-    'linkedin': 'assets/icons/search/linkedin.svg',
-    'github': 'assets/icons/search/github.svg',
-    'twitter': 'assets/icons/social-icons/Twitter.svg',
-    'openreview': 'assets/icons/social-icons/Link.svg',
-    'huggingface': 'assets/icons/social-icons/Link.svg',
-  };
-  return map[type] ?? 'assets/icons/social-icons/Link.svg';
 }
 
 String _socialLabel(String type) {
@@ -269,8 +258,8 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            isError ? Icons.error_outline : Icons.check,
+                          EnrichSvgIcon(
+                            isError ? EnrichIcons.alertCircle : EnrichIcons.check,
                             size: 14,
                             color: isError
                                 ? const Color(0xFFEF4444)
@@ -307,7 +296,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Icon(Icons.refresh, size: 14),
+                                : const EnrichSvgIcon(EnrichIcons.refresh, size: 14),
                           ),
                           IconButton(
                             visualDensity: VisualDensity.compact,
@@ -318,8 +307,8 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                             ),
                             onPressed: () =>
                                 setState(() => _logsExpanded = true),
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down,
+                            icon: const EnrichSvgIcon(
+                              EnrichIcons.chevronDown,
                               size: 14,
                             ),
                           ),
@@ -356,7 +345,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                           child: IconButton(
                             visualDensity: VisualDensity.compact,
                             onPressed: canRefresh ? _handleRefresh : null,
-                            icon: const Icon(Icons.refresh, size: 14),
+                            icon: const EnrichSvgIcon(EnrichIcons.refresh, size: 14),
                           ),
                         ),
                         Positioned(
@@ -366,7 +355,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                             visualDensity: VisualDensity.compact,
                             onPressed: () =>
                                 setState(() => _logsExpanded = false),
-                            icon: const Icon(Icons.keyboard_arrow_up, size: 14),
+                            icon: const EnrichSvgIcon(EnrichIcons.chevronUp, size: 14),
                           ),
                         ),
                       ],
@@ -643,8 +632,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
                             children: [
                               const Padding(
                                 padding: EdgeInsets.only(top: 2),
-                                child: Icon(
-                                  Icons.work_outline,
+                                child: EnrichSvgIcon(
+                                  EnrichIcons.briefcase,
                                   size: 14,
                                   color: _C.textMuted,
                                 ),
@@ -659,8 +648,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
                           padding: const EdgeInsets.only(top: 2),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.school_outlined,
+                              const EnrichSvgIcon(
+                                EnrichIcons.graduationCap,
                                 size: 14,
                                 color: _C.textMuted,
                               ),
@@ -682,8 +671,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
                           padding: const EdgeInsets.only(top: 2),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.location_on_outlined,
+                              const EnrichSvgIcon(
+                                EnrichIcons.mapPin,
                                 size: 14,
                                 color: _C.textMuted,
                               ),
@@ -705,8 +694,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
                           padding: const EdgeInsets.only(top: 2),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.mail_outline,
+                              const EnrichSvgIcon(
+                                EnrichIcons.mail,
                                 size: 14,
                                 color: _C.textMuted,
                               ),
@@ -998,7 +987,7 @@ class _EmailActionButton extends StatelessWidget {
                   ),
                 ),
               ] else if (state == 'retry') ...[
-                Icon(Icons.refresh, size: 14, color: fg),
+                EnrichSvgIcon(EnrichIcons.refresh, size: 14, color: fg),
                 const SizedBox(width: 6),
                 Text(
                   'Try again',
@@ -1009,7 +998,7 @@ class _EmailActionButton extends StatelessWidget {
                   ),
                 ),
               ] else if (state == 'not-found') ...[
-                Icon(Icons.mail_outline, size: 14, color: fg),
+                EnrichSvgIcon(EnrichIcons.mail, size: 14, color: fg),
                 const SizedBox(width: 6),
                 Text(
                   'Email not found',
@@ -1020,7 +1009,7 @@ class _EmailActionButton extends StatelessWidget {
                   ),
                 ),
               ] else if (state == 'send') ...[
-                Icon(Icons.mail_outline, size: 14, color: fg),
+                EnrichSvgIcon(EnrichIcons.mail, size: 14, color: fg),
                 const SizedBox(width: 6),
                 Text(
                   'Send cold email',
@@ -1031,7 +1020,7 @@ class _EmailActionButton extends StatelessWidget {
                   ),
                 ),
               ] else ...[
-                Icon(Icons.mail_outline, size: 14, color: fg),
+                EnrichSvgIcon(EnrichIcons.mail, size: 14, color: fg),
                 const SizedBox(width: 6),
                 Text(
                   'Get email -10',
@@ -1042,7 +1031,7 @@ class _EmailActionButton extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.bolt, size: 14, color: fg),
+                EnrichSvgIcon(EnrichIcons.zap, size: 14, color: fg),
               ],
             ],
           ),
@@ -1078,8 +1067,8 @@ class _ShortlistButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                isFavorited ? Icons.bookmark : Icons.bookmark_border,
+              EnrichSvgIcon(
+                isFavorited ? EnrichIcons.bookmarkFilled : EnrichIcons.bookmark,
                 size: 14,
                 color: const Color(0xFF1F1F1F),
               ),
@@ -1203,7 +1192,7 @@ class _SocialChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = type == 'homepage' ? 'Homepage' : _socialLabel(type);
-    final asset = type == 'homepage' ? null : _socialIconAsset(type);
+    final asset = type == 'homepage' ? null : enrichSocialIconAsset(type);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1221,7 +1210,11 @@ class _SocialChip extends StatelessWidget {
               if (asset != null)
                 SvgPicture.asset(asset, width: 14, height: 14)
               else
-                const Icon(Icons.open_in_new, size: 14, color: _C.textSecondary),
+                const EnrichSvgIcon(
+                  EnrichIcons.externalLink,
+                  size: 14,
+                  color: _C.textSecondary,
+                ),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -1301,7 +1294,7 @@ class _TimelineRow extends StatelessWidget {
     required this.subtitle,
     required this.isFirst,
     required this.isLast,
-    required this.icon,
+    required this.iconAsset,
     this.period,
   });
 
@@ -1310,7 +1303,7 @@ class _TimelineRow extends StatelessWidget {
   final String? period;
   final bool isFirst;
   final bool isLast;
-  final IconData icon;
+  final String iconAsset;
 
   @override
   Widget build(BuildContext context) {
@@ -1389,8 +1382,8 @@ class _TimelineRow extends StatelessWidget {
                                     color: _C.bgSkeleton,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: Icon(
-                                    icon,
+                                  child: EnrichSvgIcon(
+                                    iconAsset,
                                     size: 14,
                                     color: _C.textMuted,
                                   ),
@@ -1496,7 +1489,7 @@ class _EducationSection extends StatelessWidget {
                 period: items[i].period,
                 isFirst: i == 0,
                 isLast: i == items.length - 1,
-                icon: Icons.school_outlined,
+                iconAsset: EnrichIcons.graduationCap,
               ),
             ),
         ],
@@ -1526,7 +1519,7 @@ class _WorkSection extends StatelessWidget {
                 period: items[i].period,
                 isFirst: i == 0,
                 isLast: i == items.length - 1,
-                icon: Icons.work_outline,
+                iconAsset: EnrichIcons.briefcase,
               ),
             ),
         ],
@@ -1628,7 +1621,7 @@ class _PublicationCardState extends State<_PublicationCard> {
                                 minHeight: 28,
                               ),
                               onPressed: _copy,
-                              icon: const Icon(Icons.copy, size: 14),
+                              icon: const EnrichSvgIcon(EnrichIcons.copy, size: 14),
                               color: _C.textMuted,
                             ),
                           if (widget.publication.url != null)
@@ -1640,7 +1633,10 @@ class _PublicationCardState extends State<_PublicationCard> {
                                 minHeight: 28,
                               ),
                               onPressed: _openUrl,
-                              icon: const Icon(Icons.open_in_new, size: 14),
+                              icon: const EnrichSvgIcon(
+                                EnrichIcons.externalLink,
+                                size: 14,
+                              ),
                               color: _C.textMuted,
                             ),
                         ],
@@ -1756,7 +1752,11 @@ class _NewsActivityItem extends StatelessWidget {
               height: 20,
               child: Center(
                 child: hasUrl
-                    ? const Icon(Icons.language, size: 14, color: _C.textMuted)
+                    ? const EnrichSvgIcon(
+                        EnrichIcons.globe,
+                        size: 14,
+                        color: _C.textMuted,
+                      )
                     : Container(
                         width: 6,
                         height: 6,
@@ -1953,8 +1953,8 @@ class _Favicon extends StatelessWidget {
         'https://icons.duckduckgo.com/ip3/$domain.ico',
         width: 14,
         height: 14,
-        errorBuilder: (_, __, ___) => const Icon(
-          Icons.language,
+        errorBuilder: (_, __, ___) => const EnrichSvgIcon(
+          EnrichIcons.globe,
           size: 14,
           color: _C.textMuted,
         ),

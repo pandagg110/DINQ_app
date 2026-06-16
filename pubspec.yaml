@@ -75,6 +75,7 @@ flutter:
     - assets/icons/search/advisor/
     - assets/icons/search/history.svg
     - assets/icons/search/deep_search/
+    - assets/icons/search/enrich/
     - assets/icons/search/history/
     - assets/icons/search/lineicons/
     - assets/icons/settings/
