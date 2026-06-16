@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_models.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../services/push_service.dart';
 import '../services/flow_service.dart';
 import '../services/payment_service.dart';
 import '../services/profile_service.dart';
@@ -51,6 +52,8 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
     await loadVerifications();
     await loadUserAccounts();
+    // 登录态就绪后注册推送设备 Token（真机生效，其余环境内部跳过）
+    PushService.instance.registerToken();
   }
 
   Future<void> _loadToken() async {
@@ -140,6 +143,8 @@ class UserStore extends ChangeNotifier {
   }
 
   void logout() {
+    // 解绑推送 Token，避免给已登出用户继续推送（先于清 token，接口仍需鉴权）
+    PushService.instance.unbindToken();
     user = null;
     authToken = null;
     myFlow = null;

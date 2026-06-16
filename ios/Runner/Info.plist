@@ -45,6 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- FCM/APNs 推送：后台收消息（需在 Xcode 开启 Push Notifications + Background Modes 能力，见 FCM_SETUP.md） -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
     <key>NSCameraUsageDescription</key>
     <string>DINQ wants to access your camera, save the picture to share the photo</string>
     <key>NSPhotoLibraryUsageDescription</key>

@@ -3,6 +3,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:provider/provider.dart';
 
 import 'router/app_router.dart';
+import 'services/push_service.dart';
 import 'stores/card_store.dart';
 import 'stores/viewer_card_store.dart';
 import 'stores/chat_history_store.dart';
@@ -17,7 +18,10 @@ import 'theme/app_theme.dart';
 import 'widgets/cards/placeholder/use_placeholders.dart';
 
 class DinqApp extends StatelessWidget {
-  DinqApp({super.key}) : _userStore = UserStore();
+  DinqApp({super.key}) : _userStore = UserStore() {
+    // 推送点击跳转 → 交给 go_router
+    PushService.instance.onNavigate = (route) => _router.go(route);
+  }
 
   final UserStore _userStore;
   late final _router = AppRouter.create(_userStore);

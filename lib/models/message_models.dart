@@ -3,7 +3,7 @@ import 'package:collection/collection.dart';
 /// 消息相关数据模型
 
 // 消息类型
-enum MessageType { text, image, emoji }
+enum MessageType { text, image, emoji, teamRecruit }
 
 // 消息状态
 enum MessageStatus { sent, delivered, read }
@@ -76,6 +76,8 @@ class Message {
         return MessageType.image;
       case 'emoji':
         return MessageType.emoji;
+      case 'team_recruit':
+        return MessageType.teamRecruit;
       default:
         return MessageType.text;
     }
