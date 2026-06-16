@@ -1378,6 +1378,7 @@ class _TimelineRow extends StatelessWidget {
                                 Container(
                                   width: 28,
                                   height: 28,
+                                  alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: _C.bgSkeleton,
                                     borderRadius: BorderRadius.circular(6),
