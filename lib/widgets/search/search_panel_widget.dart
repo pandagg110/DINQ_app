@@ -10,6 +10,7 @@ import 'deep_search/deep_search_models.dart';
 import 'deep_search/deep_search_results_helpers.dart';
 import 'message_group/quick_replies_widget.dart';
 import 'search_panel/round_section.dart';
+import 'search_panel/search_interaction_scope.dart';
 
 class SearchPanelWidget extends StatefulWidget {
   const SearchPanelWidget({
@@ -18,6 +19,7 @@ class SearchPanelWidget extends StatefulWidget {
     required this.scrollController,
     required this.activeTool,
     required this.onQuickReplySelect,
+    this.onConfirmStart,
     required this.onCandidateClick,
     this.bottomInset = 24,
     this.hideUserQueryBubble = false,
@@ -30,7 +32,8 @@ class SearchPanelWidget extends StatefulWidget {
   final List<AgenticMessageGroup> messageGroups;
   final ScrollController scrollController;
   final String? activeTool;
-  final ValueChanged<String> onQuickReplySelect;
+  final QuickReplySelectCallback onQuickReplySelect;
+  final ConfirmStartCallback? onConfirmStart;
   final void Function(Map<String, dynamic> candidate, int index, int groupId)
   onCandidateClick;
   final double bottomInset;
@@ -246,16 +249,19 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
           });
         }
 
-        return Stack(
-          children: [
-            if (groups.isEmpty)
-              _ToolWelcome(
-                activeTool: widget.activeTool,
-                analysisPlatform: widget.analysisPlatform ?? 'scholar',
-                citationMode: widget.citationMode ?? 'author',
-              )
-            else
-              ListView(
+        return SearchInteractionScope(
+          onQuickReplySelect: widget.onQuickReplySelect,
+          onConfirmStart: widget.onConfirmStart,
+          child: Stack(
+            children: [
+              if (groups.isEmpty)
+                _ToolWelcome(
+                  activeTool: widget.activeTool,
+                  analysisPlatform: widget.analysisPlatform ?? 'scholar',
+                  citationMode: widget.citationMode ?? 'author',
+                )
+              else
+                ListView(
                 key: _listViewKey,
                 controller: widget.scrollController,
                 physics: const ClampingScrollPhysics(),
@@ -278,8 +284,6 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                             group: groups[i],
                             isLatest: i == groups.length - 1,
                             hideUserQueryBubble: widget.hideUserQueryBubble,
-                            onQuickReplySelect:
-                                i == groups.length - 1 ? widget.onQuickReplySelect : null,
                             onCandidateClick: widget.onCandidateClick,
                             copied: _copiedRoundId == groups[i].id,
                             onCopyMarkdown: () => _copyRoundMarkdown(groups[i]),
@@ -322,6 +326,7 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                 ),
               ),
           ],
+        ),
         );
       },
     );
@@ -514,7 +519,9 @@ class _ToolWelcome extends StatelessWidget {
                 ),
               ),
               QuickRepliesWidget(
+                blockId: 'welcome-examples',
                 options: examples,
+                ephemeral: true,
                 onSelect: context.read<SearchStore>().fillSearchBox,
               ),
             ],

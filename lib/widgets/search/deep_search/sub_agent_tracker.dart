@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../utils/parse_quick_replies.dart';
-import '../message_group/assistant_narration_view.dart';
+import '../search_panel/phase_timeline.dart';
 import 'deep_search_models.dart';
 import 'sub_agent_helpers.dart';
 
@@ -34,7 +34,10 @@ class SubAgentTracker extends StatelessWidget {
         agents.length == 1 && agents.first.id == virtualAgentId;
 
     if (isSingleAgent) {
-      return SingleAgentTree(agent: agents.first, compactTop: compactTop);
+      return SingleAgentTree(
+        agent: agents.first,
+        compactTop: compactTop,
+      );
     }
 
     final allDone = agents.every((a) => a.status == DeepSearchRoundStatus.done);
@@ -278,17 +281,16 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
     final showTree = toolCount > 0 || classified.segments.isNotEmpty;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (classified.initialThinking.isNotEmpty)
           _ThinkingBubbleView(blocks: classified.initialThinking),
         if (classified.opening != null)
           Padding(
             padding: EdgeInsets.only(top: widget.compactTop ? 4 : 0),
-            child: AssistantNarrationView(
-              text: classified.opening!.text,
-              blockId: classified.opening!.id,
-              isStreaming: classified.opening!.isStreaming,
+            child: NarrationBlockView(
+              block: classified.opening!,
+              isFirstInRound: true,
             ),
           ),
         if (showTree) ...[

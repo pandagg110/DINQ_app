@@ -166,11 +166,11 @@ class _MessageGroupViewState extends State<MessageGroupView>
                     text: rawAssistantText,
                     blockId: 'group-${group.id}',
                     isStreaming: group.assistantStreaming,
-                    showQuickReplies: showQuickReplies,
-                    quickRepliesUsed: group.quickRepliesUsed,
-                    hasCandidates: hasCandidates,
-                    onQuickReplySelect:
-                        showQuickReplies ? widget.onQuickReplySelect : null,
+                    isBlockUsed: group.quickRepliesUsed,
+                    onQuickReplySelect: showQuickReplies && !group.quickRepliesUsed
+                        ? (option, blockId) =>
+                            widget.onQuickReplySelect?.call(option)
+                        : null,
                   ),
 
                 if (shouldRenderSubAgentInternally)

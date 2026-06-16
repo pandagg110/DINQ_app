@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-import '../message_group/assistant_narration_view.dart';
+import '../../../utils/parse_quick_replies.dart';
+import '../message_group/quick_replies_widget.dart';
 import '../deep_search/deep_search_models.dart';
 import '../deep_search/sub_agent_helpers.dart';
+import 'confirm_block_view.dart';
+import 'narration_text.dart';
+import 'search_interaction_scope.dart';
 import 'tool_card.dart';
 
 /// 与 TSX PhaseTimeline.groupBlocksIntoPhases 对齐。
@@ -163,20 +168,12 @@ class PhaseSection extends StatefulWidget {
     required this.index,
     required this.totalPhases,
     required this.isLast,
-    this.showQuickReplies = false,
-    this.quickRepliesUsed = false,
-    this.hasCandidates = false,
-    this.onQuickReplySelect,
   });
 
   final PhaseData phase;
   final int index;
   final int totalPhases;
   final bool isLast;
-  final bool showQuickReplies;
-  final bool quickRepliesUsed;
-  final bool hasCandidates;
-  final ValueChanged<String>? onQuickReplySelect;
 
   @override
   State<PhaseSection> createState() => _PhaseSectionState();
@@ -206,13 +203,7 @@ class _PhaseSectionState extends State<PhaseSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (phase.narration != null)
-          NarrationBlockView(
-            block: phase.narration!,
-            showQuickReplies: widget.showQuickReplies,
-            quickRepliesUsed: widget.quickRepliesUsed,
-            hasCandidates: widget.hasCandidates,
-            onQuickReplySelect: widget.onQuickReplySelect,
-          ),
+          NarrationBlockView(block: phase.narration!),
         if (toolCount > 0)
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),
@@ -354,28 +345,57 @@ class _PhaseStatusIcon extends StatelessWidget {
   }
 }
 
-/// 与 TSX NarrationBlockView 对齐，复用 AssistantNarrationView。
+/// 与 TSX `PhaseTimeline.NarrationBlockView` 严格对齐。
 class NarrationBlockView extends StatelessWidget {
   const NarrationBlockView({
     super.key,
     required this.block,
     this.isSummary = false,
     this.isFirstInRound = false,
-    this.showQuickReplies = false,
-    this.quickRepliesUsed = false,
-    this.hasCandidates = false,
-    this.onQuickReplySelect,
   });
 
   final ReasoningBlock block;
   final bool isSummary;
   final bool isFirstInRound;
-  final bool showQuickReplies;
-  final bool quickRepliesUsed;
-  final bool hasCandidates;
-  final ValueChanged<String>? onQuickReplySelect;
 
   static const _confirmPrefix = '[confirm]';
+
+  static MarkdownStyleSheet get _markdownStyle => MarkdownStyleSheet(
+        p: const TextStyle(
+          fontSize: 14,
+          height: 1.5,
+          color: Color(0xFF4A4845),
+        ),
+        strong: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF3A3835),
+        ),
+        h1: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF2A2826),
+        ),
+        h2: const TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF2A2826),
+        ),
+        h3: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF3A3835),
+        ),
+        blockquote: const TextStyle(
+          color: Color(0xFF8A8880),
+          fontStyle: FontStyle.normal,
+        ),
+        code: const TextStyle(
+          fontSize: 13,
+          color: Color(0xFF4A4845),
+          backgroundColor: Color(0xFFF5F4EF),
+        ),
+        listBullet: const TextStyle(color: Color(0xFFA5A39E)),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -383,6 +403,13 @@ class NarrationBlockView extends StatelessWidget {
         block.text.length < _confirmPrefix.length;
     final isConfirm = block.text.startsWith(_confirmPrefix);
     final isSummaryPending = isSummaryPrefixPending(block.text);
+    final displayText = stripSummaryPrefix(block.text);
+    final parsed = parseQuickReplies(displayText);
+    final cleanText = parsed.options.isNotEmpty
+        ? cleanNarrationDisplayText(block.text)
+        : parsed.cleanText;
+    final options = parsed.options;
+    final hasContent = cleanText.isNotEmpty || options.isNotEmpty;
 
     if (isConfirmPending || isSummaryPending) {
       return const Padding(
@@ -391,60 +418,48 @@ class NarrationBlockView extends StatelessWidget {
       );
     }
 
-    if (isConfirm) {
-      // ConfirmBlockView 完整版待迁移；先展示可编辑区样式的简化 UI。
-      final body = block.text.substring(_confirmPrefix.length).trim();
-      return Container(
-        margin: EdgeInsets.only(top: isFirstInRound ? 0 : 8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE5E3DE)),
-          color: const Color(0xFFFAFAF8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              body,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF4A4845),
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.search, size: 16),
-                label: const Text('Start search'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2A2826),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+    if (!hasContent && block.isStreaming) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: _TypingDots(),
       );
     }
 
+    if (!hasContent) return const SizedBox.shrink();
+
+    if (isConfirm) {
+      return ConfirmBlockView(
+        block: block,
+        onStartSearch: (query, displayQuery) {
+          final scope = SearchInteractionScope.maybeOf(context);
+          scope?.onConfirmStart?.call(query, displayQuery, block.id);
+        },
+      );
+    }
+
+    final scope = SearchInteractionScope.maybeOf(context);
+    final onSelect = scope?.onQuickReplySelect;
+
     return Padding(
       padding: EdgeInsets.only(top: isFirstInRound ? 0 : 8, bottom: 4),
-      child: AssistantNarrationView(
-        text: stripSummaryPrefix(block.text),
-        blockId: block.id,
-        isStreaming: block.isStreaming,
-        showQuickReplies: showQuickReplies && !isSummary,
-        quickRepliesUsed: quickRepliesUsed,
-        hasCandidates: hasCandidates,
-        onQuickReplySelect: onQuickReplySelect,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (cleanText.isNotEmpty)
+            MarkdownBody(
+              data: cleanText,
+              selectable: true,
+              styleSheet: _markdownStyle,
+            ),
+          if (options.isNotEmpty)
+            QuickRepliesWidget(
+              blockId: block.id,
+              options: options,
+              onSelect: onSelect != null
+                  ? (option) => onSelect(option, block.id)
+                  : (_) {},
+            ),
+        ],
       ),
     );
   }

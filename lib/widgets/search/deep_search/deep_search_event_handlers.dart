@@ -343,13 +343,14 @@ class DeepSearchEventDispatcher {
 
   void _handleText(Map<String, dynamic> event) {
     if (hasRealSubAgents(subAgents)) return;
+    final content = event['content']?.toString() ?? '';
+    if (content.isNotEmpty) {
+      _handleTextDelta({'content': content});
+    }
     final va = subAgents[virtualAgentId];
     if (va == null) return;
-    final closed = closeOpenThinkingBlocks(va.contentBlocks);
-    if (closed.length == va.contentBlocks.length &&
-        closed.every((part) => va.contentBlocks.contains(part))) {
-      return;
-    }
+    final closed = closeActiveBlock(closeOpenThinkingBlocks(va.contentBlocks));
+    if (identical(closed, va.contentBlocks)) return;
     subAgents[virtualAgentId] = va.copyWith(contentBlocks: closed);
   }
 
@@ -637,12 +638,12 @@ class DeepSearchEventDispatcher {
       final content = event['content']?.toString() ?? '';
       if (content.isNotEmpty) {
         dispatch({'type': 'text_delta', 'content': content});
-        final va = subAgents[virtualAgentId];
-        if (va != null) {
-          subAgents[virtualAgentId] = va.copyWith(
-            contentBlocks: closeActiveBlock(va.contentBlocks),
-          );
-        }
+      }
+      final va = subAgents[virtualAgentId];
+      if (va != null) {
+        subAgents[virtualAgentId] = va.copyWith(
+          contentBlocks: closeActiveBlock(closeOpenThinkingBlocks(va.contentBlocks)),
+        );
       }
       return;
     }

@@ -102,8 +102,26 @@ ClassifiedBlocks classifyBlocks(
   if (rest.isNotEmpty &&
       rest.first is ReasoningPart &&
       !_isMarkedSummaryReasoning(rest.first)) {
-    opening = (rest.first as ReasoningPart).block;
-    rest = rest.sublist(1);
+    var openingIdx = 0;
+    var openingBlock = (rest.first as ReasoningPart).block;
+
+    bool hasIncompleteQuickReplies(String text) {
+      if (!text.contains('<<')) return false;
+      return !RegExp(r'<<[\s\S]+?>>').hasMatch(text);
+    }
+
+    while (openingIdx + 1 < rest.length &&
+        rest[openingIdx + 1] is ReasoningPart &&
+        !_isMarkedSummaryReasoning(rest[openingIdx + 1]) &&
+        hasIncompleteQuickReplies(openingBlock.text)) {
+      openingIdx++;
+      openingBlock = openingBlock.copyWith(
+        text: openingBlock.text + (rest[openingIdx] as ReasoningPart).block.text,
+      );
+    }
+
+    opening = openingBlock;
+    rest = rest.sublist(openingIdx + 1);
   }
 
   ReasoningBlock? summary;

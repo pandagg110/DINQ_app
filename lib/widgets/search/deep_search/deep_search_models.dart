@@ -3,7 +3,10 @@
 const virtualAgentId = '__single__';
 
 int _blockIdCounter = 0;
-String nextBlockId(String prefix) => '$prefix-${++_blockIdCounter}';
+String nextBlockId(String prefix) {
+  _blockIdCounter += 1;
+  return '$prefix-${DateTime.now().microsecondsSinceEpoch}-$_blockIdCounter';
+}
 
 enum DeepSearchRoundStatus { idle, searching, done, error, interrupted }
 

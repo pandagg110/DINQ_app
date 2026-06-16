@@ -61,6 +61,9 @@ class AgenticMessageGroup {
   /// 快捷回复已使用（隐藏按钮）
   bool quickRepliesUsed = false;
 
+  /// 与 TSX quickRepliesStore.usedIds 对齐（按 blockId 记录）
+  final Set<String> usedQuickReplyBlockIds = {};
+
   /// 是否走 deep-search 事件模型（text_delta / tool_message）
   bool isDeepSearch = false;
 
@@ -486,7 +489,6 @@ class AgenticSearchLogic extends ChangeNotifier {
       contentBlocks: g.contentBlocks,
       onCandidatesChanged: (candidates) {
         g.candidates = candidates;
-        g.quickRepliesUsed = true;
         final tabCandidates = candidates.map(candidateRowToTabCandidate).toList();
         if (searchStore.openTabs.isEmpty) {
           searchStore.setTabsFromCandidates(tabCandidates);
@@ -989,24 +991,27 @@ class AgenticSearchLogic extends ChangeNotifier {
       groups.add(group);
     }
 
-    // 已有后续消息或已搜索的轮次，隐藏快捷回复按钮
+    // 已有后续消息或搜索已实际执行的轮次，隐藏快捷回复按钮。
+    // 与 Web 一致：历史 reload 时 usedIds 为空，仅当用户已选过选项或搜索已跑过才隐藏。
     for (var i = 0; i < groups.length; i++) {
       final g = groups[i];
-      final hasOptions =
-          parseQuickReplies(g.assistantText).options.isNotEmpty;
+      final hasOptions = _groupHasQuickReplyOptions(g);
       if (!hasOptions) continue;
       if (i < groups.length - 1) {
         g.quickRepliesUsed = true;
+        _markAllInteractiveBlocksUsed(g);
         continue;
       }
-      if (g.candidates.isNotEmpty || g.searchCompleted) {
+      if (_groupQuickRepliesConsumed(g)) {
         g.quickRepliesUsed = true;
+        _markAllInteractiveBlocksUsed(g);
       }
       if (i > 0) {
         final prev = groups[i - 1];
-        final options = parseQuickReplies(prev.assistantText).options;
+        final options = _collectQuickReplyOptions(prev);
         if (options.contains(g.userQuery.trim())) {
           prev.quickRepliesUsed = true;
+          _markAllInteractiveBlocksUsed(prev);
         }
       }
     }
@@ -1041,6 +1046,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   void handleSearch({
     required String query,
     bool simple = false,
+    String? displayQuery,
     String? attachmentUrl,
     String? attachmentName,
   }) {
@@ -1070,6 +1076,7 @@ class AgenticSearchLogic extends ChangeNotifier {
             }
           : null,
     );
+    group.displayQuery = displayQuery ?? group.userQuery;
 
     messageGroups = [...messageGroups, group];
     loading = true;
@@ -1223,6 +1230,111 @@ class AgenticSearchLogic extends ChangeNotifier {
     if (idx < 0) return;
     messageGroups[idx].quickRepliesUsed = true;
     notifyListeners();
+  }
+
+  void markQuickReplyBlockUsed(String blockId, {int? groupId}) {
+    final idx = groupId != null
+        ? messageGroups.indexWhere((g) => g.id == groupId)
+        : messageGroups.isNotEmpty
+            ? messageGroups.length - 1
+            : -1;
+    if (idx < 0) return;
+    messageGroups[idx].usedQuickReplyBlockIds.add(blockId);
+    notifyListeners();
+  }
+
+  bool isQuickReplyBlockUsed(String blockId, {int? groupId}) {
+    if (groupId != null) {
+      final idx = messageGroups.indexWhere((g) => g.id == groupId);
+      if (idx < 0) return false;
+      return messageGroups[idx].usedQuickReplyBlockIds.contains(blockId);
+    }
+    for (final group in messageGroups) {
+      if (group.usedQuickReplyBlockIds.contains(blockId)) return true;
+    }
+    return false;
+  }
+
+  bool _groupHasQuickReplyOptions(AgenticMessageGroup group) {
+    if (parseQuickReplies(group.assistantText).options.isNotEmpty) return true;
+    return _collectQuickReplyOptions(group).isNotEmpty ||
+        _groupHasConfirmBlock(group);
+  }
+
+  bool _groupHasConfirmBlock(AgenticMessageGroup group) {
+    bool visit(List<MessagePart> blocks) {
+      for (final part in blocks) {
+        if (part is ReasoningPart &&
+            part.block.text.startsWith('[confirm]')) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (visit(group.contentBlocks)) return true;
+    for (final agent in group.subAgents.values) {
+      if (visit(agent.contentBlocks)) return true;
+    }
+    return false;
+  }
+
+  List<String> _collectQuickReplyOptions(AgenticMessageGroup group) {
+    final options = <String>[];
+    void visit(List<MessagePart> blocks) {
+      for (final part in blocks) {
+        if (part is! ReasoningPart) continue;
+        final text = part.block.text.replaceFirst(
+          RegExp(r'^\s*\[confirm\]\s*', caseSensitive: false),
+          '',
+        );
+        options.addAll(parseQuickReplies(text).options);
+      }
+    }
+
+    visit(group.contentBlocks);
+    for (final agent in group.subAgents.values) {
+      visit(agent.contentBlocks);
+    }
+    if (options.isEmpty) {
+      options.addAll(parseQuickReplies(group.assistantText).options);
+    }
+    return options;
+  }
+
+  bool _groupQuickRepliesConsumed(AgenticMessageGroup group) {
+    if (group.candidates.isNotEmpty) return true;
+    if (group.dinqResults != null && group.dinqResults!.isNotEmpty) return true;
+    final virtualBlocks =
+        group.subAgents[virtualAgentId]?.contentBlocks ?? group.contentBlocks;
+    if (countToolCalls(virtualBlocks) > 0) return true;
+    return false;
+  }
+
+  void _markAllInteractiveBlocksUsed(AgenticMessageGroup group) {
+    void visit(List<MessagePart> blocks) {
+      for (final part in blocks) {
+        if (part is! ReasoningPart) continue;
+        final text = part.block.text;
+        final parsed = parseQuickReplies(
+          text.replaceFirst(
+            RegExp(r'^\s*\[confirm\]\s*', caseSensitive: false),
+            '',
+          ),
+        );
+        if (parsed.options.isNotEmpty || text.startsWith('[confirm]')) {
+          group.usedQuickReplyBlockIds.add(part.block.id);
+        }
+      }
+    }
+
+    visit(group.contentBlocks);
+    for (final agent in group.subAgents.values) {
+      visit(agent.contentBlocks);
+    }
+    if (parseQuickReplies(group.assistantText).options.isNotEmpty) {
+      group.usedQuickReplyBlockIds.add('group-${group.id}');
+    }
   }
 
   /// 与 TSX handleDinqSearch 一致

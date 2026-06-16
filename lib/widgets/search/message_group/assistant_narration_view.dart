@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import '../../../utils/display_assistant_text.dart';
+
 import '../../../utils/parse_quick_replies.dart';
+import '../search_panel/narration_text.dart';
 import 'quick_replies_widget.dart';
 
 /// 与 TSX NarrationBlockView 对应：Markdown 叙述 + 快捷回复
@@ -11,8 +12,7 @@ class AssistantNarrationView extends StatelessWidget {
     required this.text,
     required this.blockId,
     this.isStreaming = false,
-    this.showQuickReplies = false,
-    this.quickRepliesUsed = false,
+    this.isBlockUsed = false,
     this.hasCandidates = false,
     this.onQuickReplySelect,
   });
@@ -20,21 +20,18 @@ class AssistantNarrationView extends StatelessWidget {
   final String text;
   final String blockId;
   final bool isStreaming;
-  final bool showQuickReplies;
-  final bool quickRepliesUsed;
+  final bool isBlockUsed;
   final bool hasCandidates;
-  final ValueChanged<String>? onQuickReplySelect;
+  final void Function(String option, String blockId)? onQuickReplySelect;
 
   @override
   Widget build(BuildContext context) {
-    final displayText = displayAssistantText(
-      rawText: text,
-      hasCandidates: hasCandidates,
-      quickRepliesUsed: quickRepliesUsed,
-    );
     final parsed = parseQuickReplies(
       text.replaceFirst(RegExp(r'^\s*\[confirm\]\s*', caseSensitive: false), ''),
     );
+    final displayText = parsed.options.isNotEmpty
+        ? cleanNarrationDisplayText(text)
+        : _legacyDisplayText(text, hasCandidates: hasCandidates, isBlockUsed: isBlockUsed);
     final hasContent = displayText.isNotEmpty || parsed.options.isNotEmpty;
 
     if (!hasContent && isStreaming) {
@@ -45,6 +42,10 @@ class AssistantNarrationView extends StatelessWidget {
     }
 
     if (!hasContent) return const SizedBox.shrink();
+
+    final showQuickReplies = parsed.options.isNotEmpty &&
+        !isBlockUsed &&
+        onQuickReplySelect != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,15 +96,54 @@ class AssistantNarrationView extends StatelessWidget {
             padding: EdgeInsets.only(top: 8),
             child: _TypingDots(),
           ),
-        if (parsed.options.isNotEmpty &&
-            showQuickReplies &&
-            onQuickReplySelect != null)
+        if (showQuickReplies)
           QuickRepliesWidget(
+            blockId: blockId,
             options: parsed.options,
-            onSelect: onQuickReplySelect!,
+            onSelect: (option) => onQuickReplySelect!(option, blockId),
           ),
       ],
     );
+  }
+
+  static String _legacyDisplayText(
+    String rawText, {
+    required bool hasCandidates,
+    required bool isBlockUsed,
+  }) {
+    final trimmed = rawText.trim();
+    if (trimmed.isEmpty) return '';
+
+    final parts = trimmed
+        .split(RegExp(r'\n{2,}'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return trimmed;
+
+    String cleanPart(String part) {
+      final stripped = part
+          .replaceFirst(RegExp(r'^\s*\[confirm\]\s*', caseSensitive: false), '')
+          .replaceFirst(RegExp(r'^\s*\\?\[summary\]\s*', caseSensitive: false), '');
+      return parseQuickReplies(stripped).cleanText.trim();
+    }
+
+    if (hasCandidates || isBlockUsed) {
+      for (var i = parts.length - 1; i >= 0; i--) {
+        final parsed = parseQuickReplies(parts[i]);
+        if (parsed.options.isNotEmpty) continue;
+        final clean = cleanPart(parts[i]);
+        if (clean.isNotEmpty) return clean;
+      }
+    }
+
+    for (final part in parts) {
+      final clean = cleanPart(part);
+      if (clean.isNotEmpty) return clean;
+    }
+
+    return trimmed;
   }
 }
 

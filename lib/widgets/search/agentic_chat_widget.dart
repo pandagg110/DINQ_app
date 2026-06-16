@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../constants/app_constants.dart';
 import '../../services/search_service.dart';
 import '../../stores/chat_history_store.dart';
+import '../../stores/quick_replies_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
@@ -107,6 +108,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   void _handleDeepSearch(DeepSearchSubmitParams params) {
     _logic?.handleSearch(
       query: params.query,
+      displayQuery: params.displayQuery,
       attachmentUrl: params.attachment,
       attachmentName: params.attachmentName,
     );
@@ -159,6 +161,22 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         _toolByRoute.containsKey(segments[1]);
   }
 
+  void _clearQuickRepliesStore() {
+    if (!mounted) return;
+    context.read<QuickRepliesStore>().clear();
+  }
+
+  void _syncQuickRepliesStoreFromLogic(AgenticSearchLogic logic) {
+    if (!mounted) return;
+    final store = context.read<QuickRepliesStore>();
+    // 与 Web quickRepliesStore 一致：reload 后 usedIds 从空开始，
+    // 仅同步「已实际消费」的 block（后续轮次 / 已跑搜索 / 用户点过选项）。
+    store.clear();
+    for (final group in logic.messageGroups) {
+      store.markAllUsed(group.usedQuickReplyBlockIds);
+    }
+  }
+
   void _syncToolWithRoute(SearchStore searchStore, AgenticSearchLogic logic) {
     final segments = GoRouterState.of(context).uri.pathSegments;
     final routeTool = _routeToolFromPath(context);
@@ -170,6 +188,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       }
       logic.handleStop();
       logic.clearMessages();
+      _clearQuickRepliesStore();
       logic.clearAnalysisCandidates();
       searchStore.setActiveTool(routeTool);
       _lastSyncedToolKey = key;
@@ -184,6 +203,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       }
       logic.handleStop();
       logic.clearMessages();
+      _clearQuickRepliesStore();
       logic.clearAnalysisCandidates();
       searchStore.clearActiveTool();
       _lastSyncedToolKey = key;
@@ -225,6 +245,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               logic.clearMessages();
+              _clearQuickRepliesStore();
               _lastSyncedToolKey = searchStore.activeTool != null
                   ? 'tool-${searchStore.activeTool}'
                   : 'deep-search';
@@ -236,6 +257,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             logic.loadFromConversation(pending);
+            _syncQuickRepliesStoreFromLogic(logic);
             searchStore.clearPendingConversation();
             _lastSyncedToolKey = searchStore.activeTool != null
                 ? 'tool-${searchStore.activeTool}'
@@ -301,12 +323,19 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                           scrollController: _scrollController,
                                           activeTool: searchStore.activeTool,
                                           hideUserQueryBubble: false,
-                                          onQuickReplySelect: (option) {
-                                            logic.markQuickRepliesUsed(
-                                              messageGroups.last.id,
-                                            );
+                                          onQuickReplySelect: (option, blockId) {
                                             _handleDeepSearch(
-                                              DeepSearchSubmitParams(query: option),
+                                              DeepSearchSubmitParams(
+                                                query: option,
+                                                displayQuery: option,
+                                              ),
+                                            );
+                                          },
+                                          onConfirmStart:
+                                              (query, displayQuery, blockId) {
+                                            logic.handleSearch(
+                                              query: query,
+                                              displayQuery: displayQuery,
                                             );
                                           },
                                           onCandidateClick: (

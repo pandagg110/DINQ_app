@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../../stores/quick_replies_store.dart';
 import '../agentic_search_logic.dart';
 import '../deep_search/deep_search_models.dart';
 import '../deep_search/deep_search_results.dart';
@@ -11,12 +13,12 @@ import '../analysis/analysis_config.dart';
 import '../analysis/analysis_results_view.dart';
 import '../analysis/analysis_tool_phases.dart';
 import '../advisor/advisors_results_view.dart';
-import '../message_group/assistant_narration_view.dart';
 import '../message_group/dinq_logo.dart';
 import '../message_group/dinq_results_view.dart';
 import '../message_group/thinking_bubble.dart';
 import 'collapsible_bubble.dart';
 import 'message_stream.dart';
+import 'phase_timeline.dart';
 import 'tool_search_progress.dart';
 
 bool isInsufficientCredits(String message) {
@@ -73,7 +75,6 @@ class RoundSection extends StatefulWidget {
     required this.onCandidateClick,
     required this.copied,
     required this.onCopyMarkdown,
-    this.onQuickReplySelect,
     this.onAdvisorShuffle,
     this.advisorShuffleLoading = false,
     this.selectedRowId,
@@ -82,7 +83,6 @@ class RoundSection extends StatefulWidget {
   final AgenticMessageGroup group;
   final bool isLatest;
   final bool hideUserQueryBubble;
-  final ValueChanged<String>? onQuickReplySelect;
   final void Function(Map<String, dynamic> candidate, int index, int groupId)
       onCandidateClick;
   final bool copied;
@@ -110,16 +110,13 @@ class _RoundSectionState extends State<RoundSection> {
     final showResults = hasRows;
     final showMarkdownCopy = hasRows && status != DeepSearchRoundStatus.error;
 
+    final quickRepliesStore = context.watch<QuickRepliesStore>();
     final hasPendingConfirmBlock = _hasReasoningBlock(
       group,
-      (b) => b.text.startsWith('[confirm]') && !group.quickRepliesUsed,
+      (b) =>
+          b.text.startsWith('[confirm]') &&
+          !quickRepliesStore.isUsed(b.id),
     );
-
-    final showQuickReplies = widget.isLatest &&
-        widget.onQuickReplySelect != null &&
-        !group.quickRepliesUsed &&
-        !group.assistantStreaming &&
-        group.candidates.isEmpty;
 
     final attachment = group.pdfAttachment;
     final displayQuery = group.displayQuery ?? group.userQuery;
@@ -162,10 +159,6 @@ class _RoundSectionState extends State<RoundSection> {
                 MessagePartListProcess(
                   blocks: group.contentBlocks,
                   allowFallbackSummary: allowFallbackSummary,
-                  showQuickReplies: showQuickReplies,
-                  quickRepliesUsed: group.quickRepliesUsed,
-                  hasCandidates: hasRows,
-                  onQuickReplySelect: widget.onQuickReplySelect,
                 )
               else ...[
                 if (isDinqSearch)
@@ -186,14 +179,12 @@ class _RoundSectionState extends State<RoundSection> {
                 if (!isDinqSearch &&
                     group.assistantText.trim().isNotEmpty &&
                     group.subAgents.isEmpty)
-                  AssistantNarrationView(
-                    text: group.assistantText,
-                    blockId: 'group-${group.id}',
-                    isStreaming: group.assistantStreaming,
-                    showQuickReplies: showQuickReplies,
-                    quickRepliesUsed: group.quickRepliesUsed,
-                    hasCandidates: hasRows,
-                    onQuickReplySelect: widget.onQuickReplySelect,
+                  NarrationBlockView(
+                    block: ReasoningBlock(
+                      id: 'group-${group.id}',
+                      text: group.assistantText,
+                      isStreaming: group.assistantStreaming,
+                    ),
                   ),
               ],
             ],
