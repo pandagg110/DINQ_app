@@ -89,28 +89,87 @@ String _hostnameFromUrl(String url) {
 }
 
 /// 对齐 Web `EnrichProfileView.tsx` renderOneLiner (96-108)。
-List<InlineSpan> _renderOneLinerParts(String text) {
-  final parts = text.split(RegExp(r'(\*\*[^*]+\*\*)'));
-  return parts.map((part) {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return TextSpan(
-        text: part.substring(2, part.length - 2),
-        style: const TextStyle(fontWeight: FontWeight.w600),
+List<InlineSpan> _renderOneLinerParts(String text, {TextStyle? base}) {
+  final style = base ?? const TextStyle(fontSize: 14, color: _C.textBody);
+  const marker = '**';
+  final spans = <InlineSpan>[];
+  var start = 0;
+  while (start < text.length) {
+    final open = text.indexOf(marker, start);
+    if (open < 0) {
+      final tail = text.substring(start);
+      if (tail.isNotEmpty) {
+        spans.add(TextSpan(text: tail, style: style));
+      }
+      break;
+    }
+    if (open > start) {
+      spans.add(TextSpan(text: text.substring(start, open), style: style));
+    }
+    final close = text.indexOf(marker, open + marker.length);
+    if (close < 0) {
+      final tail = text.substring(open);
+      if (tail.isNotEmpty) {
+        spans.add(TextSpan(text: tail, style: style));
+      }
+      break;
+    }
+    final bold = text.substring(open + marker.length, close);
+    if (bold.isNotEmpty) {
+      spans.add(
+        TextSpan(
+          text: bold,
+          style: style.copyWith(fontWeight: FontWeight.w600),
+        ),
       );
     }
-    return TextSpan(text: part);
-  }).toList();
+    start = close + marker.length;
+  }
+  return spans;
 }
 
 TextSpan _oneLinerSpan(String text, {TextStyle? base}) {
-  return TextSpan(
-    style: base,
-    children: _renderOneLinerParts(text),
-  );
+  return TextSpan(children: _renderOneLinerParts(text, base: base));
 }
 
 Widget renderOneLiner(String text, {TextStyle? style}) {
-  return Text.rich(_oneLinerSpan(text, base: style));
+  return RichText(
+    text: _oneLinerSpan(text, base: style),
+    softWrap: true,
+    overflow: TextOverflow.visible,
+  );
+}
+
+/// 对齐 Web `<p>` 内联：badge + renderOneLiner(person.one_liner)。
+Widget renderMatchContextBlock({
+  required String text,
+  int? matchPct,
+  TextStyle? style,
+}) {
+  const defaultStyle = TextStyle(
+    fontSize: 14,
+    height: 1.625,
+    color: _C.textBody,
+  );
+  final base = style ?? defaultStyle;
+  return RichText(
+    text: TextSpan(
+      style: base,
+      children: [
+        if (matchPct != null)
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _MatchBadge(match: matchPct),
+            ),
+          ),
+        ..._renderOneLinerParts(text, base: base),
+      ],
+    ),
+    softWrap: true,
+    overflow: TextOverflow.visible,
+  );
 }
 
 /// 对齐 Web `EnrichProfileView.tsx`。
@@ -753,6 +812,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
               if (oneLiner != null)
                 Container(
                   width: double.infinity,
+                  // Web: px-3 py-2.5 rounded-lg bg-[#faf9f7]
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
@@ -761,29 +821,9 @@ class _ProfileSectionState extends State<_ProfileSection> {
                     color: _C.bgMatch,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  // 不用 WidgetSpan：徽章 + 正文分行时首行文字会被裁切
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (widget.confidencePct != null)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8, top: 2),
-                          child: _MatchBadge(match: widget.confidencePct!),
-                        ),
-                      Expanded(
-                        child: new Text(oneLiner),
-                        // child: Text.rich(
-                        //   _oneLinerSpan(
-                        //     oneLiner,
-                        //     base: const TextStyle(
-                        //       fontSize: 14,
-                        //       height: 1.625,
-                        //       color: _C.textBody,
-                        //     ),
-                        //   ),
-                        // ),
-                      ),
-                    ],
+                  child: renderMatchContextBlock(
+                    text: oneLiner,
+                    matchPct: widget.confidencePct,
                   ),
                 ),
               if (isStreaming) const _SkeletonBlock(),
@@ -1203,7 +1243,7 @@ class _MatchBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = matchBadgeStyle(match);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: style.background,
         borderRadius: BorderRadius.circular(999),
@@ -1217,6 +1257,7 @@ class _MatchBadge extends StatelessWidget {
         '$match%',
         style: TextStyle(
           fontSize: 12,
+          height: 1.2,
           fontWeight: FontWeight.w500,
           color: style.foreground,
         ),
