@@ -1305,23 +1305,27 @@ class _TimelineRow extends StatelessWidget {
   final bool isLast;
   final String iconAsset;
 
+  static const _itemHeight = 72.0; // h-18
+  static const _titleHeight = 48.0; // h-12
+
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
+    return SizedBox(
+      height: _itemHeight,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 8,
+            width: 8, // w-2
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 Positioned(
-                  top: 20,
+                  top: 20, // top-5
                   left: 0,
                   child: Container(
-                    width: 8,
-                    height: 8,
+                    width: 8, // w-2
+                    height: 8, // h-2
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isFirst ? Colors.white : _C.dotFill,
@@ -1333,9 +1337,9 @@ class _TimelineRow extends StatelessWidget {
                 ),
                 if (!isLast)
                   Positioned(
-                    top: 28,
-                    left: 3,
-                    bottom: -8,
+                    top: 28, // top-5 + mt-2
+                    left: 3, // left-[3px]
+                    bottom: -8, // span into space-y-2 gap
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         return CustomPaint(
@@ -1348,23 +1352,26 @@ class _TimelineRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 8), // gap-2
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  height: 48,
+                  height: _titleHeight,
                   child: DecoratedBox(
                     decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: _C.border)),
+                      border: Border(
+                        bottom: BorderSide(color: _C.border),
+                      ),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
+                            alignment: Alignment.centerLeft,
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
@@ -1376,8 +1383,8 @@ class _TimelineRow extends StatelessWidget {
                             child: Row(
                               children: [
                                 Container(
-                                  width: 28,
-                                  height: 28,
+                                  width: 28, // w-7
+                                  height: 28, // h-7
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: _C.bgSkeleton,
@@ -1389,7 +1396,7 @@ class _TimelineRow extends StatelessWidget {
                                     color: _C.textMuted,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 8), // gap-2
                                 Expanded(
                                   child: Text(
                                     title,
@@ -1406,35 +1413,35 @@ class _TimelineRow extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (period != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            period!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: _C.textMuted,
+                        if (period != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Center(
+                              child: Text(
+                                period!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _C.textMuted,
+                                ),
+                              ),
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 32,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: _C.textBody,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8), // pl-2
+                    child: Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 32 / 12, // leading-8
+                        color: _C.textBody,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -1480,7 +1487,7 @@ class _EducationSection extends StatelessWidget {
           const _SectionHeader(title: 'Education'),
           for (var i = 0; i < items.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.only(bottom: i < items.length - 1 ? 8 : 0),
               child: _TimelineRow(
                 title: items[i].institution,
                 subtitle: [items[i].degree, items[i].field]
@@ -1513,7 +1520,7 @@ class _WorkSection extends StatelessWidget {
           const _SectionHeader(title: 'Work experience'),
           for (var i = 0; i < items.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.only(bottom: i < items.length - 1 ? 8 : 0),
               child: _TimelineRow(
                 title: items[i].organization,
                 subtitle: items[i].role ?? items[i].details ?? '',
