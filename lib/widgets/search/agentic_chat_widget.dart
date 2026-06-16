@@ -23,6 +23,8 @@ class AgenticChatWidget extends StatefulWidget {
     super.key,
     this.onSearchComplete,
     this.embeddedInMainTab = true,
+    this.onEnrichRowClick,
+    this.enrichSelectedRowId,
   });
 
   /// 与 TSX onSearchComplete 一致：搜索完成且有关注人时回调
@@ -30,6 +32,9 @@ class AgenticChatWidget extends StatefulWidget {
   onSearchComplete;
   /// 在 MainTab 内时为 true，单独 /search/:id 页面为 false，不预留底栏高度。
   final bool embeddedInMainTab;
+  /// 对齐 Web `onRowClick={enrich.openEnrich}`。
+  final void Function(Map<String, dynamic> row)? onEnrichRowClick;
+  final String? enrichSelectedRowId;
 
   @override
   State<AgenticChatWidget> createState() => _AgenticChatWidgetState();
@@ -323,6 +328,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                           scrollController: _scrollController,
                                           activeTool: searchStore.activeTool,
                                           hideUserQueryBubble: false,
+                                          selectedRowId: widget.enrichSelectedRowId,
                                           onQuickReplySelect: (option, blockId) {
                                             _handleDeepSearch(
                                               DeepSearchSubmitParams(
@@ -343,6 +349,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                             index,
                                             groupId,
                                           ) {
+                                            if (widget.onEnrichRowClick != null) {
+                                              widget.onEnrichRowClick!(candidate);
+                                              return;
+                                            }
                                             final tabId = searchStore.openTabWithClick(
                                               candidate,
                                               index: index,

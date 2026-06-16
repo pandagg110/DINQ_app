@@ -3,9 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/main_store.dart';
+import '../../stores/deep_search_enrich_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/settings_store.dart';
-import '../../widgets/search/agentic_chat_widget.dart';
+import '../../widgets/search/agentic_search_content_widget.dart';
 import '../../widgets/search/chat_history_mobile_widget.dart';
 import '../../widgets/search/tab_panel_mobile_widget.dart';
 
@@ -22,6 +23,7 @@ class _SearchPageState extends State<SearchPage> {
   bool _listenersRegistered = false;
   ChatHistoryStore? _chatHistoryStoreForDispose;
   SearchStore? _searchStoreForDispose;
+  DeepSearchEnrichStore? _enrichStoreForDispose;
   String? _lastRoutePath;
 
   void _syncBottomNav() {
@@ -29,7 +31,8 @@ class _SearchPageState extends State<SearchPage> {
     final mainStore = context.read<MainStore>();
     final chatOpen = context.read<ChatHistoryStore>().isMobileOpen;
     final tabOpen = context.read<SearchStore>().isTabPanelOpen;
-    mainStore.setShowBottomNav(!chatOpen && !tabOpen);
+    final enrichOpen = context.read<DeepSearchEnrichStore>().isOpen;
+    mainStore.setShowBottomNav(!chatOpen && !tabOpen && !enrichOpen);
   }
 
   @override
@@ -45,10 +48,13 @@ class _SearchPageState extends State<SearchPage> {
       _listenersRegistered = true;
       final ch = context.read<ChatHistoryStore>();
       final ss = context.read<SearchStore>();
+      final es = context.read<DeepSearchEnrichStore>();
       ch.addListener(_syncBottomNav);
       ss.addListener(_syncBottomNav);
+      es.addListener(_syncBottomNav);
       _chatHistoryStoreForDispose = ch;
       _searchStoreForDispose = ss;
+      _enrichStoreForDispose = es;
       _syncBottomNav();
     }
     _syncRouteState();
@@ -142,6 +148,7 @@ class _SearchPageState extends State<SearchPage> {
   void dispose() {
     _chatHistoryStoreForDispose?.removeListener(_syncBottomNav);
     _searchStoreForDispose?.removeListener(_syncBottomNav);
+    _enrichStoreForDispose?.removeListener(_syncBottomNav);
     super.dispose();
   }
 
@@ -200,7 +207,7 @@ class _SearchPageState extends State<SearchPage> {
                 child: Stack(
                   children: [
                 // 主聊天区域
-                AgenticChatWidget(
+                AgenticSearchContentWidget(
                   embeddedInMainTab: embeddedInMainTab,
                 ),
 

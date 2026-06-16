@@ -202,6 +202,65 @@ class SearchService {
     return response.data as Map<String, dynamic>;
   }
 
+  /// POST /discover/enrich/stream — Deep Search enrich SSE 流
+  /// 对齐 Web `deep-search-enrich.ts` enrichStream
+  Stream<Map<String, dynamic>> enrichStream({
+    required String name,
+    required String text,
+    required String sessionId,
+    String? company,
+    String? userLanguage,
+    CancelToken? cancelToken,
+  }) async* {
+    final body = <String, dynamic>{
+      'name': name,
+      'text': text,
+      'session_id': sessionId,
+      if (company != null && company.isNotEmpty) 'company': company,
+      if (userLanguage != null && userLanguage.isNotEmpty)
+        'user_language': userLanguage,
+    };
+
+    final response = await _dio.post<ResponseBody>(
+      '/discover/enrich/stream',
+      data: body,
+      cancelToken: cancelToken,
+      options: Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(minutes: 8),
+      ),
+    );
+    final responseBody = response.data;
+    if (responseBody is! ResponseBody) return;
+    yield* _parseSseStream(responseBody);
+  }
+
+  /// POST /scholar/deep-search/profile-email — 揭示候选人邮箱
+  Future<List<String>> profileEmail({
+    required String name,
+    required String sessionId,
+    String? company,
+    String? personalHomepage,
+    List<Map<String, String>>? sources,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/scholar/deep-search/profile-email',
+      data: {
+        'name': name,
+        'session_id': sessionId,
+        if (company != null && company.isNotEmpty) 'company': company,
+        if (personalHomepage != null && personalHomepage.isNotEmpty)
+          'personal_homepage': personalHomepage,
+        if (sources != null && sources.isNotEmpty) 'sources': sources,
+      },
+    );
+    final data = response.data;
+    if (data == null) return const [];
+    final emails = data['emails'];
+    if (emails is! List) return const [];
+    return emails.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+  }
+
   // ============== 站内用户搜索 ==============
 
   /// POST /discover/users/search — 站内用户搜索

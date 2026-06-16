@@ -150,6 +150,21 @@ Color nameToAvatarColor(String name) {
   return _avatarPalette[hash % _avatarPalette.length];
 }
 
+/// 对齐 Web `useEnrichStream.buildEnrichText`。
+String buildEnrichText(Map<String, dynamic> row) {
+  return [
+    row['name'],
+    row['title'],
+    row['company'],
+    row['evidence'],
+    if ((row['profile_url']?.toString() ?? '').isNotEmpty)
+      'Profile: ${row['profile_url']}',
+  ]
+      .where((v) => v != null && v.toString().trim().isNotEmpty)
+      .map((v) => v.toString())
+      .join('. ');
+}
+
 /// Tab / enrich 用的候选人结构，保留 Deep Search row 字段。
 Map<String, dynamic> candidateRowToTabCandidate(Map<String, dynamic> row) {
   final map = Map<String, dynamic>.from(row);

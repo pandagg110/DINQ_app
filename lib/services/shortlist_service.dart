@@ -35,6 +35,29 @@ class ShortlistService {
         .toList();
   }
 
+  /// 创建收藏。
+  Future<FavoriteItem> createFavorite({
+    required String projectId,
+    required String title,
+    required Map<String, dynamic> field,
+    String type = 'talent',
+    String tags = '',
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/favorites',
+      data: {
+        'type': type,
+        'title': title,
+        'projectId': projectId,
+        'field': field,
+        if (tags.isNotEmpty) 'tags': tags,
+      },
+    );
+    return FavoriteItem.fromJson(
+      Map<String, dynamic>.from(response.data ?? const {}),
+    );
+  }
+
   /// 移除收藏。
   Future<void> removeFavorite(String id) async {
     await _dio.delete('/favorites/$id');

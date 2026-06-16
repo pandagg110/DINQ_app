@@ -27,6 +27,7 @@ class SearchPanelWidget extends StatefulWidget {
     this.advisorShuffleLoading,
     this.analysisPlatform,
     this.citationMode,
+    this.selectedRowId,
   });
 
   final List<AgenticMessageGroup> messageGroups;
@@ -42,6 +43,7 @@ class SearchPanelWidget extends StatefulWidget {
   final bool? advisorShuffleLoading;
   final String? analysisPlatform;
   final String? citationMode;
+  final String? selectedRowId;
 
   @override
   State<SearchPanelWidget> createState() => _SearchPanelWidgetState();
@@ -285,6 +287,7 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                             isLatest: i == groups.length - 1,
                             hideUserQueryBubble: widget.hideUserQueryBubble,
                             onCandidateClick: widget.onCandidateClick,
+                            selectedRowId: widget.selectedRowId,
                             copied: _copiedRoundId == groups[i].id,
                             onCopyMarkdown: () => _copyRoundMarkdown(groups[i]),
                             onAdvisorShuffle: widget.onAdvisorShuffle,

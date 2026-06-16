@@ -36,6 +36,14 @@ class SearchStore extends ChangeNotifier {
   String? extraType;
   /// Active tool（'find-advisor' 或 null）
   String? activeTool;
+  /// Deep Search session id，对齐 Web `deepSearchStore.sessionId`
+  String? deepSearchSessionId;
+
+  void setDeepSearchSessionId(String? sessionId) {
+    if (deepSearchSessionId == sessionId) return;
+    deepSearchSessionId = sessionId;
+    notifyListeners();
+  }
 
   int _nextId() {
     _idCounter += 1;

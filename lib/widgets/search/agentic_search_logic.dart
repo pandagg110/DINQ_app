@@ -127,6 +127,13 @@ class AgenticSearchLogic extends ChangeNotifier {
   StreamSubscription? _analysisStreamSubscription;
   String? _activeSessionId;
 
+  String? get activeSessionId => _activeSessionId;
+
+  void _setSessionId(String? sessionId) {
+    _activeSessionId = sessionId;
+    searchStore.setDeepSearchSessionId(sessionId);
+  }
+
   static List<Map<String, dynamic>> _mergeCandidates(
     List<Map<String, dynamic>> oldList,
     List<Map<String, dynamic>> newList,
@@ -497,7 +504,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         }
       },
       onSessionId: (sessionId) {
-        if (sessionId.isNotEmpty) _activeSessionId = sessionId;
+        if (sessionId.isNotEmpty) _setSessionId(sessionId);
       },
       onDurationMs: (ms) => g.deepSearchDurationMs = ms,
       onError: (message) {
@@ -792,7 +799,7 @@ class AgenticSearchLogic extends ChangeNotifier {
 
     final convId = conversation['session_id'] ?? conversation['id'];
     if (convId != null) {
-      _activeSessionId = convId.toString();
+      _setSessionId(convId.toString());
       final id = convId is int ? convId : int.tryParse(convId.toString());
       if (id != null) searchStore.setCurrentConversationId(id);
     }
@@ -1030,7 +1037,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     _streamSubscription = null;
     _analysisStreamSubscription?.cancel();
     _analysisStreamSubscription = null;
-    _activeSessionId = null;
+    _setSessionId(null);
     searchStore.setCurrentConversationId(null);
     messageGroups = [];
     loading = false;
@@ -1174,7 +1181,7 @@ class AgenticSearchLogic extends ChangeNotifier {
             final convId = data['conversation_id'] ?? data['session_id'];
             final sessionId = data['session_id'];
             if (sessionId != null && sessionId.toString().trim().isNotEmpty) {
-              _activeSessionId = sessionId.toString();
+              _setSessionId(sessionId.toString());
             }
             if (convId != null) {
               final id = convId is int
@@ -2112,7 +2119,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   /// 与 TSX handleStop 一致（尽量通知服务端停止）
   void handleStop() {
     unawaited(_stopServerSearchIfNeeded());
-    _activeSessionId = null;
+    _setSessionId(null);
     _streamSubscription?.cancel();
     _streamSubscription = null;
     _analysisStreamSubscription?.cancel();
