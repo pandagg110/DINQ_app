@@ -127,6 +127,13 @@ class _MePageState extends State<MePage> {
                     // 订阅卡片
                     _buildSubscriptionCard(plan, credits),
                     const SizedBox(height: 16),
+                    // My DINQ — 个人主页
+                    _buildMenuRow(
+                      Icons.badge_outlined,
+                      'My DINQ',
+                      () => context.push('/admin/mydinq'),
+                    ),
+                    const SizedBox(height: 16),
                     // 邀请赚积分
                     _buildMenuRow(
                       Icons.card_giftcard_outlined,
