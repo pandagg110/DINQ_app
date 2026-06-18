@@ -169,11 +169,9 @@ class _PdfPagesState extends State<PdfPages> {
     if (_document == null || _controller == null || _numPages == 0) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          return ResumeSkeletonPulse(
-            child: PdfPreviewSkeleton(
-              showSidebar: _showSidebar,
-              maxHeight: constraints.maxHeight,
-            ),
+          return PdfPreviewSkeleton(
+            showSidebar: !_isMobile,
+            maxHeight: constraints.maxHeight,
           );
         },
       );

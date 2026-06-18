@@ -371,9 +371,7 @@ class _ResumePreviewState extends State<ResumePreview>
     if (_isPdfLoading || showPdfSkeleton) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          return ResumeSkeletonPulse(
-            child: PdfPreviewSkeleton(maxHeight: constraints.maxHeight),
-          );
+          return PdfPreviewSkeleton(maxHeight: constraints.maxHeight);
         },
       );
     }
