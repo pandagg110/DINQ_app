@@ -86,6 +86,24 @@ class AccountService {
     return Map<String, dynamic>.from(resp.data as Map);
   }
 
+  /// GET /resumes/:id
+  Future<Map<String, dynamic>> getResume(String id) async {
+    final resp = await _dio.get<Map<String, dynamic>>('/resumes/$id');
+    return Map<String, dynamic>.from(resp.data as Map);
+  }
+
+  /// PATCH /resumes/:id
+  Future<Map<String, dynamic>> updateResume(
+    String id, {
+    String? title,
+  }) async {
+    final resp = await _dio.patch<Map<String, dynamic>>(
+      '/resumes/$id',
+      data: {if (title != null) 'title': title},
+    );
+    return Map<String, dynamic>.from(resp.data as Map);
+  }
+
   /// DELETE /resumes/:id
   Future<void> deleteResume(String id) async {
     await _dio.delete('/resumes/$id');
@@ -99,6 +117,7 @@ class AccountService {
     required int fileSize,
     required String contentType,
     required List<int> bytes,
+    CancelToken? cancelToken,
   }) async {
     final tokenResp = await _dio.post<Map<String, dynamic>>(
       '/upload/url',
@@ -107,6 +126,7 @@ class AccountService {
         'file_size': fileSize,
         'content_type': contentType,
       },
+      cancelToken: cancelToken,
     );
     final data = tokenResp.data as Map<String, dynamic>;
     final uploadUrl = data['upload_url'] as String;
@@ -120,6 +140,7 @@ class AccountService {
         contentType: contentType,
         headers: {Headers.contentLengthHeader: fileSize},
       ),
+      cancelToken: cancelToken,
     );
     if (putResp.statusCode != 200) {
       throw Exception('OSS upload failed: ${putResp.statusCode}');

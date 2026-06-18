@@ -12,6 +12,7 @@ import 'stores/messages_store.dart';
 import 'stores/notifications_store.dart';
 import 'stores/deep_search_enrich_store.dart';
 import 'stores/quick_replies_store.dart';
+import 'stores/resume_store.dart';
 import 'stores/search_store.dart';
 import 'stores/shortlist_store.dart';
 import 'stores/settings_store.dart';
@@ -44,6 +45,7 @@ class DinqApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MainStore()),
         ChangeNotifierProvider(create: (_) => PlaceholderNotifier()),
         ChangeNotifierProvider(create: (_) => QuickRepliesStore()),
+        ChangeNotifierProvider(create: (_) => ResumeStore()),
         ChangeNotifierProvider(create: (_) => DeepSearchEnrichStore()),
       ],
       child: Builder(

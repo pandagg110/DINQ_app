@@ -51,6 +51,9 @@ dependencies:
   firebase_core: ^3.8.0
   firebase_messaging: ^15.1.6
   flutter_local_notifications: ^18.0.1
+  pdfx: ^2.9.2
+  synchronized: ^3.4.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +69,7 @@ flutter:
     - assets/icons/more-btns/
     - assets/icons/discover/
     - assets/icons/mydinq/
+    - assets/icons/mydinq/resume/
     - assets/icons/avatar/
     - assets/icons/line-icons/
     - assets/icons/logo/

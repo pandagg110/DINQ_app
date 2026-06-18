@@ -40,3 +40,8 @@
 # Keep Flutter related classes
 -keep class io.flutter.** { *; }
 -dontwarn io.flutter.**
+
+# pdfx (Pigeon + native PDF renderer)
+-keep class io.scer.pdfx.** { *; }
+-keep class dev.flutter.pigeon.** { *; }
+-dontwarn io.scer.pdfx.**

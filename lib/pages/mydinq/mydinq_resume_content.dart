@@ -1,14 +1,27 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/resume_models.dart';
 import '../../services/account_service.dart';
-import '../../theme/dinq_tokens.dart';
-import '../../utils/color_util.dart';
+import '../../stores/resume_store.dart';
+import '../../utils/top_toast_util.dart';
+import '../../widgets/mydinq/resume/create_resume_modal.dart';
+import '../../widgets/mydinq/resume/resume_list.dart';
+import '../../widgets/mydinq/resume/resume_preview.dart';
+import '../../widgets/mydinq/resume/resume_uploading_card.dart';
 
-/// My DINQ Resume 标签页内容（无独立 AppBar，对齐 Web `/mydinq/resume`）。
+const _maxFileSize = 10 * 1024 * 1024;
+const _acceptedExtensions = ['pdf', 'doc', 'docx'];
+const _uploadAnimationMs = 10000;
+const _statusPollIntervalMs = 2000;
+const _statusPollMaxAttempts = 60;
+
+/// 对齐 Web `/mydinq/resume/page.tsx`。
 class MyDinqResumeContent extends StatefulWidget {
   const MyDinqResumeContent({super.key});
 
@@ -16,217 +29,355 @@ class MyDinqResumeContent extends StatefulWidget {
   State<MyDinqResumeContent> createState() => _MyDinqResumeContentState();
 }
 
+class _UploadSession {
+  _UploadSession({
+    required this.fileName,
+    required this.previousSelectedId,
+    required this.cancelToken,
+  });
+
+  final String fileName;
+  final String? previousSelectedId;
+  final CancelToken cancelToken;
+  UploadPhase phase = UploadPhase.uploading;
+  int progress = 0;
+  int secondsLeft = _uploadAnimationMs ~/ 1000;
+  String? createdResumeId;
+}
+
 class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
-  final _service = AccountService();
-  List<dynamic> _resumes = [];
-  bool _loading = true;
-  bool _uploading = false;
-  String? _error;
+  final _accountService = AccountService();
+  bool _isResumeListOpen = false;
+  bool _isCreateOpen = false;
+  bool _resumeSheetOpen = false;
+  _UploadSession? _uploadSession;
+  bool _hasResolvedInitialLoad = false;
+  Timer? _progressTimer;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    final store = context.read<ResumeStore>();
+    _hasResolvedInitialLoad =
+        store.resumes.isNotEmpty || store.selectedResume != null;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initResumes());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    _pollTimer?.cancel();
+    _uploadSession?.cancelToken.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initResumes() async {
+    final store = context.read<ResumeStore>();
+    await store.loadResumes();
+    if (!mounted) return;
+    if (store.selectedResume == null && store.resumes.isNotEmpty) {
+      try {
+        await store.selectResume(store.resumes.first.id);
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _hasResolvedInitialLoad = true);
+  }
+
+  void _onUploadSessionChanged() {
+    _progressTimer?.cancel();
+    _pollTimer?.cancel();
+    final session = _uploadSession;
+    if (session == null) return;
+
+    final startedAt = DateTime.now();
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (!mounted || _uploadSession != session) return;
+      final elapsed = DateTime.now().difference(startedAt).inMilliseconds;
+      final pct = ((elapsed / _uploadAnimationMs) * 100).floor().clamp(0, 95);
+      final sLeft = ((_uploadAnimationMs - elapsed) / 1000).ceil().clamp(0, 9999);
+      setState(() {
+        session.progress = pct;
+        session.secondsLeft = sLeft == 0 ? 1 : sLeft;
+      });
     });
-    try {
-      final resumes = await _service.getResumes();
-      if (!mounted) return;
-      setState(() {
-        _resumes = resumes;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+
+    if (session.phase == UploadPhase.processing && session.createdResumeId != null) {
+      _startProcessingPoll(session);
     }
   }
 
-  Future<void> _upload() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-      );
-      if (result == null || result.files.single.path == null) return;
-      final picked = result.files.single;
-      final file = File(picked.path!);
-      if (file.lengthSync() > 10 * 1024 * 1024) {
-        _snack('File must be less than 10MB');
+  void _startProcessingPoll(_UploadSession session) {
+    var attempts = 0;
+    final resumeId = session.createdResumeId!;
+    Future<void> tick() async {
+      if (!mounted || _uploadSession != session || session.cancelToken.isCancelled) {
         return;
       }
-      setState(() => _uploading = true);
+      attempts++;
+      try {
+        final store = context.read<ResumeStore>();
+        final refreshed = await store.selectResume(
+          resumeId,
+          force: true,
+          silent: true,
+        );
+        if (!mounted || _uploadSession != session) return;
+        if (refreshed?.status == ResumeStatus.ready) {
+          setState(() {
+            session.progress = 100;
+            session.secondsLeft = 0;
+          });
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          if (!mounted) return;
+          setState(() => _uploadSession = null);
+          TopToastUtil.showSuccess(context: context, title: 'Resume uploaded');
+          return;
+        }
+      } catch (_) {}
+      if (attempts >= _statusPollMaxAttempts && mounted && _uploadSession == session) {
+        setState(() => _uploadSession = null);
+        TopToastUtil.showSuccess(
+          context: context,
+          title: "Still processing — we'll keep checking in the background.",
+        );
+      }
+    }
+
+    tick();
+    _pollTimer = Timer.periodic(
+      const Duration(milliseconds: _statusPollIntervalMs),
+      (_) => tick(),
+    );
+  }
+
+  String? _ambientPollResumeId;
+
+  void _syncAmbientProcessingPoll(ResumeStore store) {
+    if (_uploadSession != null) {
+      _ambientPollResumeId = null;
+      return;
+    }
+    final resume = store.selectedResume;
+    if (resume == null || resume.status != ResumeStatus.processing) {
+      _ambientPollResumeId = null;
+      return;
+    }
+    if (_ambientPollResumeId == resume.id && _pollTimer?.isActive == true) {
+      return;
+    }
+    _ambientPollResumeId = resume.id;
+    _startAmbientProcessingPoll(resume.id);
+  }
+
+  void _startAmbientProcessingPoll(String resumeId) {
+    var attempts = 0;
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_uploadSession != null || !mounted) return;
+      if (++attempts > 40) {
+        _pollTimer?.cancel();
+        return;
+      }
+      try {
+        await context.read<ResumeStore>().selectResume(
+              resumeId,
+              force: true,
+              silent: true,
+            );
+      } catch (_) {}
+    });
+  }
+
+  String _contentType(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.doc')) return 'application/msword';
+    if (lower.endsWith('.docx')) {
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+    return 'application/octet-stream';
+  }
+
+  Future<void> _handleUploadRequest() async {
+    if (_uploadSession != null) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _acceptedExtensions,
+    );
+    if (result == null || result.files.single.path == null) return;
+    await _handleFileSelected(result.files.single);
+  }
+
+  Future<void> _handleFileSelected(PlatformFile picked) async {
+    final path = picked.path;
+    if (path == null) return;
+    final file = File(path);
+    if (picked.size > _maxFileSize) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'File size must be less than 10MB.',
+      );
+      return;
+    }
+
+    final store = context.read<ResumeStore>();
+    final previousSelectedId = store.selectedResume?.id;
+    final token = CancelToken();
+    final session = _UploadSession(
+      fileName: picked.name,
+      previousSelectedId: previousSelectedId,
+      cancelToken: token,
+    );
+    setState(() {
+      _uploadSession = session;
+      _isResumeListOpen = false;
+    });
+    _onUploadSessionChanged();
+
+    try {
       final bytes = await file.readAsBytes();
-      final url = await _service.uploadFile(
+      if (token.isCancelled || _uploadSession != session) return;
+      final sourceUrl = await _accountService.uploadFile(
         fileName: picked.name,
         fileSize: bytes.length,
-        contentType: 'application/pdf',
+        contentType: _contentType(picked.name),
         bytes: bytes,
+        cancelToken: token,
       );
-      final title =
-          picked.name.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
-      await _service.createResume(
-        title: title,
-        sourceUrl: url,
+      if (token.isCancelled || _uploadSession != session) return;
+
+      final rawTitle = picked.name.replaceAll(
+        RegExp(r'\.(pdf|docx?|doc)$', caseSensitive: false),
+        '',
+      );
+      final fallbackTitle = rawTitle.isEmpty ? 'Untitled' : rawTitle;
+      final created = await store.createResume(
+        title: fallbackTitle,
+        sourceUrl: sourceUrl,
         fileName: picked.name,
+        select: false,
       );
+      if (token.isCancelled || _uploadSession != session) {
+        await store.deleteResume(created.id);
+        return;
+      }
+      session.phase = UploadPhase.processing;
+      session.createdResumeId = created.id;
+      _onUploadSessionChanged();
+    } catch (e) {
+      if (token.isCancelled || _uploadSession != session) return;
       if (!mounted) return;
-      _snack('Resume uploaded');
-      await _load();
-    } catch (e) {
-      _snack('Upload failed: $e');
-    } finally {
-      if (mounted) setState(() => _uploading = false);
+      setState(() => _uploadSession = null);
+      TopToastUtil.showError(
+        context: context,
+        title: e is DioException ? (e.message ?? 'Upload failed') : '$e',
+      );
     }
   }
 
-  Future<void> _delete(String id) async {
-    try {
-      await _service.deleteResume(id);
-      await _load();
-    } catch (e) {
-      _snack('Delete failed: $e');
-    }
-  }
+  Future<void> _handleCancelUpload() async {
+    final session = _uploadSession;
+    if (session == null) return;
+    session.cancelToken.cancel();
+    setState(() => _uploadSession = null);
+    _progressTimer?.cancel();
+    _pollTimer?.cancel();
 
-  void _snack(String msg) {
+    if (session.createdResumeId != null) {
+      final store = context.read<ResumeStore>();
+      try {
+        await store.deleteResume(session.createdResumeId!);
+      } catch (_) {}
+      final currentId = store.selectedResume?.id;
+      if (session.previousSelectedId != null &&
+          currentId != session.previousSelectedId) {
+        try {
+          await store.selectResume(session.previousSelectedId!);
+        } catch (_) {}
+      }
+    }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    TopToastUtil.showSuccess(context: context, title: 'Upload cancelled');
+  }
+
+  Future<void> _showResumeListSheet() async {
+    if (_resumeSheetOpen || !mounted || _uploadSession != null) return;
+    _resumeSheetOpen = true;
+    await showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.78,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        builder: (_, scroll) => ResumeListMobileSheet(
+          scrollController: scroll,
+          onClose: () => Navigator.of(ctx).pop(),
+          onCreateOpen: () {
+            Navigator.of(ctx).pop();
+            if (mounted) setState(() => _isCreateOpen = true);
+          },
+        ),
+      ),
+    );
+    _resumeSheetOpen = false;
+  }
+
+  void _toggleResumeList() {
+    if (_uploadSession != null) return;
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
+    if (isMobile) {
+      _showResumeListSheet();
+      return;
+    }
+    setState(() => _isResumeListOpen = !_isResumeListOpen);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(child: _body()),
-        Positioned(
-          right: 16,
-          bottom: 24,
-          child: FloatingActionButton.extended(
-            onPressed: _uploading ? null : _upload,
-            backgroundColor: ColorUtil.textColor,
-            foregroundColor: Colors.white,
-            icon: _uploading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.upload_file_outlined, size: 20),
-            label: Text(_uploading ? 'Uploading...' : 'Upload PDF'),
-          ),
-        ),
-      ],
-    );
-  }
+    final store = context.watch<ResumeStore>();
+    _syncAmbientProcessingPoll(store);
 
-  Widget _body() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!, style: const TextStyle(color: DinqTokens.textTertiary)),
-            const SizedBox(height: 12),
-            TextButton(onPressed: _load, child: const Text('Retry')),
-          ],
-        ),
-      );
-    }
-    if (_resumes.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.description_outlined,
-                size: 40, color: DinqTokens.textTertiary),
-            SizedBox(height: 12),
-            Text(
-              'No resume yet',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: DinqTokens.textPrimary,
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Upload a PDF to power your DINQ Page.',
-              style: TextStyle(fontSize: 13, color: DinqTokens.textSecondary),
-            ),
-          ],
-        ),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-      children: [
-        for (final r in _resumes) _resumeRow(Map<String, dynamic>.from(r as Map)),
-      ],
-    );
-  }
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
 
-  Widget _resumeRow(Map<String, dynamic> r) {
-    final id = (r['id'] ?? '').toString();
-    final title = (r['title'] ?? 'Resume').toString();
-    final sourceUrl = (r['source_url'] ?? '').toString();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: DinqTokens.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: DinqTokens.borderLL),
-      ),
-      child: Row(
+    final uploadPreview = _uploadSession == null
+        ? null
+        : ResumeUploadPreviewState(
+            fileName: _uploadSession!.fileName,
+            progress: _uploadSession!.progress,
+            secondsLeft: _uploadSession!.secondsLeft,
+            phase: _uploadSession!.phase,
+          );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      child: Stack(
         children: [
-          const Icon(Icons.picture_as_pdf_outlined,
-              size: 26, color: Color(0xFFC27C5A)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: ColorUtil.textColor,
-              ),
-            ),
+          ResumePreview(
+            resume: store.selectedResume,
+            isLoading: store.isLoadingDetail || !_hasResolvedInitialLoad,
+            onResumeListToggle: _toggleResumeList,
+            onCreateOpen: _handleUploadRequest,
+            upload: uploadPreview,
+            onCancelUpload: _handleCancelUpload,
+            resumeListSlot: isMobile
+                ? null
+                : ResumeList(
+                    isOpen: _isResumeListOpen && _uploadSession == null,
+                    onClose: () => setState(() => _isResumeListOpen = false),
+                    onCreateOpen: () => setState(() => _isCreateOpen = true),
+                  ),
           ),
-          if (sourceUrl.isNotEmpty)
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => launchUrl(
-                Uri.parse(sourceUrl),
-                mode: LaunchMode.externalApplication,
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.open_in_new_rounded,
-                    size: 20, color: DinqTokens.textSecondary),
-              ),
-            ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _delete(id),
-            child: const Icon(Icons.delete_outline,
-                size: 20, color: Color(0xFFE24B3C)),
+          CreateResumeModal(
+            isOpen: _isCreateOpen,
+            onClose: () => setState(() => _isCreateOpen = false),
           ),
         ],
       ),
