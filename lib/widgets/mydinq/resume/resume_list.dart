@@ -202,8 +202,14 @@ class _ResumeListBodyState extends State<ResumeListBody> {
   }
 
   Future<void> _openResume(String id) async {
-    await context.read<ResumeStore>().selectResume(id);
+    final store = context.read<ResumeStore>();
+    // 先关闭列表，再拉取详情（对齐 Web：selectResume 不阻塞 onClose）
     widget.onClose();
+    try {
+      await store.selectResume(id);
+    } catch (e) {
+      debugPrint('selectResume failed: $e');
+    }
   }
 
   @override

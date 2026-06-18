@@ -145,8 +145,9 @@ class _ResumePreviewState extends State<ResumePreview>
         _useWebFallback = false;
       });
     } catch (e) {
+      if (cancel.isCancelled) return;
       debugPrint('PDF download failed: $e');
-      if (!mounted || cancel.isCancelled) return;
+      if (!mounted) return;
       setState(() {
         _pdfData = null;
         _pdfLoadFailed = true;
