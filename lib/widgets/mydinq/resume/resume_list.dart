@@ -181,10 +181,6 @@ class _ResumeListBodyState extends State<ResumeListBody> {
       title: 'Delete Resume',
       content: 'This action cannot be undone.',
       okText: 'Delete',
-      okStyle: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFE24B3C),
-        foregroundColor: Colors.white,
-      ),
     );
     if (confirmed != true || !mounted) return;
     final store = context.read<ResumeStore>();
