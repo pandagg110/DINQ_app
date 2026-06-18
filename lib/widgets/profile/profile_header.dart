@@ -20,6 +20,7 @@ class ProfileHeader extends StatelessWidget {
     this.onDataUpdated,
     this.onShare,
     this.showToggle = true, // 是否显示 Preview/Edit 切换按钮
+    this.showShare = true,
   });
 
   final UserData data;
@@ -33,6 +34,8 @@ class ProfileHeader extends StatelessWidget {
   final VoidCallback? onShare;
   /// 是否显示 Preview/Edit 切换按钮（默认显示，设为 false 时外部可用 Positioned 固定）
   final bool showToggle;
+  /// 是否在头像行显示 Share（My DINQ 顶栏已有时设为 false）
+  final bool showShare;
 
   static const _tagColors = [
     Color(0xFFFDE277),
@@ -87,7 +90,7 @@ class ProfileHeader extends StatelessWidget {
               onAvatarUpdated: onAvatarUpdated,
               onStatusEdit: isEditable ? onStatusEdit : null,
             ),
-            if (isPreviewMode) ...[
+            if (isPreviewMode && showShare) ...[
               const Spacer(),
               TextButton.icon(
                 onPressed: onShare,

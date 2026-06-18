@@ -14,6 +14,8 @@ import '../../widgets/cards/factory/card_registry.dart';
 import '../../widgets/cards/factory/definitions/index.dart' show isSocialCard;
 import '../../widgets/cards/placeholder/placeholder_config.dart';
 import '../../widgets/common/add_card_dialog.dart';
+import '../../theme/dinq_tokens.dart';
+import '../../widgets/profile/mydinq_top_bar.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/change_status_modal.dart';
 import '../../widgets/profile/floating_toolbar.dart';
@@ -26,12 +28,20 @@ class ProfilePage extends StatefulWidget {
     super.key,
     required this.username,
     this.showAppBar = false,
+    this.showMyDinqTopBar = false,
+    this.embeddedInMyDinq = false,
   });
 
   final String username;
 
   /// 为 true 时显示顶部 AppBar（含返回按钮），便于从 Discover 等 push 进入后返回
   final bool showAppBar;
+
+  /// @deprecated 使用 [MyDinqPage] 壳层
+  final bool showMyDinqTopBar;
+
+  /// 嵌入 My DINQ 壳层：无 Scaffold/顶栏，默认编辑态
+  final bool embeddedInMyDinq;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -44,13 +54,16 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   bool _isStatusModalOpen = false;
   CardStore? _cardStore;
 
-  /// true = Preview 模式，false = Edit 模式
+  /// true = 预览模式；My DINQ Page 标签下固定为 false（编辑态）
   bool _isPreviewMode = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.embeddedInMyDinq) {
+      _isPreviewMode = false;
+    }
     _cardStore = widget.showAppBar
         ? context.read<ViewerCardStore>()
         : context.read<CardStore>();
@@ -150,21 +163,72 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     nameController.dispose();
   }
 
+  void _handlePreviewModeChanged(bool isPreview) {
+    setState(() => _isPreviewMode = isPreview);
+    if (widget.embeddedInMyDinq) return;
+    if (!isPreview) {
+      context.read<MainStore>().hideBottomNavigation();
+    } else {
+      context.read<MainStore>().showBottomNavigation();
+    }
+  }
+
+  PreferredSizeWidget? _buildAppBar({
+    required BuildContext context,
+    required bool isEditable,
+    UserData? userData,
+    bool isSaving = false,
+  }) {
+    if (widget.showMyDinqTopBar) {
+      return MyDinqTopBar(
+        context,
+        isPageTab: _isPreviewMode,
+        onTabChanged: _handlePreviewModeChanged,
+        isSaving: isSaving,
+        onShare: () {
+          if (_userData == null) return;
+          ShareProfileDialog.show(
+            context: context,
+            username: widget.username,
+            userData: _userData!,
+            cards: _cardStore?.cards,
+          );
+        },
+      );
+    }
+    if (widget.showAppBar) {
+      return AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          (userData?.name ?? '').isNotEmpty ? userData!.name : widget.username,
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF171717),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      );
+    }
+    return null;
+  }
+
+  bool get _hasTopBar =>
+      !widget.embeddedInMyDinq && (widget.showAppBar || widget.showMyDinqTopBar);
+
+  bool get _isEditMode =>
+      widget.embeddedInMyDinq || (!_isPreviewMode && _userData != null && _isEditable(_userData!));
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
+      if (widget.embeddedInMyDinq) {
+        return const Center(child: CircularProgressIndicator());
+      }
       return Scaffold(
-        appBar: widget.showAppBar
-            ? AppBar(
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                title: const Text('Profile'),
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF171717),
-                elevation: 0,
-              )
+        appBar: _hasTopBar
+            ? _buildAppBar(context: context, isEditable: false)
             : null,
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -176,184 +240,185 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
 
     final isEditable = _userData != null ? _isEditable(_userData!) : false;
-    final mainStore = context.watch<MainStore>();
     return ChangeNotifierProvider<CardStore>.value(
       value: _cardStore!,
-      child: Portal(
-        child: GestureDetector(
-          onTap: () {
-            // 点击页面外部区域时，清除选中状态
-            if (!_isPreviewMode &&
-                isEditable &&
-                _cardStore!.selectedCardIds.isNotEmpty) {
-              _cardStore!.clearSelection();
-            }
-          },
-          behavior: HitTestBehavior.deferToChild,
-          child: Stack(
-            children: [
+      child: _buildProfileStack(isEditable),
+    );
+  }
+
+  Widget _buildProfileStack(bool isEditable) {
+    return Portal(
+      child: GestureDetector(
+        onTap: () {
+          if (_isEditMode &&
+              isEditable &&
+              _cardStore!.selectedCardIds.isNotEmpty) {
+            _cardStore!.clearSelection();
+          }
+        },
+        behavior: HitTestBehavior.deferToChild,
+        child: Stack(
+          children: [
+            if (widget.embeddedInMyDinq)
+              ColoredBox(
+                color: DinqTokens.bgPage,
+                child: _buildProfileBody(isEditable),
+              )
+            else
               Scaffold(
-                appBar: widget.showAppBar
-                    ? AppBar(
-                        leading: IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        title: Text(
-                          (_userData?.name ?? '').isNotEmpty
-                              ? _userData!.name
-                              : widget.username,
-                        ),
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF171717),
-                        elevation: 0,
-                        scrolledUnderElevation: 0,
-                      )
-                    : null,
-                body: SafeArea(
-                  bottom: false, // 底部由 MainTabBottomView 处理
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onHorizontalDragEnd: (details) {
-                            final v = details.primaryVelocity ?? 0;
-                            if (v < -100 && _isPreviewMode) {
-                              setState(() => _isPreviewMode = false);
-                              mainStore.hideBottomNavigation();
-                            } else if (v > 100 && !_isPreviewMode) {
-                              setState(() => _isPreviewMode = true);
-                              mainStore.showBottomNavigation();
-                            }
-                          },
-                          child: SingleChildScrollView(
-                            padding: EdgeInsets.only(
-                              // showAppBar 时无顶部悬浮切换按钮，用 24；否则为切换按钮留出空间（44 + 24）= 68
-                              top: widget.showAppBar ? 24 : 68,
-                              bottom: ConstantsTool.bottomTabHeight + 32,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                if (_userData != null) ...[
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: 24,
-                                      right: 24,
-                                      top: 24,
-                                      bottom: 0,
-                                    ),
-                                    child: ProfileHeader(
-                                      data: _userData!,
-                                      username: _userData?.name ?? '',
-                                      isPreviewMode: _isPreviewMode,
-                                      onPreviewModeChanged: (isPreview) =>
-                                          setState(
-                                            () => _isPreviewMode = isPreview,
-                                          ),
-                                      onAvatarUpdated: _loadData,
-                                      onStatusEdit: () =>
-                                          _showStatusModal(context, _userData!),
-                                      onDataUpdated: _loadData,
-                                      onShare: () {
-                                        if (_userData == null) return;
-                                        ShareProfileDialog.show(
-                                          context: context,
-                                          username: widget.username,
-                                          userData: _userData!,
-                                          cards: _cardStore?.cards,
-                                        );
-                                      },
-                                      showToggle:
-                                          false, // 不在 ProfileHeader 中显示，使用 Positioned 固定在顶部
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: 12,
-                                      right: 12,
-                                      top: 0,
-                                      bottom: 0,
-                                    ),
-                                    child: CardGridStaggered(
-                                      editable: !_isPreviewMode && isEditable,
-                                      onPlaceholderClick:
-                                          _handlePlaceholderClick,
-                                      cardStore: _cardStore,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                backgroundColor:
+                    widget.showMyDinqTopBar ? DinqTokens.bgPage : null,
+                appBar: _buildAppBar(
+                  context: context,
+                  isEditable: isEditable,
+                  userData: _userData,
+                  isSaving: _cardStore?.isSaving ?? false,
                 ),
+                body: _buildProfileBody(isEditable),
               ),
-              // Preview/Edit 切换按钮 - 固定在顶部
-              if (isEditable && _userData != null)
-                Positioned(
-                  top: 20,
-                  left: 0,
-                  right: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      child: PreviewEditToggle(
-                        key: const ValueKey('preview_edit_toggle'),
-                        isPreviewMode: _isPreviewMode,
-                        onPreviewModeChanged: (isPreview) {
-                          setState(() => _isPreviewMode = isPreview);
-                          // 切换到 Edit 模式时隐藏底部导航栏
-                          if (!isPreview) {
-                            context.read<MainStore>().hideBottomNavigation();
-                          } else {
-                            context.read<MainStore>().showBottomNavigation();
-                          }
-                        },
-                      ),
+            if (isEditable &&
+                _userData != null &&
+                !widget.embeddedInMyDinq &&
+                !widget.showMyDinqTopBar &&
+                !widget.showAppBar)
+              Positioned(
+                top: 20,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    child: PreviewEditToggle(
+                      key: const ValueKey('preview_edit_toggle'),
+                      isPreviewMode: _isPreviewMode,
+                      onPreviewModeChanged: _handlePreviewModeChanged,
                     ),
                   ),
                 ),
-              // Status Modal
-              if (_userData != null)
-                ChangeStatusModal(
-                  isOpen: _isStatusModalOpen,
-                  onClose: _closeStatusModal,
-                  currentStatus: _userData!.jobStatus ?? '',
+              ),
+            if (_userData != null)
+              ChangeStatusModal(
+                isOpen: _isStatusModalOpen,
+                onClose: _closeStatusModal,
+                currentStatus: _userData!.jobStatus ?? '',
+              ),
+            if (_isEditMode && isEditable) ...[
+              if (_cardStore!.selectedCardIds.isNotEmpty) ...[
+                Builder(
+                  builder: (context) {
+                    final selectedId = _cardStore!.selectedCardIds.first;
+                    final idx = _cardStore!.cards.indexWhere(
+                      (c) => c.id == selectedId,
+                    );
+                    if (idx < 0) return const SizedBox.shrink();
+                    return CardToolbar(card: _cardStore!.cards[idx]);
+                  },
                 ),
-              // 编辑模式下：有卡片选中时显示 CardToolbar，否则显示 FloatingToolbar
-              if (!_isPreviewMode && isEditable) ...[
-                if (_cardStore!.selectedCardIds.isNotEmpty) ...[
-                  Builder(
-                    builder: (context) {
-                      final selectedId = _cardStore!.selectedCardIds.first;
-                      final idx = _cardStore!.cards.indexWhere(
-                        (c) => c.id == selectedId,
-                      );
-                      if (idx < 0) return const SizedBox.shrink();
-                      return CardToolbar(card: _cardStore!.cards[idx]);
-                    },
-                  ),
-                ] else
-                  FloatingToolbar(
-                    isMobile: true,
-                    isSaving: _cardStore!.isSaving,
-                    username: widget.username,
-                    userData: _userData,
-                    cards: _cardStore!.cards,
-                  ),
-              ],
+              ] else
+                FloatingToolbar(
+                  isMobile: true,
+                  isSaving: _cardStore!.isSaving,
+                  username: widget.username,
+                  userData: _userData,
+                  cards: _cardStore!.cards,
+                ),
             ],
-          ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildProfileBody(bool isEditable) {
+    return SafeArea(
+      top: !_hasTopBar && !widget.embeddedInMyDinq,
+      bottom: false,
+      child: Column(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onHorizontalDragEnd: widget.embeddedInMyDinq
+                  ? null
+                  : (details) {
+                      final v = details.primaryVelocity ?? 0;
+                      if (v < -100 && _isPreviewMode) {
+                        _handlePreviewModeChanged(false);
+                      } else if (v > 100 && !_isPreviewMode) {
+                        _handlePreviewModeChanged(true);
+                      }
+                    },
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  top: widget.embeddedInMyDinq
+                      ? 16
+                      : (widget.showMyDinqTopBar
+                          ? 16
+                          : (_hasTopBar ? 24 : 68)),
+                  bottom: widget.embeddedInMyDinq || widget.showMyDinqTopBar
+                      ? 32
+                      : ConstantsTool.bottomTabHeight + 32,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (_userData != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 24,
+                          right: 24,
+                          top: 24,
+                          bottom: 0,
+                        ),
+                        child: ProfileHeader(
+                          data: _userData!,
+                          username: _userData?.name ?? '',
+                          isPreviewMode: widget.embeddedInMyDinq
+                              ? false
+                              : _isPreviewMode,
+                          onPreviewModeChanged: _handlePreviewModeChanged,
+                          onAvatarUpdated: _loadData,
+                          onStatusEdit: () =>
+                              _showStatusModal(context, _userData!),
+                          onDataUpdated: _loadData,
+                          onShare: () {
+                            if (_userData == null) return;
+                            ShareProfileDialog.show(
+                              context: context,
+                              username: widget.username,
+                              userData: _userData!,
+                              cards: _cardStore?.cards,
+                            );
+                          },
+                          showToggle: false,
+                          showShare: !widget.showMyDinqTopBar &&
+                              !widget.embeddedInMyDinq,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 12,
+                          right: 12,
+                          top: 0,
+                          bottom: 0,
+                        ),
+                        child: CardGridStaggered(
+                          editable: _isEditMode && isEditable,
+                          onPlaceholderClick: _handlePlaceholderClick,
+                          cardStore: _cardStore,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
