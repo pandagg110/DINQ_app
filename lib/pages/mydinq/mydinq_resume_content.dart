@@ -48,7 +48,7 @@ class _UploadSession {
 class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
   final _accountService = AccountService();
   bool _isResumeListOpen = false;
-  bool _isCreateOpen = false;
+  bool _createModalOpen = false;
   bool _resumeSheetOpen = false;
   _UploadSession? _uploadSession;
   bool _hasResolvedInitialLoad = false;
@@ -301,10 +301,18 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
     TopToastUtil.showSuccess(context: context, title: 'Upload cancelled');
   }
 
+  Future<void> _openCreateResumeModal() async {
+    if (_createModalOpen || !mounted || _uploadSession != null) return;
+    _createModalOpen = true;
+    setState(() => _isResumeListOpen = false);
+    await CreateResumeModal.show(context: context);
+    _createModalOpen = false;
+  }
+
   Future<void> _showResumeListSheet() async {
     if (_resumeSheetOpen || !mounted || _uploadSession != null) return;
     _resumeSheetOpen = true;
-    await showModalBottomSheet<void>(
+    final result = await showModalBottomSheet<String>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
@@ -320,14 +328,14 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
         builder: (_, scroll) => ResumeListMobileSheet(
           scrollController: scroll,
           onClose: () => Navigator.of(ctx).pop(),
-          onCreateOpen: () {
-            Navigator.of(ctx).pop();
-            if (mounted) setState(() => _isCreateOpen = true);
-          },
+          onCreateOpen: () => Navigator.of(ctx).pop('create'),
         ),
       ),
     );
     _resumeSheetOpen = false;
+    if (result == 'create' && mounted) {
+      await _openCreateResumeModal();
+    }
   }
 
   void _toggleResumeList() {
@@ -372,12 +380,11 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
                 : ResumeList(
                     isOpen: _isResumeListOpen && _uploadSession == null,
                     onClose: () => setState(() => _isResumeListOpen = false),
-                    onCreateOpen: () => setState(() => _isCreateOpen = true),
+                    onCreateOpen: () {
+                      setState(() => _isResumeListOpen = false);
+                      _openCreateResumeModal();
+                    },
                   ),
-          ),
-          CreateResumeModal(
-            isOpen: _isCreateOpen,
-            onClose: () => setState(() => _isCreateOpen = false),
           ),
         ],
       ),

@@ -80,7 +80,12 @@ class ResumeList extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1, thickness: 1, color: _kDivider),
-                _CreateButton(onCreateOpen: onCreateOpen, onClose: onClose),
+                _CreateButton(
+                  onTap: () {
+                    onClose();
+                    onCreateOpen();
+                  },
+                ),
               ],
             ),
           ),
@@ -129,7 +134,7 @@ class ResumeListMobileSheet extends StatelessWidget {
           ),
         ),
         const Divider(height: 1, thickness: 1, color: _kDivider),
-        _CreateButton(onCreateOpen: onCreateOpen, onClose: onClose),
+        _CreateButton(onTap: onCreateOpen),
         SizedBox(height: MediaQuery.paddingOf(context).bottom),
       ],
     );
@@ -601,20 +606,16 @@ class _ResumeActionsMenuState extends State<_ResumeActionsMenu> {
 }
 
 class _CreateButton extends StatelessWidget {
-  const _CreateButton({required this.onCreateOpen, required this.onClose});
+  const _CreateButton({required this.onTap});
 
-  final VoidCallback onCreateOpen;
-  final VoidCallback onClose;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          onCreateOpen();
-          onClose();
-        },
+        onTap: onTap,
         hoverColor: _kHoverBg,
         splashColor: _kHoverBg,
         child: Padding(
