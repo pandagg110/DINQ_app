@@ -56,7 +56,7 @@ import '../pages/me/invite_page.dart';
 import '../pages/me/api_keys_page.dart';
 import '../pages/me/organization_page.dart';
 import '../pages/me/integration_page.dart';
-import '../pages/me/resume_page.dart';
+import '../pages/mydinq/mydinq_page.dart';
 import '../stores/user_store.dart';
 
 class AppRouter {
@@ -260,7 +260,7 @@ class AppRouter {
         ),
         GoRoute(
           path: '/me/resume',
-          builder: (context, state) => const ResumePage(),
+          redirect: (context, state) => '/admin/mydinq/resume',
         ),
         GoRoute(
           path: '/settings/profile',
@@ -340,6 +340,13 @@ class AppRouter {
         GoRoute(
           path: '/admin/mydinq',
           builder: (context, state) => const AdminMyDinqPage(),
+          routes: [
+            GoRoute(
+              path: 'resume',
+              builder: (context, state) =>
+                  const AdminMyDinqPage(initialTab: MyDinqTab.resume),
+            ),
+          ],
         ),
         GoRoute(
           path: '/admin/search',

@@ -5,7 +5,9 @@ import '../../stores/user_store.dart';
 import '../mydinq/mydinq_page.dart';
 
 class AdminMyDinqPage extends StatelessWidget {
-  const AdminMyDinqPage({super.key});
+  const AdminMyDinqPage({super.key, this.initialTab = MyDinqTab.page});
+
+  final MyDinqTab initialTab;
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +18,6 @@ class AdminMyDinqPage extends StatelessWidget {
         body: Center(child: Text('Complete your DINQ generation first.')),
       );
     }
-    return MyDinqPage(username: domain);
+    return MyDinqPage(username: domain, initialTab: initialTab);
   }
 }

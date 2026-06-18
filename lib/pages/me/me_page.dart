@@ -145,7 +145,7 @@ class _MePageState extends State<MePage> {
                     _buildMenuRow(
                       Icons.description_outlined,
                       'Resume',
-                      () => context.push('/me/resume'),
+                      () => context.push('/admin/mydinq/resume'),
                     ),
                     const SizedBox(height: 16),
                     // 组织

@@ -15,21 +15,27 @@ enum MyDinqTab { page, resume }
 
 /// 对齐 Web `mydinq/layout.tsx`：顶栏 + Page（编辑）/ Resume（独立页）切换。
 class MyDinqPage extends StatefulWidget {
-  const MyDinqPage({super.key, required this.username});
+  const MyDinqPage({
+    super.key,
+    required this.username,
+    this.initialTab = MyDinqTab.page,
+  });
 
   final String username;
+  final MyDinqTab initialTab;
 
   @override
   State<MyDinqPage> createState() => _MyDinqPageState();
 }
 
 class _MyDinqPageState extends State<MyDinqPage> {
-  MyDinqTab _tab = MyDinqTab.page;
+  late MyDinqTab _tab;
   UserData? _userData;
 
   @override
   void initState() {
     super.initState();
+    _tab = widget.initialTab;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MainStore>().hideBottomNavigation();
     });
