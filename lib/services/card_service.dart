@@ -85,6 +85,12 @@ class CardService {
     return list.map((item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map))).toList();
   }
 
+  /// 校验社交链接 URL（对齐 Web cardApi.validateUrl）
+  Future<Map<String, dynamic>> validateUrl({required String url}) async {
+    final response = await _dio.post('/card/validate-url', data: {'url': url});
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   /// 生成 Card
   /// [datasourceId] 数据源 ID
   /// [type] 卡片类型

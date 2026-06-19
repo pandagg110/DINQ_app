@@ -69,4 +69,19 @@ class OnboardingService {
     });
     return Map<String, dynamic>.from(response.data as Map);
   }
+
+  Future<Map<String, dynamic>> complete({
+    required String reservationToken,
+    required Map<String, dynamic> userData,
+    required Map<String, dynamic> source,
+    List<Map<String, dynamic>> socialLinks = const [],
+  }) async {
+    final response = await _dio.post('/onboarding/complete', data: {
+      'reservation_token': reservationToken,
+      'user_data': userData,
+      'source': source,
+      'social_links': socialLinks,
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
 }

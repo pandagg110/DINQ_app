@@ -14,6 +14,7 @@ import '../../models/user_models.dart';
 import '../../services/flow_service.dart';
 import '../../services/onboarding_service.dart';
 import '../../services/upload_service.dart';
+import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/top_toast_util.dart';
@@ -24,7 +25,9 @@ import '../../widgets/generation/onboarding/onboarding_profile_basics_view.dart'
 import '../../widgets/generation/onboarding/onboarding_profile_expertise_view.dart';
 import '../../widgets/generation/onboarding/onboarding_logo_header.dart';
 import '../../widgets/generation/onboarding/onboarding_start_view.dart';
+import '../../widgets/generation/onboarding/onboarding_socials_view.dart';
 import '../../widgets/generation/onboarding/onboarding_upload_view.dart';
+import '../../widgets/generation/onboarding/onboarding_welcome_view.dart';
 
 class GenerationPage extends StatefulWidget {
   const GenerationPage({super.key});
@@ -88,6 +91,14 @@ class _GenerationPageState extends State<GenerationPage> {
   bool _isCheckingDomain = false;
   bool _isClaimingDomain = false;
   bool _isReservingHandle = false;
+  String? _handleReservationToken;
+  int? _handleReservedUntil;
+  bool _onboardingFinalized = false;
+  OnboardingWelcomeStatus _welcomeStatus = OnboardingWelcomeStatus.saving;
+  String? _welcomeError;
+  bool _welcomeShouldUploadAgain = false;
+  bool _welcomeFinalizeStarted = false;
+  List<OnboardingAddedLink> _onboardingSocialLinks = [];
   Map<String, dynamic>? _domainCheckResult;
   Timer? _domainCheckTimer;
   String? _error;
@@ -187,11 +198,17 @@ class _GenerationPageState extends State<GenerationPage> {
         case GenerationStep.profileBasics:
         case GenerationStep.profileExpertise:
         case GenerationStep.domain:
+        case GenerationStep.welcome:
+        case GenerationStep.onboardingSocials:
         case GenerationStep.resume:
           return false;
         default:
           return true;
       }
+    }
+    if (current == GenerationStep.welcome ||
+        current == GenerationStep.onboardingSocials) {
+      return false;
     }
     return current != fromFlow;
   }
@@ -429,6 +446,48 @@ class _GenerationPageState extends State<GenerationPage> {
       );
     }
 
+    if (_currentStep == GenerationStep.welcome) {
+      if (!_welcomeFinalizeStarted && !_onboardingFinalized) {
+        _welcomeFinalizeStarted = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _finalizeOnboardingDraft();
+        });
+      }
+      final handle = _domainController.text.trim().isNotEmpty
+          ? _domainController.text.trim()
+          : (context.read<UserStore>().myFlow?.domain ?? '');
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          child: OnboardingWelcomeView(
+            status: _welcomeStatus,
+            handle: handle,
+            errorMessage: _welcomeError,
+            shouldUploadAgain: _welcomeShouldUploadAgain,
+            orgName: _orgContext?.orgName,
+            onRetry: _handleWelcomeRetry,
+            onGoSocials: () => setState(() {
+              _currentStep = GenerationStep.onboardingSocials;
+            }),
+            onGoMydinq: _goToMydinq,
+            onGoOrg: _goToMydinq,
+          ),
+        ),
+      );
+    }
+
+    if (_currentStep == GenerationStep.onboardingSocials) {
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          child: OnboardingSocialsView(
+            initialLinks: _onboardingSocialLinks,
+            onFinish: _finishOnboardingSocials,
+          ),
+        ),
+      );
+    }
+
     if (isStart) {
       final isMobile = MediaQuery.sizeOf(context).width < 768;
       return Scaffold(
@@ -556,6 +615,9 @@ class _GenerationPageState extends State<GenerationPage> {
         return _buildResumeStep(context);
       case GenerationStep.social:
         return _buildSocialStep(context);
+      case GenerationStep.welcome:
+      case GenerationStep.onboardingSocials:
+        return const SizedBox.shrink();
       case GenerationStep.success:
         return _buildSuccessStep(context);
       case GenerationStep.error:
@@ -1600,6 +1662,8 @@ class _GenerationPageState extends State<GenerationPage> {
       case GenerationStep.analyze:
       case GenerationStep.profileBasics:
       case GenerationStep.profileExpertise:
+      case GenerationStep.welcome:
+      case GenerationStep.onboardingSocials:
         return const SizedBox.shrink();
       case GenerationStep.domain:
         return Padding(
@@ -1806,6 +1870,9 @@ class _GenerationPageState extends State<GenerationPage> {
         return 2 / 3;
       case GenerationStep.social:
         return 1.0;
+      case GenerationStep.welcome:
+      case GenerationStep.onboardingSocials:
+        return 1.0;
       case GenerationStep.success:
       case GenerationStep.error:
         return 1.0;
@@ -1826,6 +1893,9 @@ class _GenerationPageState extends State<GenerationPage> {
         return "Let's start creating your DINQ Card.";
       case GenerationStep.social:
         return 'Last step! Your DINQ Card is almost ready!';
+      case GenerationStep.welcome:
+      case GenerationStep.onboardingSocials:
+        return '';
       case GenerationStep.success:
       case GenerationStep.error:
         return '';
@@ -2831,13 +2901,23 @@ class _GenerationPageState extends State<GenerationPage> {
       _isReservingHandle = true;
     });
     try {
-      await _onboardingService.reserveHandle(handle: handle);
-      final flow = await _flowService.claimDomain(domain: handle);
+      final reservation = await _onboardingService.reserveHandle(handle: handle);
       if (!mounted) return;
-      context.read<UserStore>().setMyFlow(flow);
+      final token = reservation['reservation_token']?.toString();
+      final expiresAt = reservation['expires_at']?.toString();
+      final reservedUntil = expiresAt != null
+          ? DateTime.tryParse(expiresAt)?.millisecondsSinceEpoch
+          : null;
       setState(() {
         _isReservingHandle = false;
-        _currentStep = GenerationStep.social;
+        _handleReservationToken = token;
+        _handleReservedUntil = reservedUntil;
+        _welcomeStatus = OnboardingWelcomeStatus.saving;
+        _welcomeError = null;
+        _welcomeShouldUploadAgain = false;
+        _welcomeFinalizeStarted = false;
+        _onboardingFinalized = false;
+        _currentStep = GenerationStep.welcome;
       });
     } catch (e) {
       if (!mounted) return;
@@ -2854,6 +2934,234 @@ class _GenerationPageState extends State<GenerationPage> {
     }
   }
 
+  Map<String, dynamic> _buildOnboardingUserDataPatch() {
+    final data = _draftUserData ?? <String, dynamic>{};
+    final user = context.read<UserStore>().user;
+    final patch = <String, dynamic>{};
+
+    final name = _profileNameController.text.trim().isNotEmpty
+        ? _profileNameController.text.trim()
+        : (data['name']?.toString() ??
+            user?.userData.name ??
+            user?.user.name ??
+            '');
+    final position = _profilePositionController.text.trim().isNotEmpty
+        ? _profilePositionController.text.trim()
+        : (data['position']?.toString() ?? user?.userData.fullPosition ?? '');
+    final company = _profileCompanyController.text.trim().isNotEmpty
+        ? _profileCompanyController.text.trim()
+        : (data['company']?.toString() ?? '');
+    final location = _profileLocationController.text.trim().isNotEmpty
+        ? _profileLocationController.text.trim()
+        : (data['location']?.toString() ?? user?.userData.location ?? '');
+    final bio = _profileBio.trim().isNotEmpty
+        ? _profileBio.trim()
+        : (data['bio']?.toString() ?? user?.userData.bio ?? '');
+    final tags = _profileTags.isNotEmpty
+        ? _profileTags.join(',')
+        : (data['tags']?.toString() ?? user?.userData.tags ?? '');
+
+    if (name.isNotEmpty) patch['name'] = name;
+    if (position.isNotEmpty) patch['position'] = position;
+    if (company.isNotEmpty) patch['company'] = company;
+    if (position.isNotEmpty || company.isNotEmpty) {
+      patch['full_position'] = [position, company].where((e) => e.isNotEmpty).join(', ');
+    }
+    if (bio.isNotEmpty) patch['bio'] = bio.length > 500 ? bio.substring(0, 500) : bio;
+    if (location.isNotEmpty) patch['location'] = location;
+    if (tags.isNotEmpty) patch['tags'] = tags;
+    if (_resumeUrl != null && _resumeUrl!.isNotEmpty) {
+      patch['resume'] = _resumeUrl;
+    }
+    final email = data['email']?.toString() ?? user?.user.email;
+    if (email != null && email.isNotEmpty) patch['email'] = email;
+    if (data['avatar_url'] != null) patch['avatar_url'] = data['avatar_url'];
+    if (data['school'] != null) patch['school'] = data['school'];
+    if (data['degree'] != null) patch['degree'] = data['degree'];
+    return patch;
+  }
+
+  Map<String, dynamic> _buildOnboardingSource() {
+    if (_analyzeMode == 'resume' && _resumeUrl != null && _resumeFileKey != null) {
+      return {
+        'type': 'resume',
+        'file_url': _resumeUrl,
+        'file_key': _resumeFileKey,
+      };
+    }
+    final profileUrl = _extractUrlFromInput(_linkedinController.text.trim());
+    if (_analyzeMode == 'url' && profileUrl.isNotEmpty) {
+      return {'type': 'url', 'profile_url': profileUrl};
+    }
+    return {'type': 'manual'};
+  }
+
+  List<Map<String, dynamic>> _buildOnboardingSocialLinksForComplete() {
+    final draftLinks = _draftUserData?['social_links'];
+    if (draftLinks is List && draftLinks.isNotEmpty) {
+      return draftLinks
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    final profileUrl = _extractUrlFromInput(_linkedinController.text.trim());
+    if (profileUrl.contains('linkedin.com/')) {
+      return [
+        {'type': 'linkedin', 'url': profileUrl},
+      ];
+    }
+    return [];
+  }
+
+  bool _isOnboardingAccountConflict(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('9006') ||
+        message.contains('already has a dinq') ||
+        message.contains('already has dinq');
+  }
+
+  bool _isOnboardingUploadSessionExpired(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('9002') ||
+        message.contains('upload session expired');
+  }
+
+  Future<void> _finalizeOnboardingDraft() async {
+    if (_onboardingFinalized) return;
+
+    final userStore = context.read<UserStore>();
+    if (!userStore.isLoggedIn()) {
+      if (!mounted) return;
+      context.go('/login');
+      return;
+    }
+
+    final token = _handleReservationToken;
+    if (token == null || token.isEmpty) {
+      setState(() {
+        _welcomeStatus = OnboardingWelcomeStatus.error;
+        _welcomeError =
+            'Handle reservation expired. Please choose your handle again.';
+      });
+      return;
+    }
+    if (_handleReservedUntil != null &&
+        _handleReservedUntil! <= DateTime.now().millisecondsSinceEpoch) {
+      setState(() {
+        _welcomeStatus = OnboardingWelcomeStatus.error;
+        _welcomeError =
+            'Handle reservation expired. Please choose your handle again.';
+      });
+      return;
+    }
+
+    if (_analyzeMode == 'resume' &&
+        _resumeUploadExpiresAt != null &&
+        _resumeUploadExpiresAt! <= DateTime.now().millisecondsSinceEpoch) {
+      setState(() {
+        _hasResume = false;
+        _resumeUrl = null;
+        _resumeFileKey = null;
+        _welcomeStatus = OnboardingWelcomeStatus.error;
+        _welcomeError =
+            'Your resume upload session expired. Please upload the resume again.';
+        _welcomeShouldUploadAgain = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _welcomeStatus = OnboardingWelcomeStatus.saving;
+      _welcomeError = null;
+      _welcomeShouldUploadAgain = false;
+    });
+
+    try {
+      final result = await _onboardingService.complete(
+        reservationToken: token,
+        userData: _buildOnboardingUserDataPatch(),
+        source: _buildOnboardingSource(),
+        socialLinks: _buildOnboardingSocialLinksForComplete(),
+      );
+
+      final flowData = result['flow'] as Map<String, dynamic>?;
+      if (flowData != null) {
+        userStore.setMyFlow(UserFlow.fromJson(flowData));
+      }
+      await userStore.getCurrentUser();
+      await userStore.getFlow();
+
+      if (!mounted) return;
+      setState(() {
+        _onboardingFinalized = true;
+        _welcomeStatus = OnboardingWelcomeStatus.ready;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      if (_isOnboardingAccountConflict(error)) {
+        context.go('/login');
+        return;
+      }
+      setState(() {
+        _welcomeFinalizeStarted = false;
+        _welcomeShouldUploadAgain = _isOnboardingUploadSessionExpired(error);
+        if (_welcomeShouldUploadAgain) {
+          _hasResume = false;
+          _resumeUrl = null;
+          _resumeFileKey = null;
+        }
+        _welcomeError = error.toString().replaceAll('Exception: ', '');
+        if (_welcomeError!.isEmpty) {
+          _welcomeError = 'Failed to finish onboarding';
+        }
+        _welcomeStatus = OnboardingWelcomeStatus.error;
+      });
+    }
+  }
+
+  void _handleWelcomeRetry() {
+    if (_welcomeShouldUploadAgain) {
+      setState(() {
+        _welcomeFinalizeStarted = false;
+        _welcomeShouldUploadAgain = false;
+        _welcomeError = null;
+        _currentStep = GenerationStep.upload;
+      });
+      return;
+    }
+    setState(() {
+      _welcomeFinalizeStarted = false;
+      _welcomeStatus = OnboardingWelcomeStatus.saving;
+    });
+    _finalizeOnboardingDraft();
+  }
+
+  void _goToMydinq() {
+    if (context.mounted) {
+      context.go('/admin/mydinq');
+    }
+  }
+
+  Future<void> _finishOnboardingSocials(List<OnboardingAddedLink> links) async {
+    final domain = context.read<UserStore>().myFlow?.domain ??
+        _domainController.text.trim();
+    if (links.isNotEmpty) {
+      if (domain.isEmpty) {
+        throw Exception('DINQ Page is not ready yet');
+      }
+      final cardStore = context.read<CardStore>();
+      await cardStore.loadCards(domain);
+      for (final link in links) {
+        await cardStore.addCard(
+          type: link.type,
+          metadata: {'url': link.url},
+        );
+      }
+    }
+    if (!mounted) return;
+    _goToMydinq();
+  }
+
 }
 
 enum GenerationStep {
@@ -2863,6 +3171,8 @@ enum GenerationStep {
   profileBasics,
   profileExpertise,
   domain,
+  welcome,
+  onboardingSocials,
   resume,
   social,
   success,
