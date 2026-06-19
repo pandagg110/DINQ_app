@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'onboarding_step_header.dart';
+import 'onboarding_top_bar.dart';
 
 /// 对齐 Web `/onboarding/handle/page.tsx`。
 class OnboardingHandleView extends StatelessWidget {
@@ -115,8 +115,6 @@ class _HandleForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const OnboardingStepHeader(step: 3),
-        const SizedBox(height: 24),
         const Text(
           'Claim your handle',
           style: TextStyle(
@@ -291,6 +289,17 @@ class _HandleForm extends StatelessWidget {
   }
 }
 
+class _HandleTopBar extends StatelessWidget {
+  const _HandleTopBar({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnboardingTopBar(step: 3, onBack: onBack);
+  }
+}
+
 class _MobileHandleLayout extends StatelessWidget {
   const _MobileHandleLayout({
     required this.controller,
@@ -326,9 +335,10 @@ class _MobileHandleLayout extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (onBack != null) _HandleTopBar(onBack: onBack!),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            padding: EdgeInsets.fromLTRB(20, onBack != null ? 24 : 16, 20, 16),
             child: _HandleForm(
               controller: controller,
               orgName: orgName,
@@ -409,12 +419,16 @@ class _DesktopHandleLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 64, 24, 40),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 448),
           child: Column(
             children: [
+              if (onBack != null) ...[
+                _HandleTopBar(onBack: onBack!),
+                const SizedBox(height: 24),
+              ],
               _HandleForm(
                 controller: controller,
                 orgName: orgName,
@@ -427,23 +441,24 @@ class _DesktopHandleLayout extends StatelessWidget {
                 onChanged: onChanged,
               ),
               const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (onBack != null)
-                    TextButton(
-                      onPressed: onBack,
-                      child: const Text(
-                        '← Back',
-                        style: TextStyle(
-                          fontFamily: 'Geist',
-                          fontSize: 14,
-                          color: Color(0xFF6B6862),
-                        ),
+              if (onBack != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: onBack,
+                    child: const Text(
+                      '← Back',
+                      style: TextStyle(
+                        fontFamily: 'Geist',
+                        fontSize: 14,
+                        color: Color(0xFF6B6862),
                       ),
-                    )
-                  else
-                    const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
                   SizedBox(
                     height: 44,
                     child: ElevatedButton(

@@ -20,6 +20,8 @@ import '../../utils/top_toast_util.dart';
 import '../../widgets/generation/onboarding/onboarding_analyze_view.dart';
 import '../../widgets/generation/onboarding/onboarding_footer.dart';
 import '../../widgets/generation/onboarding/onboarding_handle_view.dart';
+import '../../widgets/generation/onboarding/onboarding_profile_basics_view.dart';
+import '../../widgets/generation/onboarding/onboarding_profile_expertise_view.dart';
 import '../../widgets/generation/onboarding/onboarding_logo_header.dart';
 import '../../widgets/generation/onboarding/onboarding_start_view.dart';
 import '../../widgets/generation/onboarding/onboarding_upload_view.dart';
@@ -39,9 +41,15 @@ class _GenerationPageState extends State<GenerationPage> {
   final _linkedinController = TextEditingController();
   final _githubController = TextEditingController();
   final _scholarController = TextEditingController();
+  final _profileNameController = TextEditingController();
+  final _profilePositionController = TextEditingController();
+  final _profileCompanyController = TextEditingController();
+  final _profileLocationController = TextEditingController();
   
   // 第三步：社交链接相关
   final List<SocialLink> _socialLinks = [];
+  List<String> _profileTags = [];
+  String _profileBio = '';
   final TextEditingController _newUrlController = TextEditingController();
   bool _isGenerating = false;
   bool _isSkipping = false;
@@ -176,6 +184,8 @@ class _GenerationPageState extends State<GenerationPage> {
         case GenerationStep.start:
         case GenerationStep.upload:
         case GenerationStep.analyze:
+        case GenerationStep.profileBasics:
+        case GenerationStep.profileExpertise:
         case GenerationStep.domain:
         case GenerationStep.resume:
           return false;
@@ -275,6 +285,10 @@ class _GenerationPageState extends State<GenerationPage> {
     _linkedinController.dispose();
     _githubController.dispose();
     _scholarController.dispose();
+    _profileNameController.dispose();
+    _profilePositionController.dispose();
+    _profileCompanyController.dispose();
+    _profileLocationController.dispose();
     _newUrlController.dispose();
     super.dispose();
   }
@@ -307,7 +321,41 @@ class _GenerationPageState extends State<GenerationPage> {
     final isStart = _currentStep == GenerationStep.start;
     final isUpload = _currentStep == GenerationStep.upload;
     final isAnalyze = _currentStep == GenerationStep.analyze;
+    final isProfileBasics = _currentStep == GenerationStep.profileBasics;
+    final isProfileExpertise = _currentStep == GenerationStep.profileExpertise;
     final progress = _progressValue();
+
+    if (isProfileBasics) {
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          child: OnboardingProfileBasicsView(
+            nameController: _profileNameController,
+            positionController: _profilePositionController,
+            companyController: _profileCompanyController,
+            locationController: _profileLocationController,
+            onBack: _handleBasicsBack,
+            onContinue: _handleBasicsContinue,
+          ),
+        ),
+      );
+    }
+
+    if (isProfileExpertise) {
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          child: OnboardingProfileExpertiseView(
+            tags: _profileTags,
+            bio: _profileBio,
+            onTagsChanged: (tags) => setState(() => _profileTags = tags),
+            onBioChanged: (bio) => setState(() => _profileBio = bio),
+            onBack: _handleExpertiseBack,
+            onContinue: _handleExpertiseContinue,
+          ),
+        ),
+      );
+    }
 
     if (isAnalyze) {
       return Scaffold(
@@ -498,6 +546,9 @@ class _GenerationPageState extends State<GenerationPage> {
       case GenerationStep.upload:
         return const SizedBox.shrink();
       case GenerationStep.analyze:
+        return const SizedBox.shrink();
+      case GenerationStep.profileBasics:
+      case GenerationStep.profileExpertise:
         return const SizedBox.shrink();
       case GenerationStep.domain:
         return _buildDomainStep(context);
@@ -1547,6 +1598,8 @@ class _GenerationPageState extends State<GenerationPage> {
       case GenerationStep.upload:
         return const SizedBox.shrink();
       case GenerationStep.analyze:
+      case GenerationStep.profileBasics:
+      case GenerationStep.profileExpertise:
         return const SizedBox.shrink();
       case GenerationStep.domain:
         return Padding(
@@ -1744,6 +1797,8 @@ class _GenerationPageState extends State<GenerationPage> {
       case GenerationStep.start:
       case GenerationStep.upload:
       case GenerationStep.analyze:
+      case GenerationStep.profileBasics:
+      case GenerationStep.profileExpertise:
         return 0;
       case GenerationStep.domain:
         return 1 / 3;
@@ -1762,6 +1817,8 @@ class _GenerationPageState extends State<GenerationPage> {
       case GenerationStep.start:
       case GenerationStep.upload:
       case GenerationStep.analyze:
+      case GenerationStep.profileBasics:
+      case GenerationStep.profileExpertise:
         return '';
       case GenerationStep.domain:
         return 'Get your personalized DINQ Card in just a few steps.';
@@ -2608,6 +2665,7 @@ class _GenerationPageState extends State<GenerationPage> {
         _isAnalyzing = false;
         _currentStep = GenerationStep.domain;
       });
+      _prefillProfileFromDraft();
       _maybePrefillHandle();
     } catch (error) {
       if (!mounted) return;
@@ -2647,9 +2705,10 @@ class _GenerationPageState extends State<GenerationPage> {
 
   void _handleStartManual() {
     setState(() {
-      _useOnboardingHandle = false;
-      _currentStep = GenerationStep.domain;
+      _useOnboardingHandle = true;
+      _currentStep = GenerationStep.profileBasics;
     });
+    _prefillProfileFromDraft();
   }
 
   void _handleStartSkip() {
@@ -2658,6 +2717,63 @@ class _GenerationPageState extends State<GenerationPage> {
       _currentStep = GenerationStep.domain;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybePrefillHandle());
+  }
+
+  void _prefillProfileFromDraft() {
+    final data = _draftUserData;
+    final user = context.read<UserStore>().user;
+    if (_profileNameController.text.isEmpty) {
+      _profileNameController.text = data?['name']?.toString() ??
+          user?.userData.name ??
+          user?.user.name ??
+          '';
+    }
+    if (_profilePositionController.text.isEmpty) {
+      _profilePositionController.text =
+          data?['position']?.toString() ?? user?.userData.fullPosition ?? '';
+    }
+    if (_profileCompanyController.text.isEmpty) {
+      _profileCompanyController.text = data?['company']?.toString() ?? '';
+    }
+    if (_profileLocationController.text.isEmpty) {
+      _profileLocationController.text =
+          data?['location']?.toString() ?? user?.userData.location ?? '';
+    }
+    if (_profileBio.isEmpty) {
+      _profileBio = data?['bio']?.toString() ?? user?.userData.bio ?? '';
+    }
+    if (_profileTags.isEmpty && data?['tags'] != null) {
+      final raw = data!['tags'];
+      if (raw is List) {
+        _profileTags = raw.map((e) => e.toString()).toList();
+      } else if (raw is String && raw.isNotEmpty) {
+        _profileTags = raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
+    }
+  }
+
+  void _handleBasicsBack() {
+    setState(() => _currentStep = GenerationStep.start);
+  }
+
+  void _handleBasicsContinue() {
+    setState(() => _currentStep = GenerationStep.profileExpertise);
+  }
+
+  void _handleExpertiseBack() {
+    setState(() => _currentStep = GenerationStep.profileBasics);
+  }
+
+  void _handleExpertiseContinue() {
+    setState(() {
+      _useOnboardingHandle = true;
+      _currentStep = GenerationStep.domain;
+    });
+    _maybePrefillHandle();
+  }
+
+  void _handleHandleBack() {
+    setState(() => _currentStep = GenerationStep.profileExpertise);
   }
 
   String _cleanHandleCandidate(String? raw) {
@@ -2707,16 +2823,6 @@ class _GenerationPageState extends State<GenerationPage> {
     }
   }
 
-  void _handleHandleBack() {
-    setState(() {
-      if (_analyzeMode == 'resume') {
-        _currentStep = GenerationStep.upload;
-      } else {
-        _currentStep = GenerationStep.start;
-      }
-    });
-  }
-
   Future<void> _reserveHandleAndContinue() async {
     final handle = _domainController.text.trim();
     if (handle.isEmpty || !_isDomainValid()) return;
@@ -2750,7 +2856,18 @@ class _GenerationPageState extends State<GenerationPage> {
 
 }
 
-enum GenerationStep { start, upload, analyze, domain, resume, social, success, error }
+enum GenerationStep {
+  start,
+  upload,
+  analyze,
+  profileBasics,
+  profileExpertise,
+  domain,
+  resume,
+  social,
+  success,
+  error,
+}
 
 /// 移动端 fixed skip（桌面端由 OnboardingStartView 内联展示）。
 class _StartSkipFooter extends StatelessWidget {
