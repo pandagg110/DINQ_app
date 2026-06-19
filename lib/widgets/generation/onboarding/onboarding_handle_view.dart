@@ -98,12 +98,6 @@ class _HandleForm extends StatelessWidget {
   final List<String> suggestions;
   final ValueChanged<String> onChanged;
 
-  Color get _borderColor {
-    if (isTooShort || isTaken) return const Color(0xFFEF4444);
-    if (isAvailable) return const Color(0xFF3C7B4D);
-    return const Color(0xFFEEEDE9);
-  }
-
   @override
   Widget build(BuildContext context) {
     final description = orgName != null && orgName!.isNotEmpty
@@ -136,6 +130,73 @@ class _HandleForm extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
+        _HandleUrlSection(
+          controller: controller,
+          isChecking: isChecking,
+          isTooShort: isTooShort,
+          isTaken: isTaken,
+          isAvailable: isAvailable,
+          charWarning: charWarning,
+          suggestions: suggestions,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _HandleUrlSection extends StatefulWidget {
+  const _HandleUrlSection({
+    required this.controller,
+    required this.isChecking,
+    required this.isTooShort,
+    required this.isTaken,
+    required this.isAvailable,
+    this.charWarning,
+    this.suggestions = const [],
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final bool isChecking;
+  final bool isTooShort;
+  final bool isTaken;
+  final bool isAvailable;
+  final String? charWarning;
+  final List<String> suggestions;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_HandleUrlSection> createState() => _HandleUrlSectionState();
+}
+
+class _HandleUrlSectionState extends State<_HandleUrlSection> {
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode()..addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Color get _borderColor {
+    if (widget.isTooShort || widget.isTaken) return const Color(0xFFEF4444);
+    if (widget.isAvailable) return const Color(0xFF3C7B4D);
+    if (_focusNode.hasFocus) return const Color(0xFF171717);
+    return const Color(0xFFEEEDE9);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         const Text(
           'Your unique URL',
           style: TextStyle(
@@ -146,7 +207,8 @@ class _HandleForm extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
@@ -155,6 +217,7 @@ class _HandleForm extends StatelessWidget {
             border: Border.all(color: _borderColor),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
                 'dinq.me/',
@@ -162,14 +225,17 @@ class _HandleForm extends StatelessWidget {
                   fontFamily: 'Geist',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
+                  height: 1,
                   color: Color(0xFF171717),
                 ),
               ),
               Expanded(
                 child: TextField(
-                  controller: controller,
-                  onChanged: onChanged,
+                  controller: widget.controller,
+                  focusNode: _focusNode,
+                  onChanged: widget.onChanged,
                   autofocus: true,
+                  textAlignVertical: TextAlignVertical.center,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_-]')),
                     LengthLimitingTextInputFormatter(100),
@@ -177,6 +243,7 @@ class _HandleForm extends StatelessWidget {
                   style: const TextStyle(
                     fontFamily: 'Geist',
                     fontSize: 14,
+                    height: 1.2,
                     color: Color(0xFF171717),
                   ),
                   decoration: const InputDecoration(
@@ -184,32 +251,37 @@ class _HandleForm extends StatelessWidget {
                     hintStyle: TextStyle(
                       fontFamily: 'Geist',
                       fontSize: 14,
+                      height: 1.2,
                       color: Color.fromRGBO(48, 48, 48, 0.4),
                     ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 4),
+                    contentPadding: EdgeInsets.only(left: 0, top: 14, bottom: 14),
                     isDense: true,
+                    isCollapsed: true,
                   ),
                 ),
               ),
-              if (isChecking)
+              if (widget.isChecking)
                 const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              if (isAvailable && !isChecking)
-                const Icon(Icons.check_circle,
-                    size: 16, color: Color(0xFF3C7B4D)),
+              if (widget.isAvailable && !widget.isChecking)
+                const Icon(
+                  Icons.check_circle,
+                  size: 16,
+                  color: Color(0xFF3C7B4D),
+                ),
             ],
           ),
         ),
-        if (charWarning != null && charWarning!.isNotEmpty) ...[
-          const SizedBox(height: 8),
+        if (widget.charWarning != null && widget.charWarning!.isNotEmpty) ...[
+          const SizedBox(height: 12),
           Text(
-            charWarning!,
+            widget.charWarning!,
             style: const TextStyle(
               fontFamily: 'Geist',
               fontSize: 12,
@@ -217,8 +289,8 @@ class _HandleForm extends StatelessWidget {
             ),
           ),
         ],
-        if (isTooShort) ...[
-          const SizedBox(height: 8),
+        if (widget.isTooShort) ...[
+          const SizedBox(height: 12),
           const Text(
             'Handle must be at least 3 characters.',
             style: TextStyle(
@@ -228,8 +300,8 @@ class _HandleForm extends StatelessWidget {
             ),
           ),
         ],
-        if (isTaken) ...[
-          const SizedBox(height: 8),
+        if (widget.isTaken) ...[
+          const SizedBox(height: 12),
           const Text(
             'This handle is already taken.',
             style: TextStyle(
@@ -239,8 +311,8 @@ class _HandleForm extends StatelessWidget {
             ),
           ),
         ],
-        if (isAvailable) ...[
-          const SizedBox(height: 8),
+        if (widget.isAvailable) ...[
+          const SizedBox(height: 12),
           const Text(
             'Available — claim it before someone else does!',
             style: TextStyle(
@@ -250,8 +322,8 @@ class _HandleForm extends StatelessWidget {
             ),
           ),
         ],
-        if (isTaken && suggestions.isNotEmpty) ...[
-          const SizedBox(height: 16),
+        if (widget.isTaken && widget.suggestions.isNotEmpty) ...[
+          const SizedBox(height: 12),
           const Text(
             'Available suggestions',
             style: TextStyle(
@@ -264,9 +336,9 @@ class _HandleForm extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: suggestions.map((s) {
+            children: widget.suggestions.map((s) {
               return OutlinedButton(
-                onPressed: () => onChanged(s),
+                onPressed: () => widget.onChanged(s),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(0, 32),
                   padding: const EdgeInsets.symmetric(horizontal: 12),

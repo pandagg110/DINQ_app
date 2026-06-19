@@ -394,13 +394,13 @@ class _GenerationPageState extends State<GenerationPage> {
       );
     }
 
-    final isOnboardingHandle =
-        _currentStep == GenerationStep.domain && _useOnboardingHandle;
+    final isOnboardingHandle = _currentStep == GenerationStep.domain &&
+        (_useOnboardingHandle || _profileDraftReady);
     if (isOnboardingHandle) {
       final domain = _domainController.text.trim();
       final isTooShort = domain.isNotEmpty && domain.length < 3;
       final isTaken = _domainCheckResult != null &&
-          _domainCheckResult!['available'] != true;
+          _domainCheckResult!['available'] == false;
       final isAvailable = _isDomainValid();
       final suggestions = _domainCheckResult?['suggestions'] as List<dynamic>?;
       final suggestionStrings = suggestions
