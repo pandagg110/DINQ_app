@@ -1,5 +1,83 @@
 import 'package:flutter/material.dart';
 
+/// 对齐 Web `OnboardingFooter.tsx`：Back + Continue 双按钮底栏。
+class OnboardingDualActionFooter extends StatelessWidget {
+  const OnboardingDualActionFooter({
+    super.key,
+    required this.onBack,
+    required this.onContinue,
+    this.continueLabel = 'Continue →',
+    this.continueEnabled = true,
+    this.isLoading = false,
+  });
+
+  final VoidCallback onBack;
+  final VoidCallback? onContinue;
+  final String continueLabel;
+  final bool continueEnabled;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + bottomPad),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          TextButton(
+            onPressed: onBack,
+            child: const Text(
+              '← Back',
+              style: TextStyle(
+                fontFamily: 'Geist',
+                fontSize: 14,
+                color: Color(0xFF6B6862),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: ElevatedButton(
+              onPressed: continueEnabled && !isLoading ? onContinue : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: continueEnabled && !isLoading
+                    ? const Color(0xFF171717)
+                    : const Color(0xFFE5E5E5),
+                foregroundColor: continueEnabled && !isLoading
+                    ? Colors.white
+                    : const Color.fromRGBO(48, 48, 48, 0.4),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      continueLabel,
+                      style: const TextStyle(
+                        fontFamily: 'Geist',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// 对齐 Web `OnboardingFooter.tsx`：移动端 fixed 底栏，桌面 static。
 class OnboardingFooter extends StatelessWidget {
   const OnboardingFooter({super.key, required this.child});

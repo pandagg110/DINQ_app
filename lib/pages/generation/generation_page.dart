@@ -17,6 +17,7 @@ import '../../services/upload_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
+import '../../utils/onboarding_draft_mapping.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/generation/onboarding/onboarding_analyze_view.dart';
 import '../../widgets/generation/onboarding/onboarding_footer.dart';
@@ -48,6 +49,10 @@ class _GenerationPageState extends State<GenerationPage> {
   final _profilePositionController = TextEditingController();
   final _profileCompanyController = TextEditingController();
   final _profileLocationController = TextEditingController();
+  final _profileSchoolController = TextEditingController();
+  String _profileAvatarUrl = '';
+  String _profileEducationLevel = '';
+  String _profileTimezone = '';
   
   // 第三步：社交链接相关
   final List<SocialLink> _socialLinks = [];
@@ -306,6 +311,7 @@ class _GenerationPageState extends State<GenerationPage> {
     _profilePositionController.dispose();
     _profileCompanyController.dispose();
     _profileLocationController.dispose();
+    _profileSchoolController.dispose();
     _newUrlController.dispose();
     super.dispose();
   }
@@ -350,7 +356,18 @@ class _GenerationPageState extends State<GenerationPage> {
             nameController: _profileNameController,
             positionController: _profilePositionController,
             companyController: _profileCompanyController,
+            schoolController: _profileSchoolController,
             locationController: _profileLocationController,
+            avatarUrl: _profileAvatarUrl,
+            educationLevel: _profileEducationLevel,
+            timezone: _profileTimezone,
+            onAvatarChanged: (url) => setState(() => _profileAvatarUrl = url),
+            onEducationLevelChanged: (value) =>
+                setState(() => _profileEducationLevel = value),
+            onTimezoneChanged: (value) =>
+                setState(() => _profileTimezone = value),
+            previewTags: _profileTags,
+            previewBio: _profileBio,
             onBack: _handleBasicsBack,
             onContinue: _handleBasicsContinue,
           ),
@@ -365,8 +382,16 @@ class _GenerationPageState extends State<GenerationPage> {
           child: OnboardingProfileExpertiseView(
             tags: _profileTags,
             bio: _profileBio,
-            onTagsChanged: (tags) => setState(() => _profileTags = tags),
+            onTagsChanged: (tags) =>
+                setState(() => _profileTags = normalizeProfileTags(tags)),
             onBioChanged: (bio) => setState(() => _profileBio = bio),
+            previewName: _profileNameController.text.trim(),
+            previewPosition: _profilePositionController.text.trim(),
+            previewCompany: _profileCompanyController.text.trim(),
+            previewSchool: _profileSchoolController.text.trim(),
+            previewLocation: _profileLocationController.text.trim(),
+            previewTimezone: _profileTimezone,
+            previewAvatarUrl: _profileAvatarUrl,
             onBack: _handleExpertiseBack,
             onContinue: _handleExpertiseContinue,
           ),
@@ -2774,11 +2799,37 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   void _handleStartManual() {
+    _resetOnboardingProfileDraft(clearDomain: _domainController.text.isEmpty);
     setState(() {
+      _analyzeMode = 'manual';
       _useOnboardingHandle = true;
       _currentStep = GenerationStep.profileBasics;
     });
     _prefillProfileFromDraft();
+  }
+
+  void _resetOnboardingProfileDraft({required bool clearDomain}) {
+    _profileDraftReady = false;
+    _draftUserData = null;
+    _profileTags = [];
+    _profileBio = '';
+    _profileAvatarUrl = '';
+    _profileEducationLevel = '';
+    _profileTimezone = '';
+    _profileNameController.clear();
+    _profilePositionController.clear();
+    _profileCompanyController.clear();
+    _profileSchoolController.clear();
+    _profileLocationController.clear();
+    _handleReservationToken = null;
+    _handleReservedUntil = null;
+    _onboardingFinalized = false;
+    _welcomeFinalizeStarted = false;
+    if (clearDomain) {
+      _domainController.clear();
+      _hasEditedHandle = false;
+      _domainCheckResult = null;
+    }
   }
 
   void _handleStartSkip() {
@@ -2792,6 +2843,9 @@ class _GenerationPageState extends State<GenerationPage> {
   void _prefillProfileFromDraft() {
     final data = _draftUserData;
     final user = context.read<UserStore>().user;
+    final draftPosition = splitFullPosition(data?['full_position']?.toString());
+    final draftDegree = splitFullDegree(data?['full_degree']?.toString());
+
     if (_profileNameController.text.isEmpty) {
       _profileNameController.text = data?['name']?.toString() ??
           user?.userData.name ??
@@ -2799,15 +2853,39 @@ class _GenerationPageState extends State<GenerationPage> {
           '';
     }
     if (_profilePositionController.text.isEmpty) {
-      _profilePositionController.text =
-          data?['position']?.toString() ?? user?.userData.fullPosition ?? '';
+      _profilePositionController.text = data?['position']?.toString() ??
+          draftPosition.position ??
+          user?.userData.fullPosition ??
+          '';
     }
     if (_profileCompanyController.text.isEmpty) {
-      _profileCompanyController.text = data?['company']?.toString() ?? '';
+      _profileCompanyController.text = data?['company']?.toString() ??
+          draftPosition.company ??
+          '';
+    }
+    if (_profileSchoolController.text.isEmpty) {
+      _profileSchoolController.text = data?['school']?.toString() ??
+          draftDegree.school ??
+          '';
     }
     if (_profileLocationController.text.isEmpty) {
       _profileLocationController.text =
           data?['location']?.toString() ?? user?.userData.location ?? '';
+    }
+    if (_profileEducationLevel.isEmpty) {
+      _profileEducationLevel = data?['degree']?.toString() ??
+          draftDegree.educationLevel ??
+          '';
+    }
+    if (_profileTimezone.isEmpty) {
+      _profileTimezone = data?['timezone']?.toString() ??
+          user?.userData.timezone ??
+          '';
+    }
+    if (_profileAvatarUrl.isEmpty) {
+      _profileAvatarUrl = data?['avatar_url']?.toString() ??
+          user?.userData.avatarUrl ??
+          '';
     }
     if (_profileBio.isEmpty) {
       _profileBio = data?['bio']?.toString() ?? user?.userData.bio ?? '';
@@ -2815,10 +2893,12 @@ class _GenerationPageState extends State<GenerationPage> {
     if (_profileTags.isEmpty && data?['tags'] != null) {
       final raw = data!['tags'];
       if (raw is List) {
-        _profileTags = raw.map((e) => e.toString()).toList();
+        _profileTags = normalizeProfileTags(raw.map((e) => e.toString()).toList());
       } else if (raw is String && raw.isNotEmpty) {
-        _profileTags = raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        _profileTags = splitTags(raw);
       }
+    } else if (_profileTags.isEmpty && user?.userData.tags.isNotEmpty == true) {
+      _profileTags = splitTags(user!.userData.tags);
     }
   }
 
@@ -2867,6 +2947,7 @@ class _GenerationPageState extends State<GenerationPage> {
     if (_hasEditedHandle || _domainController.text.trim().isNotEmpty) return;
     final user = context.read<UserStore>().user;
     final candidate = _getEmailHandleCandidate(user?.user.email) ??
+        _cleanHandleCandidate(_profileNameController.text.trim()) ??
         _cleanHandleCandidate(_draftUserData?['name'] as String?);
     if (candidate.isEmpty) return;
     _domainController.text = candidate;
@@ -2958,8 +3039,20 @@ class _GenerationPageState extends State<GenerationPage> {
         ? _profileBio.trim()
         : (data['bio']?.toString() ?? user?.userData.bio ?? '');
     final tags = _profileTags.isNotEmpty
-        ? _profileTags.join(',')
+        ? normalizeProfileTags(_profileTags).join(',')
         : (data['tags']?.toString() ?? user?.userData.tags ?? '');
+    final school = _profileSchoolController.text.trim().isNotEmpty
+        ? _profileSchoolController.text.trim()
+        : (data['school']?.toString() ?? '');
+    final degree = _profileEducationLevel.isNotEmpty
+        ? _profileEducationLevel
+        : (data['degree']?.toString() ?? '');
+    final timezone = _profileTimezone.isNotEmpty
+        ? _profileTimezone
+        : (data['timezone']?.toString() ?? user?.userData.timezone ?? '');
+    final avatarUrl = _profileAvatarUrl.isNotEmpty
+        ? _profileAvatarUrl
+        : (data['avatar_url']?.toString() ?? '');
 
     if (name.isNotEmpty) patch['name'] = name;
     if (position.isNotEmpty) patch['position'] = position;
@@ -2967,17 +3060,25 @@ class _GenerationPageState extends State<GenerationPage> {
     if (position.isNotEmpty || company.isNotEmpty) {
       patch['full_position'] = [position, company].where((e) => e.isNotEmpty).join(', ');
     }
-    if (bio.isNotEmpty) patch['bio'] = bio.length > 500 ? bio.substring(0, 500) : bio;
+    if (bio.isNotEmpty) {
+      patch['bio'] = bio.length > profileBioLimit
+          ? bio.substring(0, profileBioLimit)
+          : bio;
+    }
     if (location.isNotEmpty) patch['location'] = location;
+    if (timezone.isNotEmpty) patch['timezone'] = timezone;
     if (tags.isNotEmpty) patch['tags'] = tags;
+    if (school.isNotEmpty) patch['school'] = school;
+    if (degree.isNotEmpty) patch['degree'] = degree;
+    if (school.isNotEmpty || degree.isNotEmpty) {
+      patch['full_degree'] = [degree, school].where((e) => e.isNotEmpty).join(', ');
+    }
+    if (avatarUrl.isNotEmpty) patch['avatar_url'] = avatarUrl;
     if (_resumeUrl != null && _resumeUrl!.isNotEmpty) {
       patch['resume'] = _resumeUrl;
     }
     final email = data['email']?.toString() ?? user?.user.email;
     if (email != null && email.isNotEmpty) patch['email'] = email;
-    if (data['avatar_url'] != null) patch['avatar_url'] = data['avatar_url'];
-    if (data['school'] != null) patch['school'] = data['school'];
-    if (data['degree'] != null) patch['degree'] = data['degree'];
     return patch;
   }
 
