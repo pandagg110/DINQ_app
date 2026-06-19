@@ -19,6 +19,7 @@ import '../../theme/dinq_tokens.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/generation/onboarding/onboarding_analyze_view.dart';
 import '../../widgets/generation/onboarding/onboarding_footer.dart';
+import '../../widgets/generation/onboarding/onboarding_handle_view.dart';
 import '../../widgets/generation/onboarding/onboarding_logo_header.dart';
 import '../../widgets/generation/onboarding/onboarding_start_view.dart';
 import '../../widgets/generation/onboarding/onboarding_upload_view.dart';
@@ -53,6 +54,10 @@ class _GenerationPageState extends State<GenerationPage> {
   String? _resumeFileKey;
   int? _resumeUploadExpiresAt;
   bool _profileDraftReady = false;
+  bool _useOnboardingHandle = false;
+  bool _hasEditedHandle = false;
+  String? _handleCharWarning;
+  Map<String, dynamic>? _draftUserData;
   String? _analyzeMode; // resume | url
   int _analyzeActiveStep = 0;
   String? _analyzeError;
@@ -74,6 +79,7 @@ class _GenerationPageState extends State<GenerationPage> {
   }
   bool _isCheckingDomain = false;
   bool _isClaimingDomain = false;
+  bool _isReservingHandle = false;
   Map<String, dynamic>? _domainCheckResult;
   Timer? _domainCheckTimer;
   String? _error;
@@ -335,6 +341,41 @@ class _GenerationPageState extends State<GenerationPage> {
             onPickFile: _pickResume,
             onBack: _handleUploadBack,
             onContinue: _handleUploadContinue,
+          ),
+        ),
+      );
+    }
+
+    final isOnboardingHandle =
+        _currentStep == GenerationStep.domain && _useOnboardingHandle;
+    if (isOnboardingHandle) {
+      final domain = _domainController.text.trim();
+      final isTooShort = domain.isNotEmpty && domain.length < 3;
+      final isTaken = _domainCheckResult != null &&
+          _domainCheckResult!['available'] != true;
+      final isAvailable = _isDomainValid();
+      final suggestions = _domainCheckResult?['suggestions'] as List<dynamic>?;
+      final suggestionStrings = suggestions
+              ?.map((e) => e is String ? e : e.toString())
+              .toList() ??
+          <String>[];
+
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          child: OnboardingHandleView(
+            controller: _domainController,
+            orgName: _orgContext?.orgName,
+            isChecking: _isCheckingDomain,
+            isReserving: _isReservingHandle,
+            isTooShort: isTooShort,
+            isTaken: isTaken,
+            isAvailable: isAvailable,
+            charWarning: _handleCharWarning,
+            suggestions: suggestionStrings,
+            onChanged: _onOnboardingHandleChanged,
+            onClaim: _reserveHandleAndContinue,
+            onBack: _handleHandleBack,
           ),
         ),
       );
@@ -2532,6 +2573,7 @@ class _GenerationPageState extends State<GenerationPage> {
     }
 
     try {
+      late final Map<String, dynamic> result;
       if (_analyzeMode == 'resume') {
         if (_resumeUploadExpiresAt != null &&
             _resumeUploadExpiresAt! <= DateTime.now().millisecondsSinceEpoch) {
@@ -2542,7 +2584,7 @@ class _GenerationPageState extends State<GenerationPage> {
         if (_resumeUrl == null || _resumeFileKey == null) {
           throw Exception('Please upload a resume to continue');
         }
-        await _onboardingService.createProfileDraft(
+        result = await _onboardingService.createProfileDraft(
           sourceType: 'resume',
           fileUrl: _resumeUrl,
           fileKey: _resumeFileKey,
@@ -2552,7 +2594,7 @@ class _GenerationPageState extends State<GenerationPage> {
         if (url.isEmpty) {
           throw Exception('Please enter a valid LinkedIn or personal website URL.');
         }
-        await _onboardingService.createProfileDraft(
+        result = await _onboardingService.createProfileDraft(
           sourceType: 'url',
           url: url,
         );
@@ -2561,9 +2603,12 @@ class _GenerationPageState extends State<GenerationPage> {
       if (!mounted) return;
       setState(() {
         _profileDraftReady = true;
+        _useOnboardingHandle = true;
+        _draftUserData = result['user_data'] as Map<String, dynamic>?;
         _isAnalyzing = false;
         _currentStep = GenerationStep.domain;
       });
+      _maybePrefillHandle();
     } catch (error) {
       if (!mounted) return;
       final message = error.toString().replaceAll('Exception: ', '');
@@ -2601,11 +2646,106 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   void _handleStartManual() {
-    setState(() => _currentStep = GenerationStep.domain);
+    setState(() {
+      _useOnboardingHandle = false;
+      _currentStep = GenerationStep.domain;
+    });
   }
 
   void _handleStartSkip() {
-    setState(() => _currentStep = GenerationStep.domain);
+    setState(() {
+      _useOnboardingHandle = true;
+      _currentStep = GenerationStep.domain;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePrefillHandle());
+  }
+
+  String _cleanHandleCandidate(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final cleaned = raw
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9_-]'), '');
+    final clipped =
+        cleaned.length > 100 ? cleaned.substring(0, 100) : cleaned;
+    return clipped.length >= 3 ? clipped : '';
+  }
+
+  String _getEmailHandleCandidate(String? email) {
+    if (email == null || email.isEmpty) return '';
+    final localPart = email.split('@').first.split('+').first;
+    return _cleanHandleCandidate(localPart);
+  }
+
+  void _maybePrefillHandle() {
+    if (_hasEditedHandle || _domainController.text.trim().isNotEmpty) return;
+    final user = context.read<UserStore>().user;
+    final candidate = _getEmailHandleCandidate(user?.user.email) ??
+        _cleanHandleCandidate(_draftUserData?['name'] as String?);
+    if (candidate.isEmpty) return;
+    _domainController.text = candidate;
+    _onDomainChanged();
+  }
+
+  void _onOnboardingHandleChanged(String nextValue) {
+    _hasEditedHandle = true;
+    final sanitized = nextValue.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
+    final clipped =
+        sanitized.length > 100 ? sanitized.substring(0, 100) : sanitized;
+    setState(() {
+      _handleCharWarning = clipped != nextValue
+          ? 'Only letters, numbers, _ and - are allowed'
+          : null;
+    });
+    if (_domainController.text != clipped) {
+      _domainController.value = TextEditingValue(
+        text: clipped,
+        selection: TextSelection.collapsed(offset: clipped.length),
+      );
+    } else {
+      _onDomainChanged();
+    }
+  }
+
+  void _handleHandleBack() {
+    setState(() {
+      if (_analyzeMode == 'resume') {
+        _currentStep = GenerationStep.upload;
+      } else {
+        _currentStep = GenerationStep.start;
+      }
+    });
+  }
+
+  Future<void> _reserveHandleAndContinue() async {
+    final handle = _domainController.text.trim();
+    if (handle.isEmpty || !_isDomainValid()) return;
+    setState(() {
+      _error = null;
+      _isReservingHandle = true;
+    });
+    try {
+      await _onboardingService.reserveHandle(handle: handle);
+      final flow = await _flowService.claimDomain(domain: handle);
+      if (!mounted) return;
+      context.read<UserStore>().setMyFlow(flow);
+      setState(() {
+        _isReservingHandle = false;
+        _currentStep = GenerationStep.social;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceAll('Exception: ', '');
+      setState(() {
+        _isReservingHandle = false;
+        _domainCheckResult = {'available': false};
+      });
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to reserve handle',
+        description: message.isEmpty ? 'Failed to reserve this handle' : message,
+      );
+    }
   }
 
 }

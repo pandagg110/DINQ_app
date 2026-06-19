@@ -62,4 +62,11 @@ class OnboardingService {
     final response = await _dio.post('/onboarding/profile-draft', data: data);
     return Map<String, dynamic>.from(response.data as Map);
   }
+
+  Future<Map<String, dynamic>> reserveHandle({required String handle}) async {
+    final response = await _dio.post('/onboarding/handle-reservation', data: {
+      'handle': handle,
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
 }
