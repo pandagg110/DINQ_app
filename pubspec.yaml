@@ -88,6 +88,7 @@ flutter:
     - assets/images/
     - assets/images/analysis/
     - assets/images/generation/
+    - assets/icons/generation/onboarding/
     - assets/images/card/
     - assets/images/landing/
     - assets/images/openings/

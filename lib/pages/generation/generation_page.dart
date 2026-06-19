@@ -14,7 +14,12 @@ import '../../models/user_models.dart';
 import '../../services/flow_service.dart';
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
+import '../../theme/dinq_tokens.dart';
 import '../../utils/top_toast_util.dart';
+import '../../widgets/generation/onboarding/onboarding_footer.dart';
+import '../../widgets/generation/onboarding/onboarding_logo_header.dart';
+import '../../widgets/generation/onboarding/onboarding_start_view.dart';
+import '../../widgets/generation/onboarding/onboarding_upload_view.dart';
 
 class GenerationPage extends StatefulWidget {
   const GenerationPage({super.key});
@@ -24,7 +29,7 @@ class GenerationPage extends StatefulWidget {
 }
 
 class _GenerationPageState extends State<GenerationPage> {
-  GenerationStep _currentStep = GenerationStep.domain;
+  GenerationStep _currentStep = GenerationStep.start;
   final _domainController = TextEditingController();
   final _resumeController = TextEditingController();
   final _twitterController = TextEditingController();
@@ -47,6 +52,8 @@ class _GenerationPageState extends State<GenerationPage> {
   String? _profileUrlError; // LinkedIn URL 错误信息
   String? _profileUrlWarning; // LinkedIn URL 警告信息
   String? _uploadError; // 文件上传错误信息
+  String? _startUrlError; // Start 页 URL 校验错误
+  OnboardingOrgContext? _orgContext;
   
   static const int MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -131,7 +138,7 @@ class _GenerationPageState extends State<GenerationPage> {
   GenerationStep _getStepFromFlowStatus(String? status) {
     switch (status) {
       case 'init':
-        return GenerationStep.domain;
+        return GenerationStep.start;
       case 'domain':
         return GenerationStep.resume;
       case 'resume':
@@ -139,8 +146,20 @@ class _GenerationPageState extends State<GenerationPage> {
       case 'success':
         return GenerationStep.success;
       default:
-        return GenerationStep.domain;
+        return GenerationStep.start;
     }
+  }
+
+  /// flow 仍为 `init` 时，允许用户在 Start 内本地导航（Upload / Domain / Resume）。
+  bool _shouldSyncStepFromFlow(GenerationStep current, GenerationStep fromFlow) {
+    if (current == GenerationStep.error) return false;
+    if (current == GenerationStep.social && fromFlow == GenerationStep.resume) {
+      return false;
+    }
+    if (fromFlow == GenerationStep.start) {
+      return current == GenerationStep.start;
+    }
+    return current != fromFlow;
   }
 
   @override
@@ -154,7 +173,7 @@ class _GenerationPageState extends State<GenerationPage> {
     // 根据 flow.status 设置当前步骤
     if (myFlow != null) {
       final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
-      if (_currentStep != stepFromFlow) {
+      if (_shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
         setState(() {
           _currentStep = stepFromFlow;
         });
@@ -177,11 +196,23 @@ class _GenerationPageState extends State<GenerationPage> {
       }
     }
     
-    // 从 URL query 参数获取 domain（优先级更高）
+    // 从 URL query 参数获取 domain / handle（优先级更高）
     final query = GoRouterState.of(context).uri.queryParameters;
-    final domain = query['domain'];
+    final domain = query['domain'] ?? query['handle'];
     if (domain != null && _domainController.text.isEmpty) {
-      _domainController.text = domain;
+      final sanitized = domain.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
+      if (sanitized.isNotEmpty) {
+        _domainController.text =
+            sanitized.length > 100 ? sanitized.substring(0, 100) : sanitized;
+      }
+    }
+    final orgName = query['orgName'];
+    if (orgName != null && orgName.isNotEmpty) {
+      _orgContext = OnboardingOrgContext(
+        orgName: orgName,
+        orgLogoUrl: query['orgLogoUrl'],
+        orgMemberCount: int.tryParse(query['orgMemberCount'] ?? ''),
+      );
     }
   }
 
@@ -231,20 +262,14 @@ class _GenerationPageState extends State<GenerationPage> {
     final myFlow = userStore.myFlow;
     if (myFlow != null) {
       final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
-      // 允许用户手动跳转到 social 步骤（即使 flow status 是 'resume'）
-      // 只有在步骤不匹配且不是 error 步骤，且不是从 resume 手动跳转到 social 的情况下才强制更新
-      if (_currentStep != stepFromFlow && 
-          _currentStep != GenerationStep.error &&
-          !(_currentStep == GenerationStep.social && stepFromFlow == GenerationStep.resume)) {
-        // 使用 postFrameCallback 避免在 build 中直接 setState
+      if (_shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _currentStep != stepFromFlow &&
-              !(_currentStep == GenerationStep.social && stepFromFlow == GenerationStep.resume)) {
+          if (mounted &&
+              _shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
             final wasSuccess = _currentStep == GenerationStep.success;
             setState(() {
               _currentStep = stepFromFlow;
             });
-            // 如果步骤变为 success，启动倒计时
             if (stepFromFlow == GenerationStep.success && !wasSuccess) {
               _redirectTimer?.cancel();
               _startRedirectCountdown();
@@ -255,7 +280,72 @@ class _GenerationPageState extends State<GenerationPage> {
     }
     
     final isResult = _currentStep == GenerationStep.success || _currentStep == GenerationStep.error;
+    final isStart = _currentStep == GenerationStep.start;
+    final isUpload = _currentStep == GenerationStep.upload;
     final progress = _progressValue();
+
+    if (isUpload) {
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          child: OnboardingUploadView(
+            fileName: _resumeController.text,
+            fileSizeBytes: _resumeFileSize,
+            isUploading: _isUploading,
+            uploadProgress: _uploadProgress,
+            canContinue: _hasResume && _resumeUrl != null,
+            onPickFile: _pickResume,
+            onBack: _handleUploadBack,
+            onContinue: _handleUploadContinue,
+          ),
+        ),
+      );
+    }
+
+    if (isStart) {
+      final isMobile = MediaQuery.sizeOf(context).width < 768;
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!isMobile) const OnboardingLogoHeader(),
+                  Expanded(
+                    child: OnboardingStartView(
+                      urlController: _linkedinController,
+                      error: _startUrlError,
+                      orgContext: _orgContext,
+                      onGenerate: _handleStartGenerate,
+                      onUploadResume: _handleStartUpload,
+                      onStartManual: _handleStartManual,
+                      onSkip: _handleStartSkip,
+                      onBack: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/');
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              if (!isMobile)
+                OnboardingFixedFooter(
+                  child: _StartSkipFooter(
+                    hasOrg: _orgContext?.hasOrg == true,
+                    onSkip: _handleStartSkip,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Column(
@@ -324,6 +414,10 @@ class _GenerationPageState extends State<GenerationPage> {
 
   Widget _buildStepContent(BuildContext context) {
     switch (_currentStep) {
+      case GenerationStep.start:
+        return const SizedBox.shrink();
+      case GenerationStep.upload:
+        return const SizedBox.shrink();
       case GenerationStep.domain:
         return _buildDomainStep(context);
       case GenerationStep.resume:
@@ -1368,6 +1462,9 @@ class _GenerationPageState extends State<GenerationPage> {
     const bottomPadding = EdgeInsets.fromLTRB(24, 16, 24, 40);
 
     switch (_currentStep) {
+      case GenerationStep.start:
+      case GenerationStep.upload:
+        return const SizedBox.shrink();
       case GenerationStep.domain:
         return Padding(
           padding: bottomPadding,
@@ -1551,7 +1648,7 @@ class _GenerationPageState extends State<GenerationPage> {
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => setState(() => _currentStep = GenerationStep.domain),
+              onPressed: () => setState(() => _currentStep = GenerationStep.start),
               child: const Text('Try again'),
             ),
           ),
@@ -1561,6 +1658,9 @@ class _GenerationPageState extends State<GenerationPage> {
 
   double _progressValue() {
     switch (_currentStep) {
+      case GenerationStep.start:
+      case GenerationStep.upload:
+        return 0;
       case GenerationStep.domain:
         return 1 / 3;
       case GenerationStep.resume:
@@ -1575,6 +1675,9 @@ class _GenerationPageState extends State<GenerationPage> {
 
   String _subtitleForStep(GenerationStep step) {
     switch (step) {
+      case GenerationStep.start:
+      case GenerationStep.upload:
+        return '';
       case GenerationStep.domain:
         return 'Get your personalized DINQ Card in just a few steps.';
       case GenerationStep.resume:
@@ -1666,17 +1769,21 @@ class _GenerationPageState extends State<GenerationPage> {
       // 验证文件扩展名是否为 PDF
       final fileName = file.name.toLowerCase();
       if (!fileName.endsWith('.pdf')) {
-        setState(() {
-          _uploadError = 'Only PDF files are allowed';
-        });
+        TopToastUtil.showError(
+          context: context,
+          title: 'Invalid file',
+          description: 'Only PDF files are supported',
+        );
         return;
       }
       
       // 验证文件大小（10MB）
       if (fileSize > MAX_FILE_SIZE) {
-        setState(() {
-          _uploadError = 'File size must be less than 10MB';
-        });
+        TopToastUtil.showError(
+          context: context,
+          title: 'File too large',
+          description: 'File is larger than 10MB',
+        );
         return;
       }
       
@@ -1714,14 +1821,16 @@ class _GenerationPageState extends State<GenerationPage> {
             _hasResume = true;
             _resumeUrl = fileUrl;
           });
+          TopToastUtil.showSuccess(
+            context: context,
+            title: 'Resume uploaded',
+          );
         }
       } catch (error) {
         if (mounted) {
+          final message = error.toString().replaceAll('Exception: ', '');
           setState(() {
-            _uploadError = error.toString().replaceAll('Exception: ', '');
-            if (_uploadError!.isEmpty) {
-              _uploadError = 'Upload failed';
-            }
+            _uploadError = message.isEmpty ? 'Failed to upload resume' : message;
             _uploadProgress = 0;
             _isUploading = false;
             _hasResume = false;
@@ -1729,6 +1838,11 @@ class _GenerationPageState extends State<GenerationPage> {
             _resumeUrl = null;
             _resumeFileSize = null;
           });
+          TopToastUtil.showError(
+            context: context,
+            title: 'Upload failed',
+            description: _uploadError!,
+          );
         }
       }
     }
@@ -2253,9 +2367,101 @@ class _GenerationPageState extends State<GenerationPage> {
     }
   }
 
+  String? _normalizeImportUrl(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      final uri = Uri.parse(trimmed.startsWith('http') ? trimmed : 'https://$trimmed');
+      if (uri.scheme != 'http' && uri.scheme != 'https') return null;
+      return uri.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _handleStartGenerate() {
+    final normalized = _normalizeImportUrl(_linkedinController.text);
+    if (normalized == null) {
+      setState(() {
+        _startUrlError = 'Please enter a valid LinkedIn or personal website URL.';
+      });
+      return;
+    }
+    setState(() {
+      _startUrlError = null;
+      _linkedinController.text = normalized;
+      _currentStep = GenerationStep.resume;
+    });
+  }
+
+  void _handleStartUpload() {
+    setState(() => _currentStep = GenerationStep.upload);
+  }
+
+  void _handleUploadBack() {
+    setState(() => _currentStep = GenerationStep.start);
+  }
+
+  Future<void> _handleUploadContinue() async {
+    if (_isUploading) return;
+    if (_resumeUrl == null || !_hasResume) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Upload required',
+        description: 'Please upload a resume to continue',
+      );
+      return;
+    }
+    // 对齐 Web `/onboarding/analyze?mode=resume` → 分析简历后进入后续步骤
+    setState(() => _currentStep = GenerationStep.resume);
+    await _nextFromResume();
+  }
+
+  void _handleStartManual() {
+    setState(() => _currentStep = GenerationStep.domain);
+  }
+
+  void _handleStartSkip() {
+    setState(() => _currentStep = GenerationStep.domain);
+  }
+
 }
 
-enum GenerationStep { domain, resume, social, success, error }
+enum GenerationStep { start, upload, domain, resume, social, success, error }
+
+/// 移动端 fixed skip（桌面端由 OnboardingStartView 内联展示）。
+class _StartSkipFooter extends StatelessWidget {
+  const _StartSkipFooter({required this.hasOrg, required this.onSkip});
+
+  final bool hasOrg;
+  final VoidCallback onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
+    if (!isMobile) return const SizedBox.shrink();
+
+    return TextButton(
+      onPressed: onSkip,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Skip for now',
+            style: TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B6862),
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text('→', style: TextStyle(color: Color(0xFF6B6862))),
+        ],
+      ),
+    );
+  }
+}
 
 // 社交链接数据模型
 class SocialLink {
