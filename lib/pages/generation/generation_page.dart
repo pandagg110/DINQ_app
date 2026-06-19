@@ -12,10 +12,12 @@ import 'package:provider/provider.dart';
 
 import '../../models/user_models.dart';
 import '../../services/flow_service.dart';
+import '../../services/onboarding_service.dart';
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/top_toast_util.dart';
+import '../../widgets/generation/onboarding/onboarding_analyze_view.dart';
 import '../../widgets/generation/onboarding/onboarding_footer.dart';
 import '../../widgets/generation/onboarding/onboarding_logo_header.dart';
 import '../../widgets/generation/onboarding/onboarding_start_view.dart';
@@ -48,6 +50,12 @@ class _GenerationPageState extends State<GenerationPage> {
   int? _resumeFileSize; // 保存文件大小（字节）
   bool _hasResume = false; // 标记是否已上传简历
   String? _resumeUrl; // 保存上传后的简历 URL
+  String? _resumeFileKey;
+  int? _resumeUploadExpiresAt;
+  bool _profileDraftReady = false;
+  String? _analyzeMode; // resume | url
+  int _analyzeActiveStep = 0;
+  String? _analyzeError;
   bool _isAnalyzing = false; // 分析简历状态
   String? _profileUrlError; // LinkedIn URL 错误信息
   String? _profileUrlWarning; // LinkedIn URL 警告信息
@@ -71,6 +79,7 @@ class _GenerationPageState extends State<GenerationPage> {
   String? _error;
   final UploadService _uploadService = UploadService();
   final FlowService _flowService = FlowService();
+  final OnboardingService _onboardingService = OnboardingService();
   
   // Success 步骤倒计时
   int _redirectCountdown = 3;
@@ -150,14 +159,23 @@ class _GenerationPageState extends State<GenerationPage> {
     }
   }
 
-  /// flow 仍为 `init` 时，允许用户在 Start 内本地导航（Upload / Domain / Resume）。
+  /// flow 仍为 `init` 时，允许 Start 内的本地导航，不被 flow 同步覆盖。
   bool _shouldSyncStepFromFlow(GenerationStep current, GenerationStep fromFlow) {
     if (current == GenerationStep.error) return false;
     if (current == GenerationStep.social && fromFlow == GenerationStep.resume) {
       return false;
     }
     if (fromFlow == GenerationStep.start) {
-      return current == GenerationStep.start;
+      switch (current) {
+        case GenerationStep.start:
+        case GenerationStep.upload:
+        case GenerationStep.analyze:
+        case GenerationStep.domain:
+        case GenerationStep.resume:
+          return false;
+        default:
+          return true;
+      }
     }
     return current != fromFlow;
   }
@@ -282,7 +300,27 @@ class _GenerationPageState extends State<GenerationPage> {
     final isResult = _currentStep == GenerationStep.success || _currentStep == GenerationStep.error;
     final isStart = _currentStep == GenerationStep.start;
     final isUpload = _currentStep == GenerationStep.upload;
+    final isAnalyze = _currentStep == GenerationStep.analyze;
     final progress = _progressValue();
+
+    if (isAnalyze) {
+      return Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          child: OnboardingAnalyzeView(
+            mode: _analyzeMode ?? 'resume',
+            sourceLabel: _analyzeMode == 'resume'
+                ? (_resumeController.text.isNotEmpty
+                    ? _resumeController.text
+                    : 'Resume')
+                : _linkedinController.text.trim(),
+            activeStep: _analyzeActiveStep,
+            error: _analyzeError,
+            onRetry: _handleAnalyzeRetry,
+          ),
+        ),
+      );
+    }
 
     if (isUpload) {
       return Scaffold(
@@ -293,7 +331,7 @@ class _GenerationPageState extends State<GenerationPage> {
             fileSizeBytes: _resumeFileSize,
             isUploading: _isUploading,
             uploadProgress: _uploadProgress,
-            canContinue: _hasResume && _resumeUrl != null,
+            canContinue: _hasResume && _resumeUrl != null && _resumeFileKey != null,
             onPickFile: _pickResume,
             onBack: _handleUploadBack,
             onContinue: _handleUploadContinue,
@@ -417,6 +455,8 @@ class _GenerationPageState extends State<GenerationPage> {
       case GenerationStep.start:
         return const SizedBox.shrink();
       case GenerationStep.upload:
+        return const SizedBox.shrink();
+      case GenerationStep.analyze:
         return const SizedBox.shrink();
       case GenerationStep.domain:
         return _buildDomainStep(context);
@@ -1465,6 +1505,8 @@ class _GenerationPageState extends State<GenerationPage> {
       case GenerationStep.start:
       case GenerationStep.upload:
         return const SizedBox.shrink();
+      case GenerationStep.analyze:
+        return const SizedBox.shrink();
       case GenerationStep.domain:
         return Padding(
           padding: bottomPadding,
@@ -1660,6 +1702,7 @@ class _GenerationPageState extends State<GenerationPage> {
     switch (_currentStep) {
       case GenerationStep.start:
       case GenerationStep.upload:
+      case GenerationStep.analyze:
         return 0;
       case GenerationStep.domain:
         return 1 / 3;
@@ -1677,6 +1720,7 @@ class _GenerationPageState extends State<GenerationPage> {
     switch (step) {
       case GenerationStep.start:
       case GenerationStep.upload:
+      case GenerationStep.analyze:
         return '';
       case GenerationStep.domain:
         return 'Get your personalized DINQ Card in just a few steps.';
@@ -1702,7 +1746,8 @@ class _GenerationPageState extends State<GenerationPage> {
       if (!mounted) return;
       context.read<UserStore>().setMyFlow(flow);
       setState(() {
-        _currentStep = GenerationStep.resume;
+        _currentStep =
+            _profileDraftReady ? GenerationStep.social : GenerationStep.resume;
         _isClaimingDomain = false;
       });
     } catch (e) {
@@ -1797,34 +1842,66 @@ class _GenerationPageState extends State<GenerationPage> {
       });
       
       try {
-        final fileUrl = await _uploadService.uploadFile(
-          bytes: fileBytes,
-          filename: file.name,
-          contentType: 'application/pdf',
-          onSendProgress: (sent, total) {
-            final progress = total > 0 ? ((sent / total) * 100).round() : 0;
-            print('Upload progress: $sent / $total = $progress%');
-            if (mounted) {
-              setState(() {
-                _uploadProgress = progress;
-              });
-            }
-          },
-        );
-        print('=== Upload Success ===');
-        print('File URL: $fileUrl');
-        print('=====================');
-        if (mounted) {
-          setState(() {
-            _uploadProgress = 100;
-            _isUploading = false;
-            _hasResume = true;
-            _resumeUrl = fileUrl;
-          });
-          TopToastUtil.showSuccess(
-            context: context,
-            title: 'Resume uploaded',
+        if (_currentStep == GenerationStep.upload) {
+          final credentials = await _onboardingService.uploadResumeFile(
+            bytes: fileBytes,
+            filename: file.name,
+            onSendProgress: (sent, total) {
+              final progress = total > 0 ? ((sent / total) * 100).round() : 0;
+              if (mounted) {
+                setState(() => _uploadProgress = progress);
+              }
+            },
           );
+          final fileUrl = credentials['file_url'] as String;
+          final fileKey = credentials['file_key'] as String?;
+          final expiresAt = credentials['expires_at'] as String?;
+          if (mounted) {
+            setState(() {
+              _uploadProgress = 100;
+              _isUploading = false;
+              _hasResume = true;
+              _resumeUrl = fileUrl;
+              _resumeFileKey = fileKey;
+              _resumeUploadExpiresAt = expiresAt != null
+                  ? DateTime.parse(expiresAt).millisecondsSinceEpoch
+                  : null;
+            });
+            TopToastUtil.showSuccess(
+              context: context,
+              title: 'Resume uploaded',
+            );
+          }
+        } else {
+          final fileUrl = await _uploadService.uploadFile(
+            bytes: fileBytes,
+            filename: file.name,
+            contentType: 'application/pdf',
+            onSendProgress: (sent, total) {
+              final progress = total > 0 ? ((sent / total) * 100).round() : 0;
+              print('Upload progress: $sent / $total = $progress%');
+              if (mounted) {
+                setState(() {
+                  _uploadProgress = progress;
+                });
+              }
+            },
+          );
+          print('=== Upload Success ===');
+          print('File URL: $fileUrl');
+          print('=====================');
+          if (mounted) {
+            setState(() {
+              _uploadProgress = 100;
+              _isUploading = false;
+              _hasResume = true;
+              _resumeUrl = fileUrl;
+            });
+            TopToastUtil.showSuccess(
+              context: context,
+              title: 'Resume uploaded',
+            );
+          }
         }
       } catch (error) {
         if (mounted) {
@@ -1836,6 +1913,8 @@ class _GenerationPageState extends State<GenerationPage> {
             _hasResume = false;
             _resumeController.text = '';
             _resumeUrl = null;
+            _resumeFileKey = null;
+            _resumeUploadExpiresAt = null;
             _resumeFileSize = null;
           });
           TopToastUtil.showError(
@@ -2390,8 +2469,8 @@ class _GenerationPageState extends State<GenerationPage> {
     setState(() {
       _startUrlError = null;
       _linkedinController.text = normalized;
-      _currentStep = GenerationStep.resume;
     });
+    _beginAnalyze(mode: 'url');
   }
 
   void _handleStartUpload() {
@@ -2404,7 +2483,24 @@ class _GenerationPageState extends State<GenerationPage> {
 
   Future<void> _handleUploadContinue() async {
     if (_isUploading) return;
-    if (_resumeUrl == null || !_hasResume) {
+    if (_resumeUploadExpiresAt != null &&
+        _resumeUploadExpiresAt! <= DateTime.now().millisecondsSinceEpoch) {
+      setState(() {
+        _hasResume = false;
+        _resumeUrl = null;
+        _resumeFileKey = null;
+        _resumeUploadExpiresAt = null;
+        _resumeController.text = '';
+        _resumeFileSize = null;
+      });
+      TopToastUtil.showError(
+        context: context,
+        title: 'Upload expired',
+        description: 'Your resume upload session expired. Please upload the resume again.',
+      );
+      return;
+    }
+    if (_resumeUrl == null || _resumeFileKey == null || !_hasResume) {
       TopToastUtil.showError(
         context: context,
         title: 'Upload required',
@@ -2412,9 +2508,96 @@ class _GenerationPageState extends State<GenerationPage> {
       );
       return;
     }
-    // 对齐 Web `/onboarding/analyze?mode=resume` → 分析简历后进入后续步骤
-    setState(() => _currentStep = GenerationStep.resume);
-    await _nextFromResume();
+    await _beginAnalyze(mode: 'resume');
+  }
+
+  Future<void> _beginAnalyze({required String mode}) async {
+    setState(() {
+      _analyzeMode = mode;
+      _analyzeActiveStep = 0;
+      _analyzeError = null;
+      _currentStep = GenerationStep.analyze;
+    });
+    await _runAnalyze();
+  }
+
+  Future<void> _runAnalyze() async {
+    if (_isAnalyzing) return;
+    setState(() => _isAnalyzing = true);
+
+    for (var i = 0; i < 3; i++) {
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+      setState(() => _analyzeActiveStep = i);
+    }
+
+    try {
+      if (_analyzeMode == 'resume') {
+        if (_resumeUploadExpiresAt != null &&
+            _resumeUploadExpiresAt! <= DateTime.now().millisecondsSinceEpoch) {
+          throw Exception(
+            'Your resume upload session expired. Please upload the resume again.',
+          );
+        }
+        if (_resumeUrl == null || _resumeFileKey == null) {
+          throw Exception('Please upload a resume to continue');
+        }
+        await _onboardingService.createProfileDraft(
+          sourceType: 'resume',
+          fileUrl: _resumeUrl,
+          fileKey: _resumeFileKey,
+        );
+      } else {
+        final url = _extractUrlFromInput(_linkedinController.text.trim());
+        if (url.isEmpty) {
+          throw Exception('Please enter a valid LinkedIn or personal website URL.');
+        }
+        await _onboardingService.createProfileDraft(
+          sourceType: 'url',
+          url: url,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _profileDraftReady = true;
+        _isAnalyzing = false;
+        _currentStep = GenerationStep.domain;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      final message = error.toString().replaceAll('Exception: ', '');
+      setState(() {
+        _isAnalyzing = false;
+        _analyzeError =
+            message.isEmpty ? 'Failed to generate your profile draft' : message;
+      });
+      TopToastUtil.showError(
+        context: context,
+        title: 'Analysis Failed',
+        description: message,
+      );
+    }
+  }
+
+  void _handleAnalyzeRetry() {
+    if (_analyzeMode == 'resume') {
+      setState(() {
+        _analyzeError = null;
+        _hasResume = false;
+        _resumeUrl = null;
+        _resumeFileKey = null;
+        _resumeUploadExpiresAt = null;
+        _resumeController.text = '';
+        _resumeFileSize = null;
+        _currentStep = GenerationStep.upload;
+      });
+    } else {
+      setState(() {
+        _analyzeError = null;
+        _currentStep = GenerationStep.start;
+      });
+    }
   }
 
   void _handleStartManual() {
@@ -2427,7 +2610,7 @@ class _GenerationPageState extends State<GenerationPage> {
 
 }
 
-enum GenerationStep { start, upload, domain, resume, social, success, error }
+enum GenerationStep { start, upload, analyze, domain, resume, social, success, error }
 
 /// 移动端 fixed skip（桌面端由 OnboardingStartView 内联展示）。
 class _StartSkipFooter extends StatelessWidget {
