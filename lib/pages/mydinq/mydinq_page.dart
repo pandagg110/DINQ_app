@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_models.dart';
@@ -71,6 +72,11 @@ class _MyDinqPageState extends State<MyDinqPage> {
     );
   }
 
+  void _goBackToMainMyTab() {
+    context.read<MainStore>().showBottomNavigation();
+    context.go('/me');
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSaving = context.watch<CardStore>().isSaving;
@@ -82,6 +88,7 @@ class _MyDinqPageState extends State<MyDinqPage> {
         onTabChanged: _onTabChanged,
         isSaving: isSaving,
         onShare: _openShare,
+        onBack: _goBackToMainMyTab,
       ),
       body: IndexedStack(
         index: _tab == MyDinqTab.page ? 0 : 1,

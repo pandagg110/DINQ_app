@@ -21,14 +21,27 @@ class MainTabPage extends StatefulWidget {
 }
 
 class _MainTabPageState extends State<MainTabPage> {
-  late final PageController _pageController = PageController();
+  PageController? _pageController;
   MainTabType _currentTabType = MainTabType.search;
   String? _lastRoutePath;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final path = GoRouterState.of(context).uri.path;
+    if (_pageController == null) {
+      _currentTabType = _tabTypeForRoute(path);
+      _pageController = PageController(initialPage: _currentTabType.pageIndex);
+      _lastRoutePath = path;
+      return;
+    }
     _syncTabFromRoute();
+  }
+
+  MainTabType _tabTypeForRoute(String path) {
+    if (path == '/me') return MainTabType.me;
+    if (path == '/' || path.startsWith('/search')) return MainTabType.search;
+    return _currentTabType;
   }
 
   void _syncTabFromRoute() {
@@ -38,29 +51,48 @@ class _MainTabPageState extends State<MainTabPage> {
 
     if (path == '/' || path.startsWith('/search')) {
       _selectTab(MainTabType.search);
+    } else if (path == '/me') {
+      _selectTab(MainTabType.me);
     }
   }
 
   void _selectTab(MainTabType tabType) {
     if (_currentTabType == tabType) return;
     setState(() => _currentTabType = tabType);
-    _pageController.jumpToPage(tabType.pageIndex);
+    _jumpToTabPage(tabType.pageIndex);
+  }
+
+  void _jumpToTabPage(int pageIndex) {
+    final controller = _pageController;
+    if (controller == null) return;
+    if (controller.hasClients) {
+      controller.jumpToPage(pageIndex);
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !controller.hasClients) return;
+      controller.jumpToPage(pageIndex);
+    });
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _pageController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final mainStore = context.watch<MainStore>();
+    final pageController = _pageController;
+    if (pageController == null) {
+      return const SizedBox.shrink();
+    }
     return Stack(
       children: [
         PageView(
           physics: const NeverScrollableScrollPhysics(),
-          controller: _pageController,
+          controller: pageController,
           children: [
             KeepAliveWrapper(child: SearchPage()),
             KeepAliveWrapper(child: TalentRadarPage()),

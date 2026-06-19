@@ -34,6 +34,8 @@ class MyDinqTopBar extends AppBar {
                 onBack();
               } else if (context.canPop()) {
                 context.pop();
+              } else {
+                context.go('/me');
               }
             },
           ),
