@@ -770,7 +770,7 @@ class _FormSelect extends StatelessWidget {
               ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value.isEmpty ? null : value,
+          value: dropdownValueOrNull(value, options),
           decoration: _inputDecoration(placeholder),
           icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9E9B93)),
           items: options

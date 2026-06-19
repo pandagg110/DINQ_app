@@ -2873,14 +2873,14 @@ class _GenerationPageState extends State<GenerationPage> {
           data?['location']?.toString() ?? user?.userData.location ?? '';
     }
     if (_profileEducationLevel.isEmpty) {
-      _profileEducationLevel = data?['degree']?.toString() ??
-          draftDegree.educationLevel ??
-          '';
+      _profileEducationLevel = normalizeEducationLevel(
+        data?['degree']?.toString() ?? draftDegree.educationLevel,
+      );
     }
     if (_profileTimezone.isEmpty) {
-      _profileTimezone = data?['timezone']?.toString() ??
-          user?.userData.timezone ??
-          '';
+      _profileTimezone = normalizeOnboardingTimezone(
+        data?['timezone']?.toString() ?? user?.userData.timezone,
+      );
     }
     if (_profileAvatarUrl.isEmpty) {
       _profileAvatarUrl = data?['avatar_url']?.toString() ??
