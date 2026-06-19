@@ -22,7 +22,7 @@ class OnboardingTopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Row(
         children: [
-          _CircleBackButton(onTap: onBack),
+          OnboardingCircleBackButton(onTap: onBack),
           const SizedBox(width: 12),
           Expanded(
             child: OnboardingStepHeader(step: step, totalSteps: totalSteps),
@@ -33,8 +33,8 @@ class OnboardingTopBar extends StatelessWidget {
   }
 }
 
-class _CircleBackButton extends StatelessWidget {
-  const _CircleBackButton({required this.onTap});
+class OnboardingCircleBackButton extends StatelessWidget {
+  const OnboardingCircleBackButton({required this.onTap, super.key});
 
   final VoidCallback onTap;
 

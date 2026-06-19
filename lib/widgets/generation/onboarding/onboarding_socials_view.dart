@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../utils/card_url_validation.dart';
-import 'onboarding_footer.dart';
+import '../../../utils/onboarding_social_icons.dart';
+import 'onboarding_top_bar.dart';
 
 class OnboardingAddedLink {
   const OnboardingAddedLink({
@@ -16,15 +17,17 @@ class OnboardingAddedLink {
   final String url;
 }
 
-/// 对齐 Web `/onboarding/socials/page.tsx`。
+/// 对齐 Web `/onboarding/socials/page.tsx` 与移动端设计稿。
 class OnboardingSocialsView extends StatefulWidget {
   const OnboardingSocialsView({
     super.key,
     this.initialLinks = const [],
+    required this.onBack,
     required this.onFinish,
   });
 
   final List<OnboardingAddedLink> initialLinks;
+  final VoidCallback onBack;
   final Future<void> Function(List<OnboardingAddedLink> links) onFinish;
 
   @override
@@ -43,6 +46,9 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
 
   bool get _busy =>
       _isSubmitting || _isSkipping || _isValidating || _isCommittingEdit;
+
+  static bool _isMobile(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < 768;
 
   @override
   void initState() {
@@ -176,254 +182,302 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
     }
   }
 
-  static const _platformIcons = [
-    ('assets/icons/social-icons/Twitter.svg', 'X'),
-    ('assets/icons/social-icons/Github.svg', 'GitHub'),
-    ('assets/icons/social-icons/LinkedIn.svg', 'LinkedIn'),
-    ('assets/icons/social-icons/Youtube.svg', 'YouTube'),
-    ('assets/icons/social-icons/Instagram.svg', 'Instagram'),
-    ('assets/icons/social-icons/Medium.svg', 'Medium'),
-    ('assets/icons/social-icons/Behance.svg', 'Behance'),
-    ('assets/icons/social-icons/Substack.svg', 'Substack'),
-    ('assets/icons/social-icons/HuggingFace.svg', 'Hugging Face'),
-    ('assets/icons/social-icons/Scholar.svg', 'Scholar'),
-    ('assets/icons/social-icons/OpenReview.svg', 'OpenReview'),
-  ];
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: OnboardingCircleBackButton(onTap: widget.onBack),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Add social links',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF171717),
+              height: 1.25,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Paste a link to auto-detect the platform — more links, more visibility',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 14,
+              height: 1.5,
+              color: Color(0xFF6B6862),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-  String _iconForType(String type) {
-    switch (type.toUpperCase()) {
-      case 'LINKEDIN':
-        return 'assets/icons/social-icons/LinkedIn.svg';
-      case 'GITHUB':
-        return 'assets/icons/social-icons/Github.svg';
-      case 'TWITTER':
-        return 'assets/icons/social-icons/Twitter.svg';
-      case 'SCHOLAR':
-        return 'assets/icons/social-icons/Scholar.svg';
-      case 'OPENREVIEW':
-        return 'assets/icons/social-icons/OpenReview.svg';
-      case 'HUGGINGFACE':
-        return 'assets/icons/social-icons/HuggingFace.svg';
-      case 'MEDIUM':
-        return 'assets/icons/social-icons/Medium.svg';
-      case 'SUBSTACK':
-        return 'assets/icons/social-icons/Substack.svg';
-      case 'BEHANCE':
-        return 'assets/icons/social-icons/Behance.svg';
-      case 'INSTAGRAM':
-        return 'assets/icons/social-icons/Instagram.svg';
-      case 'YOUTUBE':
-        return 'assets/icons/social-icons/Youtube.svg';
-      default:
-        return 'assets/icons/social-icons/Link.svg';
-    }
+  Widget _buildIconGrid() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 336),
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            ...OnboardingSocialIcons.platformIconFiles.map(
+              (icon) => _PlatformIconTile(
+                asset: OnboardingSocialIcons.assetFor(icon.file),
+                label: icon.name,
+              ),
+            ),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EEE8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF9E9B93)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUrlInput() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFEEEDE9)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.link, size: 16, color: Color(0xFF9E9B93)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _newUrlController,
+                enabled: !_busy,
+                decoration: const InputDecoration(
+                  hintText: 'Paste a link to auto-detect the platform',
+                  hintStyle: TextStyle(
+                    fontFamily: 'Geist',
+                    fontSize: 14,
+                    color: Color(0x66303030),
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                style: const TextStyle(
+                  fontFamily: 'Geist',
+                  fontSize: 14,
+                  color: Color(0xFF171717),
+                ),
+                onSubmitted: (_) => _handleAdd(),
+              ),
+            ),
+            if (_isValidating)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddedList() {
+    if (_added.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Added (${_added.length})',
+            style: const TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B6862),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._added.asMap().entries.map(
+                (entry) => _AddedRow(
+                  link: entry.value,
+                  iconAsset: OnboardingSocialIcons.iconForType(entry.value.type),
+                  isEditing: _editingIndex == entry.key,
+                  editingController: _editingController,
+                  isCommittingEdit: _isCommittingEdit,
+                  onStartEdit: () => _startEdit(entry.key),
+                  onDelete: () => _handleDelete(entry.key),
+                  onCommitEdit: _commitEdit,
+                  onCancelEdit: _cancelEdit,
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    final canSubmit = _added.isNotEmpty && !_busy;
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomPad),
+      child: Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: canSubmit ? () => _finish(_added) : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canSubmit
+                    ? const Color(0xFF171717)
+                    : const Color(0xFFE5E5E5),
+                foregroundColor: canSubmit
+                    ? Colors.white
+                    : const Color(0xFF303030).withValues(alpha: 0.4),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      _isSubmitting ? 'Submitting...' : 'Submit',
+                      style: const TextStyle(
+                        fontFamily: 'Geist',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _busy ? null : () => _finish(const []),
+            child: Text(
+              _isSkipping ? 'Skipping...' : "I'll do this later",
+              style: const TextStyle(
+                fontFamily: 'Geist',
+                fontSize: 14,
+                color: Color(0xFF6B6862),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBodyContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildHeader(),
+        const SizedBox(height: 24),
+        _buildIconGrid(),
+        const SizedBox(height: 24),
+        _buildUrlInput(),
+        _buildAddedList(),
+        const SizedBox(height: 24),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final canSubmit = _added.isNotEmpty && !_busy;
+    if (_isMobile(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: _buildBodyContent(),
+            ),
+          ),
+          _buildFooter(),
+        ],
+      );
+    }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 512),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFEEEDE9)),
-                ),
-                child: const Icon(Icons.auto_fix_high, size: 20, color: Color(0xFF171717)),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 512),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(top: 24),
+                child: _buildBodyContent(),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Add social links',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF171717),
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Paste a link to auto-detect the platform — more links, more visibility',
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: Color(0xFF6B6862),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  ..._platformIcons.map(
-                    (icon) => Tooltip(
-                      message: icon.$2,
-                      child: SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: SvgPicture.asset(
-                          icon.$1,
-                          width: 40,
-                          height: 40,
-                          placeholderBuilder: (_) => Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0EEE8),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.link, size: 20, color: Color(0xFF9E9B93)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0EEE8),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF9E9B93)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Container(
-                height: 48,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFEEEDE9)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.link, size: 16, color: Color(0xFF9E9B93)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _newUrlController,
-                        enabled: !_busy,
-                        decoration: const InputDecoration(
-                          hintText: 'Paste a link to auto-detect the platform',
-                          hintStyle: TextStyle(
-                            fontSize: 14,
-                            color: Color(0x66303030),
-                          ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        style: const TextStyle(fontSize: 14, color: Color(0xFF171717)),
-                        onSubmitted: (_) => _handleAdd(),
-                      ),
-                    ),
-                    if (_isValidating)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Text(
-                  'Press Enter ↵ to add',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF9E9B93)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              OnboardingFixedFooter(
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: canSubmit ? () => _finish(_added) : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: canSubmit
-                              ? const Color(0xFF171717)
-                              : const Color(0xFFE5E5E5),
-                          foregroundColor: canSubmit
-                              ? Colors.white
-                              : const Color(0x66303030),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                _isSubmitting ? 'Continuing...' : 'Continue',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: _busy ? null : () => _finish(const []),
-                      child: Text(
-                        _isSkipping ? 'Skipping...' : "I'll do this later",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF6B6862),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_added.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Text(
-                  'Added (${_added.length})',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF6B6862),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._added.asMap().entries.map(
-                      (entry) => _AddedRow(
-                        link: entry.value,
-                        iconAsset: _iconForType(entry.value.type),
-                        isEditing: _editingIndex == entry.key,
-                        editingController: _editingController,
-                        isCommittingEdit: _isCommittingEdit,
-                        onStartEdit: () => _startEdit(entry.key),
-                        onDelete: () => _handleDelete(entry.key),
-                        onCommitEdit: _commitEdit,
-                        onCancelEdit: _cancelEdit,
-                      ),
-                    ),
-              ],
-            ],
+            ),
+            _buildFooter(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlatformIconTile extends StatelessWidget {
+  const _PlatformIconTile({required this.asset, required this.label});
+
+  final String asset;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: SvgPicture.asset(
+            asset,
+            width: 40,
+            height: 40,
+            fit: BoxFit.contain,
+            placeholderBuilder: (_) => Container(
+              color: const Color(0xFFF0EEE8),
+              child: const Icon(Icons.link, size: 20, color: Color(0xFF9E9B93)),
+            ),
           ),
         ),
       ),
@@ -457,20 +511,36 @@ class _AddedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: isEditing ? const Color(0xFFF7F6F2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEEDE9)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          SvgPicture.asset(
-            iconAsset,
-            width: 24,
-            height: 24,
-            placeholderBuilder: (_) =>
-                const Icon(Icons.link, size: 24, color: Color(0xFF6B6862)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SvgPicture.asset(
+              iconAsset,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              placeholderBuilder: (_) => Container(
+                width: 24,
+                height: 24,
+                color: const Color(0xFFF0EEE8),
+                child: const Icon(Icons.link, size: 14, color: Color(0xFF6B6862)),
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -480,8 +550,9 @@ class _AddedRow extends StatelessWidget {
                 Text(
                   link.platform,
                   style: const TextStyle(
+                    fontFamily: 'Geist',
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: Color(0xFF171717),
                   ),
                   maxLines: 1,
@@ -489,7 +560,7 @@ class _AddedRow extends StatelessWidget {
                 ),
                 if (isEditing)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: 6),
                     child: TextField(
                       controller: editingController,
                       autofocus: true,
@@ -497,24 +568,35 @@ class _AddedRow extends StatelessWidget {
                       decoration: InputDecoration(
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
+                          horizontal: 10,
+                          vertical: 8,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Color(0xFF171717)),
                         ),
                       ),
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(fontFamily: 'Geist', fontSize: 13),
                       onSubmitted: (_) => onCommitEdit(),
                     ),
                   )
                 else
-                  Text(
-                    stripUrlScheme(link.url),
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF6B6862)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      stripUrlScheme(link.url),
+                      style: const TextStyle(
+                        fontFamily: 'Geist',
+                        fontSize: 13,
+                        color: Color(0xFF6B6862),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
               ],
             ),
@@ -524,7 +606,7 @@ class _AddedRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.check, size: 18, color: Colors.green),
+                  icon: const Icon(Icons.check, size: 18, color: Color(0xFF171717)),
                   onPressed: isCommittingEdit ? null : onCommitEdit,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -536,18 +618,21 @@ class _AddedRow extends StatelessWidget {
               ],
             )
           else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF6B6862)),
-                  onPressed: onStartEdit,
-                  visualDensity: VisualDensity.compact,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF6B6862)),
+              padding: EdgeInsets.zero,
+              onSelected: (action) {
+                if (action == 'edit') onStartEdit();
+                if (action == 'delete') onDelete();
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Edit link', style: TextStyle(fontFamily: 'Geist')),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFF6B6862)),
-                  onPressed: onDelete,
-                  visualDensity: VisualDensity.compact,
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Remove', style: TextStyle(fontFamily: 'Geist')),
                 ),
               ],
             ),

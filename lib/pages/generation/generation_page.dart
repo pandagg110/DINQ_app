@@ -507,6 +507,9 @@ class _GenerationPageState extends State<GenerationPage> {
         body: SafeArea(
           child: OnboardingSocialsView(
             initialLinks: _onboardingSocialLinks,
+            onBack: () => setState(() {
+              _currentStep = GenerationStep.welcome;
+            }),
             onFinish: _finishOnboardingSocials,
           ),
         ),
