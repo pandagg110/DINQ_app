@@ -30,7 +30,7 @@ class ResumeStore extends ChangeNotifier {
     bool force = false,
     bool silent = false,
   }) async {
-    if (!force && selectedResume?.id == id && selectedResume?.status != ResumeStatus.processing) {
+    if (!force && selectedResume?.id == id) {
       return selectedResume;
     }
     if (!silent) {

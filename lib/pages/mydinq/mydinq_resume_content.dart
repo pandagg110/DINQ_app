@@ -54,6 +54,9 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
   bool _hasResolvedInitialLoad = false;
   Timer? _progressTimer;
   Timer? _pollTimer;
+  String? _progressSessionKey;
+  String? _processingPollResumeId;
+  bool _processingPollStopped = false;
 
   @override
   void initState() {
@@ -84,12 +87,12 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
     if (mounted) setState(() => _hasResolvedInitialLoad = true);
   }
 
-  void _onUploadSessionChanged() {
+  void _startUploadProgressAnimation(_UploadSession session) {
+    if (_progressSessionKey == session.fileName && _progressTimer?.isActive == true) {
+      return;
+    }
+    _progressSessionKey = session.fileName;
     _progressTimer?.cancel();
-    _pollTimer?.cancel();
-    final session = _uploadSession;
-    if (session == null) return;
-
     final startedAt = DateTime.now();
     _progressTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (!mounted || _uploadSession != session) return;
@@ -101,17 +104,58 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
         session.secondsLeft = sLeft == 0 ? 1 : sLeft;
       });
     });
-
-    if (session.phase == UploadPhase.processing && session.createdResumeId != null) {
-      _startProcessingPoll(session);
-    }
   }
 
-  void _startProcessingPoll(_UploadSession session) {
+  bool _isResumeReady(ResumeStore store, String resumeId, ResumeItem? detail) {
+    if (detail?.status == ResumeStatus.ready) return true;
+    for (final item in store.resumes) {
+      if (item.id == resumeId && item.status == ResumeStatus.ready) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _completeUploadSession(_UploadSession session, String resumeId) async {
+    _processingPollStopped = true;
+    _pollTimer?.cancel();
+    _progressTimer?.cancel();
+    _processingPollResumeId = null;
+    _progressSessionKey = null;
+    if (!mounted) return;
+    setState(() {
+      session.progress = 100;
+      session.secondsLeft = 0;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    try {
+      await context.read<ResumeStore>().selectResume(resumeId);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _uploadSession = null);
+    TopToastUtil.showSuccess(context: context, title: 'Resume uploaded');
+  }
+
+  void _startProcessingPoll(String resumeId) {
+    if (resumeId.isEmpty) return;
+    if (_processingPollResumeId == resumeId &&
+        _pollTimer?.isActive == true &&
+        !_processingPollStopped) {
+      return;
+    }
+    _processingPollResumeId = resumeId;
+    _processingPollStopped = false;
+    _pollTimer?.cancel();
+
     var attempts = 0;
-    final resumeId = session.createdResumeId!;
     Future<void> tick() async {
-      if (!mounted || _uploadSession != session || session.cancelToken.isCancelled) {
+      final session = _uploadSession;
+      if (!mounted ||
+          _processingPollStopped ||
+          session == null ||
+          session.createdResumeId != resumeId ||
+          session.cancelToken.isCancelled) {
         return;
       }
       attempts++;
@@ -122,21 +166,32 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
           force: true,
           silent: true,
         );
-        if (!mounted || _uploadSession != session) return;
-        if (refreshed?.status == ResumeStatus.ready) {
-          setState(() {
-            session.progress = 100;
-            session.secondsLeft = 0;
-          });
-          await Future<void>.delayed(const Duration(milliseconds: 300));
-          if (!mounted) return;
-          setState(() => _uploadSession = null);
-          TopToastUtil.showSuccess(context: context, title: 'Resume uploaded');
+        if (!mounted ||
+            _processingPollStopped ||
+            _uploadSession != session ||
+            session.createdResumeId != resumeId) {
+          return;
+        }
+        if (_isResumeReady(store, resumeId, refreshed)) {
+          await _completeUploadSession(session, resumeId);
           return;
         }
       } catch (_) {}
-      if (attempts >= _statusPollMaxAttempts && mounted && _uploadSession == session) {
+      if (attempts >= _statusPollMaxAttempts &&
+          mounted &&
+          _uploadSession == session &&
+          !_processingPollStopped) {
+        _processingPollStopped = true;
+        _pollTimer?.cancel();
+        _progressTimer?.cancel();
+        _progressSessionKey = null;
+        _processingPollResumeId = null;
         setState(() => _uploadSession = null);
+        try {
+          await context.read<ResumeStore>().selectResume(resumeId);
+        } catch (_) {}
+        if (!mounted) return;
+        _startAmbientProcessingPoll(resumeId);
         TopToastUtil.showSuccess(
           context: context,
           title: "Still processing — we'll keep checking in the background.",
@@ -233,7 +288,7 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
       _uploadSession = session;
       _isResumeListOpen = false;
     });
-    _onUploadSessionChanged();
+    _startUploadProgressAnimation(session);
 
     try {
       final bytes = await file.readAsBytes();
@@ -262,12 +317,26 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
         await store.deleteResume(created.id);
         return;
       }
-      session.phase = UploadPhase.processing;
-      session.createdResumeId = created.id;
-      _onUploadSessionChanged();
+      if (created.id.isEmpty) {
+        throw Exception('Resume was created without a valid id');
+      }
+      setState(() {
+        session.phase = UploadPhase.processing;
+        session.createdResumeId = created.id;
+      });
+      if (created.status == ResumeStatus.ready) {
+        await _completeUploadSession(session, created.id);
+        return;
+      }
+      _startProcessingPoll(created.id);
     } catch (e) {
       if (token.isCancelled || _uploadSession != session) return;
       if (!mounted) return;
+      _processingPollStopped = true;
+      _processingPollResumeId = null;
+      _progressSessionKey = null;
+      _progressTimer?.cancel();
+      _pollTimer?.cancel();
       setState(() => _uploadSession = null);
       TopToastUtil.showError(
         context: context,
@@ -280,6 +349,9 @@ class _MyDinqResumeContentState extends State<MyDinqResumeContent> {
     final session = _uploadSession;
     if (session == null) return;
     session.cancelToken.cancel();
+    _processingPollStopped = true;
+    _processingPollResumeId = null;
+    _progressSessionKey = null;
     setState(() => _uploadSession = null);
     _progressTimer?.cancel();
     _pollTimer?.cancel();
