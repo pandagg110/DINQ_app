@@ -20,7 +20,7 @@ const _suggestedTags = [
   'Infra',
 ];
 
-/// 对齐 Web `/onboarding/profile/expertise/page.tsx`。
+/// 对齐 Web `/onboarding/profile/expertise/page.tsx`；移动端底栏同 Profile Details。
 class OnboardingProfileExpertiseView extends StatefulWidget {
   const OnboardingProfileExpertiseView({
     super.key,
@@ -62,6 +62,9 @@ class _OnboardingProfileExpertiseViewState
     extends State<OnboardingProfileExpertiseView> {
   final _customTagController = TextEditingController();
   late TextEditingController _bioController;
+
+  static bool _isMobile(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < 768;
 
   @override
   void initState() {
@@ -121,18 +124,20 @@ class _OnboardingProfileExpertiseViewState
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildForm(BuildContext context) {
     final tags = normalizeProfileTags(widget.tags);
+    final titleSize = _isMobile(context) ? 28.0 : 32.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
+        Text(
           'Detailed profile',
           style: TextStyle(
             fontFamily: 'Geist',
-            fontSize: 28,
+            fontSize: titleSize,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF171717),
+            color: const Color(0xFF171717),
             height: 1.2,
           ),
         ),
@@ -160,42 +165,20 @@ class _OnboardingProfileExpertiseViewState
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _suggestedTags.map((tag) {
-            final active = tags.contains(tag);
-            final disabled = !active && tags.length >= profileTagLimit;
-            return Material(
-              color: active ? const Color(0xFF171717) : Colors.white,
-              borderRadius: BorderRadius.circular(999),
-              child: InkWell(
-                onTap: disabled ? null : () => _toggleTag(tag),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: active
-                          ? const Color(0xFF171717)
-                          : const Color(0xFFEEEDE9),
-                    ),
-                  ),
-                  child: Text(
-                    tag,
-                    style: TextStyle(
-                      fontFamily: 'Geist',
-                      fontSize: 14,
-                      color: active ? Colors.white : const Color(0xFF6B6862),
-                    ),
-                  ),
-                ),
+          alignment: WrapAlignment.start,
+          children: [
+            for (final tag in _suggestedTags)
+              _SuggestedTagChip(
+                label: tag,
+                active: tags.contains(tag),
+                disabled: !tags.contains(tag) && tags.length >= profileTagLimit,
+                onTap: () => _toggleTag(tag),
               ),
-            );
-          }).toList(),
+          ],
         ),
         const SizedBox(height: 12),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: TextField(
@@ -239,8 +222,12 @@ class _OnboardingProfileExpertiseViewState
                   backgroundColor: const Color(0xFFF7F6F2),
                   side: const BorderSide(color: Color(0xFFEEEDE9)),
                   foregroundColor: const Color(0xFF6B6862),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
-                child: const Text('Add'),
+                child: const Text(
+                  'Add',
+                  style: TextStyle(fontFamily: 'Geist', fontSize: 14),
+                ),
               ),
             ),
           ],
@@ -272,6 +259,10 @@ class _OnboardingProfileExpertiseViewState
                 'A concise intro about your work, focus, and current interests.',
             filled: true,
             fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
@@ -303,55 +294,104 @@ class _OnboardingProfileExpertiseViewState
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.sizeOf(context).width >= 768;
-    if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    if (_isMobile(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          OnboardingTopBar(step: 2, onBack: widget.onBack),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(56, 64, 56, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  OnboardingTopBar(step: 2, onBack: widget.onBack),
-                  const SizedBox(height: 32),
-                  _buildForm(),
-                  const SizedBox(height: 32),
-                  OnboardingDualActionFooter(
-                    onBack: widget.onBack,
-                    onContinue: widget.onContinue,
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+              child: _buildForm(context),
             ),
           ),
-          Expanded(
-            child: Container(
-              color: const Color(0xFFFAFAFA),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 64),
-              child: Center(child: _buildPreview()),
-            ),
-          ),
+          OnboardingContinueButton(onPressed: widget.onContinue),
         ],
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OnboardingTopBar(step: 2, onBack: widget.onBack),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-            child: _buildForm(),
+            padding: const EdgeInsets.fromLTRB(56, 64, 56, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OnboardingTopBar(step: 2, onBack: widget.onBack),
+                const SizedBox(height: 32),
+                _buildForm(context),
+                const SizedBox(height: 32),
+                OnboardingDualActionFooter(
+                  onBack: widget.onBack,
+                  onContinue: widget.onContinue,
+                  continueLabel: 'Continue →',
+                ),
+              ],
+            ),
           ),
         ),
-        OnboardingDualActionFooter(
-          onBack: widget.onBack,
-          onContinue: widget.onContinue,
+        Expanded(
+          child: Container(
+            color: const Color(0xFFFAFAFA),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 64),
+            child: Center(child: _buildPreview()),
+          ),
         ),
       ],
+    );
+  }
+}
+
+/// 对齐 Web `flex flex-wrap gap-2` 药丸标签，宽度随内容收缩。
+class _SuggestedTagChip extends StatelessWidget {
+  const _SuggestedTagChip({
+    required this.label,
+    required this.active,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final decoration = BoxDecoration(
+      color: active ? const Color(0xFF171717) : Colors.white,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(
+        color: active ? const Color(0xFF171717) : const Color(0xFFEEEDE9),
+      ),
+    );
+
+    return Opacity(
+      opacity: disabled ? 0.45 : 1,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: disabled ? null : onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            decoration: decoration,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Geist',
+                  fontSize: 14,
+                  height: 1.2,
+                  color: active ? Colors.white : const Color(0xFF6B6862),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

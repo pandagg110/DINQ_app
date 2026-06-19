@@ -1,5 +1,52 @@
 import 'package:flutter/material.dart';
 
+/// 移动端底栏：仅 Continue（对齐 Profile Details / Upload）。
+class OnboardingContinueButton extends StatelessWidget {
+  const OnboardingContinueButton({
+    super.key,
+    required this.onPressed,
+    this.label = 'Continue',
+  });
+
+  final VoidCallback? onPressed;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + bottomPad),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                enabled ? const Color(0xFF171717) : const Color(0xFFE5E5E5),
+            foregroundColor: enabled
+                ? Colors.white
+                : const Color(0xFF303030).withValues(alpha: 0.4),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 对齐 Web `OnboardingFooter.tsx`：Back + Continue 双按钮底栏。
 class OnboardingDualActionFooter extends StatelessWidget {
   const OnboardingDualActionFooter({

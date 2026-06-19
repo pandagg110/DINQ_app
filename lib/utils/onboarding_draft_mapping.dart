@@ -16,7 +16,7 @@ const onboardingTimezones = [
   'UTC-05:00 Eastern Time',
   'UTC+00:00 London',
   'UTC+01:00 Central Europe',
-  'UTC+08:00 China',
+  'UTC+8 Beijing/Shanghai',
   'UTC+09:00 Japan/Korea',
 ];
 
