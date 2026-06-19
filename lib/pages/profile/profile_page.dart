@@ -322,9 +322,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                 FloatingToolbar(
                   isMobile: true,
                   isSaving: _cardStore!.isSaving,
-                  username: widget.username,
-                  userData: _userData,
-                  cards: _cardStore!.cards,
                 ),
             ],
           ],

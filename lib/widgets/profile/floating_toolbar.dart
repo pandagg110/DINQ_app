@@ -14,31 +14,16 @@ import '../cards/factory/card_registry.dart';
 import '../cards/factory/definitions/index.dart' show isSocialCard;
 import '../common/add_card_dialog.dart';
 import '../common/confirm_dialog.dart';
-import '../../models/card_models.dart';
-import '../../models/user_models.dart';
-import 'share_profile_dialog.dart';
 
 class FloatingToolbar extends StatefulWidget {
   const FloatingToolbar({
     super.key,
     this.isMobile = false,
     this.isSaving = false,
-    this.username,
-    this.userData,
-    this.cards,
   });
 
   final bool isMobile;
   final bool isSaving;
-
-  /// 当前 Profile 的 username，用于分享弹框
-  final String? username;
-
-  /// 当前 Profile 的 userData，用于分享弹框
-  final UserData? userData;
-
-  /// 当前 Profile 的卡片列表，用于分享弹框中的 Card 预览
-  final List<CardItem>? cards;
 
   @override
   State<FloatingToolbar> createState() => _FloatingToolbarState();
@@ -177,7 +162,6 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
         offset: Offset(0, -8),
       ),
       child: Container(
-        width: 300,
         height: 56,
         decoration: BoxDecoration(
           color: const Color(0xFF171717),
@@ -199,16 +183,6 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Share Button (Leftmost section)
-              _buildShareButton(),
-
-              const SizedBox(width: 16),
-
-              _buildDivider(),
-
-              const SizedBox(width: 16),
-
-              // Middle Action Buttons (Central section)
               _buildImageIconButton(
                 iconPath: 'icons/mydinq/add.png',
                 onTap: () async {
@@ -458,46 +432,6 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showShareDialog() {
-    final username = widget.username;
-    final userData = widget.userData;
-    if (username == null || username.isEmpty || userData == null) return;
-    ShareProfileDialog.show(
-      context: context,
-      username: username,
-      userData: userData,
-      cards: widget.cards,
-    );
-  }
-
-  Widget _buildShareButton() {
-    return Container(
-      width: 48,
-      height: 32,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _showShareDialog,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-            child: const Center(
-              child: Text(
-                'Share',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white,
-                ),
-              ),
             ),
           ),
         ),
