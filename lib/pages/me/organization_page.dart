@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
@@ -31,7 +32,7 @@ class _OrganizationPageState extends State<OrganizationPage> {
       _error = null;
     });
     try {
-      final orgs = await _service.getOrganizations();
+      final orgs = await _service.getMyOrganizations();
       if (!mounted) return;
       setState(() {
         _orgs = orgs;
@@ -100,7 +101,11 @@ class _OrganizationPageState extends State<OrganizationPage> {
     final role = (o['role'] ?? o['my_role'] ?? '').toString();
     final members = (o['member_count'] ?? o['members'] ?? '').toString();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    return Container(
+    final pending = int.tryParse((o['pending_request_count'] ?? '0').toString()) ?? 0;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.push('/me/organization/detail', extra: o),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -146,8 +151,21 @@ class _OrganizationPageState extends State<OrganizationPage> {
               ],
             ),
           ),
+          if (pending > 0)
+            Container(
+              margin: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE24B3C),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text('$pending',
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+            ),
           const Icon(Icons.chevron_right_rounded, color: DinqTokens.textTertiary),
         ],
+      ),
       ),
     );
   }

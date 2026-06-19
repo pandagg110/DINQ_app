@@ -55,6 +55,7 @@ import '../pages/web_view_page.dart';
 import '../pages/me/invite_page.dart';
 import '../pages/me/api_keys_page.dart';
 import '../pages/me/organization_page.dart';
+import '../pages/me/organization_detail_page.dart';
 import '../pages/me/integration_page.dart';
 import '../pages/me/resume_page.dart';
 import '../stores/user_store.dart';
@@ -253,6 +254,12 @@ class AppRouter {
         GoRoute(
           path: '/me/organization',
           builder: (context, state) => const OrganizationPage(),
+        ),
+        GoRoute(
+          path: '/me/organization/detail',
+          builder: (context, state) => OrganizationDetailPage(
+            org: Map<String, dynamic>.from(state.extra as Map? ?? const {}),
+          ),
         ),
         GoRoute(
           path: '/me/integration',
