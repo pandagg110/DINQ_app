@@ -2,6 +2,7 @@
 # This is a generated file; do not edit or check into version control.
 export "FLUTTER_ROOT=F:\Flutter"
 export "FLUTTER_APPLICATION_PATH=F:\DIY\DINQ_app"
+export "FLUTTER_FRAMEWORK_SWIFT_PACKAGE_PATH=F:\DIY\DINQ_app\macos\Flutter\ephemeral\Packages\.packages\FlutterFramework"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=0.1.0"
