@@ -64,6 +64,45 @@ class AccountService {
     return const [];
   }
 
+  /// GET /org/my — 我加入/创建的组织（含 role、member_count、pending_request_count）
+  Future<List<dynamic>> getMyOrganizations() async {
+    final resp = await _dio.get('/org/my');
+    final data = resp.data;
+    if (data is List) return data;
+    if (data is Map && data['organizations'] is List) return data['organizations'] as List;
+    return const [];
+  }
+
+  /// GET /orgs/{id}/members — 成员列表
+  Future<List<dynamic>> getOrgMembers(String id) async {
+    final resp = await _dio.get('/orgs/$id/members');
+    final data = resp.data;
+    if (data is List) return data;
+    if (data is Map && data['members'] is List) return data['members'] as List;
+    return const [];
+  }
+
+  /// POST /orgs/{id}/refresh-invite — 刷新邀请码（旧链接立即失效）。需 admin/owner。
+  Future<String> refreshOrgInvite(String id) async {
+    final resp = await _dio.post('/orgs/$id/refresh-invite');
+    final data = resp.data;
+    return (data is Map ? data['invite_code'] : '')?.toString() ?? '';
+  }
+
+  /// GET /orgs/{id}/requests — 入组申请列表（默认 pending）。需 admin/owner。
+  Future<List<dynamic>> getOrgJoinRequests(String id, {String status = 'pending'}) async {
+    final resp = await _dio.get('/orgs/$id/requests', queryParameters: {'status': status});
+    final data = resp.data;
+    if (data is List) return data;
+    if (data is Map && data['requests'] is List) return data['requests'] as List;
+    return const [];
+  }
+
+  /// POST /orgs/{id}/requests/{rid} — 审批入组申请。action: approved / rejected。
+  Future<void> reviewOrgJoinRequest(String id, String rid, String action) async {
+    await _dio.post('/orgs/$id/requests/$rid', data: {'action': action});
+  }
+
   // ============== 简历 / Resume ==============
 
   /// GET /resumes — 简历列表
