@@ -1,15 +1,116 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../services/task_service.dart';
+import '../../stores/user_store.dart';
 import '../../theme/dinq_icons.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
 
-/// Talent Radar Tab（持续找人）空状态。
-/// 1:1 还原 `my_first_app` 的 `_TasksPageOverlay` 空状态：
-/// 产品说明 pill + 标语 + 创建入口 + 三步引导。
-/// 命名按《DINQ Page 命名口径》统一为 Talent Radar。
-class TalentRadarPage extends StatelessWidget {
+/// Talent Radar Tab（持续找人）。
+/// 无 Radar 时显示空状态（还原 my_first_app `_TasksPageOverlay`）；
+/// 有 Radar 时显示卡片列表（还原 my_first_app `_TaskCard`：状态徽章 +
+/// SCANNED / HIGH MATCH / RESULTS 指标 + new today），支持暂停/恢复/删除。
+/// 接口走 TaskService（/tasks）。
+class TalentRadarPage extends StatefulWidget {
   const TalentRadarPage({super.key});
+
+  @override
+  State<TalentRadarPage> createState() => _TalentRadarPageState();
+}
+
+class _TalentRadarPageState extends State<TalentRadarPage> {
+  final _service = TaskService();
+  List<dynamic> _tasks = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWhenReady();
+  }
+
+  Future<void> _loadWhenReady() async {
+    // 等登录态就绪再拉数据，避免 401
+    for (var i = 0; i < 40; i++) {
+      if (!mounted) return;
+      if (context.read<UserStore>().isLoggedIn()) break;
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    await _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final tasks = await _service.listTasks();
+      if (!mounted) return;
+      setState(() {
+        _tasks = tasks;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _showActions(Map<String, dynamic> task) async {
+    final id = (task['id'] ?? '').toString();
+    final status = (task['status'] ?? '').toString();
+    final isPaused = status == 'paused';
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: DinqTokens.bgCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+              title: Text(isPaused ? 'Resume' : 'Pause'),
+              onTap: () => Navigator.pop(ctx, isPaused ? 'resume' : 'pause'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
+              title: const Text('Delete', style: TextStyle(color: Color(0xFFDC2626))),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+    try {
+      switch (action) {
+        case 'pause':
+          await _service.pauseTask(id);
+          break;
+        case 'resume':
+          await _service.resumeTask(id);
+          break;
+        case 'delete':
+          await _service.deleteTask(id);
+          break;
+      }
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,130 +119,189 @@ class TalentRadarPage extends StatelessWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final double s = constraints.maxWidth / 430;
+          if (_loading) {
+            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          }
+          if (_error != null) {
+            return _errorView();
+          }
           return SafeArea(
             bottom: false,
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(16 * s, 12 * s, 16 * s, 104 * s),
-              child: Column(
+            child: _tasks.isEmpty ? _emptyState(s) : _list(s),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _errorView() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Failed to load', style: TextStyle(color: DinqTokens.textTertiary)),
+          const SizedBox(height: 12),
+          TextButton(onPressed: _load, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+
+  // ============== 有数据：列表 ==============
+  Widget _list(double s) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: EdgeInsets.fromLTRB(16 * s, 12 * s, 16 * s, 104 * s),
+        children: [
+          _PageHeaderTitle(scale: s, title: 'Talent Radar'),
+          SizedBox(height: 16 * s),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onCreate,
+            child: Container(
+              width: double.infinity,
+              height: 48 * s,
+              decoration: BoxDecoration(
+                color: DinqTokens.textPrimary,
+                borderRadius: BorderRadius.circular(12 * s),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _PageHeaderTitle(scale: s, title: 'Talent Radar'),
-                  SizedBox(height: 34 * s),
-                  // 产品说明 pill
-                  Container(
-                    height: 32 * s,
-                    padding: EdgeInsets.symmetric(horizontal: 14 * s),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0EFEB),
-                      borderRadius: BorderRadius.circular(999 * s),
-                      border: Border.all(color: const Color(0xFFE6E5E0)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        DinqSvgIcon(
-                          assetName: DinqIcons.matchSpark,
-                          size: 14 * s,
-                          color: DinqTokens.textSecondary,
-                        ),
-                        SizedBox(width: 8 * s),
-                        Text(
-                          'Automated Recruiting Assistant',
-                          style: TextStyle(
-                            fontSize: 12 * s,
-                            height: 18 / 12,
-                            fontWeight: FontWeight.w600,
-                            color: DinqTokens.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+                  DinqSvgIcon(assetName: DinqIcons.plus, size: 16 * s, color: DinqTokens.bgCard),
+                  SizedBox(width: 10 * s),
+                  Text('Create Radar',
+                      style: TextStyle(
+                        fontSize: 15 * s,
+                        fontWeight: FontWeight.w600,
+                        color: DinqTokens.bgCard,
+                      )),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16 * s),
+          for (final t in _tasks)
+            Padding(
+              padding: EdgeInsets.only(bottom: 12 * s),
+              child: _RadarCard(
+                scale: s,
+                task: Map<String, dynamic>.from(t as Map),
+                onMore: () => _showActions(Map<String, dynamic>.from(t)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _onCreate() {
+    // TODO(radar-create): 创建 Radar 流程（自然语言需求 → AI 细化 → 启动）。
+    // 设计已就绪，作为 6.25 P2 后续；当前先占位提示。
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Create Radar — coming soon')),
+    );
+  }
+
+  // ============== 无数据：空状态（还原 _TasksPageOverlay）==============
+  Widget _emptyState(double s) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(16 * s, 12 * s, 16 * s, 104 * s),
+      child: Column(
+        children: [
+          _PageHeaderTitle(scale: s, title: 'Talent Radar'),
+          SizedBox(height: 34 * s),
+          Container(
+            height: 32 * s,
+            padding: EdgeInsets.symmetric(horizontal: 14 * s),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0EFEB),
+              borderRadius: BorderRadius.circular(999 * s),
+              border: Border.all(color: const Color(0xFFE6E5E0)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DinqSvgIcon(
+                  assetName: DinqIcons.matchSpark,
+                  size: 14 * s,
+                  color: DinqTokens.textSecondary,
+                ),
+                SizedBox(width: 8 * s),
+                Text(
+                  'Automated Recruiting Assistant',
+                  style: TextStyle(
+                    fontSize: 12 * s,
+                    height: 18 / 12,
+                    fontWeight: FontWeight.w600,
+                    color: DinqTokens.textSecondary,
                   ),
-                  SizedBox(height: 28 * s),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 28 * s),
+          Text(
+            "Tell us who you need,\nwe'll handle the rest.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 30 * s,
+              height: 37 / 30,
+              letterSpacing: -0.8 * s,
+              fontWeight: FontWeight.w600,
+              color: DinqTokens.textPrimary,
+            ),
+          ),
+          SizedBox(height: 12 * s),
+          Text(
+            'Scheduled scans, results sent to your inbox.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15 * s,
+              height: 24 / 15,
+              fontWeight: FontWeight.w500,
+              color: DinqTokens.textSecondary,
+            ),
+          ),
+          SizedBox(height: 24 * s),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onCreate,
+            child: Container(
+              width: double.infinity,
+              height: 56 * s,
+              decoration: BoxDecoration(
+                color: DinqTokens.textPrimary,
+                borderRadius: BorderRadius.circular(12 * s),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DinqSvgIcon(assetName: DinqIcons.plus, size: 18 * s, color: DinqTokens.bgCard),
+                  SizedBox(width: 12 * s),
                   Text(
-                    "Tell us who you need,\nwe'll handle the rest.",
-                    textAlign: TextAlign.center,
+                    'Create Your First Radar',
                     style: TextStyle(
-                      fontSize: 30 * s,
-                      height: 37 / 30,
-                      letterSpacing: -0.8 * s,
+                      fontSize: 16 * s,
+                      height: 22 / 16,
                       fontWeight: FontWeight.w600,
-                      color: DinqTokens.textPrimary,
+                      color: DinqTokens.bgCard,
                     ),
-                  ),
-                  SizedBox(height: 12 * s),
-                  Text(
-                    'Scheduled scans, results sent to your inbox.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15 * s,
-                      height: 24 / 15,
-                      fontWeight: FontWeight.w500,
-                      color: DinqTokens.textSecondary,
-                    ),
-                  ),
-                  SizedBox(height: 24 * s),
-                  // 创建入口
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      // TODO(radar-create): 创建 Radar 流程（设计待补）
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: 56 * s,
-                      decoration: BoxDecoration(
-                        color: DinqTokens.textPrimary,
-                        borderRadius: BorderRadius.circular(12 * s),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          DinqSvgIcon(
-                            assetName: DinqIcons.plus,
-                            size: 18 * s,
-                            color: DinqTokens.bgCard,
-                          ),
-                          SizedBox(width: 12 * s),
-                          Text(
-                            'Create Your First Radar',
-                            style: TextStyle(
-                              fontSize: 16 * s,
-                              height: 22 / 16,
-                              fontWeight: FontWeight.w600,
-                              color: DinqTokens.bgCard,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 20 * s),
-                  _StepCard(
-                    scale: s,
-                    step: '1',
-                    title: 'Describe',
-                    subtitle: 'Describe the role in plain language.',
-                  ),
-                  SizedBox(height: 12 * s),
-                  _StepCard(
-                    scale: s,
-                    step: '2',
-                    title: 'Auto Scan',
-                    subtitle: 'Radar runs 24/7 across platforms.',
-                  ),
-                  SizedBox(height: 12 * s),
-                  _StepCard(
-                    scale: s,
-                    step: '3',
-                    title: 'Get Notified',
-                    subtitle: 'Matches delivered to your inbox daily.',
                   ),
                 ],
               ),
             ),
-          );
-        },
+          ),
+          SizedBox(height: 20 * s),
+          _StepCard(scale: s, step: '1', title: 'Describe', subtitle: 'Describe the role in plain language.'),
+          SizedBox(height: 12 * s),
+          _StepCard(scale: s, step: '2', title: 'Auto Scan', subtitle: 'Radar runs 24/7 across platforms.'),
+          SizedBox(height: 12 * s),
+          _StepCard(scale: s, step: '3', title: 'Get Notified', subtitle: 'Matches delivered to your inbox daily.'),
+        ],
       ),
     );
   }
@@ -171,6 +331,212 @@ class _PageHeaderTitle extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Radar 卡片（还原 my_first_app `_TaskCard`）。
+class _RadarCard extends StatelessWidget {
+  const _RadarCard({required this.scale, required this.task, required this.onMore});
+
+  final double scale;
+  final Map<String, dynamic> task;
+  final VoidCallback onMore;
+
+  int _int(String key) => int.tryParse((task[key] ?? '0').toString()) ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = scale;
+    final prompt = (task['prompt'] ?? task['name'] ?? 'Talent search').toString();
+    final status = (task['status'] ?? 'pending').toString();
+    final scanned = _int('scanned_candidates');
+    final highMatch = _int('high_match_candidates');
+    final results = _int('result_count') != 0 ? _int('result_count') : _int('results_count');
+    final todayNew = _int('today_new_candidates');
+    final sb = _statusStyle(status);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPress: onMore,
+      child: Container(
+        padding: EdgeInsets.all(16 * s),
+        decoration: BoxDecoration(
+          color: DinqTokens.bgCard,
+          borderRadius: BorderRadius.circular(16 * s),
+          border: Border.all(color: DinqTokens.borderL),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 顶部：Talent search pill + 状态徽章 + more
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 5 * s),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F4),
+                    borderRadius: BorderRadius.circular(36 * s),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.radar_rounded, size: 13 * s, color: const Color(0xFF57534E)),
+                      SizedBox(width: 5 * s),
+                      Text('Talent search',
+                          style: TextStyle(
+                            fontSize: 11 * s,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF57534E),
+                          )),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 4 * s),
+                  decoration: BoxDecoration(
+                    color: sb.bg,
+                    borderRadius: BorderRadius.circular(36 * s),
+                  ),
+                  child: Text(sb.label,
+                      style: TextStyle(
+                        fontSize: 11 * s,
+                        fontWeight: FontWeight.w600,
+                        color: sb.fg,
+                      )),
+                ),
+                SizedBox(width: 4 * s),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onMore,
+                  child: Icon(Icons.more_horiz_rounded, size: 20 * s, color: DinqTokens.textTertiary),
+                ),
+              ],
+            ),
+            SizedBox(height: 12 * s),
+            // 标题 + new today
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(prompt,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 17 * s,
+                        height: 22 / 17,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1C1917),
+                      )),
+                ),
+                if (todayNew > 0) ...[
+                  SizedBox(width: 8 * s),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 3 * s),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(4 * s),
+                      border: Border.all(color: const Color(0xFFFEE2E2)),
+                    ),
+                    child: Text('+$todayNew new today',
+                        style: TextStyle(
+                          fontSize: 11 * s,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFDC2626),
+                        )),
+                  ),
+                ],
+              ],
+            ),
+            SizedBox(height: 12 * s),
+            // 指标行
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 12 * s),
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Color(0xFFF5F5F4)),
+                  bottom: BorderSide(color: Color(0xFFF5F5F4)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: _Metric(scale: s, label: 'SCANNED', value: '$scanned')),
+                  _Divider(scale: s),
+                  Expanded(child: _Metric(scale: s, label: 'HIGH MATCH', value: '$highMatch')),
+                  _Divider(scale: s),
+                  Expanded(child: _Metric(scale: s, label: 'RESULTS', value: '$results')),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _StatusStyle _statusStyle(String status) {
+    switch (status) {
+      case 'active':
+      case 'running':
+      case 'scheduled':
+      case 'pending':
+        return const _StatusStyle('Active', Color(0xFF16803D), Color(0xFFDCFCE7));
+      case 'paused':
+        return const _StatusStyle('Paused', Color(0xFFB45309), Color(0xFFFEF3C7));
+      case 'completed':
+        return const _StatusStyle('Completed', Color(0xFF1D4ED8), Color(0xFFDBEAFE));
+      case 'failed':
+      case 'cancelled':
+        return const _StatusStyle('Failed', Color(0xFFDC2626), Color(0xFFFEE2E2));
+      default:
+        return _StatusStyle(status, DinqTokens.textSecondary, const Color(0xFFF5F5F4));
+    }
+  }
+}
+
+class _StatusStyle {
+  const _StatusStyle(this.label, this.fg, this.bg);
+  final String label;
+  final Color fg;
+  final Color bg;
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.scale, required this.label, required this.value});
+
+  final double scale;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label,
+            style: TextStyle(
+              fontSize: 10 * scale,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+              color: DinqTokens.textTertiary,
+            )),
+        SizedBox(height: 4 * scale),
+        Text(value,
+            style: TextStyle(
+              fontSize: 18 * scale,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1C1917),
+            )),
+      ],
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider({required this.scale});
+  final double scale;
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 28 * scale, color: const Color(0xFFF5F5F4));
   }
 }
 
