@@ -23,7 +23,6 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
   final _service = TaskService();
   List<dynamic> _tasks = [];
   bool _loading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -43,10 +42,7 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
 
   Future<void> _load() async {
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     try {
       final tasks = await _service.listTasks();
       if (!mounted) return;
@@ -54,10 +50,11 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
         _tasks = tasks;
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
+      // 拉取失败（含无 task 权限）回落到空状态
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _tasks = [];
         _loading = false;
       });
     }
@@ -122,27 +119,12 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
           if (_loading) {
             return const Center(child: CircularProgressIndicator(strokeWidth: 2));
           }
-          if (_error != null) {
-            return _errorView();
-          }
+          // 拉取失败（含无 task 权限 4013）时回落到空状态，而非裸报错
           return SafeArea(
             bottom: false,
             child: _tasks.isEmpty ? _emptyState(s) : _list(s),
           );
         },
-      ),
-    );
-  }
-
-  Widget _errorView() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Failed to load', style: TextStyle(color: DinqTokens.textTertiary)),
-          const SizedBox(height: 12),
-          TextButton(onPressed: _load, child: const Text('Retry')),
-        ],
       ),
     );
   }
