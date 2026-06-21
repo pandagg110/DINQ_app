@@ -114,6 +114,7 @@ class _GenerationPageState extends State<GenerationPage> {
   // Success 步骤倒计时
   int _redirectCountdown = 3;
   Timer? _redirectTimer;
+  String? _onboardingReturnPath;
   
   // Confetti 控制器
   late ConfettiController _confettiController;
@@ -254,6 +255,10 @@ class _GenerationPageState extends State<GenerationPage> {
     
     // 从 URL query 参数获取 domain / handle（优先级更高）
     final query = GoRouterState.of(context).uri.queryParameters;
+    final next = query['next']?.trim();
+    if (next != null && next.isNotEmpty) {
+      _onboardingReturnPath = next;
+    }
     final domain = query['domain'] ?? query['handle'];
     if (domain != null && _domainController.text.isEmpty) {
       final sanitized = domain.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
@@ -289,7 +294,7 @@ class _GenerationPageState extends State<GenerationPage> {
       if (_redirectCountdown <= 0) {
         timer.cancel();
         if (mounted) {
-          context.go('/');
+          context.go(_onboardingReturnPath ?? '/');
         }
       }
     });
@@ -1849,7 +1854,7 @@ class _GenerationPageState extends State<GenerationPage> {
             child: ElevatedButton(
               onPressed: () {
                 _redirectTimer?.cancel();
-                context.go('/');
+                context.go(_onboardingReturnPath ?? '/');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF171717),
@@ -3242,7 +3247,7 @@ class _GenerationPageState extends State<GenerationPage> {
 
   void _goToMydinq() {
     if (context.mounted) {
-      context.go('/admin/mydinq');
+      context.go(_onboardingReturnPath ?? '/admin/mydinq');
     }
   }
 

@@ -103,7 +103,6 @@ class AppRouter {
       refreshListenable: userStore,
       redirect: (context, state) {
         final isLoggedIn = userStore.isLoggedIn();
-        final flow = userStore.myFlow;
         final isInitialized = userStore.isInitialized;
         final location = state.matchedLocation;
         // 如果还未初始化完成，停留在启动页
@@ -118,15 +117,6 @@ class AppRouter {
 
         // 判断当前是否在登录/注册页
         final isOnAuthPage = location == '/signin' || location == '/signup';
-
-        final isGenerationPage = location == '/generation';
-
-        if (isLoggedIn &&
-            !isGenerationPage &&
-            flow?.status != null &&
-            flow?.status != 'success') {
-          return '/generation';
-        }
 
         // 如果已登录且在登录/注册页，跳转到首页
         if (isLoggedIn && isOnAuthPage) {

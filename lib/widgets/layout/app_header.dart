@@ -265,12 +265,6 @@ class _AppHeaderState extends State<AppHeader> {
       context.go('/signin');
       return;
     }
-    final flow = userStore.myFlow;
-    if (path.startsWith('/admin') &&
-        (flow == null || flow.status != 'success' || flow.domain.isEmpty)) {
-      context.go('/generation');
-      return;
-    }
     context.go(path);
   }
 }
