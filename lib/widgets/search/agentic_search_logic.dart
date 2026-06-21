@@ -10,6 +10,73 @@ import 'deep_search/deep_search_models.dart';
 import 'deep_search/sub_agent_helpers.dart';
 import 'search_box_widget.dart';
 
+/// 与 TSX SearchPanel / useDeepSearch isInsufficientCredits 一致
+bool isInsufficientCredits(String message) {
+  return RegExp(r'insufficient\s+credits', caseSensitive: false).hasMatch(message);
+}
+
+String _deepSearchErrorMessage(Object error) {
+  if (error is! Exception && error is! String) {
+    return 'Search failed';
+  }
+  var message = error.toString().trim();
+  if (message.startsWith('Exception: ')) {
+    message = message.substring('Exception: '.length).trim();
+  }
+  if (message.isEmpty) return 'Search failed';
+  if (RegExp(
+    r'failed to fetch|network\s*error|load failed|fetch failed',
+    caseSensitive: false,
+  ).hasMatch(message)) {
+    return 'Network error';
+  }
+  return message;
+}
+
+/// llm_end 等 legacy 流里携带的 round 级错误（如 credits 不足）
+bool _isRoundErrorLlmMessage(String? message) {
+  if (message == null || message.trim().isEmpty) return false;
+  final trimmed = message.trim();
+  if (isInsufficientCredits(trimmed)) return true;
+  final withoutLeadingEmoji = trimmed.replaceFirst(
+    RegExp(r'^[\s\u26A0\uFE0F\u2757\u203C]+'),
+    '',
+  );
+  return isInsufficientCredits(withoutLeadingEmoji);
+}
+
+/// 与 TSX deep-search store setError / handleError 一致
+void _applyRoundError(AgenticMessageGroup group, String message) {
+  group.errorMessage = message.trim();
+  group.roundStatus = DeepSearchRoundStatus.error;
+  group.searchCompleted = true;
+  group.loading = false;
+  group.assistantStreaming = false;
+  group.thinkingSteps = [];
+}
+
+void _applySseRoundErrors(AgenticMessageGroup group, List<dynamic> sseEvents) {
+  for (final ev in sseEvents) {
+    if (ev is! Map) continue;
+    final type = ev['type']?.toString();
+    if (type == 'error') {
+      final message = ev['message']?.toString().trim();
+      _applyRoundError(
+        group,
+        message != null && message.isNotEmpty ? message : 'Search failed',
+      );
+      return;
+    }
+    if (type == 'llm_end') {
+      final message = ev['message']?.toString().trim();
+      if (_isRoundErrorLlmMessage(message)) {
+        _applyRoundError(group, message!);
+        return;
+      }
+    }
+  }
+}
+
 /// 单条搜索消息组（与 TSX MessageGroup 对应）
 class AgenticMessageGroup {
   AgenticMessageGroup({
@@ -340,6 +407,11 @@ class AgenticSearchLogic extends ChangeNotifier {
                         s['completed'] != true),
               )
               .toList();
+          if (_isRoundErrorLlmMessage(message)) {
+            _applyRoundError(g, message!);
+            notifyListeners();
+            break;
+          }
           if (!_shouldIgnoreLlmMessage(message) &&
               message != null &&
               message.isNotEmpty) {
@@ -518,9 +590,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       },
       onDurationMs: (ms) => g.deepSearchDurationMs = ms,
       onError: (message) {
-        g.errorMessage = message;
-        g.roundStatus = DeepSearchRoundStatus.error;
-        if (g.assistantText.isEmpty) g.assistantText = message;
+        _applyRoundError(g, message);
       },
       onStatusChange: (status) {
         g.roundStatus = status;
@@ -583,10 +653,21 @@ class AgenticSearchLogic extends ChangeNotifier {
         group.candidates = candidates;
       },
       onDurationMs: (ms) => group.deepSearchDurationMs = ms,
+      onError: (message) {
+        _applyRoundError(group, message);
+      },
       onStatusChange: (status) {
-        if (status == DeepSearchRoundStatus.done) {
-          group.searchCompleted = true;
-          group.loading = false;
+        group.roundStatus = status;
+        switch (status) {
+          case DeepSearchRoundStatus.searching:
+            break;
+          case DeepSearchRoundStatus.done:
+          case DeepSearchRoundStatus.error:
+          case DeepSearchRoundStatus.interrupted:
+            group.searchCompleted = true;
+            group.loading = false;
+          case DeepSearchRoundStatus.idle:
+            break;
         }
       },
     )..setCandidates(group.candidates);
@@ -596,6 +677,13 @@ class AgenticSearchLogic extends ChangeNotifier {
       dispatcher.dispatchHistoryEvent(Map<String, dynamic>.from(ev));
     }
     dispatcher.finalizeHistoryReplay();
+
+    // 与 TSX restoreDiscover：仅当仍为 searching 时才补 done
+    if (group.roundStatus == DeepSearchRoundStatus.searching) {
+      group.roundStatus = DeepSearchRoundStatus.done;
+      group.searchCompleted = true;
+      group.loading = false;
+    }
 
     group.subAgents = dispatcher.subAgents;
     group.contentBlocks = dispatcher.contentBlocks;
@@ -684,6 +772,7 @@ class AgenticSearchLogic extends ChangeNotifier {
           break;
         case 'llm_end':
           final message = ev['message']?.toString().trim() ?? '';
+          if (_isRoundErrorLlmMessage(message)) break;
           if (!_shouldIgnoreLlmMessage(message) && message.isNotEmpty) {
             if (text.isEmpty) text = message;
           }
@@ -726,7 +815,7 @@ class AgenticSearchLogic extends ChangeNotifier {
                 message.isEmpty ||
                 exactMatch.contains(msg) ||
                 partialMatch.any((m) => msg.contains(m));
-            if (!shouldIgnore) {
+            if (!shouldIgnore && !_isRoundErrorLlmMessage(message)) {
               steps.add({
                 'id': 'history-$groupId-$stepIndex',
                 'type': 'thinking',
@@ -1008,6 +1097,20 @@ class AgenticSearchLogic extends ChangeNotifier {
         );
       }
 
+      if (sseEvents != null && sseEvents.isNotEmpty) {
+        _applySseRoundErrors(group, sseEvents);
+        if (group.roundStatus == DeepSearchRoundStatus.error) {
+          group.thinkingSteps = [];
+          final err = group.errorMessage;
+          if (err != null) {
+            final at = group.assistantText.trim();
+            if (at == err.trim() || _isRoundErrorLlmMessage(at)) {
+              group.assistantText = '';
+            }
+          }
+        }
+      }
+
       groups.add(group);
     }
 
@@ -1221,8 +1324,14 @@ class AgenticSearchLogic extends ChangeNotifier {
             : <Map<String, dynamic>>[];
         loading = false;
         if (idx >= 0) {
-          messageGroups[idx].loading = false;
-          messageGroups[idx].assistantStreaming = false;
+          final g = messageGroups[idx];
+          g.loading = false;
+          g.assistantStreaming = false;
+          // 与 TSX closeNaturallyEndedSearchRound：不覆盖 error / interrupted
+          if (g.roundStatus == DeepSearchRoundStatus.searching) {
+            g.roundStatus = DeepSearchRoundStatus.done;
+            g.searchCompleted = true;
+          }
         }
         final finalQuery = idx >= 0 ? messageGroups[idx].userQuery : trimmedQuery;
         onSearchComplete?.call(finalCandidates, finalQuery);
@@ -1247,7 +1356,9 @@ class AgenticSearchLogic extends ChangeNotifier {
       onError: (e, st) {
         loading = false;
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
-        if (idx >= 0) messageGroups[idx].loading = false;
+        if (idx >= 0) {
+          _applyRoundError(messageGroups[idx], _deepSearchErrorMessage(e));
+        }
         searchStore.setIsSearching(false);
         notifyListeners();
       },

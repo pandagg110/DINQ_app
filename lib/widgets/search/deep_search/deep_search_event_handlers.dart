@@ -717,11 +717,11 @@ class DeepSearchEventDispatcher {
   }
 
   void finalizeHistoryReplay() {
+    _flushPendingThinkingDelta();
     _closeVirtualAgent(
       subAgents[virtualAgentId]?.durationS != null
           ? subAgents[virtualAgentId]!.durationS
           : null,
     );
-    onStatusChange?.call(DeepSearchRoundStatus.done);
   }
 }

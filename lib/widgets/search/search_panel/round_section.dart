@@ -24,12 +24,6 @@ import 'phase_timeline.dart';
 import 'result_entry_card.dart';
 import 'tool_search_progress.dart';
 
-bool isInsufficientCredits(String message) {
-  final lower = message.toLowerCase();
-  return lower.contains('credit') &&
-      (lower.contains('insufficient') || lower.contains('exhaust'));
-}
-
 String formatLogRecordTimestamp(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return iso;
@@ -194,7 +188,8 @@ class _RoundSectionState extends State<RoundSection> {
                 if (!isDinqSearch &&
                     !group.isDeepSearch &&
                     toolType == null &&
-                    group.thinkingSteps.isNotEmpty)
+                    group.thinkingSteps.isNotEmpty &&
+                    group.roundStatus != DeepSearchRoundStatus.error)
                   ThinkingBubble(
                     steps: group.thinkingSteps,
                     expanded: group.thinkingExpanded,
@@ -203,7 +198,8 @@ class _RoundSectionState extends State<RoundSection> {
                   ),
                 if (!isDinqSearch &&
                     group.assistantText.trim().isNotEmpty &&
-                    group.subAgents.isEmpty)
+                    group.subAgents.isEmpty &&
+                    group.roundStatus != DeepSearchRoundStatus.error)
                   NarrationBlockView(
                     block: ReasoningBlock(
                       id: 'group-${group.id}',
@@ -216,11 +212,12 @@ class _RoundSectionState extends State<RoundSection> {
           ),
         ),
 
-        if (group.errorMessage != null && status == DeepSearchRoundStatus.error)
+        if (group.errorMessage != null &&
+            group.roundStatus == DeepSearchRoundStatus.error)
           _RoundErrorBar(
             message: group.errorMessage!,
             isCreditsError: isInsufficientCredits(group.errorMessage!),
-            showToolActions: toolType != null,
+            toolType: toolType,
             onUpgrade: () => context.push('/pricing'),
             onRetry: () => context.go('/search'),
           ),
@@ -434,60 +431,159 @@ class _RoundErrorBar extends StatelessWidget {
   const _RoundErrorBar({
     required this.message,
     required this.isCreditsError,
-    required this.showToolActions,
+    required this.toolType,
     required this.onUpgrade,
     required this.onRetry,
   });
 
   final String message;
   final bool isCreditsError;
-  final bool showToolActions;
+  final String? toolType;
   final VoidCallback onUpgrade;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+    // 与 TSX SearchPanel error bar：border-t px-1 py-2 text-sm text-[#8a8880]
+    // 内层 flex items-center gap-3；左侧 min-w-0 + gap-2，按钮 shrink-0 紧跟文案
+    return DecoratedBox(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Color(0xFFECE8E0))),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, size: 14, color: Color(0xFF9E9B93)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF8A8880)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: DefaultTextStyle(
+          style: const TextStyle(fontSize: 14, color: Color(0xFF8A8880)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                fit: FlexFit.loose,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 14,
+                      color: Color(0xFF9E9B93),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        message+"2222222222",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (toolType == null) ...[
+                const SizedBox(width: 12),
+                if (isCreditsError)
+                  _RoundErrorUpgradeButton(onTap: onUpgrade)
+                else
+                  _RoundErrorRetryButton(onTap: onRetry),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoundErrorUpgradeButton extends StatelessWidget {
+  const _RoundErrorUpgradeButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF5F4F0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: Color(0xFFE0DDD7)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: const Color(0xFFEAE8E3),
+        child: SizedBox(
+          height: 28,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.bolt, size: 14, color: Color(0xFF2A2826)),
+                SizedBox(width: 6),
+                Text(
+                  'Upgrade',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF2A2826),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (!showToolActions && isCreditsError)
-            OutlinedButton.icon(
-              onPressed: onUpgrade,
-              icon: const Icon(Icons.bolt, size: 14),
-              label: const Text('Upgrade'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF2A2826),
-                side: const BorderSide(color: Color(0xFFE0DDD7)),
-                backgroundColor: const Color(0xFFF5F4F0),
-                visualDensity: VisualDensity.compact,
-              ),
-            )
-          else if (!showToolActions)
-            TextButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 14),
-              label: const Text('Try again'),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF6B6862),
-                visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
+  }
+}
+
+class _RoundErrorRetryButton extends StatefulWidget {
+  const _RoundErrorRetryButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_RoundErrorRetryButton> createState() => _RoundErrorRetryButtonState();
+}
+
+class _RoundErrorRetryButtonState extends State<_RoundErrorRetryButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = _hovered
+        ? const Color(0xFF2A2826)
+        : const Color(0xFF6B6862);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: const Color(0xFFF0EFE9),
+          child: SizedBox(
+            height: 28,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.refresh, size: 14, color: foreground),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Try again',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: foreground,
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
