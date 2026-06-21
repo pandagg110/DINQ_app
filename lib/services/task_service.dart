@@ -7,9 +7,9 @@ import 'api_client.dart';
 class TaskService {
   final Dio _dio = ApiClient.instance.dio;
 
-  /// GET /tasks — Radar 列表。后端返回可能包在 items/tasks/data 里。
+  /// GET /scheduler/tasks — Radar 列表。后端返回可能包在 items/tasks/data 里。
   Future<List<dynamic>> listTasks() async {
-    final resp = await _dio.get('/tasks');
+    final resp = await _dio.get('/scheduler/tasks');
     return _unwrapList(resp.data);
   }
 
@@ -25,9 +25,9 @@ class TaskService {
     return Map<String, dynamic>.from(resp.data as Map? ?? {});
   }
 
-  /// PUT /tasks/{id} — 更新（暂停/恢复用 status: paused / active）。
+  /// PUT /scheduler/tasks/{id} — 更新（暂停/恢复用 status: paused / active）。
   Future<void> updateTask(String id, Map<String, dynamic> data) async {
-    await _dio.put('/tasks/$id', data: data);
+    await _dio.put('/scheduler/tasks/$id', data: data);
   }
 
   Future<void> pauseTask(String id) => updateTask(id, {'status': 'paused'});

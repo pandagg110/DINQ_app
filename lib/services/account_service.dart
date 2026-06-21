@@ -103,6 +103,16 @@ class AccountService {
     await _dio.post('/orgs/$id/requests/$rid', data: {'action': action});
   }
 
+  /// PUT /orgs/{id}/members/{uid}/role — 改成员角色（admin/member）。需 admin/owner。
+  Future<void> updateOrgMemberRole(String id, String uid, String role) async {
+    await _dio.put('/orgs/$id/members/$uid/role', data: {'role': role});
+  }
+
+  /// DELETE /orgs/{id}/members/{uid} — 移除成员。需 admin/owner，不能移除 owner。
+  Future<void> removeOrgMember(String id, String uid) async {
+    await _dio.delete('/orgs/$id/members/$uid');
+  }
+
   // ============== 简历 / Resume ==============
 
   /// GET /resumes — 简历列表

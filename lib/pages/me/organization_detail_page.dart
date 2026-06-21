@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
@@ -308,36 +309,107 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   Widget _memberRow(Map<String, dynamic> m) {
     final user = (m['user'] as Map?)?.cast<String, dynamic>() ?? const {};
     final name = (user['name'] ?? m['user_id'] ?? 'Member').toString();
-    final sub = (user['full_position'] ?? user['domain'] ?? '').toString();
+    final position = (user['full_position'] ?? user['full_degree'] ?? '').toString();
+    final location = (user['location'] ?? '').toString();
+    final sub = [
+      if (position.isNotEmpty) position,
+      if (location.isNotEmpty) location,
+    ].join(' · ');
     final avatar = (user['avatar_url'] ?? '').toString();
+    final domain = (user['domain'] ?? '').toString();
     final role = (m['role'] ?? '').toString();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: DinqTokens.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: DinqTokens.borderLL),
-      ),
-      child: Row(
-        children: [
-          _avatar(avatar, name),
-          const SizedBox(width: 12),
-          Expanded(child: _nameSub(name, sub)),
-          if (role.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: DinqTokens.bgSurface,
-                borderRadius: BorderRadius.circular(999),
+    final uid = (m['user_id'] ?? '').toString();
+    // 管理者可管理「非 owner」成员（对齐 H5：owner 不可被管理）
+    final canManage = _isManager && role != 'owner';
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: domain.isNotEmpty ? () => context.push('/$domain') : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: DinqTokens.bgCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: DinqTokens.borderLL),
+        ),
+        child: Row(
+          children: [
+            _avatar(avatar, name),
+            const SizedBox(width: 12),
+            Expanded(child: _nameSub(name, sub)),
+            if (role.isNotEmpty) _roleBadge(role),
+            if (canManage)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_horiz_rounded, size: 20, color: DinqTokens.textTertiary),
+                onSelected: (v) => _manageMember(uid, name, v),
+                itemBuilder: (_) => [
+                  if (role != 'admin')
+                    const PopupMenuItem(value: 'admin', child: Text('Make admin')),
+                  if (role == 'admin')
+                    const PopupMenuItem(value: 'member', child: Text('Make member')),
+                  const PopupMenuItem(
+                      value: 'remove',
+                      child: Text('Remove member', style: TextStyle(color: Color(0xFFE24B3C)))),
+                ],
               ),
-              child: Text(role,
-                  style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600, color: DinqTokens.textSecondary)),
-            ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _roleBadge(String role) {
+    // owner 绿 / admin 金 / member 中性（对齐 H5 RoleBadge）
+    Color fg;
+    Color bg;
+    switch (role) {
+      case 'owner':
+        fg = const Color(0xFF0E9463);
+        bg = const Color(0xFFE7F6EF);
+        break;
+      case 'admin':
+        fg = const Color(0xFFA67512);
+        bg = const Color(0xFFFBF1DC);
+        break;
+      default:
+        fg = DinqTokens.textSecondary;
+        bg = DinqTokens.bgSurface;
+    }
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Text(role[0].toUpperCase() + role.substring(1),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+    );
+  }
+
+  Future<void> _manageMember(String uid, String name, String action) async {
+    try {
+      if (action == 'remove') {
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Remove member'),
+            content: Text('Remove $name from this organization?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Remove', style: TextStyle(color: Color(0xFFE24B3C)))),
+            ],
+          ),
+        );
+        if (ok != true) return;
+        await _service.removeOrgMember(_id, uid);
+      } else {
+        await _service.updateOrgMemberRole(_id, uid, action); // 'admin' | 'member'
+      }
+      await _load();
+    } catch (e) {
+      _snack('Failed: $e');
+    }
   }
 
   Widget _nameSub(String name, String sub) {
@@ -360,15 +432,22 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     );
   }
 
+  // 与 H5 nameToAvatarColor 思路一致：按名字哈希取一个柔和底色
+  static const _avatarPalette = [
+    Color(0xFFE7F6EF), Color(0xFFFBF1DC), Color(0xFFEAF0FB),
+    Color(0xFFF7EAF3), Color(0xFFFCEEE8), Color(0xFFEDEEF7),
+  ];
+
   Widget _avatar(String url, String name) {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final tint = _avatarPalette[name.hashCode.abs() % _avatarPalette.length];
     return Container(
       width: 40,
       height: 40,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: DinqTokens.bgSurface,
+        color: url.isNotEmpty ? DinqTokens.bgSurface : tint,
         image: url.isNotEmpty
             ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
             : null,

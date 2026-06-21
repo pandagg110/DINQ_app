@@ -39,23 +39,40 @@ class ConnectorService {
         .map((e) => ConnectorAccount.fromJson(Map<String, dynamic>.from(e)))
         .toList();
   }
+
+  /// 发起连接，返回 OAuth 跳转地址（platform: gmail/microsoft/imap）。
+  Future<String?> initiateConnect(String platform, String callbackUrl) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/connector/auth/connect',
+      data: {'platform': platform, 'callback_url': callbackUrl},
+    );
+    return response.data?['redirect_url']?.toString();
+  }
+
+  /// 断开某个已连接账号。
+  Future<void> disconnect(String accountId) async {
+    await _dio.delete('/connector/auth/accounts/$accountId');
+  }
 }
 
 class EmailSetting {
   const EmailSetting({
+    required this.id,
     required this.email,
     this.displayName,
     this.signature,
   });
 
+  final String id;
   final String email;
   final String? displayName;
   final String? signature;
 
   factory EmailSetting.fromJson(Map<String, dynamic> json) {
     return EmailSetting(
+      id: (json['id'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
-      displayName: json['displayName']?.toString(),
+      displayName: (json['displayName'] ?? json['display_name'])?.toString(),
       signature: json['signature']?.toString(),
     );
   }
@@ -80,5 +97,13 @@ class EmailSettingsService {
           .toList();
     }
     return const [];
+  }
+
+  /// 更新发件人显示名/签名。
+  Future<void> update(String id, {String? displayName, String? signature}) async {
+    await _dio.put('/email-settings/$id', data: {
+      if (displayName != null) 'display_name': displayName,
+      if (signature != null) 'signature': signature,
+    });
   }
 }
