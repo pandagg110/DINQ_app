@@ -6,7 +6,6 @@ import '../message_group/quick_replies_widget.dart';
 import '../deep_search/deep_search_models.dart';
 import '../deep_search/sub_agent_helpers.dart';
 import 'confirm_block_view.dart';
-import 'narration_text.dart';
 import 'search_interaction_scope.dart';
 import 'tool_card.dart';
 
@@ -401,15 +400,7 @@ class NarrationBlockView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isConfirmPending = _confirmPrefix.startsWith(block.text) &&
         block.text.length < _confirmPrefix.length;
-    final isConfirm = block.text.startsWith(_confirmPrefix);
     final isSummaryPending = isSummaryPrefixPending(block.text);
-    final displayText = stripSummaryPrefix(block.text);
-    final parsed = parseQuickReplies(displayText);
-    final cleanText = parsed.options.isNotEmpty
-        ? cleanNarrationDisplayText(block.text)
-        : parsed.cleanText;
-    final options = parsed.options;
-    final hasContent = cleanText.isNotEmpty || options.isNotEmpty;
 
     if (isConfirmPending || isSummaryPending) {
       return const Padding(
@@ -418,16 +409,20 @@ class NarrationBlockView extends StatelessWidget {
       );
     }
 
-    if (!hasContent && block.isStreaming) {
+    final envelope = parseEnvelope(block.text);
+    final type = envelope.type;
+    final cleanText = envelope.cleanText;
+    final options = envelope.options;
+    final hasContent = cleanText.isNotEmpty || options.isNotEmpty;
+
+    if (!hasContent) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: _TypingDots(),
       );
     }
 
-    if (!hasContent) return const SizedBox.shrink();
-
-    if (isConfirm) {
+    if (type == 'confirm') {
       return ConfirmBlockView(
         block: block,
         onStartSearch: (query, displayQuery) {

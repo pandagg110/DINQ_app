@@ -9,8 +9,7 @@ String normalizeSummaryMarkerCandidate(String text) {
   return trimmed.startsWith('\\') ? trimmed.substring(1) : trimmed;
 }
 
-bool hasSummaryPrefix(String text) =>
-    normalizeSummaryMarkerCandidate(text).toLowerCase().startsWith(summaryPrefix);
+bool hasSummaryPrefix(String text) => parseEnvelope(text).type == 'summary';
 
 bool isSummaryPrefixPending(String text) {
   final trimmed = normalizeSummaryMarkerCandidate(text).toLowerCase();
@@ -223,7 +222,10 @@ String getSingleAgentSummaryText(Map<String, SubAgentInfo> subAgents) {
     virtualAgent.contentBlocks,
     allowFallbackSummary: virtualAgent.status != DeepSearchRoundStatus.searching,
   );
-  return classified.summary?.text.trim() ?? '';
+  final summary = classified.summary;
+  return summary != null
+      ? parseEnvelope(summary.text).cleanText.trim()
+      : '';
 }
 
 int countToolCalls(List<MessagePart> blocks) =>

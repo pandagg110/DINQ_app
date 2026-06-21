@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../utils/parse_quick_replies.dart';
 import '../deep_search/deep_search_models.dart';
 import '../deep_search/sub_agent_helpers.dart';
 import 'phase_timeline.dart';
@@ -135,7 +136,10 @@ String getMessagePartSummaryText(
     blocks,
     allowFallbackSummary: allowFallbackSummary,
   );
-  return result.summaryBlock?.text.trim() ?? '';
+  final summaryBlock = result.summaryBlock;
+  return summaryBlock != null
+      ? parseEnvelope(summaryBlock.text).cleanText.trim()
+      : '';
 }
 
 /// 与 TSX MessageStream.splitRoundBlocks 对齐。
