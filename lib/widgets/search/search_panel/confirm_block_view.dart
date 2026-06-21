@@ -7,7 +7,6 @@ import '../../../utils/parse_quick_replies.dart';
 import '../deep_search/deep_search_models.dart';
 import 'narration_text.dart';
 
-const confirmPrefix = '[confirm]';
 const startSearchLabel = 'Start search';
 
 /// 与 TSX `ConfirmBlock.tsx` / `ConfirmBlockView` 对齐。
@@ -38,9 +37,13 @@ class _ConfirmBlockViewState extends State<ConfirmBlockView> {
   @override
   void didUpdateWidget(covariant ConfirmBlockView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!widget.block.isStreaming && !_lockedDraft) {
+    final body = _textareaBody();
+    if (widget.block.isStreaming) {
+      if (_controller.text != body) {
+        _controller.text = body;
+      }
+    } else if (!_lockedDraft) {
       _lockedDraft = true;
-      final body = _textareaBody();
       if (_controller.text != body) {
         _controller.text = body;
       }
@@ -53,20 +56,17 @@ class _ConfirmBlockViewState extends State<ConfirmBlockView> {
     super.dispose();
   }
 
+  String _cleanText() {
+    // search_v2 将确认文案放在 envelope 的 `content` 字段，与 TSX parseEnvelope 对齐。
+    return parseEnvelope(widget.block.text).cleanText;
+  }
+
   String _textareaBody() {
-    final afterPrefix = widget.block.text.startsWith(confirmPrefix)
-        ? widget.block.text.substring(confirmPrefix.length).trim()
-        : widget.block.text.trim();
-    final parsed = parseQuickReplies(afterPrefix);
-    return splitConfirmContent(parsed.cleanText).textareaBody;
+    return splitConfirmContent(_cleanText()).textareaBody;
   }
 
   ({String intro, String textareaBody}) get _split {
-    final afterPrefix = widget.block.text.startsWith(confirmPrefix)
-        ? widget.block.text.substring(confirmPrefix.length).trim()
-        : widget.block.text.trim();
-    final parsed = parseQuickReplies(afterPrefix);
-    return splitConfirmContent(parsed.cleanText);
+    return splitConfirmContent(_cleanText());
   }
 
   @override
