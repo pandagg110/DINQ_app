@@ -164,6 +164,24 @@ class SearchService {
     await _dio.post<void>('/scholar/deep-search/$sessionId/stop');
   }
 
+  /// GET /scholar/deep-search/export-pdf — 与 Web `exportDeepSearchPdf` 对齐。
+  Future<List<int>> exportDeepSearchPdf({
+    required String userId,
+    required String sessionId,
+    required String sseEventsId,
+  }) async {
+    final response = await _dio.get<List<int>>(
+      '/scholar/deep-search/export-pdf',
+      queryParameters: {
+        'user_id': userId,
+        'session_id': sessionId,
+        'sse_events_id': sseEventsId,
+      },
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return response.data ?? const [];
+  }
+
   /// GET /scholar/deep-search/channels — 模型通道列表（Deep Search v2.5）
   Future<DeepSearchChannelsResponse?> getDeepSearchChannels() async {
     try {

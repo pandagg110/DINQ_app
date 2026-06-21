@@ -13,6 +13,7 @@ class DeepSearchEventDispatcher {
     required this.contentBlocks,
     required this.onCandidatesChanged,
     this.onSessionId,
+    this.onSseEventsId,
     this.onDurationMs,
     this.onError,
     this.onStatusChange,
@@ -22,6 +23,7 @@ class DeepSearchEventDispatcher {
   List<MessagePart> contentBlocks;
   final void Function(List<Map<String, dynamic>> candidates) onCandidatesChanged;
   final void Function(String sessionId)? onSessionId;
+  final void Function(String sseEventsId)? onSseEventsId;
   final void Function(int durationMs)? onDurationMs;
   final void Function(String message)? onError;
   final void Function(DeepSearchRoundStatus status)? onStatusChange;
@@ -158,6 +160,10 @@ class DeepSearchEventDispatcher {
     final sessionId = event['session_id']?.toString();
     if (sessionId != null && sessionId.isNotEmpty) {
       onSessionId?.call(sessionId);
+    }
+    final sseEventsId = event['sse_events_id']?.toString();
+    if (sseEventsId != null && sseEventsId.isNotEmpty) {
+      onSseEventsId?.call(sseEventsId);
     }
     onStatusChange?.call(DeepSearchRoundStatus.searching);
   }

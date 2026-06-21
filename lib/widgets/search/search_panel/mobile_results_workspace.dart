@@ -1,9 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../services/search_service.dart';
 import '../../../services/shortlist_service.dart';
+import '../../../stores/user_store.dart';
+import '../deep_search/deep_search_models.dart';
 import '../deep_search/deep_search_results.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import '../deep_search/deep_search_results_strings.dart';
@@ -19,6 +26,11 @@ class MobileResultsWorkspace extends StatefulWidget {
     required this.onClose,
     required this.onRowClick,
     this.selectedRowId,
+    this.roundStatus = DeepSearchRoundStatus.idle,
+    this.contentBlocks = const [],
+    this.subAgents = const {},
+    this.sessionId,
+    this.sseEventsId,
   });
 
   final List<Map<String, dynamic>> candidates;
@@ -27,6 +39,11 @@ class MobileResultsWorkspace extends StatefulWidget {
   final VoidCallback onClose;
   final void Function(Map<String, dynamic> row) onRowClick;
   final String? selectedRowId;
+  final DeepSearchRoundStatus roundStatus;
+  final List<MessagePart> contentBlocks;
+  final Map<String, SubAgentInfo> subAgents;
+  final String? sessionId;
+  final String? sseEventsId;
 
   @override
   State<MobileResultsWorkspace> createState() => _MobileResultsWorkspaceState();
@@ -40,6 +57,8 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
   List<Map<String, dynamic>> _selectedRows = [];
   var _resultsCopied = false;
   var _isSaving = false;
+  var _isExportingPdf = false;
+  final _searchService = SearchService();
 
   @override
   void initState() {
@@ -151,9 +170,51 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
     await Share.share(buildSearchResultsMarkdown(_visibleRowsForActions));
   }
 
-  void _handleExportPdf() {
-    _showToast(DeepSearchResultsStrings.exportPdfUnavailable);
+  Future<void> _handleExportPdf() async {
+    if (_isExportingPdf) return;
+    if (widget.isSearching) {
+      _showToast(DeepSearchResultsStrings.exportWaitForFinish);
+      return;
+    }
+    final userId = context.read<UserStore>().user?.user.id;
+    final sessionId = widget.sessionId;
+    final sseEventsId = widget.sseEventsId;
+    if (userId == null ||
+        userId.isEmpty ||
+        sessionId == null ||
+        sessionId.isEmpty ||
+        sseEventsId == null ||
+        sseEventsId.isEmpty) {
+      _showToast(DeepSearchResultsStrings.exportPdfUnavailable);
+      return;
+    }
+    setState(() => _isExportingPdf = true);
+    try {
+      final bytes = await _searchService.exportDeepSearchPdf(
+        userId: userId,
+        sessionId: sessionId,
+        sseEventsId: sseEventsId,
+      );
+      if (bytes.isEmpty) throw StateError('empty pdf');
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/deep-search-$sessionId.pdf');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'deep-search-$sessionId.pdf',
+      );
+    } catch (_) {
+      if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
+    } finally {
+      if (mounted) setState(() => _isExportingPdf = false);
+    }
   }
+
+  bool get _pdfExportDisabled =>
+      _isExportingPdf ||
+      widget.sseEventsId == null ||
+      widget.sseEventsId!.isEmpty ||
+      widget.isSearching;
 
   @override
   Widget build(BuildContext context) {
@@ -265,8 +326,8 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
                               _handleExportPdf();
                           }
                         },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
                             value: 'csv',
                             height: 36,
                             child: Text(
@@ -277,7 +338,7 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
                               ),
                             ),
                           ),
-                          PopupMenuItem(
+                          const PopupMenuItem(
                             value: 'markdown',
                             height: 36,
                             child: Text(
@@ -291,12 +352,14 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
                           PopupMenuItem(
                             value: 'pdf',
                             height: 36,
-                            enabled: false,
+                            enabled: !_pdfExportDisabled,
                             child: Text(
                               'PDF',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF9CA3AF),
+                                color: _pdfExportDisabled
+                                    ? const Color(0xFF9CA3AF)
+                                    : const Color(0xFF6B6962),
                               ),
                             ),
                           ),
@@ -323,6 +386,11 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
               selectedRowId: widget.selectedRowId,
               variant: DeepSearchResultsVariant.mobile,
               showHeader: false,
+              roundStatus: widget.roundStatus,
+              contentBlocks: widget.contentBlocks,
+              subAgents: widget.subAgents,
+              sessionId: widget.sessionId,
+              sseEventsId: widget.sseEventsId,
               onVisibleRowsChange: (rows) {
                 if (!mounted) return;
                 setState(() => _visibleRows = rows);

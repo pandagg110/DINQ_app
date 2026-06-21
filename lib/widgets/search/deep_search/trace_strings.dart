@@ -25,6 +25,7 @@ abstract final class TraceStrings {
   // trace.tool.*
   static const submittedCandidates = 'Submitted candidates';
   static const preparingToolsEllipsis = 'Preparing tools…';
+  static const statusLineThinking = 'Thinking';
 
   static String toolCountLabel(int count) =>
       count == 1 ? '1 tool' : '$count tools';

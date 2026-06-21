@@ -513,6 +513,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                       isInterrupted: mobileResultsStatus ==
                           DeepSearchRoundStatus.interrupted,
                       selectedRowId: widget.enrichSelectedRowId,
+                      roundStatus: mobileResultsStatus,
+                      contentBlocks: activeMobileResultsGroup.contentBlocks,
+                      subAgents: activeMobileResultsGroup.subAgents,
+                      sessionId: searchStore.deepSearchSessionId,
+                      sseEventsId: activeMobileResultsGroup.sseEventsId,
                       onClose: () => setState(() => _mobileResultsOpen = false),
                       onRowClick: (row) {
                         if (widget.onEnrichRowClick != null) {

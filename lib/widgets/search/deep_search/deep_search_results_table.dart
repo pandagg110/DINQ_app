@@ -15,6 +15,21 @@ const _pendingGroupSkeletonRowCount = 1;
 const _tableBottomSpacerHeight = 72.0;
 const _rowHeight = 44.0;
 const _headerHeight = 40.0;
+const _cellPaddingSmH = 12.0; // px-3
+const _cellPaddingLgH = 20.0; // px-5
+const _cellRowPaddingV = 10.0; // py-2.5
+const _cellHeaderPaddingV = 12.0; // py-3
+
+EdgeInsets _tableCellPadding({double horizontal = _cellPaddingLgH}) {
+  return EdgeInsets.symmetric(horizontal: horizontal, vertical: _cellRowPaddingV);
+}
+
+EdgeInsets _tableHeaderPadding({double horizontal = _cellPaddingLgH}) {
+  return EdgeInsets.symmetric(
+    horizontal: horizontal,
+    vertical: _cellHeaderPaddingV,
+  );
+}
 
 Widget _buildSelectCell({required Widget? child}) {
   return SizedBox(
@@ -45,6 +60,8 @@ class DeepSearchResultsTable extends StatefulWidget {
     required this.onToggleAll,
     required this.onToggleSelectedRow,
     required this.onSort,
+    this.favoriteMap = const {},
+    this.onBookmarkTap,
     this.selectedRowId,
     this.sourceGroupsByRowId,
     this.pendingSourceGroups,
@@ -63,6 +80,8 @@ class DeepSearchResultsTable extends StatefulWidget {
   final VoidCallback onToggleAll;
   final ValueChanged<String> onToggleSelectedRow;
   final ValueChanged<DeepSearchResultsSortColumn> onSort;
+  final Map<String, String> favoriteMap;
+  final void Function(Map<String, dynamic> row)? onBookmarkTap;
   final Map<String, ResultSourceGroup>? sourceGroupsByRowId;
   final List<ResultSourceGroup>? pendingSourceGroups;
   final void Function(Map<String, dynamic> row)? onRowClick;
@@ -469,6 +488,8 @@ class _DeepSearchResultsTableState extends State<DeepSearchResultsTable> {
           isMobileResults: widget.isMobileResults,
           selectedRowId: widget.selectedRowId,
           onRowClick: widget.onRowClick,
+          favoriteMap: widget.favoriteMap,
+          onBookmarkTap: widget.onBookmarkTap,
         );
       },
     );
@@ -622,6 +643,7 @@ class _ScrollableHeader extends StatelessWidget {
                 active: sortColumn == DeepSearchResultsSortColumn.name,
                 ascending: sortAscending,
                 onSort: onSort,
+                horizontalPadding: _cellPaddingSmH,
               ),
             ),
           if (showMatchColumn)
@@ -633,6 +655,7 @@ class _ScrollableHeader extends StatelessWidget {
                 active: sortColumn == DeepSearchResultsSortColumn.confidence,
                 ascending: sortAscending,
                 onSort: onSort,
+                horizontalPadding: _cellPaddingSmH,
               ),
             ),
           if (showCompanyColumn)
@@ -660,8 +683,24 @@ class _ScrollableHeader extends StatelessWidget {
           if (showEvidenceColumn)
             Expanded(
               flex: 400,
+              child: Padding(
+                padding: _tableHeaderPadding(),
+                child: Text(
+                  DeepSearchResultsStrings.columnMatchReason,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF8A8880),
+                  ),
+                ),
+              ),
+            ),
+          SizedBox(
+            width: 192,
+            child: Padding(
+              padding: _tableHeaderPadding(),
               child: Text(
-                DeepSearchResultsStrings.columnMatchReason,
+                DeepSearchResultsStrings.columnProfile,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -669,26 +708,19 @@ class _ScrollableHeader extends StatelessWidget {
                 ),
               ),
             ),
-          SizedBox(
-            width: 192,
-            child: Text(
-              DeepSearchResultsStrings.columnProfile,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF8A8880),
-              ),
-            ),
           ),
           SizedBox(
             width: 48,
-            child: Center(
-              child: Text(
-                DeepSearchResultsStrings.bookmarkAddShort,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF8A8880),
+            child: Padding(
+              padding: _tableHeaderPadding(horizontal: _cellPaddingSmH),
+              child: Center(
+                child: Text(
+                  DeepSearchResultsStrings.bookmarkAddShort,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF8A8880),
+                  ),
                 ),
               ),
             ),
@@ -706,6 +738,7 @@ class _SortableHeaderLabel extends StatelessWidget {
     required this.active,
     required this.ascending,
     required this.onSort,
+    this.horizontalPadding = _cellPaddingLgH,
   });
 
   final String label;
@@ -713,13 +746,14 @@ class _SortableHeaderLabel extends StatelessWidget {
   final bool active;
   final bool ascending;
   final ValueChanged<DeepSearchResultsSortColumn> onSort;
+  final double horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => onSort(column),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: _tableHeaderPadding(horizontal: horizontalPadding),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -745,6 +779,124 @@ class _SortableHeaderLabel extends StatelessWidget {
               color: active ? const Color(0xFF8A8880) : const Color(0xFFD5D3CE),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchBadge extends StatelessWidget {
+  const _MatchBadge({required this.confidence, required this.badge});
+
+  final int confidence;
+  final MatchBadgeStyle badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: badge.background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border(top: BorderSide(color: badge.border)),
+      ),
+      child: Text(
+        '$confidence%',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: badge.foreground,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileFavicon extends StatelessWidget {
+  const _ProfileFavicon({required this.domain});
+
+  final String domain;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: Image.network(
+        'https://icons.duckduckgo.com/ip3/$domain.ico',
+        width: 16,
+        height: 16,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.language,
+          size: 16,
+          color: Color(0xFFA5A39E),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileLinkCell extends StatelessWidget {
+  const _ProfileLinkCell({required this.profileUrl});
+
+  final String profileUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (profileUrl.isEmpty) {
+      return const Text(
+        '—',
+        style: TextStyle(fontSize: 12, color: Color(0xFFD5D3CE)),
+      );
+    }
+
+    final domain = profileHostFromUrl(profileUrl);
+    return Row(
+      children: [
+        if (domain != null) ...[
+          _ProfileFavicon(domain: domain),
+          const SizedBox(width: 6),
+        ],
+        Expanded(
+          child: Text(
+            formatProfileUrlLabel(profileUrl),
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Color(0xFFA5A39E)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BookmarkIconButton extends StatelessWidget {
+  const _BookmarkIconButton({
+    this.onPressed,
+    this.isBookmarked = false,
+  });
+
+  final VoidCallback? onPressed;
+  final bool isBookmarked;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: isBookmarked
+              ? const Icon(Icons.bookmark, size: 16, color: Color(0xFF1F1F1F))
+              : SvgPicture.asset(
+                  DeepSearchResultsAssets.bookmark,
+                  width: 16,
+                  height: 16,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFB5B3AE),
+                    BlendMode.srcIn,
+                  ),
+                ),
         ),
       ),
     );
@@ -1161,41 +1313,69 @@ class _ScrollableSkeletonRow extends StatelessWidget {
         border: Border(bottom: BorderSide(color: Color(0xFFF0EFEB))),
         color: Colors.white,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (isMobileResults)
             SizedBox(
               width: _mobileNameWidth,
-              child: _SkeletonBar(width: index % 3 == 0 ? 64 : 80),
+              child: Padding(
+                padding: _tableCellPadding(horizontal: _cellPaddingSmH),
+                child: _SkeletonBar(width: index % 3 == 0 ? 64 : 80),
+              ),
             ),
           if (showMatchColumn)
             SizedBox(
               width: 96,
-              child: _SkeletonBar(width: 48, height: 20),
+              child: Padding(
+                padding: _tableCellPadding(horizontal: _cellPaddingSmH),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: _SkeletonBar(width: 48, height: 20),
+                ),
+              ),
             ),
           if (showCompanyColumn)
             Expanded(
               flex: 160,
-              child: _SkeletonBar(width: index % 2 == 0 ? 112 : 144),
+              child: Padding(
+                padding: _tableCellPadding(),
+                child: _SkeletonBar(width: index % 2 == 0 ? 112 : 144),
+              ),
             ),
           if (showTitleColumn)
             Expanded(
               flex: 180,
-              child: _SkeletonBar(width: index % 2 == 0 ? 128 : 160),
+              child: Padding(
+                padding: _tableCellPadding(),
+                child: _SkeletonBar(width: index % 2 == 0 ? 128 : 160),
+              ),
             ),
           if (showEvidenceColumn)
             Expanded(
               flex: 400,
-              child: _SkeletonBar(width: index % 2 == 0 ? 320 : 256),
+              child: Padding(
+                padding: _tableCellPadding(),
+                child: _SkeletonBar(width: index % 2 == 0 ? 320 : 256),
+              ),
             ),
           SizedBox(
             width: 192,
-            child: _SkeletonBar(width: 112),
+            child: Padding(
+              padding: _tableCellPadding(),
+              child: _SkeletonBar(width: 112),
+            ),
           ),
           SizedBox(
             width: 48,
-            child: Center(child: _SkeletonBar(width: 16, height: 16)),
+            child: Padding(
+              padding: _tableCellPadding(horizontal: _cellPaddingSmH),
+              child: Center(
+                child: _SkeletonBar(width: 16, height: 16),
+              ),
+            ),
           ),
         ],
       ),
@@ -1245,8 +1425,10 @@ class _ScrollableDataRow extends StatelessWidget {
     required this.showTitleColumn,
     required this.showEvidenceColumn,
     required this.isMobileResults,
+    required this.favoriteMap,
     this.selectedRowId,
     this.onRowClick,
+    this.onBookmarkTap,
   });
 
   final Map<String, dynamic> row;
@@ -1256,8 +1438,10 @@ class _ScrollableDataRow extends StatelessWidget {
   final bool showTitleColumn;
   final bool showEvidenceColumn;
   final bool isMobileResults;
+  final Map<String, String> favoriteMap;
   final String? selectedRowId;
   final void Function(Map<String, dynamic> row)? onRowClick;
+  final void Function(Map<String, dynamic> row)? onBookmarkTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1296,110 +1480,98 @@ class _ScrollableDataRow extends StatelessWidget {
                 ),
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (isMobileResults)
                   SizedBox(
                     width: _mobileNameWidth,
-                    child: Text(
-                      name.isEmpty ? '—' : name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: nameColor,
+                    child: Padding(
+                      padding: _tableCellPadding(horizontal: _cellPaddingSmH),
+                      child: Text(
+                        name.isEmpty ? '—' : name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: nameColor,
+                        ),
                       ),
                     ),
                   ),
                 if (showMatchColumn)
                   SizedBox(
                     width: 96,
-                    child: confidence != null && badge != null
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: badge.background,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border(top: BorderSide(color: badge.border)),
-                            ),
-                            child: Text(
-                              '$confidence%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: badge.foreground,
-                              ),
-                            ),
-                          )
-                        : null,
+                    child: Padding(
+                      padding: _tableCellPadding(horizontal: _cellPaddingSmH),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: 1,
+                        heightFactor: 1,
+                        child: confidence != null && badge != null
+                            ? _MatchBadge(
+                                confidence: confidence,
+                                badge: badge,
+                              )
+                            : null,
+                      ),
+                    ),
                   ),
                 if (showCompanyColumn)
                   Expanded(
                     flex: 160,
-                    child: Text(
-                      row['company']?.toString() ?? '—',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: mutedColor),
+                    child: Padding(
+                      padding: _tableCellPadding(),
+                      child: Text(
+                        row['company']?.toString() ?? '—',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: mutedColor),
+                      ),
                     ),
                   ),
                 if (showTitleColumn)
                   Expanded(
                     flex: 180,
-                    child: Text(
-                      row['title']?.toString() ?? '—',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: mutedColor),
+                    child: Padding(
+                      padding: _tableCellPadding(),
+                      child: Text(
+                        row['title']?.toString() ?? '—',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: mutedColor),
+                      ),
                     ),
                   ),
                 if (showEvidenceColumn)
                   Expanded(
                     flex: 400,
-                    child: Text(
-                      displayMatch.evidence.isEmpty
-                          ? (confidence == null ? '' : '—')
-                          : displayMatch.evidence,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: mutedColor),
+                    child: Padding(
+                      padding: _tableCellPadding(),
+                      child: Text(
+                        displayMatch.evidence.isEmpty
+                            ? (confidence == null ? '' : '—')
+                            : displayMatch.evidence,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: mutedColor),
+                      ),
                     ),
                   ),
                 SizedBox(
                   width: 192,
-                  child: Text(
-                    profileUrl.isEmpty
-                        ? '—'
-                        : profileUrl.replaceFirst(
-                            RegExp(r'^https?://(www\.)?'),
-                            '',
-                          ),
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: profileUrl.isEmpty
-                          ? const Color(0xFFD5D3CE)
-                          : mutedColor,
-                    ),
+                  child: Padding(
+                    padding: _tableCellPadding(),
+                    child: _ProfileLinkCell(profileUrl: profileUrl),
                   ),
                 ),
                 SizedBox(
                   width: 48,
-                  child: Center(
-                    child: IconButton(
-                      onPressed: () {},
-                      padding: EdgeInsets.zero,
-                      constraints:
-                          const BoxConstraints(minWidth: 28, minHeight: 28),
-                      icon: SvgPicture.asset(
-                        DeepSearchResultsAssets.bookmark,
-                        width: 16,
-                        height: 16,
-                        colorFilter: const ColorFilter.mode(
-                          Color(0xFFB5B3AE),
-                          BlendMode.srcIn,
-                        ),
+                  child: Padding(
+                    padding: _tableCellPadding(horizontal: _cellPaddingSmH),
+                    child: Center(
+                      child: _BookmarkIconButton(
+                        isBookmarked: favoriteMap.containsKey(rowId),
+                        onPressed: onBookmarkTap == null
+                            ? null
+                            : () => onBookmarkTap!(row),
                       ),
                     ),
                   ),

@@ -86,6 +86,9 @@ class AgenticMessageGroup {
   Map<String, dynamic>? toolResult;
   DeepSearchRoundStatus roundStatus = DeepSearchRoundStatus.idle;
 
+  /// 与 TSX SearchRound.sseEventsId 对齐（PDF 导出所需）。
+  String? sseEventsId;
+
   /// 与 TSX round.toolType 对齐（null = deep search）
   String? get toolType {
     switch (searchType) {
@@ -505,6 +508,9 @@ class AgenticSearchLogic extends ChangeNotifier {
       },
       onSessionId: (sessionId) {
         if (sessionId.isNotEmpty) _setSessionId(sessionId);
+      },
+      onSseEventsId: (sseEventsId) {
+        if (sseEventsId.isNotEmpty) g.sseEventsId = sseEventsId;
       },
       onDurationMs: (ms) => g.deepSearchDurationMs = ms,
       onError: (message) {
@@ -944,6 +950,9 @@ class AgenticSearchLogic extends ChangeNotifier {
       group.isDeepSearch = isDeepSearch;
       group.deepSearchToolCount = deepSearchToolCount;
       group.deepSearchDurationMs = deepSearchDurationMs;
+      if (groupId > 0) {
+        group.sseEventsId = groupId.toString();
+      }
 
       if (convType == 'analyze' && result is Map) {
         final cards = <String, dynamic>{};

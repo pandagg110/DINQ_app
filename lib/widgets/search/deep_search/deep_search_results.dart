@@ -1,13 +1,23 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../services/search_service.dart';
+import '../../../services/shortlist_service.dart';
+import '../../../stores/user_store.dart';
+import '../enrich/shortlist_folder_modal.dart';
+import 'deep_search_models.dart';
 import 'deep_search_results_helpers.dart';
 import 'deep_search_results_strings.dart';
 import 'deep_search_results_table.dart';
+import 'search_activity_line.dart';
+import 'trace_status.dart';
 
 enum DeepSearchResultsVariant { inline, rail, mobile }
 
@@ -22,11 +32,15 @@ class DeepSearchResults extends StatefulWidget {
     this.selectedRowId,
     this.variant = DeepSearchResultsVariant.inline,
     this.showHeader = true,
-    this.hasOpenedEnrichThisVisit = false,
     this.onVisibleRowsChange,
     this.onSelectedRowsChange,
     this.sourceGroupsByRowId,
     this.pendingSourceGroups,
+    this.roundStatus = DeepSearchRoundStatus.idle,
+    this.contentBlocks = const [],
+    this.subAgents = const {},
+    this.sessionId,
+    this.sseEventsId,
   });
 
   final List<Map<String, dynamic>> candidates;
@@ -36,11 +50,15 @@ class DeepSearchResults extends StatefulWidget {
   final String? selectedRowId;
   final DeepSearchResultsVariant variant;
   final bool showHeader;
-  final bool hasOpenedEnrichThisVisit;
   final void Function(List<Map<String, dynamic>> rows)? onVisibleRowsChange;
   final void Function(List<Map<String, dynamic>> rows)? onSelectedRowsChange;
   final Map<String, ResultSourceGroup>? sourceGroupsByRowId;
   final List<ResultSourceGroup>? pendingSourceGroups;
+  final DeepSearchRoundStatus roundStatus;
+  final List<MessagePart> contentBlocks;
+  final Map<String, SubAgentInfo> subAgents;
+  final String? sessionId;
+  final String? sseEventsId;
 
   @override
   State<DeepSearchResults> createState() => _DeepSearchResultsState();
@@ -61,8 +79,12 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
   var _isExpanded = true;
   var _isOverflowing = false;
   var _dismissedSearchingBanner = false;
-  var _dismissedEnrichBanner = false;
   final _selectedRowIds = <String>{};
+  final _shortlistService = ShortlistService();
+  final _searchService = SearchService();
+  final _favoriteMap = <String, String>{};
+  var _isExportingPdf = false;
+  Map<String, dynamic>? _pendingBookmarkRow;
 
   bool get _isRail => widget.variant == DeepSearchResultsVariant.rail;
   bool get _isMobileResults => widget.variant == DeepSearchResultsVariant.mobile;
@@ -83,8 +105,142 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
   @override
   void initState() {
     super.initState();
+    _loadFavorites();
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncParentCallbacks());
   }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final items = await _shortlistService.listFavorites();
+      if (!mounted) return;
+      setState(() {
+        _favoriteMap.clear();
+        for (final item in items) {
+          final rowId = item.field['row_id']?.toString();
+          if (rowId != null && rowId.isNotEmpty) {
+            _favoriteMap[rowId] = item.id;
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
+  void _showToast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _handleBookmarkClick(Map<String, dynamic> row) async {
+    final rowId = row['row_id']?.toString() ?? '';
+    if (rowId.isEmpty) return;
+    final favoriteId = _favoriteMap[rowId];
+    if (favoriteId != null) {
+      try {
+        await _shortlistService.removeFavorite(favoriteId);
+        if (!mounted) return;
+        setState(() => _favoriteMap.remove(rowId));
+        _showToast(DeepSearchResultsStrings.toastRemovedFromShortlist);
+      } catch (_) {
+        _showToast(DeepSearchResultsStrings.exportFailed);
+      }
+      return;
+    }
+    _pendingBookmarkRow = row;
+    final projectId = await showShortlistFolderModal(context);
+    if (projectId == null || !mounted) {
+      _pendingBookmarkRow = null;
+      return;
+    }
+    await _saveBookmarkToFolder(projectId);
+  }
+
+  Future<void> _saveBookmarkToFolder(String projectId) async {
+    final row = _pendingBookmarkRow;
+    _pendingBookmarkRow = null;
+    if (row == null) return;
+    final payload = buildFavoritePayload(row);
+    try {
+      final item = await _shortlistService.createFavorite(
+        projectId: projectId,
+        title: payload['title']?.toString() ?? '',
+        field: Map<String, dynamic>.from(
+          payload['field'] as Map? ?? const {},
+        ),
+      );
+      final rowId = row['row_id']?.toString();
+      if (!mounted) return;
+      if (rowId != null && rowId.isNotEmpty) {
+        setState(() => _favoriteMap[rowId] = item.id);
+      }
+      _showToast(DeepSearchResultsStrings.toastAddedToFolder);
+    } catch (_) {
+      if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
+    }
+  }
+
+  bool get _pdfExportDisabled =>
+      _isExportingPdf ||
+      widget.sseEventsId == null ||
+      widget.sseEventsId!.isEmpty ||
+      widget.isSearching;
+
+  Future<void> _handleExportPdf() async {
+    if (_isExportingPdf) return;
+    if (widget.isSearching) {
+      _showToast(DeepSearchResultsStrings.exportWaitForFinish);
+      return;
+    }
+    final userId = context.read<UserStore>().user?.user.id;
+    final sessionId = widget.sessionId;
+    final sseEventsId = widget.sseEventsId;
+    if (userId == null ||
+        userId.isEmpty ||
+        sessionId == null ||
+        sessionId.isEmpty ||
+        sseEventsId == null ||
+        sseEventsId.isEmpty) {
+      _showToast(DeepSearchResultsStrings.exportPdfUnavailable);
+      return;
+    }
+    setState(() {
+      _isExportingPdf = true;
+      _showExportMenu = false;
+    });
+    try {
+      final bytes = await _searchService.exportDeepSearchPdf(
+        userId: userId,
+        sessionId: sessionId,
+        sseEventsId: sseEventsId,
+      );
+      if (bytes.isEmpty) throw StateError('empty pdf');
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/deep-search-$sessionId.pdf');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'deep-search-$sessionId.pdf',
+      );
+    } catch (_) {
+      if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
+    } finally {
+      if (mounted) setState(() => _isExportingPdf = false);
+    }
+  }
+
+  LatestTraceStatus? get _activityStatus => resolveSearchActivityStatus(
+        roundStatus: widget.roundStatus,
+        contentBlocks: widget.contentBlocks,
+        subAgents: widget.subAgents,
+      );
+
+  bool get _showActivityLine =>
+      widget.isSearching || _activityStatus != null;
 
   @override
   void didUpdateWidget(covariant DeepSearchResults oldWidget) {
@@ -161,7 +317,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
   bool _canToggleExpanded(double collapsedMaxHeight) {
     if (_isRail || _isMobileResults) return false;
     var height = widget.showHeader ? _toolbarHeight : 0;
-    if (_activeResultsBannerKind != null) height += _bannerHeight;
+    if (_showSearchingBanner) height += _bannerHeight;
     if (widget.isInterrupted) height += _interruptedBannerHeight;
     final rowCount = _sortedRows.length;
     if (rowCount > 0) {
@@ -175,18 +331,8 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
     return math.max(420.0, MediaQuery.sizeOf(context).height * 0.7);
   }
 
-  String? get _activeResultsBannerKind {
-    if (widget.isSearching && !_dismissedSearchingBanner) {
-      return 'searching';
-    }
-    if (!widget.isSearching &&
-        !widget.hasOpenedEnrichThisVisit &&
-        _rows.isNotEmpty &&
-        !_dismissedEnrichBanner) {
-      return 'enrich';
-    }
-    return null;
-  }
+  bool get _showSearchingBanner =>
+      widget.isSearching && !_dismissedSearchingBanner;
 
   Widget _buildResultsContent({
     required List<Map<String, dynamic>> sortedRows,
@@ -201,7 +347,9 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
               selectedRowId: widget.selectedRowId,
               selectedRowIds: _selectedRowIds,
               showMobileSelection: _isMobileResults,
+              favoriteMap: _favoriteMap,
               onToggleSelectedRow: _toggleSelectedRow,
+              onBookmarkTap: _handleBookmarkClick,
               onRowClick: widget.onRowClick,
             )
           : DeepSearchResultsTable(
@@ -213,12 +361,14 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
               sortAscending: _sortAscending,
               selectedRowId: widget.selectedRowId,
               selectedRowIds: _selectedRowIds,
+              favoriteMap: _favoriteMap,
               sourceGroupsByRowId: widget.sourceGroupsByRowId,
               pendingSourceGroups: widget.pendingSourceGroups,
               expandVertically: _isRail || _isMobileResults || !_isExpanded,
               onToggleAll: _toggleAllVisibleRows,
               onToggleSelectedRow: _toggleSelectedRow,
               onSort: _toggleSort,
+              onBookmarkTap: _handleBookmarkClick,
               onRowClick: widget.onRowClick,
             ),
     );
@@ -230,7 +380,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
     final collapsedMaxHeight = _collapsedMaxHeight(context);
     final canToggleExpanded = _canToggleExpanded(collapsedMaxHeight);
     final isEmpty = _rows.isEmpty;
-    final bannerKind = _activeResultsBannerKind;
+    final bannerKind = _showSearchingBanner;
 
     if (isEmpty && !widget.isSearching && !_isRail && !_isMobileResults) {
       return Container(
@@ -278,17 +428,13 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
             onCopy: _copyResults,
             onExportCsv: _exportCsv,
             onExportMarkdown: _exportMarkdown,
+            onExportPdf: _handleExportPdf,
+            isExportingPdf: _isExportingPdf,
+            pdfExportDisabled: _pdfExportDisabled,
           ),
-        if (bannerKind != null)
+        if (bannerKind)
           _ResultsNoticeBanner(
-            kind: bannerKind,
-            onDismiss: () => setState(() {
-              if (bannerKind == 'searching') {
-                _dismissedSearchingBanner = true;
-              } else {
-                _dismissedEnrichBanner = true;
-              }
-            }),
+            onDismiss: () => setState(() => _dismissedSearchingBanner = true),
           ),
         if (widget.isInterrupted)
           Container(
@@ -315,9 +461,26 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
             ),
           )
         else if (_isRail || _isMobileResults)
-          Expanded(child: resultsContent)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: resultsContent),
+                if (_showActivityLine)
+                  SearchActivityLine(
+                    status: _activityStatus,
+                    isSearching: widget.isSearching,
+                  ),
+              ],
+            ),
+          )
         else
           resultsContent,
+        if (_showActivityLine && !_isRail && !_isMobileResults)
+          SearchActivityLine(
+            status: _activityStatus,
+            isSearching: widget.isSearching,
+          ),
         if (canToggleExpanded)
           Material(
             color: DeepSearchResultsColors.toolbarBg,
@@ -506,19 +669,12 @@ class _ResultsScrollAreaState extends State<_ResultsScrollArea> {
 }
 
 class _ResultsNoticeBanner extends StatelessWidget {
-  const _ResultsNoticeBanner({
-    required this.kind,
-    required this.onDismiss,
-  });
+  const _ResultsNoticeBanner({required this.onDismiss});
 
-  final String kind;
   final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
-    final text = kind == 'searching'
-        ? DeepSearchResultsStrings.searchingNotice
-        : DeepSearchResultsStrings.enrichHintNotice;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -528,15 +684,15 @@ class _ResultsNoticeBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            kind == 'searching' ? Icons.info_outline : Icons.lightbulb_outline,
+          const Icon(
+            Icons.info_outline,
             size: 16,
-            color: const Color(0xFF7A6B52),
+            color: Color(0xFF7A6B52),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              text,
+              DeepSearchResultsStrings.searchingNotice,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -570,6 +726,9 @@ class _ResultsToolbar extends StatelessWidget {
     required this.onCopy,
     required this.onExportCsv,
     required this.onExportMarkdown,
+    required this.onExportPdf,
+    required this.isExportingPdf,
+    required this.pdfExportDisabled,
   });
 
   final bool viewModeCard;
@@ -583,6 +742,9 @@ class _ResultsToolbar extends StatelessWidget {
   final VoidCallback onCopy;
   final VoidCallback onExportCsv;
   final VoidCallback onExportMarkdown;
+  final VoidCallback onExportPdf;
+  final bool isExportingPdf;
+  final bool pdfExportDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -620,8 +782,8 @@ class _ResultsToolbar extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               side: const BorderSide(color: Color(0xFFEAE8E3)),
             ),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              const PopupMenuItem(
                 value: 'csv',
                 height: 36,
                 child: Text(
@@ -629,7 +791,7 @@ class _ResultsToolbar extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: Color(0xFF6B6962)),
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'markdown',
                 height: 36,
                 child: Text(
@@ -638,11 +800,19 @@ class _ResultsToolbar extends StatelessWidget {
                 ),
               ),
               PopupMenuItem(
-                enabled: false,
+                value: 'pdf',
+                enabled: !pdfExportDisabled,
                 height: 36,
                 child: Text(
-                  'PDF',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                  isExportingPdf
+                      ? DeepSearchResultsStrings.exportExporting
+                      : 'PDF',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: pdfExportDisabled
+                        ? const Color(0xFF9CA3AF)
+                        : const Color(0xFF6B6962),
+                  ),
                 ),
               ),
             ],
@@ -653,6 +823,8 @@ class _ResultsToolbar extends StatelessWidget {
                   onExportCsv();
                 case 'markdown':
                   onExportMarkdown();
+                case 'pdf':
+                  onExportPdf();
               }
             },
             child: Container(
@@ -750,7 +922,9 @@ class _CardResultsList extends StatelessWidget {
     this.selectedRowId,
     required this.selectedRowIds,
     required this.showMobileSelection,
+    required this.favoriteMap,
     required this.onToggleSelectedRow,
+    required this.onBookmarkTap,
     this.onRowClick,
   });
 
@@ -758,7 +932,9 @@ class _CardResultsList extends StatelessWidget {
   final String? selectedRowId;
   final Set<String> selectedRowIds;
   final bool showMobileSelection;
+  final Map<String, String> favoriteMap;
   final ValueChanged<String> onToggleSelectedRow;
+  final ValueChanged<Map<String, dynamic>> onBookmarkTap;
   final void Function(Map<String, dynamic> row)? onRowClick;
 
   @override
@@ -785,12 +961,14 @@ class _CardResultsList extends StatelessWidget {
                 selectedRowId == rows[i]['row_id']?.toString(),
             checked: selectedRowIds.contains(rows[i]['row_id']?.toString()),
             showMobileSelection: showMobileSelection,
+            isBookmarked: favoriteMap.containsKey(rows[i]['row_id']?.toString()),
             onToggleChecked: () {
               final rowId = rows[i]['row_id']?.toString();
               if (rowId != null && rowId.isNotEmpty) {
                 onToggleSelectedRow(rowId);
               }
             },
+            onBookmarkTap: () => onBookmarkTap(rows[i]),
             onTap: onRowClick == null ? null : () => onRowClick!(rows[i]),
           ),
         ],
@@ -836,7 +1014,9 @@ class _CandidateResultCard extends StatelessWidget {
     required this.selected,
     required this.checked,
     required this.showMobileSelection,
+    required this.isBookmarked,
     required this.onToggleChecked,
+    required this.onBookmarkTap,
     this.onTap,
   });
 
@@ -844,7 +1024,9 @@ class _CandidateResultCard extends StatelessWidget {
   final bool selected;
   final bool checked;
   final bool showMobileSelection;
+  final bool isBookmarked;
   final VoidCallback onToggleChecked;
+  final VoidCallback onBookmarkTap;
   final VoidCallback? onTap;
 
   @override
@@ -988,41 +1170,53 @@ class _CandidateResultCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                child: InkWell(
-                  onTap: () {},
+              GestureDetector(
+                onTap: onBookmarkTap,
+                behavior: HitTestBehavior.opaque,
+                child: Material(
+                  color: isBookmarked ? const Color(0xFFF3F1EC) : Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: 68,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFEAEAEA)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _DeepSearchSvgIcon(
-                          DeepSearchResultsAssets.bookmark,
-                          size: 14,
-                          color: const Color(0xFF1F1F1F),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          DeepSearchResultsStrings.bookmarkAddShort,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1F1F1F),
+                  child: InkWell(
+                    onTap: onBookmarkTap,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 68,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFEAEAEA)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          isBookmarked
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Color(0xFF1F1F1F),
+                                )
+                              : _DeepSearchSvgIcon(
+                                  DeepSearchResultsAssets.bookmark,
+                                  size: 14,
+                                  color: const Color(0xFF1F1F1F),
+                                ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isBookmarked
+                                ? DeepSearchResultsStrings.bookmarkAdded
+                                : DeepSearchResultsStrings.bookmarkAddShort,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1F1F1F),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

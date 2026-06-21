@@ -7,7 +7,6 @@ abstract final class DeepSearchResultsStrings {
       'Search stopped. Partial results are preserved.';
   static const searchingNotice =
       'DINQ is searching public sources, verifying evidence, and preparing ranked candidates.';
-  static const enrichHintNotice = 'Tap a candidate to enrich.';
   static const dismissNotice = 'Dismiss notice';
   static const noFilterMatch =
       'No candidates match the selected source filters.';
@@ -37,6 +36,10 @@ abstract final class DeepSearchResultsStrings {
   static const exportExporting = 'Exporting…';
   static const exportPdfUnavailable =
       'PDF export unavailable for this search';
+  static const exportWaitForFinish = 'Wait for the search to finish';
+  static const exportFailed = 'Export failed';
+  static const toastAddedToFolder = 'Added to shortlist folder';
+  static const toastRemovedFromShortlist = 'Removed from shortlist';
 
   static const filtersClear = 'Clear';
 

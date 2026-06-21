@@ -428,3 +428,18 @@ List<Map<String, dynamic>> sortCandidateRows(
   });
   return sorted;
 }
+
+String? profileHostFromUrl(String url) {
+  if (url.trim().isEmpty) return null;
+  try {
+    final host = Uri.parse(url).host;
+    if (host.isEmpty) return null;
+    return host.replaceFirst(RegExp(r'^www\.'), '');
+  } catch (_) {
+    return null;
+  }
+}
+
+String formatProfileUrlLabel(String url) {
+  return url.replaceFirst(RegExp(r'^https?://(www\.)?'), '');
+}

@@ -23,6 +23,11 @@ class MessageGroupData {
     this.deepSearchDurationMs,
     this.searchCompleted = false,
     this.subAgents = const {},
+    this.contentBlocks = const [],
+    this.roundStatus = DeepSearchRoundStatus.idle,
+    this.sessionId,
+    this.sseEventsId,
+    this.isInterrupted = false,
     this.hideUserQueryBubble = false,
   });
 
@@ -53,6 +58,12 @@ class MessageGroupData {
   final bool searchCompleted;
   /// 与 TSX SearchRound.subAgents 对齐
   final Map<String, SubAgentInfo> subAgents;
+  /// 与 TSX SearchRound.contentBlocks 对齐（活动状态行）
+  final List<MessagePart> contentBlocks;
+  final DeepSearchRoundStatus roundStatus;
+  final String? sessionId;
+  final String? sseEventsId;
+  final bool isInterrupted;
   /// 与 SearchPanel `hideUserQueryBubble` 对齐
   final bool hideUserQueryBubble;
 }

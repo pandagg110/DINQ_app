@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../stores/quick_replies_store.dart';
+import '../../../stores/search_store.dart';
 import '../../../utils/parse_quick_replies.dart';
 import '../agentic_search_logic.dart';
 import '../deep_search/deep_search_models.dart';
@@ -269,6 +270,11 @@ class _RoundSectionState extends State<RoundSection> {
               isSearching: isSearching,
               isInterrupted: status == DeepSearchRoundStatus.interrupted,
               selectedRowId: widget.selectedRowId,
+              roundStatus: status,
+              contentBlocks: group.contentBlocks,
+              subAgents: group.subAgents,
+              sessionId: context.read<SearchStore>().deepSearchSessionId,
+              sseEventsId: group.sseEventsId,
               onRowClick: (row) {
                 final idx = group.candidates.indexWhere(
                   (c) =>

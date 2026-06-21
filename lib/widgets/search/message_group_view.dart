@@ -206,6 +206,12 @@ class _MessageGroupViewState extends State<MessageGroupView>
                     child: DeepSearchResults(
                       candidates: group.candidates,
                       isSearching: group.loading && !group.searchCompleted,
+                      isInterrupted: group.isInterrupted,
+                      roundStatus: group.roundStatus,
+                      contentBlocks: group.contentBlocks,
+                      subAgents: group.subAgents,
+                      sessionId: group.sessionId,
+                      sseEventsId: group.sseEventsId,
                       onRowClick: widget.onCandidateClick == null
                           ? null
                           : (row) {
