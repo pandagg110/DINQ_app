@@ -7,6 +7,7 @@ import '../../../utils/parse_quick_replies.dart';
 import '../search_panel/phase_timeline.dart';
 import 'deep_search_models.dart';
 import 'sub_agent_helpers.dart';
+import 'trace_strings.dart';
 
 import 'sub_agent_tree_lines.dart';
 
@@ -46,10 +47,10 @@ class SubAgentTracker extends StatelessWidget {
     );
     final isMultiRunning = !allDone;
     final headerText = allDone
-        ? '${agents.length} Search agents finished'
+        ? TraceStrings.multiFinished(agents.length)
         : anyStarted
-            ? 'Running ${agents.length} Search agents'
-            : 'Initializing Search agents';
+            ? TraceStrings.multiRunning(agents.length)
+            : TraceStrings.multiInitializing;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -243,13 +244,165 @@ class SingleAgentTree extends StatefulWidget {
 
 class _SingleAgentTreeState extends State<SingleAgentTree> {
   var _userExpanded = false;
+  var _chainCollapsed = false;
+  var _chainAutoScroll = true;
+  var _chainMaskTop = false;
+  var _chainMaskBottom = false;
+  final _chainScrollController = ScrollController();
+  String _lastSegmentsSignature = '';
+  DeepSearchRoundStatus? _prevStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _prevStatus = widget.agent.status;
+    _chainScrollController.addListener(_updateChainMask);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_isRunning(widget.agent) && !_chainCollapsed) {
+        _scheduleChainScrollToBottom();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _chainScrollController.removeListener(_updateChainMask);
+    _chainScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(SingleAgentTree oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final agent = widget.agent;
+    final isDone = agent.status == DeepSearchRoundStatus.done;
+    final isRunning = _isRunning(agent);
+    final toolCount = countToolCalls(agent.contentBlocks);
+    final classified = classifyBlocks(
+      agent.contentBlocks,
+      allowFallbackSummary: !isRunning,
+    );
+    final showTree = toolCount > 0 || classified.segments.isNotEmpty;
+
+    if (isRunning && (_chainCollapsed || !_chainAutoScroll)) {
+      setState(() {
+        _chainCollapsed = false;
+        _chainAutoScroll = true;
+      });
+    } else if (isDone && _prevStatus != DeepSearchRoundStatus.done) {
+      setState(() {
+        _chainCollapsed = showTree;
+        _userExpanded = false;
+        if (_chainCollapsed) {
+          _chainMaskTop = false;
+          _chainMaskBottom = false;
+        }
+      });
+    }
+    _prevStatus = agent.status;
+
+    final signature = _segmentsSignature(classified.segments);
+    if (signature != _lastSegmentsSignature) {
+      _lastSegmentsSignature = signature;
+      if (!_chainCollapsed && isRunning) {
+        _scheduleChainScrollToBottom();
+      }
+    }
+  }
+
+  bool _isRunning(SubAgentInfo agent) =>
+      agent.status != DeepSearchRoundStatus.done &&
+      agent.status != DeepSearchRoundStatus.error;
+
+  String _segmentsSignature(List<TreeSegment> segments) {
+    return segments.map((segment) {
+      if (segment is ThinkingTreeSegment) {
+        return 'thinking:${segment.id}:${segment.blocks.map((b) => '${b.id}:${b.text.length}:${b.isStreaming ? 1 : 0}').join(',')}';
+      }
+      if (segment is ToolGroupTreeSegment) {
+        return 'tool-group:${segment.id}:${segment.group.tools.map((t) => '${t.id}:${t.status.name}').join(',')}';
+      }
+      return segment.runtimeType.toString();
+    }).join('|');
+  }
+
+  void _updateChainMask() {
+    if (!_chainScrollController.hasClients) {
+      if (_chainMaskTop || _chainMaskBottom) {
+        setState(() {
+          _chainMaskTop = false;
+          _chainMaskBottom = false;
+        });
+      }
+      return;
+    }
+    final pos = _chainScrollController.position;
+    final nextTop = pos.pixels > 2;
+    final nextBottom =
+        pos.pixels + pos.viewportDimension < pos.maxScrollExtent - 2;
+    if (nextTop != _chainMaskTop || nextBottom != _chainMaskBottom) {
+      setState(() {
+        _chainMaskTop = nextTop;
+        _chainMaskBottom = nextBottom;
+      });
+    }
+  }
+
+  void _scrollChainToBottom() {
+    if (_chainCollapsed || !_isRunning(widget.agent) || !_chainAutoScroll) {
+      return;
+    }
+    if (!_chainScrollController.hasClients) return;
+    _chainScrollController.jumpTo(_chainScrollController.position.maxScrollExtent);
+    _updateChainMask();
+  }
+
+  void _scheduleChainScrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scrollChainToBottom();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scrollChainToBottom();
+      });
+    });
+  }
+
+  void _cancelChainAutoScroll() {
+    _chainAutoScroll = false;
+  }
+
+  void _handleChainScroll() {
+    if (!_chainScrollController.hasClients) return;
+    _updateChainMask();
+    final pos = _chainScrollController.position;
+    if (pos.pixels + pos.viewportDimension < pos.maxScrollExtent - 24) {
+      _chainAutoScroll = false;
+    }
+  }
+
+  Widget _buildCollapsibleSection({
+    required bool visible,
+    required Widget child,
+  }) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      clipBehavior: Clip.hardEdge,
+      child: visible
+          ? child
+          : const SizedBox(width: double.infinity),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final agent = widget.agent;
     final isDone = agent.status == DeepSearchRoundStatus.done;
     final isError = agent.status == DeepSearchRoundStatus.error;
-    final isRunning = !isDone && !isError;
+    final isRunning = _isRunning(agent);
     final hasStarted = agent.contentBlocks.isNotEmpty || isDone;
 
     final toolCount = countToolCalls(agent.contentBlocks);
@@ -269,139 +422,279 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
     );
 
     final headerText = isDone
-        ? 'Search complete'
+        ? TraceStrings.searchComplete
         : isSearching
             ? null
             : isRunning
-                ? 'Searching'
+                ? TraceStrings.searching
                 : isError
-                    ? 'Search failed'
-                    : 'Search';
+                    ? TraceStrings.searchFailed
+                    : TraceStrings.search;
 
     final showTree = toolCount > 0 || classified.segments.isNotEmpty;
+    final hasIntro =
+        classified.initialThinking.isNotEmpty || classified.opening != null;
+    final showIntro = !_chainCollapsed && hasIntro;
+    final showChainTree = showTree &&
+        !_chainCollapsed &&
+        (isRunning || classified.segments.isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (classified.initialThinking.isNotEmpty)
-          _ThinkingBubbleView(blocks: classified.initialThinking),
-        if (classified.opening != null)
-          Padding(
-            padding: EdgeInsets.only(top: widget.compactTop ? 4 : 0),
-            child: NarrationBlockView(
-              block: classified.opening!,
-              isFirstInRound: true,
+        if (!showTree && showIntro) ...[
+          if (classified.initialThinking.isNotEmpty)
+            _ThinkingBubbleView(blocks: classified.initialThinking),
+          if (classified.opening != null)
+            Padding(
+              padding: EdgeInsets.only(top: widget.compactTop ? 4 : 0),
+              child: NarrationBlockView(
+                block: classified.opening!,
+                isFirstInRound: true,
+              ),
             ),
-          ),
+        ],
         if (showTree) ...[
-          Padding(
-            padding: EdgeInsets.only(top: widget.compactTop ? 0 : 24),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+          _buildCollapsibleSection(
+            visible: showIntro,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (isSearching)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: _SpiralSpinner(size: 16),
-                  ),
-                if (headerText != null)
-                  Text(
-                    headerText,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: isRunning
-                          ? const Color(0xFF6B6862)
-                          : const Color(0xFF171717),
-                    ),
-                  )
-                else if (isSearching)
-                  _RotatingText(
-                    messages: searchingMessages,
-                    active: true,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF6B6862),
+                if (classified.initialThinking.isNotEmpty)
+                  _ThinkingBubbleView(blocks: classified.initialThinking),
+                if (classified.opening != null)
+                  Padding(
+                    padding: EdgeInsets.only(top: widget.compactTop ? 4 : 0),
+                    child: NarrationBlockView(
+                      block: classified.opening!,
+                      isFirstInRound: true,
                     ),
                   ),
-                if (isSearching) const _PulsingDots(),
-                const SizedBox(width: 8),
-                Text(
-                  [
-                    if (toolCount > 0) '$toolCount tools',
-                    if (isDone && agent.candidatesFound > 0)
-                      '${agent.candidatesFound} found',
-                    if (isDone && agent.durationS != null)
-                      '${agent.durationS!.round()}s',
-                  ].join(' · '),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF8A8880),
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
               ],
             ),
           ),
-          if (isRunning && !hasStarted)
-            const Padding(
-              padding: EdgeInsets.only(top: 8, left: 20),
-              child: Row(
-                children: [
-                  _BounceSpinner(),
-                  SizedBox(width: 6),
-                  Text(
-                    'Initializing',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
+          Padding(
+            padding: EdgeInsets.only(
+              top: showIntro ? 0 : (widget.compactTop ? 0 : 24),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => setState(() {
+                  _chainCollapsed = !_chainCollapsed;
+                  if (_chainCollapsed) {
+                    _chainMaskTop = false;
+                    _chainMaskBottom = false;
+                  } else if (_chainAutoScroll && isRunning) {
+                    _scheduleChainScrollToBottom();
+                  }
+                }),
+                borderRadius: BorderRadius.circular(8),
+                hoverColor: const Color(0xFFFBFAF7),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (isSearching)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: _SpiralSpinner(size: 16),
+                        ),
+                      if (headerText != null)
+                        Text(
+                          headerText,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: isRunning
+                                ? const Color(0xFF6B6862)
+                                : const Color(0xFF171717),
+                          ),
+                        )
+                      else if (isSearching)
+                        _RotatingText(
+                          messages: searchingMessages,
+                          active: true,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6B6862),
+                          ),
+                        ),
+                      if (isSearching) const _PulsingDots(),
+                      const SizedBox(width: 8),
+                      Text(
+                        TraceStrings.chainSubtitle(
+                          agent.candidatesFound,
+                          toolCount,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8A8880),
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          if (classified.segments.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 12, top: 6),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  if (isRunning)
-                    const Positioned(
-                      left: 0,
-                      top: 0,
-                      child: TreeTopTrunk(animated: true),
+          ),
+          _buildCollapsibleSection(
+            visible: showChainTree,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (isRunning && !hasStarted)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8, left: 20),
+                    child: Row(
+                      children: [
+                        _BounceSpinner(),
+                        SizedBox(width: 6),
+                        Text(
+                          TraceStrings.initializing,
+                          style: TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
+                        ),
+                      ],
                     ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: classified.segments.asMap().entries.map((entry) {
-                      final segment = entry.value;
-                      final isLast = entry.key == classified.segments.length - 1;
-                      if (segment is ThinkingTreeSegment) {
-                        return _ThinkingTreeNode(
-                          blocks: segment.blocks,
-                          isLast: isLast,
-                          searchRunning: isRunning,
-                        );
-                      }
-                      if (segment is ToolGroupTreeSegment) {
-                        return _ToolGroupRow(
-                          group: segment.group,
-                          isLast: isLast,
-                          isActive: entry.key == lastToolGroupIdx && isRunning,
-                          searchRunning: isRunning,
-                          userExpanded: _userExpanded,
-                          onUserExpand: () => setState(() => _userExpanded = true),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }).toList(),
                   ),
-                ],
-              ),
+                if (classified.segments.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 6),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            if (notification is ScrollUpdateNotification &&
+                                notification.dragDetails != null) {
+                              _cancelChainAutoScroll();
+                            }
+                            if (notification is UserScrollNotification) {
+                              _handleChainScroll();
+                            }
+                            return false;
+                          },
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 320),
+                            child: SingleChildScrollView(
+                              controller: _chainScrollController,
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  if (isRunning)
+                                    const Positioned(
+                                      left: 0,
+                                      top: 0,
+                                      child: TreeTopTrunk(animated: true),
+                                    ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children:
+                                        classified.segments.asMap().entries.map((entry) {
+                                      final segment = entry.value;
+                                      final isLast =
+                                          entry.key == classified.segments.length - 1;
+                                      if (segment is ThinkingTreeSegment) {
+                                        return _ThinkingTreeNode(
+                                          blocks: segment.blocks,
+                                          isLast: isLast,
+                                          searchRunning: isRunning,
+                                        );
+                                      }
+                                      if (segment is ToolGroupTreeSegment) {
+                                        return _ToolGroupRow(
+                                          group: segment.group,
+                                          isLast: isLast,
+                                          isActive: entry.key == lastToolGroupIdx &&
+                                              isRunning,
+                                          searchRunning: isRunning,
+                                          userExpanded: _userExpanded,
+                                          onUserExpand: () =>
+                                              setState(() => _userExpanded = true),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    }).toList(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_chainMaskTop)
+                          const Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 32,
+                            child: IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(0xFFFAF9F6),
+                                      Color(0x00FAF9F6),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_chainMaskBottom)
+                          const Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 32,
+                            child: IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Color(0xFFFAF9F6),
+                                      Color(0x00FAF9F6),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ],
     );
   }
+}
+
+String _sourceRowStats({
+  required int toolCount,
+  required int found,
+  required double? durationS,
+}) {
+  final parts = <String>[];
+  if (toolCount > 0) {
+    parts.add(TraceStrings.toolUses(toolCount));
+  }
+  if (found > 0) {
+    parts.add(TraceStrings.agentFound(found));
+  }
+  if (durationS != null) {
+    parts.add('${durationS.round()}s');
+  }
+  return parts.join(' · ');
 }
 
 class SourceRow extends StatefulWidget {
@@ -420,7 +713,7 @@ class _SourceRowState extends State<SourceRow> {
   @override
   Widget build(BuildContext context) {
     final agent = widget.agent;
-    final label = sourceLabels[agent.name] ?? 'Source';
+    final label = TraceStrings.sourceLabelForAgentName(agent.name);
     final isDone = agent.status == DeepSearchRoundStatus.done;
     final isRunning =
         agent.status != DeepSearchRoundStatus.done &&
@@ -518,13 +811,11 @@ class _SourceRowState extends State<SourceRow> {
                       ),
                     const SizedBox(width: 8),
                     Text(
-                      [
-                        if (toolBlocks.isNotEmpty) '${toolBlocks.length} tool uses',
-                        if (agent.candidatesFound > 0)
-                          '${agent.candidatesFound} found',
-                        if (isDone && agent.durationS != null)
-                          '${agent.durationS!.round()}s',
-                      ].join(' · '),
+                      _sourceRowStats(
+                        toolCount: toolBlocks.length,
+                        found: agent.candidatesFound,
+                        durationS: isDone ? agent.durationS : null,
+                      ),
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF8A8880),
@@ -534,7 +825,10 @@ class _SourceRowState extends State<SourceRow> {
                 ),
               ),
               if (showInitializing)
-                const _SubActivityLine(text: 'Initializing…', showSpinner: true),
+                const _SubActivityLine(
+                  text: TraceStrings.initializingEllipsis,
+                  showSpinner: true,
+                ),
               if (showActivity)
                 _SubActivityLine(text: toolToGerund(latestTool.name)),
               if (_expanded)
@@ -690,7 +984,7 @@ class _ToolGroupRowState extends State<_ToolGroupRow> {
                     ),
                     if (!showTools && hasTools)
                       Text(
-                        '${group.tools.length} tools',
+                        TraceStrings.toolCountLabel(group.tools.length),
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF8A8880),
@@ -701,7 +995,7 @@ class _ToolGroupRowState extends State<_ToolGroupRow> {
               ),
               if (showInitializing)
                 const _SubActivityLine(
-                  text: 'Preparing tools…',
+                  text: TraceStrings.preparingToolsEllipsis,
                   showSpinner: true,
                 ),
               if (showActivity)
@@ -822,8 +1116,8 @@ class _ThinkingBubbleViewState extends State<_ThinkingBubbleView> {
               ] else
                 Text(
                   durationLabel == null
-                      ? 'Thought'
-                      : 'Thought for $durationLabel',
+                      ? TraceStrings.thought
+                      : TraceStrings.thoughtForDuration(durationLabel),
                   style: const TextStyle(fontSize: 12, color: Color(0xFF9E9B93)),
                 ),
             ],
@@ -876,7 +1170,7 @@ class _ToolNodeContent extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Submitted candidates',
+                  TraceStrings.submittedCandidates,
                   style: TextStyle(
                     fontSize: 12,
                     height: treeLeading6 / 12,

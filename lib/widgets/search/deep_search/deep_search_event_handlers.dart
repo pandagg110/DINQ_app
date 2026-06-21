@@ -694,7 +694,7 @@ class DeepSearchEventDispatcher {
     if (type == 'session' || type == 'session_meta') return;
 
     if (type == 'text') {
-      final content = event['content']?.toString() ?? '';
+      final content = normalizeAssistantTextContent(event['content']);
       if (content.isNotEmpty) {
         dispatch({'type': 'text_delta', 'content': content});
       }

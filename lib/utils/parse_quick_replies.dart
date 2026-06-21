@@ -209,6 +209,12 @@ String normalizeAssistantTextContent(dynamic content) {
   if (content is String) return content;
   final parsed = _normalizeEnvelopeObject(content);
   if (parsed != null) return _serializeParsedEnvelope(parsed);
-  if (content is Map) return content.toString();
+  if (content != null && (content is Map || content is List)) {
+    try {
+      return jsonEncode(content);
+    } catch (_) {
+      return '';
+    }
+  }
   return '';
 }

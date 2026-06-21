@@ -551,7 +551,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     if (summaryText.isNotEmpty) {
       g.assistantText = summaryText;
     } else if (type == 'text_delta') {
-      g.assistantText += event['content']?.toString() ?? '';
+      g.assistantText += normalizeAssistantTextContent(event['content']);
     }
 
     if (type == 'session' || type == 'session_meta') {

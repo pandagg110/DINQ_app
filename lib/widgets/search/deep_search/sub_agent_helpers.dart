@@ -1,4 +1,6 @@
+import '../../../utils/parse_quick_replies.dart';
 import 'deep_search_models.dart';
+import 'trace_strings.dart';
 
 const summaryPrefix = '[summary]';
 
@@ -74,6 +76,9 @@ ReasoningBlock _cleanSummaryReasoning(ReasoningBlock block) =>
     block.copyWith(text: stripSummaryPrefix(block.text));
 
 bool isCleanLabel(String text) {
+  final parsed = parseEnvelope(text);
+  if (parsed.type == 'summary' || parsed.type == 'confirm') return false;
+
   final t = text.trim();
   return t.isNotEmpty &&
       !t.contains('": "') &&
@@ -176,6 +181,11 @@ ClassifiedBlocks classifyBlocks(
       flushGroup();
       currentThinking.add(block.block);
     } else if (block is ReasoningPart) {
+      if (hasSummaryPrefix(block.block.text)) {
+        summary ??= _cleanSummaryReasoning(block.block);
+        continue;
+      }
+
       flushThinking();
       flushGroup();
       final label = isCleanLabel(block.block.text) ? block.block.text.trim() : null;
@@ -271,19 +281,23 @@ bool hasToolName(List<ToolCallBlock> tools, List<String> patterns) =>
     tools.any((tool) => patterns.any(tool.name.contains));
 
 String fallbackToolGroupLabel(List<ToolCallBlock> tools) {
-  if (tools.isEmpty) return 'Preparing tools';
-  if (hasToolName(tools, ['submit_candidates'])) return 'Submitting candidates';
+  return TraceStrings.groupLabelForKey(fallbackToolGroupLabelKey(tools));
+}
+
+String fallbackToolGroupLabelKey(List<ToolCallBlock> tools) {
+  if (tools.isEmpty) return 'preparingTools';
+  if (hasToolName(tools, ['submit_candidates'])) return 'submittingCandidates';
   if (hasToolName(
     tools,
     ['company_employee', 'talent_search', 'search_ai_lab_talent'],
   )) {
-    return 'Searching talent sources';
+    return 'searchingTalentSources';
   }
   if (hasToolName(
     tools,
     ['search_github_talent', 'search_hf_users', 'search_arxiv_papers'],
   )) {
-    return 'Searching technical profiles';
+    return 'searchingTechnicalProfiles';
   }
   if (hasToolName(
     tools,
@@ -295,9 +309,9 @@ String fallbackToolGroupLabel(List<ToolCallBlock> tools) {
       'tavily_web_search',
     ],
   )) {
-    return 'Searching web sources';
+    return 'searchingWebSources';
   }
-  return 'Running tools';
+  return 'runningTools';
 }
 
 String formatDuration(ToolCallBlock block) {
@@ -376,29 +390,11 @@ String urlDomain(String url) {
   }
 }
 
-const thinkingMessages = [
-  'Strategizing',
-  'Brewing a plan',
-  'Connecting the dots',
-  'Crunching signals',
-  'Let me cook',
-];
-
-const searchingMessages = [
-  'Scouting talent',
-  'Digging deeper',
-  'Exploring leads',
-  'Mining the web',
-  'Scanning networks',
-  'Following the trail',
-  'Going down the rabbit hole',
-  'Pulling threads',
-  'Vibing with data',
-  'Almost there',
-];
+const thinkingMessages = TraceStrings.thinkingMessages;
+const searchingMessages = TraceStrings.searchingMessages;
 
 const sourceLabels = <String, String>{
-  'academic-search': 'Academic databases',
-  'tech-talent-search': 'Tech talent platforms',
-  'web-intelligence': 'Web intelligence',
+  'academic-search': TraceStrings.sourceAcademic,
+  'tech-talent-search': TraceStrings.sourceTechTalent,
+  'web-intelligence': TraceStrings.sourceWebIntel,
 };
