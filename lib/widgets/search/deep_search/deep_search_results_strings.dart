@@ -38,7 +38,7 @@ abstract final class DeepSearchResultsStrings {
       'PDF export unavailable for this search';
   static const exportWaitForFinish = 'Wait for the search to finish';
   static const exportFailed = 'Export failed';
-  static const toastAddedToFolder = 'Added to shortlist folder';
+  static const toastAddedToFolder = 'Added to folder';
   static const toastRemovedFromShortlist = 'Removed from shortlist';
 
   static const filtersClear = 'Clear';

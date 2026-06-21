@@ -7,12 +7,14 @@ class FavoriteProject {
     required this.name,
     required this.isDefault,
     required this.talentCount,
+    this.createdAt,
   });
 
   final String id;
   final String name;
   final bool isDefault;
   final int talentCount;
+  final String? createdAt;
 
   factory FavoriteProject.fromJson(Map<String, dynamic> json) {
     return FavoriteProject(
@@ -20,6 +22,7 @@ class FavoriteProject {
       name: (json['name'] ?? '').toString(),
       isDefault: json['isDefault'] == true,
       talentCount: (json['talentCount'] as num?)?.toInt() ?? 0,
+      createdAt: json['createdAt']?.toString(),
     );
   }
 }

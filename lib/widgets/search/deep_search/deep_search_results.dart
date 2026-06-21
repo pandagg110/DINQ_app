@@ -1173,49 +1173,63 @@ class _CandidateResultCard extends StatelessWidget {
               GestureDetector(
                 onTap: onBookmarkTap,
                 behavior: HitTestBehavior.opaque,
-                child: Material(
-                  color: isBookmarked ? const Color(0xFFF3F1EC) : Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    onTap: onBookmarkTap,
+                child: Tooltip(
+                  message: isBookmarked
+                      ? DeepSearchResultsStrings.bookmarkRemove
+                      : DeepSearchResultsStrings.bookmarkAdd,
+                  child: Material(
+                    color: isBookmarked
+                        ? const Color(0xFFF3F1EC)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      width: 68,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFEAEAEA)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          isBookmarked
-                              ? const Icon(
-                                  Icons.check,
-                                  size: 14,
-                                  color: Color(0xFF1F1F1F),
-                                )
-                              : _DeepSearchSvgIcon(
-                                  DeepSearchResultsAssets.bookmark,
-                                  size: 14,
-                                  color: const Color(0xFF1F1F1F),
-                                ),
-                          const SizedBox(width: 4),
-                          Text(
+                    child: InkWell(
+                      onTap: onBookmarkTap,
+                      borderRadius: BorderRadius.circular(8),
+                      hoverColor: isBookmarked
+                          ? const Color(0xFFF3F1EC)
+                          : const Color(0xFFF9F9F7),
+                      child: Container(
+                        width: 68,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFEAEAEA)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             isBookmarked
-                                ? DeepSearchResultsStrings.bookmarkAdded
-                                : DeepSearchResultsStrings.bookmarkAddShort,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF1F1F1F),
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 14,
+                                    color: Color(0xFF1F1F1F),
+                                  )
+                                : SvgPicture.asset(
+                                    DeepSearchResultsAssets.bookmark,
+                                    width: 14,
+                                    height: 14,
+                                    colorFilter: const ColorFilter.mode(
+                                      Color(0xFF1F1F1F),
+                                      BlendMode.srcIn,
+                                    ),
+                                  ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isBookmarked
+                                  ? DeepSearchResultsStrings.bookmarkAdded
+                                  : DeepSearchResultsStrings.bookmarkAddShort,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF1F1F1F),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),

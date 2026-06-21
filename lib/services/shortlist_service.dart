@@ -8,6 +8,17 @@ import 'api_client.dart';
 class ShortlistService {
   final Dio _dio = ApiClient.instance.dio;
 
+  /// 创建收藏项目（文件夹）。
+  Future<FavoriteProject> createProject(String name) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/favorite-projects',
+      data: {'name': name},
+    );
+    return FavoriteProject.fromJson(
+      Map<String, dynamic>.from(response.data ?? const {}),
+    );
+  }
+
   /// 收藏项目（文件夹）列表。
   Future<List<FavoriteProject>> listProjects() async {
     final response = await _dio.get('/favorite-projects');

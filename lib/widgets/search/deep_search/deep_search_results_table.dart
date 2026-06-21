@@ -879,24 +879,30 @@ class _BookmarkIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: isBookmarked
-              ? const Icon(Icons.bookmark, size: 16, color: Color(0xFF1F1F1F))
-              : SvgPicture.asset(
-                  DeepSearchResultsAssets.bookmark,
-                  width: 16,
-                  height: 16,
-                  colorFilter: const ColorFilter.mode(
-                    Color(0xFFB5B3AE),
-                    BlendMode.srcIn,
+    return Tooltip(
+      message: isBookmarked
+          ? DeepSearchResultsStrings.bookmarkRemove
+          : DeepSearchResultsStrings.bookmarkAdd,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(6),
+          hoverColor: const Color(0xFFF3F1EC),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: isBookmarked
+                ? const Icon(Icons.bookmark, size: 16, color: Color(0xFF1F1F1F))
+                : SvgPicture.asset(
+                    DeepSearchResultsAssets.bookmark,
+                    width: 16,
+                    height: 16,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFFB5B3AE),
+                      BlendMode.srcIn,
+                    ),
                   ),
-                ),
+          ),
         ),
       ),
     );
