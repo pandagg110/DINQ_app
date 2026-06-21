@@ -516,6 +516,8 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
                         _RotatingText(
                           messages: searchingMessages,
                           active: true,
+                          minMs: 5000,
+                          maxMs: 8000,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -1064,6 +1066,8 @@ class _ThinkingTreeNode extends StatelessWidget {
   }
 }
 
+const _streamingThinkingPreviewChars = 3000;
+
 class _ThinkingBubbleView extends StatefulWidget {
   const _ThinkingBubbleView({required this.blocks});
 
@@ -1073,17 +1077,56 @@ class _ThinkingBubbleView extends StatefulWidget {
   State<_ThinkingBubbleView> createState() => _ThinkingBubbleViewState();
 }
 
-class _ThinkingBubbleViewState extends State<_ThinkingBubbleView> {
+class _ThinkingBubbleViewState extends State<_ThinkingBubbleView>
+    with SingleTickerProviderStateMixin {
   var _expanded = false;
+  var _hovering = false;
+  late final AnimationController _shimmerController;
+
+  static final _markdownStyle = MarkdownStyleSheet(
+    p: const TextStyle(
+      fontSize: 12,
+      height: 1.625,
+      color: Color(0xFF8A8880),
+    ),
+    strong: const TextStyle(
+      fontWeight: FontWeight.w600,
+      color: Color(0xFF9E9B93),
+    ),
+    listBullet: const TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
+    blockSpacing: 4,
+    listIndent: 16,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     if (widget.blocks.isEmpty) return const SizedBox.shrink();
     final isStreaming = widget.blocks.any((b) => b.isStreaming);
     final totalText = widget.blocks.map((b) => b.text).join();
+    final displayText = isStreaming &&
+            totalText.length > _streamingThinkingPreviewChars
+        ? totalText.substring(
+            totalText.length - _streamingThinkingPreviewChars,
+          )
+        : totalText;
     final startedAt = widget.blocks.first.startedAt;
     final endedAt = widget.blocks.last.endedAt;
-    final durationMs = !isStreaming && startedAt > 0
+    final durationMs = !isStreaming && startedAt != 0
         ? ((endedAt ?? DateTime.now().millisecondsSinceEpoch) - startedAt)
         : null;
     final durationLabel = durationMs == null
@@ -1091,61 +1134,144 @@ class _ThinkingBubbleViewState extends State<_ThinkingBubbleView> {
         : durationMs < 1000
             ? '${durationMs}ms'
             : '${(durationMs / 1000).toStringAsFixed(1)}s';
+    final labelColor =
+        _hovering ? const Color(0xFF6B6862) : const Color(0xFF9E9B93);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Row(
-            children: [
-              Icon(
-                _expanded ? Icons.expand_more : Icons.chevron_right,
-                size: 14,
-                color: const Color(0xFF9E9B93),
-              ),
-              if (isStreaming) ...[
-                const _HalfCircleSpinner(),
-                const SizedBox(width: 6),
-                _RotatingText(
-                  messages: thinkingMessages,
-                  active: true,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF9E9B93)),
-                ),
-                const _PulsingDots(color: Color(0xFF9E9B93)),
-              ] else
-                Text(
-                  durationLabel == null
-                      ? TraceStrings.thought
-                      : TraceStrings.thoughtForDuration(durationLabel),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF9E9B93)),
-                ),
-            ],
-          ),
-        ),
-        AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
-          secondChild: Container(
-            constraints: const BoxConstraints(maxHeight: 200),
-            margin: const EdgeInsets.only(top: 8),
-            child: SingleChildScrollView(
-              child: MarkdownBody(
-                data: totalText,
-                styleSheet: MarkdownStyleSheet(
-                  p: const TextStyle(
-                    fontSize: 12,
-                    height: 1.5,
-                    color: Color(0xFF8A8880),
+        MouseRegion(
+          onEnter: (_) => setState(() => _hovering = true),
+          onExit: (_) => setState(() => _hovering = false),
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                AnimatedRotation(
+                  turns: _expanded ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 12,
+                    color: labelColor,
                   ),
                 ),
-              ),
+                const SizedBox(width: 6),
+                if (isStreaming)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Transform.translate(
+                        offset: const Offset(0, -1.5),
+                        child: _HalfCircleSpinner(color: labelColor),
+                      ),
+                      const SizedBox(width: 6),
+                      _ThinkingShimmerLabel(
+                        controller: _shimmerController,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _RotatingText(
+                              messages: thinkingMessages,
+                              active: true,
+                              minMs: 4000,
+                              maxMs: 8000,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: labelColor,
+                              ),
+                            ),
+                            _PulsingDots(color: labelColor),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    durationLabel == null
+                        ? TraceStrings.thought
+                        : TraceStrings.thoughtForDuration(durationLabel),
+                    style: TextStyle(fontSize: 12, color: labelColor),
+                  ),
+              ],
             ),
           ),
-          crossFadeState:
-              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+        ),
+        AnimatedSize(
           duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          alignment: Alignment.topLeft,
+          clipBehavior: Clip.hardEdge,
+          child: _expanded
+              ? Container(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  margin: const EdgeInsets.only(top: 8),
+                  child: SingleChildScrollView(
+                    child: isStreaming
+                        ? SelectableText(
+                            displayText,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              height: 1.625,
+                              color: Color(0xFF8A8880),
+                            ),
+                          )
+                        : MarkdownBody(
+                            data: displayText,
+                            selectable: true,
+                            styleSheet: _markdownStyle,
+                          ),
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
         ),
       ],
+    );
+  }
+}
+
+class _ThinkingShimmerLabel extends StatelessWidget {
+  const _ThinkingShimmerLabel({
+    required this.controller,
+    required this.child,
+  });
+
+  final AnimationController controller;
+  final Widget child;
+
+  static const _shimmerColors = <Color>[
+    Color(0xFF9E9B93),
+    Color(0xFFC6C3BD),
+    Color(0xFF9E9B93),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return ShaderMask(
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(-1 + controller.value * 2, 0),
+              end: Alignment(controller.value * 2, 0),
+              colors: _shimmerColors,
+              stops: const [0, 0.5, 1],
+            ).createShader(bounds);
+          },
+          blendMode: BlendMode.srcIn,
+          child: child,
+        );
+      },
+      child: child,
     );
   }
 }
@@ -1406,11 +1532,15 @@ class _RotatingText extends StatefulWidget {
     required this.messages,
     required this.active,
     required this.style,
+    this.minMs = 3000,
+    this.maxMs = 6000,
   });
 
   final List<String> messages;
   final bool active;
   final TextStyle style;
+  final int minMs;
+  final int maxMs;
 
   @override
   State<_RotatingText> createState() => _RotatingTextState();
@@ -1444,7 +1574,8 @@ class _RotatingTextState extends State<_RotatingText> {
   void _schedule() {
     _timer?.cancel();
     if (!widget.active) return;
-    final delayMs = 3000 + _random.nextInt(3000);
+    final span = (widget.maxMs - widget.minMs).clamp(1, 1 << 30);
+    final delayMs = widget.minMs + _random.nextInt(span);
     _timer = Timer(Duration(milliseconds: delayMs), () {
       if (!mounted) return;
       setState(() {
@@ -1468,14 +1599,66 @@ class _RotatingTextState extends State<_RotatingText> {
   Widget build(BuildContext context) => Text(_text, style: widget.style);
 }
 
-class _PulsingDots extends StatelessWidget {
+class _PulsingDots extends StatefulWidget {
   const _PulsingDots({this.color = const Color(0xFF8A8880)});
 
   final Color color;
 
   @override
+  State<_PulsingDots> createState() => _PulsingDotsState();
+}
+
+class _PulsingDotsState extends State<_PulsingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _dotOpacity(double phaseOffset) {
+    final t = (_controller.value + phaseOffset) % 1.0;
+    if (t < 0.5) return 0.25 + t * 1.5;
+    return 1.75 - t * 1.5;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Text('...', style: TextStyle(fontSize: 12, color: color));
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final phase in [0.0, 0.2 / 1.4, 0.4 / 1.4])
+                Text(
+                  '.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1,
+                    color: widget.color.withValues(
+                      alpha: _dotOpacity(phase).clamp(0.25, 1.0),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -1528,7 +1711,9 @@ class _BounceSpinnerState extends State<_BounceSpinner> {
 }
 
 class _HalfCircleSpinner extends StatefulWidget {
-  const _HalfCircleSpinner();
+  const _HalfCircleSpinner({this.color = const Color(0xFF9E9B93)});
+
+  final Color color;
 
   @override
   State<_HalfCircleSpinner> createState() => _HalfCircleSpinnerState();
@@ -1558,7 +1743,12 @@ class _HalfCircleSpinnerState extends State<_HalfCircleSpinner> {
   Widget build(BuildContext context) {
     return Text(
       _frames[_index],
-      style: const TextStyle(fontSize: 14, color: Color(0xFF9E9B93)),
+      style: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 14,
+        height: 1,
+        color: widget.color,
+      ),
     );
   }
 }
