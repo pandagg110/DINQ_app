@@ -230,6 +230,24 @@ Map<String, dynamic> candidateRowToTabCandidate(Map<String, dynamic> row) {
   return map;
 }
 
+/// 与 TSX `buildFavoritePayload` 对齐。
+Map<String, dynamic> buildFavoritePayload(Map<String, dynamic> row) {
+  return {
+    'type': 'talent',
+    'title': row['name']?.toString() ?? '',
+    'field': {
+      'row_id': row['row_id'],
+      'name': row['name'],
+      'company': row['company'],
+      'title': row['title'],
+      'profile_url': row['profile_url'],
+      'evidence': row['evidence'],
+      'confidence': row['confidence'],
+      'source': row['source'],
+    },
+  };
+}
+
 const csvUtf8Bom = '\uFEFF';
 
 String buildSearchResultsCsv(List<Map<String, dynamic>> rows) {

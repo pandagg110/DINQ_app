@@ -17,6 +17,18 @@ abstract final class DeepSearchResultsStrings {
   static const mobileBack = 'Back to search process';
 
   static const headerTitle = 'Search results';
+  static const headerShare = 'Share';
+  static const headerSaveCandidates = 'Save candidates';
+
+  static String headerSaveSelectedCandidates(int count) =>
+      count == 1 ? 'Save 1 candidate' : 'Save $count candidates';
+
+  static const toastComingSoon = 'Coming soon';
+  static const toastSelectCandidatesFirst = 'Select candidates first';
+  static const toastAlreadySaved = 'Selected candidates are already saved';
+
+  static String toastSavedCandidates(int count) =>
+      count == 1 ? 'Saved 1 candidate' : 'Saved $count candidates';
 
   static const viewToggleCard = 'Card view';
   static const viewToggleTable = 'Table view';

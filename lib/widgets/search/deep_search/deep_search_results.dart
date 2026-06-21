@@ -22,6 +22,8 @@ class DeepSearchResults extends StatefulWidget {
     this.variant = DeepSearchResultsVariant.inline,
     this.showHeader = true,
     this.hasOpenedEnrichThisVisit = false,
+    this.onVisibleRowsChange,
+    this.onSelectedRowsChange,
   });
 
   final List<Map<String, dynamic>> candidates;
@@ -32,6 +34,8 @@ class DeepSearchResults extends StatefulWidget {
   final DeepSearchResultsVariant variant;
   final bool showHeader;
   final bool hasOpenedEnrichThisVisit;
+  final void Function(List<Map<String, dynamic>> rows)? onVisibleRowsChange;
+  final void Function(List<Map<String, dynamic>> rows)? onSelectedRowsChange;
 
   @override
   State<DeepSearchResults> createState() => _DeepSearchResultsState();
@@ -67,6 +71,28 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
         ascending: _sortAscending,
       );
 
+  List<Map<String, dynamic>> get _selectedRows => _sortedRows
+      .where((row) => _selectedRowIds.contains(row['row_id']?.toString()))
+      .toList();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncParentCallbacks());
+  }
+
+  @override
+  void didUpdateWidget(covariant DeepSearchResults oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.candidates != widget.candidates) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncParentCallbacks());
+    }
+  }
+
+  void _syncParentCallbacks() {
+    widget.onVisibleRowsChange?.call(_sortedRows);
+    widget.onSelectedRowsChange?.call(_selectedRows);
+  }
   void _toggleSort(DeepSearchResultsSortColumn column) {
     setState(() {
       if (_sortColumn == column) {
@@ -75,6 +101,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
         _sortColumn = column;
         _sortAscending = column != DeepSearchResultsSortColumn.confidence;
       }
+      _syncParentCallbacks();
     });
   }
 
@@ -85,6 +112,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
       } else {
         _selectedRowIds.add(rowId);
       }
+      _syncParentCallbacks();
     });
   }
 
@@ -101,6 +129,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
       } else {
         _selectedRowIds.addAll(visibleIds);
       }
+      _syncParentCallbacks();
     });
   }
 
