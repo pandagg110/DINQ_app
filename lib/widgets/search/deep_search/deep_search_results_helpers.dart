@@ -230,6 +230,8 @@ Map<String, dynamic> candidateRowToTabCandidate(Map<String, dynamic> row) {
   return map;
 }
 
+const csvUtf8Bom = '\uFEFF';
+
 String buildSearchResultsCsv(List<Map<String, dynamic>> rows) {
   const headers = [
     'Name',
@@ -241,16 +243,17 @@ String buildSearchResultsCsv(List<Map<String, dynamic>> rows) {
   ];
   final lines = <String>[headers.join(',')];
   for (final row in rows) {
+    final match = getDisplayMatch(row);
     lines.add([
       _escapeCsvField(row['name']?.toString() ?? ''),
       _escapeCsvField(row['company']?.toString() ?? ''),
       _escapeCsvField(row['title']?.toString() ?? ''),
-      _escapeCsvField(row['evidence']?.toString() ?? ''),
+      _escapeCsvField(match.evidence),
       row['profile_url']?.toString() ?? '',
-      formatConfidence(row['confidence']).toString(),
+      match.confidence == null ? '' : match.confidence.toString(),
     ].join(','));
   }
-  return lines.join('\n');
+  return '$csvUtf8Bom${lines.join('\n')}';
 }
 
 String _escapeCsvField(String value) {
@@ -268,13 +271,16 @@ String buildSearchResultsMarkdown(List<Map<String, dynamic>> rows) {
   buffer.writeln('|---|---|---|---|---:|---|---|');
   for (var i = 0; i < rows.length; i++) {
     final row = rows[i];
+    final match = getDisplayMatch(row);
     final cells = [
       '${i + 1}',
       _escapeMdCell(row['name']),
       _escapeMdCell(row['title']),
       _escapeMdCell(row['company']),
-      '${formatConfidence(row['confidence'])}%',
-      _escapeMdCell(row['evidence']),
+      match.confidence == null
+          ? ''
+          : '${formatConfidence(match.confidence)}%',
+      _escapeMdCell(match.evidence),
       _escapeMdCell(row['profile_url']),
     ];
     buffer.writeln('| ${cells.join(' | ')} |');
@@ -314,14 +320,19 @@ List<Map<String, dynamic>> sortCandidateRows(
   DeepSearchResultsSortColumn? column,
   bool ascending = false,
 }) {
-  if (column == null) return List<Map<String, dynamic>>.from(rows);
   final sorted = List<Map<String, dynamic>>.from(rows);
   sorted.sort((a, b) {
+    final verifiedCmp =
+        (isResultVerified(b) ? 1 : 0) - (isResultVerified(a) ? 1 : 0);
+    if (verifiedCmp != 0) return verifiedCmp;
+    if (column == null) return 0;
+
     int compare;
     switch (column) {
       case DeepSearchResultsSortColumn.confidence:
-        compare = formatConfidence(a['confidence'])
-            .compareTo(formatConfidence(b['confidence']));
+        final aMatch = getDisplayMatch(a).confidence ?? -1;
+        final bMatch = getDisplayMatch(b).confidence ?? -1;
+        compare = aMatch.compareTo(bMatch);
       case DeepSearchResultsSortColumn.company:
         compare = (a['company']?.toString() ?? '')
             .compareTo(b['company']?.toString() ?? '');

@@ -6,8 +6,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'deep_search_results_helpers.dart';
+import 'deep_search_results_strings.dart';
 
-/// 与 TSX `DeepSearchResults` 对齐（移动端默认 Card 视图）。
+enum DeepSearchResultsVariant { inline, rail, mobile }
+
+/// 与 TSX `DeepSearchResults` 对齐。
 class DeepSearchResults extends StatefulWidget {
   const DeepSearchResults({
     super.key,
@@ -16,6 +19,9 @@ class DeepSearchResults extends StatefulWidget {
     this.isInterrupted = false,
     this.onRowClick,
     this.selectedRowId,
+    this.variant = DeepSearchResultsVariant.inline,
+    this.showHeader = true,
+    this.hasOpenedEnrichThisVisit = false,
   });
 
   final List<Map<String, dynamic>> candidates;
@@ -23,6 +29,9 @@ class DeepSearchResults extends StatefulWidget {
   final bool isInterrupted;
   final void Function(Map<String, dynamic> row)? onRowClick;
   final String? selectedRowId;
+  final DeepSearchResultsVariant variant;
+  final bool showHeader;
+  final bool hasOpenedEnrichThisVisit;
 
   @override
   State<DeepSearchResults> createState() => _DeepSearchResultsState();
@@ -31,40 +40,32 @@ class DeepSearchResults extends StatefulWidget {
 class _DeepSearchResultsState extends State<DeepSearchResults> {
   static const _scrollSlack = 16.0;
   static const _toolbarHeight = 41.0;
-  static const _filterBarHeight = 44.0;
+  static const _bannerHeight = 48.0;
   static const _interruptedBannerHeight = 45.0;
   static const _cardRowHeight = 72.0;
 
-  var _viewModeCard = true;
+  late var _viewModeCard = widget.variant == DeepSearchResultsVariant.inline;
   var _sortColumn = DeepSearchResultsSortColumn.confidence;
   var _sortAscending = false;
-  final _activeSourceFilters = <String>{};
-  var _filtersExpanded = false;
   var _showExportMenu = false;
   var _copiedResults = false;
   var _isExpanded = true;
   var _isOverflowing = false;
+  var _dismissedSearchingBanner = false;
+  var _dismissedEnrichBanner = false;
+  final _selectedRowIds = <String>{};
+
+  bool get _isRail => widget.variant == DeepSearchResultsVariant.rail;
+  bool get _isMobileResults => widget.variant == DeepSearchResultsVariant.mobile;
 
   List<Map<String, dynamic>> get _rows =>
-      dedupeCandidateRows(List<Map<String, dynamic>>.from(widget.candidates));
+      List<Map<String, dynamic>>.from(widget.candidates);
 
-  List<String> get _rowSourceLabels {
-    return _rows.map(getRowSourceLabel).toSet().toList()..sort();
-  }
-
-  List<Map<String, dynamic>> get _sortedFilteredRows {
-    var rows = _rows;
-    if (_activeSourceFilters.isNotEmpty) {
-      rows = rows
-          .where((r) => _activeSourceFilters.contains(getRowSourceLabel(r)))
-          .toList();
-    }
-    return sortCandidateRows(
-      rows,
-      column: _sortColumn,
-      ascending: _sortAscending,
-    );
-  }
+  List<Map<String, dynamic>> get _sortedRows => sortCandidateRows(
+        _rows,
+        column: _sortColumn,
+        ascending: _sortAscending,
+      );
 
   void _toggleSort(DeepSearchResultsSortColumn column) {
     setState(() {
@@ -77,19 +78,35 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
     });
   }
 
-  void _toggleSourceFilter(String label) {
+  void _toggleSelectedRow(String rowId) {
     setState(() {
-      if (_activeSourceFilters.contains(label)) {
-        _activeSourceFilters.remove(label);
+      if (_selectedRowIds.contains(rowId)) {
+        _selectedRowIds.remove(rowId);
       } else {
-        _activeSourceFilters.add(label);
+        _selectedRowIds.add(rowId);
+      }
+    });
+  }
+
+  void _toggleAllVisibleRows() {
+    setState(() {
+      final visibleIds =
+          _sortedRows.map((r) => r['row_id']?.toString() ?? '').where((id) => id.isNotEmpty);
+      final allSelected = _sortedRows.isNotEmpty &&
+          _sortedRows.every(
+            (row) => _selectedRowIds.contains(row['row_id']?.toString()),
+          );
+      if (allSelected) {
+        _selectedRowIds.removeAll(visibleIds);
+      } else {
+        _selectedRowIds.addAll(visibleIds);
       }
     });
   }
 
   Future<void> _copyResults() async {
     await Clipboard.setData(
-      ClipboardData(text: buildSearchResultsMarkdown(_sortedFilteredRows)),
+      ClipboardData(text: buildSearchResultsMarkdown(_sortedRows)),
     );
     setState(() => _copiedResults = true);
     Future.delayed(const Duration(milliseconds: 1500), () {
@@ -99,19 +116,20 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
 
   Future<void> _exportCsv() async {
     setState(() => _showExportMenu = false);
-    await Share.share(buildSearchResultsCsv(_sortedFilteredRows));
+    await Share.share(buildSearchResultsCsv(_sortedRows));
   }
 
   Future<void> _exportMarkdown() async {
     setState(() => _showExportMenu = false);
-    await Share.share(buildSearchResultsMarkdown(_sortedFilteredRows));
+    await Share.share(buildSearchResultsMarkdown(_sortedRows));
   }
 
   bool _canToggleExpanded(double collapsedMaxHeight) {
-    var height = _toolbarHeight;
-    if (_rowSourceLabels.length > 1) height += _filterBarHeight;
+    if (_isRail || _isMobileResults) return false;
+    var height = widget.showHeader ? _toolbarHeight : 0;
+    if (_activeResultsBannerKind != null) height += _bannerHeight;
     if (widget.isInterrupted) height += _interruptedBannerHeight;
-    final rowCount = _sortedFilteredRows.length;
+    final rowCount = _sortedRows.length;
     if (rowCount > 0) {
       height += rowCount * _cardRowHeight;
       if (rowCount > 1) height += rowCount - 1;
@@ -120,31 +138,47 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
   }
 
   double _collapsedMaxHeight(BuildContext context) {
-    // App 端有底部 Tab，可用高度比 Web 小，折叠态用 50vh（Web 为 70vh）。
-    return math.max(420.0, MediaQuery.sizeOf(context).height * 0.5);
+    return math.max(420.0, MediaQuery.sizeOf(context).height * 0.7);
+  }
+
+  String? get _activeResultsBannerKind {
+    if (widget.isSearching && !_dismissedSearchingBanner) {
+      return 'searching';
+    }
+    if (!widget.isSearching &&
+        !widget.hasOpenedEnrichThisVisit &&
+        _rows.isNotEmpty &&
+        !_dismissedEnrichBanner) {
+      return 'enrich';
+    }
+    return null;
   }
 
   Widget _buildResultsContent({
     required List<Map<String, dynamic>> sortedRows,
-    required bool isFiltered,
   }) {
+    final contentColor =
+        _isRail || _isMobileResults ? Colors.white : DeepSearchResultsColors.scrollBg;
     return ColoredBox(
-      color: DeepSearchResultsColors.scrollBg,
+      color: contentColor,
       child: _viewModeCard
           ? _CardResultsList(
               rows: sortedRows,
-              allRowsCount: _rows.length,
-              isFiltered: isFiltered,
               selectedRowId: widget.selectedRowId,
+              selectedRowIds: _selectedRowIds,
+              showMobileSelection: _isMobileResults,
+              onToggleSelectedRow: _toggleSelectedRow,
               onRowClick: widget.onRowClick,
             )
           : _TableResultsView(
               rows: sortedRows,
-              allRowsCount: _rows.length,
-              isFiltered: isFiltered,
               sortColumn: _sortColumn,
               sortAscending: _sortAscending,
               selectedRowId: widget.selectedRowId,
+              selectedRowIds: _selectedRowIds,
+              isMobileResults: _isMobileResults,
+              onToggleAll: _toggleAllVisibleRows,
+              onToggleSelectedRow: _toggleSelectedRow,
               onSort: _toggleSort,
               onRowClick: widget.onRowClick,
             ),
@@ -153,46 +187,69 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
 
   @override
   Widget build(BuildContext context) {
-    if (_rows.isEmpty) return const SizedBox.shrink();
-
-    final sortedRows = _sortedFilteredRows;
-    final isFiltered = _activeSourceFilters.isNotEmpty;
-    final sourceLabels = _rowSourceLabels;
+    final sortedRows = _sortedRows;
     final collapsedMaxHeight = _collapsedMaxHeight(context);
     final canToggleExpanded = _canToggleExpanded(collapsedMaxHeight);
+    final isEmpty = _rows.isEmpty;
+    final bannerKind = _activeResultsBannerKind;
 
-    final resultsContent = _buildResultsContent(
-      sortedRows: sortedRows,
-      isFiltered: isFiltered,
-    );
+    if (isEmpty && !widget.isSearching && !_isRail && !_isMobileResults) {
+      return Container(
+        decoration: BoxDecoration(
+          color: DeepSearchResultsColors.pageBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: DeepSearchResultsColors.border),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Center(
+          child: Text(
+            DeepSearchResultsStrings.empty,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, color: Color(0xFFA5A39E)),
+          ),
+        ),
+      );
+    }
+
+    if (isEmpty && (_isRail || _isMobileResults)) {
+      return const SizedBox.shrink();
+    }
+
+    if (isEmpty && widget.isSearching) {
+      return const SizedBox.shrink();
+    }
+
+    final resultsContent = _buildResultsContent(sortedRows: sortedRows);
 
     final panelBody = Column(
       mainAxisSize: _isExpanded ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ResultsToolbar(
-          viewModeCard: _viewModeCard,
-          copiedResults: _copiedResults,
-          showExportMenu: _showExportMenu,
-          onViewModeCard: () => setState(() => _viewModeCard = true),
-          onViewModeTable: () => setState(() => _viewModeCard = false),
-          onToggleExportMenu: () =>
-              setState(() => _showExportMenu = !_showExportMenu),
-          onDismissExportMenu: () => setState(() => _showExportMenu = false),
-          onCopy: _copyResults,
-          onExportCsv: _exportCsv,
-          onExportMarkdown: _exportMarkdown,
-        ),
-        if (sourceLabels.length > 1)
-          _SourceFilterBar(
-            labels: sourceLabels,
-            rows: _rows,
-            activeFilters: _activeSourceFilters,
-            expanded: _filtersExpanded,
-            onToggle: _toggleSourceFilter,
-            onClear: () => setState(_activeSourceFilters.clear),
-            onExpandToggle: () =>
-                setState(() => _filtersExpanded = !_filtersExpanded),
+        if (widget.showHeader)
+          _ResultsToolbar(
+            viewModeCard: _viewModeCard,
+            copiedResults: _copiedResults,
+            showExportMenu: _showExportMenu,
+            hasRows: _rows.isNotEmpty,
+            onViewModeCard: () => setState(() => _viewModeCard = true),
+            onViewModeTable: () => setState(() => _viewModeCard = false),
+            onToggleExportMenu: () =>
+                setState(() => _showExportMenu = !_showExportMenu),
+            onDismissExportMenu: () => setState(() => _showExportMenu = false),
+            onCopy: _copyResults,
+            onExportCsv: _exportCsv,
+            onExportMarkdown: _exportMarkdown,
+          ),
+        if (bannerKind != null)
+          _ResultsNoticeBanner(
+            kind: bannerKind,
+            onDismiss: () => setState(() {
+              if (bannerKind == 'searching') {
+                _dismissedSearchingBanner = true;
+              } else {
+                _dismissedEnrichBanner = true;
+              }
+            }),
           ),
         if (widget.isInterrupted)
           Container(
@@ -202,12 +259,12 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
               color: Color(0xFFFFFBEB),
               border: Border(bottom: BorderSide(color: Color(0xFFFEF3C7))),
             ),
-            child: const Text(
-              'Search stopped. Partial results are preserved.',
-              style: TextStyle(fontSize: 14, color: Color(0xFFB45309)),
+            child: Text(
+              DeepSearchResultsStrings.interrupted,
+              style: const TextStyle(fontSize: 14, color: Color(0xFFB45309)),
             ),
           ),
-        if (!_isExpanded)
+        if (!_isExpanded && !_isRail && !_isMobileResults)
           Expanded(
             child: _ResultsScrollArea(
               onOverflowChanged: (value) {
@@ -218,6 +275,8 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
               child: resultsContent,
             ),
           )
+        else if (_isRail || _isMobileResults)
+          Expanded(child: resultsContent)
         else
           resultsContent,
         if (canToggleExpanded)
@@ -242,7 +301,9 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _isExpanded ? 'Show less' : 'Show more',
+                      _isExpanded
+                          ? DeepSearchResultsStrings.showLess
+                          : DeepSearchResultsStrings.showMore,
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF8A8880),
@@ -265,6 +326,13 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
           ),
       ],
     );
+
+    if (_isRail || _isMobileResults) {
+      return ColoredBox(
+        color: Colors.white,
+        child: panelBody,
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -398,11 +466,64 @@ class _ResultsScrollAreaState extends State<_ResultsScrollArea> {
   }
 }
 
+class _ResultsNoticeBanner extends StatelessWidget {
+  const _ResultsNoticeBanner({
+    required this.kind,
+    required this.onDismiss,
+  });
+
+  final String kind;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = kind == 'searching'
+        ? DeepSearchResultsStrings.searchingNotice
+        : DeepSearchResultsStrings.enrichHintNotice;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8F6EF),
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E3DE))),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            kind == 'searching' ? Icons.info_outline : Icons.lightbulb_outline,
+            size: 16,
+            color: const Color(0xFF7A6B52),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF7A6B52),
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onDismiss,
+            tooltip: DeepSearchResultsStrings.dismissNotice,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            icon: const Icon(Icons.close, size: 14, color: Color(0xFF9B8D72)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ResultsToolbar extends StatelessWidget {
   const _ResultsToolbar({
     required this.viewModeCard,
     required this.copiedResults,
     required this.showExportMenu,
+    required this.hasRows,
     required this.onViewModeCard,
     required this.onViewModeTable,
     required this.onToggleExportMenu,
@@ -415,6 +536,7 @@ class _ResultsToolbar extends StatelessWidget {
   final bool viewModeCard;
   final bool copiedResults;
   final bool showExportMenu;
+  final bool hasRows;
   final VoidCallback onViewModeCard;
   final VoidCallback onViewModeTable;
   final VoidCallback onToggleExportMenu;
@@ -436,18 +558,19 @@ class _ResultsToolbar extends StatelessWidget {
           _ToolbarIconButton(
             asset: DeepSearchResultsAssets.gridView,
             selected: viewModeCard,
-            tooltip: 'Card view',
+            tooltip: DeepSearchResultsStrings.viewToggleCard,
             onTap: onViewModeCard,
           ),
           const SizedBox(width: 4),
           _ToolbarIconButton(
             asset: DeepSearchResultsAssets.listView,
             selected: !viewModeCard,
-            tooltip: 'Table view',
+            tooltip: DeepSearchResultsStrings.viewToggleTable,
             onTap: onViewModeTable,
           ),
           const Spacer(),
-          PopupMenuButton<String>(
+          if (hasRows) ...[
+            PopupMenuButton<String>(
             onOpened: onToggleExportMenu,
             onCanceled: onDismissExportMenu,
             offset: const Offset(0, 36),
@@ -511,7 +634,7 @@ class _ResultsToolbar extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   const Text(
-                    'Export',
+                    DeepSearchResultsStrings.exportButton,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -540,6 +663,7 @@ class _ResultsToolbar extends StatelessWidget {
               ),
             ),
           ),
+          ],
         ],
       ),
     );
@@ -581,193 +705,27 @@ class _ToolbarIconButton extends StatelessWidget {
   }
 }
 
-class _SourceFilterBar extends StatelessWidget {
-  const _SourceFilterBar({
-    required this.labels,
-    required this.rows,
-    required this.activeFilters,
-    required this.expanded,
-    required this.onToggle,
-    required this.onClear,
-    required this.onExpandToggle,
-  });
-
-  final List<String> labels;
-  final List<Map<String, dynamic>> rows;
-  final Set<String> activeFilters;
-  final bool expanded;
-  final ValueChanged<String> onToggle;
-  final VoidCallback onClear;
-  final VoidCallback onExpandToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final filtersOverflow = labels.length > 3;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: const BoxDecoration(
-        color: DeepSearchResultsColors.filterBg,
-        border: Border(bottom: BorderSide(color: DeepSearchResultsColors.filterBorder)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: expanded ? double.infinity : 24,
-                  ),
-                  child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                  for (final label in labels)
-                    _SourceFilterChip(
-                      label: label,
-                      count: rows
-                          .where((r) => getRowSourceLabel(r) == label)
-                          .length,
-                      active: activeFilters.contains(label),
-                      icon: findSourceCategory(
-                            rows
-                                    .firstWhere(
-                                      (r) => getRowSourceLabel(r) == label,
-                                      orElse: () => rows.first,
-                                    )['source']
-                                    ?.toString() ??
-                                '',
-                          )?.icon ??
-                          Icons.language,
-                      onTap: () => onToggle(label),
-                    ),
-                  if (activeFilters.isNotEmpty)
-                    TextButton(
-                      onPressed: onClear,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Clear',
-                        style: TextStyle(fontSize: 12, color: Color(0xFFA5A39E)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          ),
-          if (filtersOverflow)
-            IconButton(
-              onPressed: onExpandToggle,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-              icon: Icon(
-                expanded ? Icons.expand_less : Icons.expand_more,
-                size: 16,
-                color: const Color(0xFFA5A39E),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SourceFilterChip extends StatelessWidget {
-  const _SourceFilterChip({
-    required this.label,
-    required this.count,
-    required this.active,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final int count;
-  final bool active;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFF6B6962) : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: active ? const Color(0xFF6B6962) : const Color(0xFFD5D3CE),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 12,
-              color: active ? Colors.white : const Color(0xFF6B6B6B),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: active ? Colors.white : const Color(0xFF6B6B6B),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '$count',
-              style: TextStyle(
-                fontSize: 12,
-                color: active
-                    ? Colors.white.withValues(alpha: 0.7)
-                    : const Color(0xFFA5A39E),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _CardResultsList extends StatelessWidget {
   const _CardResultsList({
     required this.rows,
-    required this.allRowsCount,
-    required this.isFiltered,
     this.selectedRowId,
+    required this.selectedRowIds,
+    required this.showMobileSelection,
+    required this.onToggleSelectedRow,
     this.onRowClick,
   });
 
   final List<Map<String, dynamic>> rows;
-  final int allRowsCount;
-  final bool isFiltered;
   final String? selectedRowId;
+  final Set<String> selectedRowIds;
+  final bool showMobileSelection;
+  final ValueChanged<String> onToggleSelectedRow;
   final void Function(Map<String, dynamic> row)? onRowClick;
 
   @override
   Widget build(BuildContext context) {
-    if (rows.isEmpty && isFiltered && allRowsCount > 0) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(
-          child: Text(
-            'No candidates match the selected source filters.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
-          ),
-        ),
-      );
+    if (rows.isEmpty) {
+      return const SizedBox.shrink();
     }
 
     return Column(
@@ -780,11 +738,20 @@ class _CardResultsList extends StatelessWidget {
               row: rows[i],
               prevRow: rows[i - 1],
               selectedRowId: selectedRowId,
+              selectedRowIds: selectedRowIds,
             ),
           _CandidateResultCard(
             row: rows[i],
             selected: selectedRowId != null &&
                 selectedRowId == rows[i]['row_id']?.toString(),
+            checked: selectedRowIds.contains(rows[i]['row_id']?.toString()),
+            showMobileSelection: showMobileSelection,
+            onToggleChecked: () {
+              final rowId = rows[i]['row_id']?.toString();
+              if (rowId != null && rowId.isNotEmpty) {
+                onToggleSelectedRow(rowId);
+              }
+            },
             onTap: onRowClick == null ? null : () => onRowClick!(rows[i]),
           ),
         ],
@@ -798,18 +765,22 @@ class _CardDivider extends StatelessWidget {
     required this.row,
     required this.prevRow,
     required this.selectedRowId,
+    required this.selectedRowIds,
   });
 
   final Map<String, dynamic> row;
   final Map<String, dynamic> prevRow;
   final String? selectedRowId;
+  final Set<String> selectedRowIds;
 
   @override
   Widget build(BuildContext context) {
     final rowId = row['row_id']?.toString();
     final prevId = prevRow['row_id']?.toString();
     final fullWidth = selectedRowId != null &&
-        (selectedRowId == rowId || selectedRowId == prevId);
+            (selectedRowId == rowId || selectedRowId == prevId) ||
+        selectedRowIds.contains(rowId) ||
+        selectedRowIds.contains(prevId);
     return Divider(
       height: 1,
       thickness: 1,
@@ -824,11 +795,17 @@ class _CandidateResultCard extends StatelessWidget {
   const _CandidateResultCard({
     required this.row,
     required this.selected,
+    required this.checked,
+    required this.showMobileSelection,
+    required this.onToggleChecked,
     this.onTap,
   });
 
   final Map<String, dynamic> row;
   final bool selected;
+  final bool checked;
+  final bool showMobileSelection;
+  final VoidCallback onToggleChecked;
   final VoidCallback? onTap;
 
   @override
@@ -837,7 +814,6 @@ class _CandidateResultCard extends StatelessWidget {
     final title = row['title']?.toString() ?? '';
     final company = row['company']?.toString() ?? '';
     final displayMatch = getDisplayMatch(row);
-    final verified = isResultVerified(row);
     final confidence = displayMatch.confidence == null
         ? null
         : formatConfidence(displayMatch.confidence);
@@ -845,24 +821,26 @@ class _CandidateResultCard extends StatelessWidget {
     final evidence = displayMatch.evidence;
     final subtitle =
         [title, company].where((s) => s.trim().isNotEmpty).join(' · ');
+    final showMatchRow = confidence != null || evidence.isNotEmpty;
 
-    final nameColor =
-        verified ? const Color(0xFF171717) : const Color(0xFF8A8880);
-    final subtitleColor =
-        verified ? const Color(0xFF6B6B6B) : const Color(0xFF8A8880);
-    final evidenceColor =
-        verified ? const Color(0xFF6B6962) : const Color(0xFF8A8880);
-
-    final card = Material(
-      color: selected ? const Color(0xFFF9F8F5) : Colors.transparent,
+    return Material(
+      color: selected
+          ? const Color(0xFFF0EFE9)
+          : checked
+              ? const Color(0xFFF8F7F4)
+              : Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        hoverColor: const Color(0xFFFDFCF9),
+        hoverColor: const Color(0xFFF5F4EF),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              if (showMobileSelection) ...[
+                _SelectCheckbox(checked: checked, onChanged: onToggleChecked),
+                const SizedBox(width: 12),
+              ],
               Container(
                 width: 40,
                 height: 40,
@@ -893,10 +871,10 @@ class _CandidateResultCard extends StatelessWidget {
                           fit: FlexFit.loose,
                           child: Text(
                             name,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: nameColor,
+                              color: Color(0xFF171717),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -906,10 +884,10 @@ class _CandidateResultCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               subtitle,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w300,
-                                color: subtitleColor,
+                                color: Color(0xFF6B6B6B),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -917,45 +895,48 @@ class _CandidateResultCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (badge != null && confidence != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: badge.background,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border(
-                                top: BorderSide(color: badge.border),
+                    if (showMatchRow) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (badge != null && confidence != null) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: badge.background,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border(
+                                  top: BorderSide(color: badge.border),
+                                ),
+                              ),
+                              child: Text(
+                                '$confidence%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: badge.foreground,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              '$confidence%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: badge.foreground,
+                            const SizedBox(width: 8),
+                          ],
+                          if (evidence.isNotEmpty)
+                            Expanded(
+                              child: Text(
+                                evidence,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF6B6962),
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
                         ],
-                        Expanded(
-                          child: Text(
-                            evidence.isEmpty ? '—' : evidence,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: evidenceColor,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -987,7 +968,7 @@ class _CandidateResultCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         const Text(
-                          'Add',
+                          DeepSearchResultsStrings.bookmarkAddShort,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -1004,46 +985,80 @@ class _CandidateResultCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
 
-    if (verified) return card;
-    return Opacity(opacity: 0.55, child: card);
+class _SelectCheckbox extends StatelessWidget {
+  const _SelectCheckbox({
+    required this.checked,
+    required this.onChanged,
+  });
+
+  final bool checked;
+  final VoidCallback onChanged;
+
+  static const _size = 16.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onChanged,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        width: _size,
+        height: _size,
+        decoration: BoxDecoration(
+          color: checked ? const Color(0xFF171717) : Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: checked ? const Color(0xFF171717) : const Color(0xFFECE9E3),
+          ),
+        ),
+        child: checked
+            ? const Icon(Icons.check, size: 12, color: Colors.white)
+            : null,
+      ),
+    );
   }
 }
 
 class _TableResultsView extends StatelessWidget {
   const _TableResultsView({
     required this.rows,
-    required this.allRowsCount,
-    required this.isFiltered,
     required this.sortColumn,
     required this.sortAscending,
     this.selectedRowId,
+    required this.selectedRowIds,
+    required this.isMobileResults,
+    required this.onToggleAll,
+    required this.onToggleSelectedRow,
     required this.onSort,
     this.onRowClick,
   });
 
   final List<Map<String, dynamic>> rows;
-  final int allRowsCount;
-  final bool isFiltered;
   final DeepSearchResultsSortColumn sortColumn;
   final bool sortAscending;
   final String? selectedRowId;
+  final Set<String> selectedRowIds;
+  final bool isMobileResults;
+  final VoidCallback onToggleAll;
+  final ValueChanged<String> onToggleSelectedRow;
   final ValueChanged<DeepSearchResultsSortColumn> onSort;
   final void Function(Map<String, dynamic> row)? onRowClick;
 
   @override
   Widget build(BuildContext context) {
-    if (rows.isEmpty && isFiltered && allRowsCount > 0) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(
-          child: Text(
-            'No candidates match the selected source filters.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
-          ),
-        ),
-      );
-    }
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    final hasDisplayConfidence =
+        rows.any((row) => getDisplayMatch(row).confidence != null);
+    final hasDisplayEvidence =
+        rows.any((row) => getDisplayMatch(row).evidence.isNotEmpty);
+    final hasCompany = rows.any((r) => (r['company']?.toString() ?? '').trim().isNotEmpty);
+    final hasTitle = rows.any((r) => (r['title']?.toString() ?? '').trim().isNotEmpty);
+    final allSelected = rows.isNotEmpty &&
+        rows.every((row) => selectedRowIds.contains(row['row_id']?.toString()));
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1061,96 +1076,222 @@ class _TableResultsView extends StatelessWidget {
         ),
         dataTextStyle: const TextStyle(fontSize: 12, color: Color(0xFF171717)),
         columns: [
-          const DataColumn(label: Text('#')),
-          _SortableDataColumn(
-            label: 'Candidate',
-            column: DeepSearchResultsSortColumn.name,
-            active: sortColumn == DeepSearchResultsSortColumn.name,
-            ascending: sortAscending,
-            onSort: onSort,
+          DataColumn(
+            label: _SelectCheckbox(
+              checked: allSelected,
+              onChanged: onToggleAll,
+            ),
           ),
-          _SortableDataColumn(
-            label: 'Match',
-            column: DeepSearchResultsSortColumn.confidence,
-            active: sortColumn == DeepSearchResultsSortColumn.confidence,
-            ascending: sortAscending,
-            onSort: onSort,
-          ),
-          _SortableDataColumn(
-            label: 'Company',
-            column: DeepSearchResultsSortColumn.company,
-            active: sortColumn == DeepSearchResultsSortColumn.company,
-            ascending: sortAscending,
-            onSort: onSort,
-          ),
-          _SortableDataColumn(
-            label: 'Title',
-            column: DeepSearchResultsSortColumn.title,
-            active: sortColumn == DeepSearchResultsSortColumn.title,
-            ascending: sortAscending,
-            onSort: onSort,
-          ),
-          const DataColumn(label: Text('Match Reason')),
+          if (isMobileResults)
+            const DataColumn(label: SizedBox(width: 40))
+          else
+            _SortableDataColumn(
+              label: DeepSearchResultsStrings.columnCandidate,
+              column: DeepSearchResultsSortColumn.name,
+              active: sortColumn == DeepSearchResultsSortColumn.name,
+              ascending: sortAscending,
+              onSort: onSort,
+            ),
+          if (isMobileResults)
+            _SortableDataColumn(
+              label: DeepSearchResultsStrings.columnName,
+              column: DeepSearchResultsSortColumn.name,
+              active: sortColumn == DeepSearchResultsSortColumn.name,
+              ascending: sortAscending,
+              onSort: onSort,
+            ),
+          if (hasDisplayConfidence)
+            _SortableDataColumn(
+              label: DeepSearchResultsStrings.columnMatch,
+              column: DeepSearchResultsSortColumn.confidence,
+              active: sortColumn == DeepSearchResultsSortColumn.confidence,
+              ascending: sortAscending,
+              onSort: onSort,
+            ),
+          if (hasCompany)
+            _SortableDataColumn(
+              label: DeepSearchResultsStrings.columnCompany,
+              column: DeepSearchResultsSortColumn.company,
+              active: sortColumn == DeepSearchResultsSortColumn.company,
+              ascending: sortAscending,
+              onSort: onSort,
+            ),
+          if (hasTitle)
+            _SortableDataColumn(
+              label: DeepSearchResultsStrings.columnTitle,
+              column: DeepSearchResultsSortColumn.title,
+              active: sortColumn == DeepSearchResultsSortColumn.title,
+              ascending: sortAscending,
+              onSort: onSort,
+            ),
+          if (hasDisplayEvidence)
+            const DataColumn(label: Text(DeepSearchResultsStrings.columnMatchReason)),
+          const DataColumn(label: Text(DeepSearchResultsStrings.columnProfile)),
+          const DataColumn(label: Text(DeepSearchResultsStrings.bookmarkAddShort)),
         ],
-        rows: [
-          for (var i = 0; i < rows.length; i++)
-            _buildRow(context, rows[i], i + 1),
-        ],
+        rows: [for (var i = 0; i < rows.length; i++) _buildRow(context, rows[i])],
       ),
     );
   }
 
-  DataRow _buildRow(
-    BuildContext context,
-    Map<String, dynamic> row,
-    int index,
-  ) {
-    final rowId = row['row_id']?.toString();
+  DataRow _buildRow(BuildContext context, Map<String, dynamic> row) {
+    final rowId = row['row_id']?.toString() ?? '';
     final selected = selectedRowId != null && selectedRowId == rowId;
-    final confidence = formatConfidence(row['confidence']);
-    final badge = matchBadgeStyle(confidence);
+    final checked = selectedRowIds.contains(rowId);
+    final verified = isResultVerified(row);
+    final displayMatch = getDisplayMatch(row);
+    final confidence = displayMatch.confidence == null
+        ? null
+        : formatConfidence(displayMatch.confidence);
+    final badge = confidence == null ? null : matchBadgeStyle(confidence);
     final rowTap = onRowClick == null ? null : () => onRowClick!(row);
+    final nameColor =
+        verified ? const Color(0xFF171717) : const Color(0xFF8A8880);
+    final mutedColor =
+        verified ? const Color(0xFF6B6962) : const Color(0xFF8A8880);
+    final profileUrl = row['profile_url']?.toString() ?? '';
+    final name = row['name']?.toString() ?? '';
+
+    Widget cell(Widget child, {VoidCallback? onTap}) =>
+        Opacity(opacity: verified ? 1 : 0.55, child: child);
+
     return DataRow(
       color: WidgetStateProperty.resolveWith((states) {
         if (selected) return const Color(0xFFF9F8F5);
         if (states.contains(WidgetState.hovered)) {
-          return const Color(0xFFFDFCF9);
+          return verified ? const Color(0xFFFDFCF9) : const Color(0xFFFBFAF7);
         }
         return Colors.white;
       }),
       cells: [
-        DataCell(Text('$index'), onTap: rowTap),
-        DataCell(Text(row['name']?.toString() ?? ''), onTap: rowTap),
         DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: badge.background,
-              borderRadius: BorderRadius.circular(999),
-              border: Border(top: BorderSide(color: badge.border)),
+          cell(
+            _SelectCheckbox(
+              checked: checked,
+              onChanged: () => onToggleSelectedRow(rowId),
             ),
-            child: Text(
-              '$confidence%',
-              style: TextStyle(
-                color: badge.foreground,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+          ),
+        ),
+        DataCell(
+          cell(
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: nameToAvatarColor(name),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    toInitials(name),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1F1F1F),
+                    ),
+                  ),
+                ),
+                if (!isMobileResults) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    name.isEmpty ? '—' : name,
+                    style: TextStyle(fontWeight: FontWeight.w500, color: nameColor),
+                  ),
+                ],
+              ],
             ),
           ),
           onTap: rowTap,
         ),
-        DataCell(Text(row['company']?.toString() ?? ''), onTap: rowTap),
-        DataCell(Text(row['title']?.toString() ?? ''), onTap: rowTap),
-        DataCell(
-          SizedBox(
-            width: 180,
-            child: Text(
-              row['evidence']?.toString() ?? '—',
-              overflow: TextOverflow.ellipsis,
+        if (isMobileResults)
+          DataCell(
+            cell(
+              Text(
+                name.isEmpty ? '—' : name,
+                style: TextStyle(fontWeight: FontWeight.w500, color: nameColor),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            onTap: rowTap,
+          ),
+        if (confidence != null && badge != null)
+          DataCell(
+            cell(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badge.background,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border(top: BorderSide(color: badge.border)),
+                ),
+                child: Text(
+                  '$confidence%',
+                  style: TextStyle(
+                    color: badge.foreground,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+            onTap: rowTap,
+          )
+        else if (rows.any((r) => getDisplayMatch(r).confidence != null))
+          DataCell(cell(const SizedBox.shrink()), onTap: rowTap),
+        if (rows.any((r) => (r['company']?.toString() ?? '').trim().isNotEmpty))
+          DataCell(
+            cell(Text(row['company']?.toString() ?? '—', style: TextStyle(color: mutedColor))),
+            onTap: rowTap,
+          ),
+        if (rows.any((r) => (r['title']?.toString() ?? '').trim().isNotEmpty))
+          DataCell(
+            cell(Text(row['title']?.toString() ?? '—', style: TextStyle(color: mutedColor))),
+            onTap: rowTap,
+          ),
+        if (rows.any((row) => getDisplayMatch(row).evidence.isNotEmpty))
+          DataCell(
+            cell(
+              SizedBox(
+                width: 180,
+                child: Text(
+                  displayMatch.evidence.isEmpty
+                      ? (confidence == null ? '' : '—')
+                      : displayMatch.evidence,
+                  style: TextStyle(color: mutedColor),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            onTap: rowTap,
+          ),
+        DataCell(
+          cell(
+            profileUrl.isEmpty
+                ? const Text('—', style: TextStyle(color: Color(0xFFD5D3CE)))
+                : Text(
+                    profileUrl.replaceFirst(RegExp(r'^https?://(www\.)?'), ''),
+                    style: TextStyle(color: mutedColor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
           ),
           onTap: rowTap,
+        ),
+        DataCell(
+          cell(
+            IconButton(
+              onPressed: () {},
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: _DeepSearchSvgIcon(
+                DeepSearchResultsAssets.bookmark,
+                size: 16,
+                color: const Color(0xFFB5B3AE),
+              ),
+            ),
+          ),
         ),
       ],
     );

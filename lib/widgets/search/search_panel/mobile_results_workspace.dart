@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../deep_search/deep_search_results.dart';
 import '../deep_search/deep_search_results_helpers.dart';
+import '../deep_search/deep_search_results_strings.dart';
 
 /// 与 TSX `AgenticChat` showMobileResultsWorkspace 对齐。
 class MobileResultsWorkspace extends StatelessWidget {
@@ -45,18 +46,32 @@ class MobileResultsWorkspace extends StatelessWidget {
                     onPressed: onClose,
                     icon: const Icon(Icons.arrow_back, size: 20),
                     color: const Color(0xFF171717),
-                    tooltip: 'Back',
+                    tooltip: DeepSearchResultsStrings.mobileBack,
                   ),
                   Expanded(
-                    child: Text(
-                      'Search results (${candidates.length})',
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: DeepSearchResultsStrings.headerTitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF171717),
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' (${candidates.length})',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF8A8880),
+                            ),
+                          ),
+                        ],
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF171717),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -70,6 +85,8 @@ class MobileResultsWorkspace extends StatelessWidget {
               isSearching: isSearching,
               isInterrupted: isInterrupted,
               selectedRowId: selectedRowId,
+              variant: DeepSearchResultsVariant.mobile,
+              showHeader: false,
               onRowClick: (row) => onRowClick(candidateRowToTabCandidate(row)),
             ),
           ),

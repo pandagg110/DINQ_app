@@ -1,0 +1,44 @@
+/// 与 Web `messages/en/search.json` → `enrich.results.*` 严格对齐的展示文案。
+abstract final class DeepSearchResultsStrings {
+  DeepSearchResultsStrings._();
+
+  static const empty = 'Candidates will appear here as they are found.';
+  static const interrupted =
+      'Search stopped. Partial results are preserved.';
+  static const searchingNotice =
+      'DINQ is searching public sources, verifying evidence, and preparing ranked candidates.';
+  static const enrichHintNotice = 'Tap a candidate to enrich.';
+  static const dismissNotice = 'Dismiss notice';
+  static const noFilterMatch =
+      'No candidates match the selected source filters.';
+  static const showLess = 'Show less';
+  static const showMore = 'Show more';
+  static const copyResults = 'Copy search results as Markdown';
+  static const mobileBack = 'Back to search process';
+
+  static const headerTitle = 'Search results';
+
+  static const viewToggleCard = 'Card view';
+  static const viewToggleTable = 'Table view';
+
+  static const exportButton = 'Export';
+  static const exportExporting = 'Exporting…';
+  static const exportPdfUnavailable =
+      'PDF export unavailable for this search';
+
+  static const filtersClear = 'Clear';
+
+  static const columnGroup = 'Group';
+  static const columnCandidate = 'Candidate';
+  static const columnName = 'Name';
+  static const columnMatch = 'Match';
+  static const columnCompany = 'Company';
+  static const columnTitle = 'Title';
+  static const columnMatchReason = 'Match Reason';
+  static const columnProfile = 'Profile';
+
+  static const bookmarkAdd = 'Add to shortlist';
+  static const bookmarkRemove = 'Remove from shortlist';
+  static const bookmarkAddShort = 'Add';
+  static const bookmarkAdded = 'Added';
+}
