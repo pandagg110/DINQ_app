@@ -15,6 +15,30 @@ bool isInsufficientCredits(String message) {
   return RegExp(r'insufficient\s+credits', caseSensitive: false).hasMatch(message);
 }
 
+/// error bar 单行纯文本展示：去掉 leading emoji 与 markdown 标记（与 TSX span 一致）
+String normalizeRoundErrorMessage(String message) {
+  var text = message.trim();
+  text = text
+      .replaceFirst(
+        RegExp(r'^[\s\u26A0\uFE0F?\u2757\u203C]+'),
+        '',
+      )
+      .trimLeft();
+  text = text.replaceAllMapped(
+    RegExp(r'\*\*([^*]+)\*\*'),
+    (m) => m.group(1) ?? '',
+  );
+  text = text.replaceAllMapped(
+    RegExp(r'\*([^*]+)\*'),
+    (m) => m.group(1) ?? '',
+  );
+  text = text.replaceAllMapped(
+    RegExp(r'__([^_]+)__'),
+    (m) => m.group(1) ?? '',
+  );
+  return text.replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
 String _deepSearchErrorMessage(Object error) {
   if (error is! Exception && error is! String) {
     return 'Search failed';
@@ -47,7 +71,7 @@ bool _isRoundErrorLlmMessage(String? message) {
 
 /// 与 TSX deep-search store setError / handleError 一致
 void _applyRoundError(AgenticMessageGroup group, String message) {
-  group.errorMessage = message.trim();
+  group.errorMessage = normalizeRoundErrorMessage(message);
   group.roundStatus = DeepSearchRoundStatus.error;
   group.searchCompleted = true;
   group.loading = false;

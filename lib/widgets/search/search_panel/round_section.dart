@@ -215,7 +215,7 @@ class _RoundSectionState extends State<RoundSection> {
         if (group.errorMessage != null &&
             group.roundStatus == DeepSearchRoundStatus.error)
           _RoundErrorBar(
-            message: group.errorMessage!,
+            message: normalizeRoundErrorMessage(group.errorMessage!),
             isCreditsError: isInsufficientCredits(group.errorMessage!),
             toolType: toolType,
             onUpgrade: () => context.push('/pricing'),
@@ -469,7 +469,7 @@ class _RoundErrorBar extends StatelessWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        message+"2222222222",
+                        message,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
