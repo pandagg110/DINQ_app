@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../constants/app_constants.dart';
 import '../../services/search_service.dart';
 import '../../stores/chat_history_store.dart';
@@ -134,8 +135,80 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     }
   }
 
+  void _startFreshDeepSearch({
+    required String query,
+    String? displayQuery,
+    String? attachmentUrl,
+    String? attachmentName,
+    String? modelProvider,
+    bool simple = false,
+  }) {
+    final searchStore = context.read<SearchStore>();
+    final logic = _logic;
+    if (logic == null) return;
+
+    final resolvedProvider = modelProvider ??
+        searchStore.modelProvider ??
+        ModelChannelsCache.instance.defaultProvider;
+
+    final request = PendingDeepSearchRequest(
+      query: query,
+      displayQuery: displayQuery,
+      attachmentUrl: attachmentUrl,
+      attachmentName: attachmentName,
+      modelProvider: resolvedProvider,
+      simple: simple,
+    );
+
+    final needsNavigate =
+        widget.embeddedInMainTab && searchStore.deepSearchSessionId == null;
+
+    if (needsNavigate) {
+      final newSessionId = const Uuid().v4();
+      logic.bindSessionId(newSessionId);
+      searchStore.setPendingDeepSearch(request);
+      context.go('/search/$newSessionId');
+      return;
+    }
+
+    logic.handleSearch(
+      query: query,
+      simple: simple,
+      displayQuery: displayQuery,
+      attachmentUrl: attachmentUrl,
+      attachmentName: attachmentName,
+      modelProvider: resolvedProvider,
+    );
+  }
+
+  void _consumePendingDeepSearch(
+    SearchStore searchStore,
+    AgenticSearchLogic logic,
+  ) {
+    final pending = searchStore.pendingDeepSearch;
+    if (pending == null) return;
+
+    searchStore.clearPendingDeepSearch();
+
+    final sessionId = searchStore.deepSearchSessionId;
+    if (sessionId != null && logic.activeSessionId != sessionId) {
+      logic.bindSessionId(sessionId);
+    }
+
+    logic.handleSearch(
+      query: pending.query,
+      simple: pending.simple,
+      displayQuery: pending.displayQuery,
+      attachmentUrl: pending.attachmentUrl,
+      attachmentName: pending.attachmentName,
+      modelProvider: pending.modelProvider ??
+          searchStore.modelProvider ??
+          ModelChannelsCache.instance.defaultProvider,
+    );
+  }
+
   void _handleDeepSearch(DeepSearchSubmitParams params) {
-    _logic?.handleSearch(
+    _startFreshDeepSearch(
       query: params.query,
       displayQuery: params.displayQuery,
       attachmentUrl: params.attachment,
@@ -294,6 +367,14 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                 : 'deep-search';
           });
         }
+        if (searchStore.pendingDeepSearch != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final store = context.read<SearchStore>();
+            if (store.pendingDeepSearch == null) return;
+            _consumePendingDeepSearch(store, logic);
+          });
+        }
         if (searchStore.isLoadingConversation &&
             logic.messageGroups.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -404,7 +485,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                           },
                                           onConfirmStart:
                                               (query, displayQuery, blockId) {
-                                            logic.handleSearch(
+                                            _startFreshDeepSearch(
                                               query: query,
                                               displayQuery: displayQuery,
                                             );

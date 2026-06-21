@@ -16,6 +16,25 @@ class SearchTabData {
 /// 与 TSX MAX_TABS 一致
 const int _maxTabs = 12;
 
+/// 与 Web `deepSearchStore.pendingQuery` 对齐：路由跳转后再消费并发起搜索。
+class PendingDeepSearchRequest {
+  const PendingDeepSearchRequest({
+    required this.query,
+    this.displayQuery,
+    this.attachmentUrl,
+    this.attachmentName,
+    this.modelProvider,
+    this.simple = false,
+  });
+
+  final String query;
+  final String? displayQuery;
+  final String? attachmentUrl;
+  final String? attachmentName;
+  final String? modelProvider;
+  final bool simple;
+}
+
 class SearchStore extends ChangeNotifier {
   final List<SearchTabData> openTabs = [];
   int? activeTabId;
@@ -23,6 +42,7 @@ class SearchStore extends ChangeNotifier {
   int _idCounter = 0;
   String? pendingQuery;
   String? pendingFill;
+  PendingDeepSearchRequest? pendingDeepSearch;
   int tabClickVersion = 0; // 用于触发面板展开
   /// 与 ChatHistoryStore.isMobileOpen 一致：tab 面板是否打开（底部滑入）
   bool isTabPanelOpen = false;
@@ -175,10 +195,12 @@ class SearchStore extends ChangeNotifier {
     isSearching = false;
     isLoadingConversation = false;
     pendingQuery = null;
+    pendingDeepSearch = null;
     currentConversationId = null;
     pendingConversation = null;
     extraType = null;
     activeTool = null;
+    deepSearchSessionId = null;
     resetVersion += 1;
     notifyListeners();
   }
@@ -205,6 +227,17 @@ class SearchStore extends ChangeNotifier {
 
   void clearPendingQuery() {
     pendingQuery = null;
+    notifyListeners();
+  }
+
+  void setPendingDeepSearch(PendingDeepSearchRequest request) {
+    pendingDeepSearch = request;
+    notifyListeners();
+  }
+
+  void clearPendingDeepSearch() {
+    if (pendingDeepSearch == null) return;
+    pendingDeepSearch = null;
     notifyListeners();
   }
 

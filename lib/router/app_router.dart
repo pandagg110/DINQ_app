@@ -28,7 +28,6 @@ import '../pages/auth/signup_page.dart';
 import '../pages/auth/waiting_list_page.dart';
 import '../pages/callback/account_callback_page.dart';
 import '../pages/callback/social_callback_page.dart';
-import '../pages/search/discover_page.dart';
 import '../pages/generation/generation_page.dart';
 import '../pages/landing/landing_page.dart';
 import '../pages/main_tab/main_tab_page.dart';
@@ -179,17 +178,11 @@ class AppRouter {
         ),
         GoRoute(
           path: '/search/:id',
-          builder: (context, state) {
-            print('🔍 Router: 路由到 Search 详情页 (/search/:id)');
-            return const SearchPage();
-          },
+          builder: (context, state) => const MainTabPage(),
         ),
         GoRoute(
           path: '/search/:type/:id',
-          builder: (context, state) {
-            print('🔍 Router: 路由到 Search 类型详情页 (/search/:type/:id)');
-            return const SearchPage();
-          },
+          builder: (context, state) => const MainTabPage(),
         ),
         GoRoute(path: '/discover', redirect: (context, state) => '/search'),
         GoRoute(

@@ -32,7 +32,11 @@ class _SearchPageState extends State<SearchPage> {
     final chatOpen = context.read<ChatHistoryStore>().isMobileOpen;
     final tabOpen = context.read<SearchStore>().isTabPanelOpen;
     final enrichOpen = context.read<DeepSearchEnrichStore>().isOpen;
-    mainStore.setShowBottomNav(!chatOpen && !tabOpen && !enrichOpen);
+    final path = GoRouterState.of(context).uri.path;
+    final isSearchDetail = path.startsWith('/search/');
+    mainStore.setShowBottomNav(
+      !chatOpen && !tabOpen && !enrichOpen && !isSearchDetail,
+    );
   }
 
   @override
@@ -85,6 +89,7 @@ class _SearchPageState extends State<SearchPage> {
       if (segments.length == 1) {
         searchStore.clearExtraType();
         searchStore.setCurrentConversationId(null);
+        searchStore.setDeepSearchSessionId(null);
         return;
       }
 
@@ -111,6 +116,14 @@ class _SearchPageState extends State<SearchPage> {
         return;
       }
 
+      final conversationId = int.tryParse(idText);
+      if (conversationId == null && segments.length == 2) {
+        searchStore.clearExtraType();
+        searchStore.setCurrentConversationId(null);
+        searchStore.setDeepSearchSessionId(idText);
+        return;
+      }
+
       if (type != null && type.isNotEmpty) {
         searchStore.setExtraType(type);
       } else {
@@ -118,7 +131,6 @@ class _SearchPageState extends State<SearchPage> {
       }
 
       final convType = type ?? 'discover';
-      final conversationId = int.tryParse(idText);
       searchStore.setCurrentConversationId(conversationId);
       searchStore.clearPendingConversation();
       searchStore.setLoadingConversation(true);
@@ -153,8 +165,9 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   bool _isEmbeddedInMainTab(BuildContext context) {
-    final path = GoRouterState.of(context).uri.path;
-    return path == '/' || path == '/search';
+    final segments = GoRouterState.of(context).uri.pathSegments;
+    return segments.isEmpty ||
+        (segments.length == 1 && segments.first == 'search');
   }
 
   @override

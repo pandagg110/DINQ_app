@@ -132,6 +132,10 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   String? get activeSessionId => _activeSessionId;
 
+  void bindSessionId(String? sessionId) {
+    _setSessionId(sessionId);
+  }
+
   void _setSessionId(String? sessionId) {
     _activeSessionId = sessionId;
     searchStore.setDeepSearchSessionId(sessionId);
@@ -1070,6 +1074,13 @@ class AgenticSearchLogic extends ChangeNotifier {
     final trimmedQuery = query.trim();
     final attachment = attachmentUrl?.trim();
     if (trimmedQuery.isEmpty && (attachment == null || attachment.isEmpty)) return;
+
+    if (_activeSessionId == null) {
+      final existing = searchStore.deepSearchSessionId;
+      if (existing != null && existing.isNotEmpty) {
+        _setSessionId(existing);
+      }
+    }
 
     searchStore.setIsSearching(true);
     final groupId = DateTime.now().millisecondsSinceEpoch;
