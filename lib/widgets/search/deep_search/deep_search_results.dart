@@ -836,17 +836,28 @@ class _CandidateResultCard extends StatelessWidget {
     final name = row['name']?.toString() ?? '';
     final title = row['title']?.toString() ?? '';
     final company = row['company']?.toString() ?? '';
-    final evidence = row['evidence']?.toString() ?? '';
-    final confidence = formatConfidence(row['confidence']);
-    final badge = matchBadgeStyle(confidence);
+    final displayMatch = getDisplayMatch(row);
+    final verified = isResultVerified(row);
+    final confidence = displayMatch.confidence == null
+        ? null
+        : formatConfidence(displayMatch.confidence);
+    final badge = confidence == null ? null : matchBadgeStyle(confidence);
+    final evidence = displayMatch.evidence;
     final subtitle =
         [title, company].where((s) => s.trim().isNotEmpty).join(' · ');
 
-    return Material(
-      color: selected ? const Color(0xFFF0EFE9) : Colors.transparent,
+    final nameColor =
+        verified ? const Color(0xFF171717) : const Color(0xFF8A8880);
+    final subtitleColor =
+        verified ? const Color(0xFF6B6B6B) : const Color(0xFF8A8880);
+    final evidenceColor =
+        verified ? const Color(0xFF6B6962) : const Color(0xFF8A8880);
+
+    final card = Material(
+      color: selected ? const Color(0xFFF9F8F5) : Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        hoverColor: const Color(0xFFF5F4EF),
+        hoverColor: const Color(0xFFFDFCF9),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
@@ -882,10 +893,10 @@ class _CandidateResultCard extends StatelessWidget {
                           fit: FlexFit.loose,
                           child: Text(
                             name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF171717),
+                              color: nameColor,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -895,10 +906,10 @@ class _CandidateResultCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               subtitle,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w300,
-                                color: Color(0xFF6B6B6B),
+                                color: subtitleColor,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -909,34 +920,36 @@ class _CandidateResultCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: badge.background,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border(
-                              top: BorderSide(color: badge.border),
+                        if (badge != null && confidence != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: badge.background,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border(
+                                top: BorderSide(color: badge.border),
+                              ),
+                            ),
+                            child: Text(
+                              '$confidence%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: badge.foreground,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            '$confidence%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: badge.foreground,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                          const SizedBox(width: 8),
+                        ],
                         Expanded(
                           child: Text(
                             evidence.isEmpty ? '—' : evidence,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF6B6962),
+                              color: evidenceColor,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -991,6 +1004,9 @@ class _CandidateResultCard extends StatelessWidget {
         ),
       ),
     );
+
+    if (verified) return card;
+    return Opacity(opacity: 0.55, child: card);
   }
 }
 

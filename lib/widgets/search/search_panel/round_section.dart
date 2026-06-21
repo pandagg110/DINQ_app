@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../stores/quick_replies_store.dart';
+import '../../../utils/parse_quick_replies.dart';
 import '../agentic_search_logic.dart';
 import '../deep_search/deep_search_models.dart';
 import '../deep_search/deep_search_results.dart';
@@ -19,6 +20,7 @@ import '../message_group/thinking_bubble.dart';
 import 'collapsible_bubble.dart';
 import 'message_stream.dart';
 import 'phase_timeline.dart';
+import 'result_entry_card.dart';
 import 'tool_search_progress.dart';
 
 bool isInsufficientCredits(String message) {
@@ -78,6 +80,10 @@ class RoundSection extends StatefulWidget {
     this.onAdvisorShuffle,
     this.advisorShuffleLoading = false,
     this.selectedRowId,
+    this.showInlineResults = true,
+    this.resultEntryMode = ResultEntryMode.desktop,
+    this.onOpenResultsRound,
+    this.activeResultsRoundId,
   });
 
   final AgenticMessageGroup group;
@@ -90,6 +96,10 @@ class RoundSection extends StatefulWidget {
   final VoidCallback? onAdvisorShuffle;
   final bool advisorShuffleLoading;
   final String? selectedRowId;
+  final bool showInlineResults;
+  final ResultEntryMode resultEntryMode;
+  final void Function(int roundId)? onOpenResultsRound;
+  final int? activeResultsRoundId;
 
   @override
   State<RoundSection> createState() => _RoundSectionState();
@@ -108,13 +118,27 @@ class _RoundSectionState extends State<RoundSection> {
     final toolType = group.toolType;
     final hasRows = group.candidates.isNotEmpty;
     final showResults = hasRows;
+    final resultCount = group.candidates.length;
+    final toolCount = getGroupToolCount(group);
+    final hasResultWorkspace =
+        groupHasResultWorkspace(group, isSearching: isSearching);
+    final showResultsStatusCard = !widget.showInlineResults &&
+        toolType == null &&
+        hasResultWorkspace;
+    final showInlineResultsBlock =
+        widget.showInlineResults && toolType == null && showResults;
+    final canOpenResults =
+        hasResultWorkspace && widget.onOpenResultsRound != null;
+    final resultCardSelected =
+        widget.activeResultsRoundId == group.id;
     final showMarkdownCopy = hasRows && status != DeepSearchRoundStatus.error;
 
     final quickRepliesStore = context.watch<QuickRepliesStore>();
     final hasPendingConfirmBlock = _hasReasoningBlock(
       group,
       (b) =>
-          b.text.startsWith('[confirm]') &&
+          (b.text.startsWith('[confirm]') ||
+              parseEnvelope(b.text).type == 'confirm') &&
           !quickRepliesStore.isUsed(b.id),
     );
 
@@ -221,7 +245,23 @@ class _RoundSectionState extends State<RoundSection> {
             onCandidateClick: widget.onCandidateClick,
           ),
 
-        if (toolType == null && showResults)
+        if (showResultsStatusCard)
+          Padding(
+            padding: const EdgeInsets.only(top: 24),
+            child: ResultEntryCard(
+              isSearching: isSearching,
+              resultCount: resultCount,
+              toolCount: toolCount,
+              mode: widget.resultEntryMode,
+              selected: resultCardSelected,
+              enabled: canOpenResults,
+              onTap: canOpenResults
+                  ? () => widget.onOpenResultsRound!(group.id)
+                  : null,
+            ),
+          ),
+
+        if (showInlineResultsBlock)
           Padding(
             padding: const EdgeInsets.only(top: 24),
             child: DeepSearchResults(

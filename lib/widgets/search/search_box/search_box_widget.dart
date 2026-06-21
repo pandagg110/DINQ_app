@@ -9,6 +9,8 @@ import '../../../stores/search_store.dart';
 import 'advisor_panel.dart';
 import 'analysis_panel.dart';
 import 'citation_panel.dart';
+import 'model_channels.dart';
+import 'model_provider_selector.dart';
 import 'search_box_types.dart';
 import 'tool_badge.dart';
 import 'tool_switch_confirm_dialog.dart';
@@ -40,6 +42,9 @@ class SearchBoxWidget extends StatefulWidget {
     this.onDeepSearch,
     this.deepSearchLoading = false,
     this.onDeepSearchStop,
+    this.modelOptions,
+    this.modelProvider,
+    this.onModelProviderChange,
     this.confirmToolSwitch = false,
     this.isMobile = true,
   });
@@ -64,6 +69,9 @@ class SearchBoxWidget extends StatefulWidget {
   final ValueChanged<DeepSearchSubmitParams>? onDeepSearch;
   final bool deepSearchLoading;
   final VoidCallback? onDeepSearchStop;
+  final List<ModelOption>? modelOptions;
+  final String? modelProvider;
+  final ValueChanged<String>? onModelProviderChange;
   final bool confirmToolSwitch;
   final bool isMobile;
 
@@ -158,6 +166,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     widget.onDeepSearch?.call(
       DeepSearchSubmitParams(
         query: query,
+        modelProvider: widget.modelProvider ?? 'anthropic-hao',
         attachment: _attachmentUrl.isNotEmpty ? _attachmentUrl : null,
         attachmentName: _attachmentName.isNotEmpty ? _attachmentName : null,
       ),
@@ -305,7 +314,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
         }
 
         return Container(
-          clipBehavior: Clip.antiAlias,
+          clipBehavior: Clip.none,
           width: widget.fullWidth ? double.infinity : 480,
           decoration: BoxDecoration(
             color: Colors.white,
@@ -472,11 +481,31 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                             ),
                           ],
                         ),
-                        _SendButton(
-                          isLoading: _isLoading,
-                          isDisabled: _isSendDisabled,
-                          attachmentUploading: _attachmentUploading,
-                          onTap: _isLoading ? _handleStop : _handleSubmit,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (_isDeepSearchMode &&
+                                (widget.modelOptions?.isNotEmpty ?? false))
+                              ModelProviderSelector(
+                                options: widget.modelOptions!,
+                                modelProvider: widget.modelProvider ??
+                                    widget.modelOptions!.first.value,
+                                onModelProviderChange:
+                                    widget.onModelProviderChange ?? (_) {},
+                                dropdownPosition: widget.dropdownPosition,
+                                isMobile: widget.isMobile,
+                              ),
+                            if (_isDeepSearchMode &&
+                                (widget.modelOptions?.isNotEmpty ?? false))
+                              const SizedBox(width: 12),
+                            _SendButton(
+                              isLoading: _isLoading,
+                              isDisabled: _isSendDisabled,
+                              attachmentUploading: _attachmentUploading,
+                              onTap: _isLoading ? _handleStop : _handleSubmit,
+                            ),
+                          ],
                         ),
                       ],
                     ),

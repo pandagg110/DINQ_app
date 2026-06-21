@@ -9,6 +9,7 @@ import 'agentic_search_logic.dart';
 import 'deep_search/deep_search_models.dart';
 import 'deep_search/deep_search_results_helpers.dart';
 import 'message_group/quick_replies_widget.dart';
+import 'search_panel/result_entry_card.dart';
 import 'search_panel/round_section.dart';
 import 'search_panel/search_interaction_scope.dart';
 
@@ -28,6 +29,10 @@ class SearchPanelWidget extends StatefulWidget {
     this.analysisPlatform,
     this.citationMode,
     this.selectedRowId,
+    this.showInlineResults = true,
+    this.resultEntryMode = ResultEntryMode.desktop,
+    this.onOpenResultsRound,
+    this.activeResultsRoundId,
   });
 
   final List<AgenticMessageGroup> messageGroups;
@@ -44,6 +49,10 @@ class SearchPanelWidget extends StatefulWidget {
   final String? analysisPlatform;
   final String? citationMode;
   final String? selectedRowId;
+  final bool showInlineResults;
+  final ResultEntryMode resultEntryMode;
+  final void Function(int roundId)? onOpenResultsRound;
+  final int? activeResultsRoundId;
 
   @override
   State<SearchPanelWidget> createState() => _SearchPanelWidgetState();
@@ -293,6 +302,10 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                             onAdvisorShuffle: widget.onAdvisorShuffle,
                             advisorShuffleLoading:
                                 widget.advisorShuffleLoading ?? false,
+                            showInlineResults: widget.showInlineResults,
+                            resultEntryMode: widget.resultEntryMode,
+                            onOpenResultsRound: widget.onOpenResultsRound,
+                            activeResultsRoundId: widget.activeResultsRoundId,
                           ),
                         ),
                       ),

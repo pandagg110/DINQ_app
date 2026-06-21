@@ -1,4 +1,10 @@
+import 'dart:async';
+
+import '../../../utils/parse_quick_replies.dart';
 import 'deep_search_models.dart';
+
+const _thinkingDeltaFlushMs = 100;
+const _thinkingTextMaxChars = 12000;
 
 /// 与 TSX `dispatchStreamEvent` 对齐，就地更新 message group 的 subAgents / 状态。
 class DeepSearchEventDispatcher {
@@ -66,6 +72,45 @@ class DeepSearchEventDispatcher {
   }
 
   List<Map<String, dynamic>> get candidates => _candidates;
+
+  String _pendingThinkingDelta = '';
+  Timer? _pendingThinkingTimer;
+
+  String _trimThinkingText(String text) {
+    if (text.length <= _thinkingTextMaxChars) return text;
+    return text.substring(text.length - _thinkingTextMaxChars);
+  }
+
+  void _syncVirtualAgentCandidateCount() {
+    final va = subAgents[virtualAgentId];
+    if (va == null) return;
+    subAgents[virtualAgentId] =
+        va.copyWith(candidatesFound: _candidates.length);
+  }
+
+  void _flushPendingThinkingDelta() {
+    _pendingThinkingTimer?.cancel();
+    _pendingThinkingTimer = null;
+    if (_pendingThinkingDelta.isEmpty) return;
+    final content = _pendingThinkingDelta;
+    _pendingThinkingDelta = '';
+    _applyThinkingDelta(content);
+  }
+
+  void _enqueueThinkingDelta(String content) {
+    if (content.isEmpty) return;
+    _pendingThinkingDelta += content;
+    _pendingThinkingTimer ??= Timer(
+      const Duration(milliseconds: _thinkingDeltaFlushMs),
+      _flushPendingThinkingDelta,
+    );
+  }
+
+  void disposeThinkingTimer() {
+    _pendingThinkingTimer?.cancel();
+    _pendingThinkingTimer = null;
+    _pendingThinkingDelta = '';
+  }
 
   void dispatch(Map<String, dynamic> event) {
     final type = event['type']?.toString();
@@ -298,7 +343,7 @@ class DeepSearchEventDispatcher {
   }
 
   void _handleTextDelta(Map<String, dynamic> event) {
-    final content = event['content']?.toString() ?? '';
+    final content = normalizeAssistantTextContent(event['content']);
     if (content.isEmpty) return;
 
     if (!hasRealSubAgents(subAgents)) {
@@ -343,10 +388,15 @@ class DeepSearchEventDispatcher {
 
   void _handleText(Map<String, dynamic> event) {
     if (hasRealSubAgents(subAgents)) return;
-    final content = event['content']?.toString() ?? '';
+    _flushPendingThinkingDelta();
+    final content = normalizeAssistantTextContent(event['content']);
     if (content.isNotEmpty) {
       _handleTextDelta({'content': content});
     }
+    _closeVirtualAgentOpenThinking();
+  }
+
+  void _closeVirtualAgentOpenThinking() {
     final va = subAgents[virtualAgentId];
     if (va == null) return;
     final closed = closeActiveBlock(closeOpenThinkingBlocks(va.contentBlocks));
@@ -384,6 +434,7 @@ class DeepSearchEventDispatcher {
         }
       }
     }
+    _syncVirtualAgentCandidateCount();
     onStatusChange?.call(DeepSearchRoundStatus.searching);
   }
 
@@ -418,7 +469,7 @@ class DeepSearchEventDispatcher {
     if (agent == null) return;
 
     if (innerType == 'text_delta' || innerType == 'text') {
-      final content = innerEvent['content']?.toString() ?? '';
+      final content = normalizeAssistantTextContent(innerEvent['content']);
       if (content.isNotEmpty) {
         subAgents = {...subAgents};
         _appendReasoningToAgent(agentId, content);
@@ -531,6 +582,7 @@ class DeepSearchEventDispatcher {
   }
 
   void _handleDone(Map<String, dynamic> event) {
+    _flushPendingThinkingDelta();
     final durationMs = event['duration_ms'];
     int? ms;
     if (durationMs is int) {
@@ -571,6 +623,10 @@ class DeepSearchEventDispatcher {
   void _handleThinkingDelta(Map<String, dynamic> event) {
     if (hasRealSubAgents(subAgents)) return;
     final content = event['content']?.toString() ?? '';
+    _enqueueThinkingDelta(content);
+  }
+
+  void _applyThinkingDelta(String content) {
     if (content.isEmpty) return;
 
     final created = getOrCreateVirtualAgent(subAgents);
@@ -583,14 +639,16 @@ class DeepSearchEventDispatcher {
       final last = blocks.last as ThinkingPart;
       if (last.block.isStreaming) {
         blocks[blocks.length - 1] = ThinkingPart(
-          last.block.copyWith(text: last.block.text + content),
+          last.block.copyWith(
+            text: _trimThinkingText(last.block.text + content),
+          ),
         );
       } else {
         blocks.add(
           ThinkingPart(
             ThinkingBlock(
               id: nextBlockId('sa-thinking'),
-              text: content,
+              text: _trimThinkingText(content),
               isStreaming: true,
               startedAt: now,
             ),
@@ -602,7 +660,7 @@ class DeepSearchEventDispatcher {
         ThinkingPart(
           ThinkingBlock(
             id: nextBlockId('sa-thinking'),
-            text: content,
+            text: _trimThinkingText(content),
             isStreaming: true,
             startedAt: now,
           ),
@@ -613,6 +671,7 @@ class DeepSearchEventDispatcher {
   }
 
   void _handleThinkingEnd() {
+    _flushPendingThinkingDelta();
     if (hasRealSubAgents(subAgents)) return;
     final va = subAgents[virtualAgentId];
     if (va == null) return;

@@ -23,6 +23,62 @@ abstract final class DeepSearchResultsColors {
 const highMatchThreshold = 75;
 const mediumMatchThreshold = 50;
 
+/// 与 TSX `ResultSourceGroup` 对齐。
+class ResultSourceGroup {
+  const ResultSourceGroup({
+    required this.index,
+    required this.title,
+    required this.count,
+  });
+
+  final int index;
+  final String title;
+  final int count;
+}
+
+const sourceGroupBadgeColors = <({Color bg, Color text, Color border})>[
+  (bg: Color(0xFFEDE7D8), text: Color(0xFF5E4F35), border: Color(0xFFDED5BF)),
+  (bg: Color(0xFFE2E9DF), text: Color(0xFF3F6045), border: Color(0xFFD2DECF)),
+  (bg: Color(0xFFE2E6EF), text: Color(0xFF465777), border: Color(0xFFD2D8E6)),
+  (bg: Color(0xFFEFE3DF), text: Color(0xFF754C42), border: Color(0xFFE3D1CB)),
+  (bg: Color(0xFFE8E2EF), text: Color(0xFF604A76), border: Color(0xFFD9CFE5)),
+  (bg: Color(0xFFE7E4DC), text: Color(0xFF5B574D), border: Color(0xFFD9D4CA)),
+];
+
+({Color bg, Color text, Color border}) sourceGroupColor(int index) {
+  return sourceGroupBadgeColors[(index - 1) % sourceGroupBadgeColors.length];
+}
+
+String _normalizePlaceholderText(String? value) {
+  return (value ?? '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .toLowerCase();
+}
+
+/// 与 TSX `getDisplayMatch` 对齐。
+({double? confidence, String evidence}) getDisplayMatch(Map<String, dynamic> row) {
+  final normalizedEvidence = _normalizePlaceholderText(row['evidence']?.toString());
+  final isPlaceholderEvidence = normalizedEvidence.isNotEmpty &&
+      normalizedEvidence == _normalizePlaceholderText(row['name']?.toString());
+
+  if (isPlaceholderEvidence) {
+    return (confidence: null, evidence: '');
+  }
+
+  final raw = row['confidence'];
+  final confidence = raw is num
+      ? raw.toDouble()
+      : double.tryParse(raw?.toString() ?? '');
+  return (
+    confidence: confidence,
+    evidence: row['evidence']?.toString() ?? '',
+  );
+}
+
+/// 与 TSX `isResultVerified` 对齐：verified 缺省为 true。
+bool isResultVerified(Map<String, dynamic> row) => row['verified'] != false;
+
 int formatConfidence(dynamic confidence) {
   final value = confidence is num
       ? confidence.toDouble()

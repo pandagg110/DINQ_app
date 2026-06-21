@@ -3,10 +3,17 @@ import '../deep_search/sub_agent_helpers.dart';
 
 /// 与 TSX `SearchPanel.cleanAssistantText` / `NarrationBlockView` 对齐。
 String cleanNarrationDisplayText(String rawText) {
-  final withoutConfirm =
-      rawText.replaceFirst(RegExp(r'^\s*\[confirm\]\s*', caseSensitive: false), '');
+  final envelope = parseEnvelope(rawText);
+  if (envelope.type == 'confirm' || envelope.type == 'summary') {
+    return envelope.cleanText.trim();
+  }
+
+  final withoutConfirm = rawText.replaceFirst(
+    RegExp(r'^\s*\[confirm\]\s*', caseSensitive: false),
+    '',
+  );
   final displayText = stripSummaryPrefix(withoutConfirm);
-  final parsed = parseQuickReplies(displayText);
+  final parsed = parseEnvelope(displayText);
   var cleanText = parsed.cleanText;
 
   if (parsed.options.isNotEmpty) {

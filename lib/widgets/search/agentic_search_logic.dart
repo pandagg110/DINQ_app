@@ -1056,6 +1056,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     String? displayQuery,
     String? attachmentUrl,
     String? attachmentName,
+    String modelProvider = 'anthropic-hao',
   }) {
     final trimmedQuery = query.trim();
     final attachment = attachmentUrl?.trim();
@@ -1095,6 +1096,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       conversationId: searchStore.currentConversationId,
       sessionId: _activeSessionId,
       attachment: attachment,
+      modelProvider: modelProvider,
     );
 
     _streamSubscription?.cancel();

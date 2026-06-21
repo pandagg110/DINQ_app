@@ -24,9 +24,9 @@ class AdvisorFormData {
 
 class DeepSearchSubmitParams {
   DeepSearchSubmitParams({
-    required this.query,
+    this.query = '',
     this.displayQuery,
-    this.modelProvider = 'anthropic',
+    this.modelProvider = 'anthropic-hao',
     this.attachment,
     this.attachmentName,
   });

@@ -38,6 +38,14 @@ class SearchStore extends ChangeNotifier {
   String? activeTool;
   /// Deep Search session id，对齐 Web `deepSearchStore.sessionId`
   String? deepSearchSessionId;
+  /// 与 TSX deepSearchStore.modelProvider 对齐
+  String? modelProvider;
+
+  void setModelProvider(String? provider) {
+    if (modelProvider == provider) return;
+    modelProvider = provider;
+    notifyListeners();
+  }
 
   void setDeepSearchSessionId(String? sessionId) {
     if (deepSearchSessionId == sessionId) return;

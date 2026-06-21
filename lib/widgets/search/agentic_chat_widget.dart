@@ -15,8 +15,12 @@ import '../../stores/user_store.dart';
 import 'message_group/dinq_logo.dart';
 import 'prompt_template_grid_widget.dart';
 import 'agentic_search_logic.dart';
+import 'search_box/model_channels.dart';
 import 'search_box_widget.dart';
+import 'search_panel/mobile_results_workspace.dart';
+import 'search_panel/result_entry_card.dart';
 import 'search_panel_widget.dart';
+import 'deep_search/deep_search_models.dart';
 
 class AgenticChatWidget extends StatefulWidget {
   const AgenticChatWidget({
@@ -57,6 +61,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   bool _logicInitialized = false;
   int _lastResetVersion = 0;
   String? _lastSyncedToolKey;
+  List<ModelOption> _modelOptions = modelOptionsFromResponse(fallbackChannelsResponse);
+  bool _modelChannelsLoaded = false;
+  bool _mobileResultsOpen = false;
+  int? _activeResultsGroupId;
 
   // bool _initialQueryProcessed = false; // TODO: 实现 URL 参数处理时使用
 
@@ -86,6 +94,22 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         onScrollToBottom: _scrollToBottom,
       );
       _logic!.addListener(_onLogicUpdate);
+      _loadModelChannels();
+    }
+  }
+
+  Future<void> _loadModelChannels() async {
+    await ModelChannelsCache.instance.ensureLoaded(
+      searchService: SearchService(),
+    );
+    if (!mounted) return;
+    final searchStore = context.read<SearchStore>();
+    setState(() {
+      _modelOptions = ModelChannelsCache.instance.options;
+      _modelChannelsLoaded = true;
+    });
+    if (searchStore.modelProvider == null) {
+      searchStore.setModelProvider(ModelChannelsCache.instance.defaultProvider);
     }
   }
 
@@ -116,6 +140,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       displayQuery: params.displayQuery,
       attachmentUrl: params.attachment,
       attachmentName: params.attachmentName,
+      modelProvider: params.modelProvider,
     );
   }
 
@@ -303,6 +328,46 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
               isMobile: isMobile,
             );
 
+            final canUseMobileResults =
+                isMobile && !isToolActive && messageGroups.isNotEmpty;
+            if (!canUseMobileResults && _mobileResultsOpen) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() => _mobileResultsOpen = false);
+              });
+            }
+
+            AgenticMessageGroup? mobileResultsGroup;
+            if (_activeResultsGroupId != null) {
+              for (final group in messageGroups) {
+                if (group.id == _activeResultsGroupId) {
+                  mobileResultsGroup = group;
+                  break;
+                }
+              }
+            }
+            mobileResultsGroup ??= () {
+              for (final group in messageGroups.reversed) {
+                if (group.toolType == null &&
+                    groupHasResultWorkspace(
+                      group,
+                      isSearching: groupRoundStatus(group) ==
+                          DeepSearchRoundStatus.searching,
+                    )) {
+                  return group;
+                }
+              }
+              return null;
+            }();
+
+            final activeMobileResultsGroup = mobileResultsGroup;
+            final showMobileResultsWorkspace = canUseMobileResults &&
+                _mobileResultsOpen &&
+                activeMobileResultsGroup != null;
+            final mobileResultsStatus = activeMobileResultsGroup == null
+                ? DeepSearchRoundStatus.idle
+                : groupRoundStatus(activeMobileResultsGroup);
+
             return Stack(
               clipBehavior: Clip.none,
               children: [
@@ -369,6 +434,21 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                           bottomInset: widget.embeddedInMainTab ? 20 : 12,
                                           analysisPlatform: _analysisPlatform,
                                           citationMode: _citationMode.name,
+                                          showInlineResults: !isMobile,
+                                          resultEntryMode: isMobile
+                                              ? ResultEntryMode.mobile
+                                              : ResultEntryMode.desktop,
+                                          activeResultsRoundId:
+                                              _activeResultsGroupId,
+                                          onOpenResultsRound: isMobile
+                                              ? (roundId) {
+                                                  setState(() {
+                                                    _activeResultsGroupId =
+                                                        roundId;
+                                                    _mobileResultsOpen = true;
+                                                  });
+                                                }
+                                              : null,
                                         ),
                                       ),
                                       Padding(
@@ -422,6 +502,39 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                       creditsBalance: creditsBalance,
                       planLabel: planLabel,
                       path: path,
+                    ),
+                  ),
+                if (showMobileResultsWorkspace)
+                  Positioned.fill(
+                    child: MobileResultsWorkspace(
+                      candidates: activeMobileResultsGroup.candidates,
+                      isSearching: mobileResultsStatus ==
+                          DeepSearchRoundStatus.searching,
+                      isInterrupted: mobileResultsStatus ==
+                          DeepSearchRoundStatus.interrupted,
+                      selectedRowId: widget.enrichSelectedRowId,
+                      onClose: () => setState(() => _mobileResultsOpen = false),
+                      onRowClick: (row) {
+                        if (widget.onEnrichRowClick != null) {
+                          widget.onEnrichRowClick!(row);
+                          return;
+                        }
+                        final idx = activeMobileResultsGroup.candidates.indexWhere(
+                          (c) =>
+                              c['row_id']?.toString() ==
+                                  row['row_id']?.toString() ||
+                              c['name'] == row['name'],
+                        );
+                        final tabId = searchStore.openTabWithClick(
+                          row,
+                          index: idx >= 0 ? idx : 0,
+                          groupId: activeMobileResultsGroup.id,
+                          matchByName: true,
+                        );
+                        if (tabId != null) {
+                          searchStore.setTabPanelOpen(true);
+                        }
+                      },
                     ),
                   ),
               ],
@@ -559,6 +672,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       onDeepSearch: _handleDeepSearch,
       onDeepSearchStop: _handleStop,
       deepSearchLoading: logic.loading,
+      modelOptions: _modelChannelsLoaded ? _modelOptions : null,
+      modelProvider: searchStore.modelProvider ??
+          ModelChannelsCache.instance.defaultProvider,
+      onModelProviderChange: searchStore.setModelProvider,
       onAdvisorSearch: _handleAdvisorSearch,
       advisorLoading: logic.advisorLoading,
       onCitationSearch: _handleCitationSearch,

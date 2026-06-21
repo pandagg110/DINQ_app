@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import '../models/deep_search_channel_models.dart';
 import 'api_client.dart';
 
 /// Search 相关 API（后端仍沿用 /discover 路径）
@@ -50,7 +51,7 @@ class SearchService {
     int? conversationId,
     String? sessionId,
     String? attachment,
-    String modelProvider = 'anthropic',
+    String modelProvider = 'anthropic-hao',
   }) async* {
     final deepSearchBody = <String, dynamic>{
       'scene': 'search_v2',
@@ -161,6 +162,22 @@ class SearchService {
   /// POST /scholar/deep-search/{sessionId}/stop
   Future<void> stopDeepSearch(String sessionId) async {
     await _dio.post<void>('/scholar/deep-search/$sessionId/stop');
+  }
+
+  /// GET /scholar/deep-search/channels — 模型通道列表（Deep Search v2.5）
+  Future<DeepSearchChannelsResponse?> getDeepSearchChannels() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/scholar/deep-search/channels',
+      );
+      final data = response.data;
+      if (data == null) return null;
+      final parsed = DeepSearchChannelsResponse.fromJson(data);
+      if (parsed.channels.isEmpty) return null;
+      return parsed;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ============== 聊天 ==============
