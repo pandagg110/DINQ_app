@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'deep_search_results_helpers.dart';
 import 'deep_search_results_strings.dart';
+import 'deep_search_results_table.dart';
 
 enum DeepSearchResultsVariant { inline, rail, mobile }
 
@@ -24,6 +25,8 @@ class DeepSearchResults extends StatefulWidget {
     this.hasOpenedEnrichThisVisit = false,
     this.onVisibleRowsChange,
     this.onSelectedRowsChange,
+    this.sourceGroupsByRowId,
+    this.pendingSourceGroups,
   });
 
   final List<Map<String, dynamic>> candidates;
@@ -36,6 +39,8 @@ class DeepSearchResults extends StatefulWidget {
   final bool hasOpenedEnrichThisVisit;
   final void Function(List<Map<String, dynamic>> rows)? onVisibleRowsChange;
   final void Function(List<Map<String, dynamic>> rows)? onSelectedRowsChange;
+  final Map<String, ResultSourceGroup>? sourceGroupsByRowId;
+  final List<ResultSourceGroup>? pendingSourceGroups;
 
   @override
   State<DeepSearchResults> createState() => _DeepSearchResultsState();
@@ -199,13 +204,18 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
               onToggleSelectedRow: _toggleSelectedRow,
               onRowClick: widget.onRowClick,
             )
-          : _TableResultsView(
+          : DeepSearchResultsTable(
               rows: sortedRows,
+              isSearching: widget.isSearching,
+              isMobileResults: _isMobileResults,
+              isRail: _isRail,
               sortColumn: _sortColumn,
               sortAscending: _sortAscending,
               selectedRowId: widget.selectedRowId,
               selectedRowIds: _selectedRowIds,
-              isMobileResults: _isMobileResults,
+              sourceGroupsByRowId: widget.sourceGroupsByRowId,
+              pendingSourceGroups: widget.pendingSourceGroups,
+              expandVertically: _isRail || _isMobileResults || !_isExpanded,
               onToggleAll: _toggleAllVisibleRows,
               onToggleSelectedRow: _toggleSelectedRow,
               onSort: _toggleSort,
@@ -240,11 +250,11 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
       );
     }
 
-    if (isEmpty && (_isRail || _isMobileResults)) {
+    if (isEmpty && (_isRail || _isMobileResults) && !widget.isSearching) {
       return const SizedBox.shrink();
     }
 
-    if (isEmpty && widget.isSearching) {
+    if (isEmpty && widget.isSearching && !_isRail && !_isMobileResults) {
       return const SizedBox.shrink();
     }
 
@@ -867,7 +877,15 @@ class _CandidateResultCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (showMobileSelection) ...[
-                _SelectCheckbox(checked: checked, onChanged: onToggleChecked),
+                Align(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: DeepSearchSelectCheckbox(
+                    checked: checked,
+                    onChanged: onToggleChecked,
+                    size: DeepSearchSelectCheckboxSize.md,
+                  ),
+                ),
                 const SizedBox(width: 12),
               ],
               Container(
@@ -1015,344 +1033,4 @@ class _CandidateResultCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SelectCheckbox extends StatelessWidget {
-  const _SelectCheckbox({
-    required this.checked,
-    required this.onChanged,
-  });
-
-  final bool checked;
-  final VoidCallback onChanged;
-
-  static const _size = 16.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onChanged,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        width: _size,
-        height: _size,
-        decoration: BoxDecoration(
-          color: checked ? const Color(0xFF171717) : Colors.white,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: checked ? const Color(0xFF171717) : const Color(0xFFECE9E3),
-          ),
-        ),
-        child: checked
-            ? const Icon(Icons.check, size: 12, color: Colors.white)
-            : null,
-      ),
-    );
-  }
-}
-
-class _TableResultsView extends StatelessWidget {
-  const _TableResultsView({
-    required this.rows,
-    required this.sortColumn,
-    required this.sortAscending,
-    this.selectedRowId,
-    required this.selectedRowIds,
-    required this.isMobileResults,
-    required this.onToggleAll,
-    required this.onToggleSelectedRow,
-    required this.onSort,
-    this.onRowClick,
-  });
-
-  final List<Map<String, dynamic>> rows;
-  final DeepSearchResultsSortColumn sortColumn;
-  final bool sortAscending;
-  final String? selectedRowId;
-  final Set<String> selectedRowIds;
-  final bool isMobileResults;
-  final VoidCallback onToggleAll;
-  final ValueChanged<String> onToggleSelectedRow;
-  final ValueChanged<DeepSearchResultsSortColumn> onSort;
-  final void Function(Map<String, dynamic> row)? onRowClick;
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) return const SizedBox.shrink();
-
-    final hasDisplayConfidence =
-        rows.any((row) => getDisplayMatch(row).confidence != null);
-    final hasDisplayEvidence =
-        rows.any((row) => getDisplayMatch(row).evidence.isNotEmpty);
-    final hasCompany = rows.any((r) => (r['company']?.toString() ?? '').trim().isNotEmpty);
-    final hasTitle = rows.any((r) => (r['title']?.toString() ?? '').trim().isNotEmpty);
-    final allSelected = rows.isNotEmpty &&
-        rows.every((row) => selectedRowIds.contains(row['row_id']?.toString()));
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      primary: false,
-      child: DataTable(
-        showCheckboxColumn: false,
-        headingRowHeight: 40,
-        dataRowMinHeight: 44,
-        dataRowMaxHeight: 56,
-        columnSpacing: 16,
-        headingTextStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF8A8880),
-        ),
-        dataTextStyle: const TextStyle(fontSize: 12, color: Color(0xFF171717)),
-        columns: [
-          DataColumn(
-            label: _SelectCheckbox(
-              checked: allSelected,
-              onChanged: onToggleAll,
-            ),
-          ),
-          if (isMobileResults)
-            const DataColumn(label: SizedBox(width: 40))
-          else
-            _SortableDataColumn(
-              label: DeepSearchResultsStrings.columnCandidate,
-              column: DeepSearchResultsSortColumn.name,
-              active: sortColumn == DeepSearchResultsSortColumn.name,
-              ascending: sortAscending,
-              onSort: onSort,
-            ),
-          if (isMobileResults)
-            _SortableDataColumn(
-              label: DeepSearchResultsStrings.columnName,
-              column: DeepSearchResultsSortColumn.name,
-              active: sortColumn == DeepSearchResultsSortColumn.name,
-              ascending: sortAscending,
-              onSort: onSort,
-            ),
-          if (hasDisplayConfidence)
-            _SortableDataColumn(
-              label: DeepSearchResultsStrings.columnMatch,
-              column: DeepSearchResultsSortColumn.confidence,
-              active: sortColumn == DeepSearchResultsSortColumn.confidence,
-              ascending: sortAscending,
-              onSort: onSort,
-            ),
-          if (hasCompany)
-            _SortableDataColumn(
-              label: DeepSearchResultsStrings.columnCompany,
-              column: DeepSearchResultsSortColumn.company,
-              active: sortColumn == DeepSearchResultsSortColumn.company,
-              ascending: sortAscending,
-              onSort: onSort,
-            ),
-          if (hasTitle)
-            _SortableDataColumn(
-              label: DeepSearchResultsStrings.columnTitle,
-              column: DeepSearchResultsSortColumn.title,
-              active: sortColumn == DeepSearchResultsSortColumn.title,
-              ascending: sortAscending,
-              onSort: onSort,
-            ),
-          if (hasDisplayEvidence)
-            const DataColumn(label: Text(DeepSearchResultsStrings.columnMatchReason)),
-          const DataColumn(label: Text(DeepSearchResultsStrings.columnProfile)),
-          const DataColumn(label: Text(DeepSearchResultsStrings.bookmarkAddShort)),
-        ],
-        rows: [for (var i = 0; i < rows.length; i++) _buildRow(context, rows[i])],
-      ),
-    );
-  }
-
-  DataRow _buildRow(BuildContext context, Map<String, dynamic> row) {
-    final rowId = row['row_id']?.toString() ?? '';
-    final selected = selectedRowId != null && selectedRowId == rowId;
-    final checked = selectedRowIds.contains(rowId);
-    final verified = isResultVerified(row);
-    final displayMatch = getDisplayMatch(row);
-    final confidence = displayMatch.confidence == null
-        ? null
-        : formatConfidence(displayMatch.confidence);
-    final badge = confidence == null ? null : matchBadgeStyle(confidence);
-    final rowTap = onRowClick == null ? null : () => onRowClick!(row);
-    final nameColor =
-        verified ? const Color(0xFF171717) : const Color(0xFF8A8880);
-    final mutedColor =
-        verified ? const Color(0xFF6B6962) : const Color(0xFF8A8880);
-    final profileUrl = row['profile_url']?.toString() ?? '';
-    final name = row['name']?.toString() ?? '';
-
-    Widget cell(Widget child, {VoidCallback? onTap}) =>
-        Opacity(opacity: verified ? 1 : 0.55, child: child);
-
-    return DataRow(
-      color: WidgetStateProperty.resolveWith((states) {
-        if (selected) return const Color(0xFFF9F8F5);
-        if (states.contains(WidgetState.hovered)) {
-          return verified ? const Color(0xFFFDFCF9) : const Color(0xFFFBFAF7);
-        }
-        return Colors.white;
-      }),
-      cells: [
-        DataCell(
-          cell(
-            _SelectCheckbox(
-              checked: checked,
-              onChanged: () => onToggleSelectedRow(rowId),
-            ),
-          ),
-        ),
-        DataCell(
-          cell(
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: nameToAvatarColor(name),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    toInitials(name),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF1F1F1F),
-                    ),
-                  ),
-                ),
-                if (!isMobileResults) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    name.isEmpty ? '—' : name,
-                    style: TextStyle(fontWeight: FontWeight.w500, color: nameColor),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          onTap: rowTap,
-        ),
-        if (isMobileResults)
-          DataCell(
-            cell(
-              Text(
-                name.isEmpty ? '—' : name,
-                style: TextStyle(fontWeight: FontWeight.w500, color: nameColor),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            onTap: rowTap,
-          ),
-        if (confidence != null && badge != null)
-          DataCell(
-            cell(
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badge.background,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border(top: BorderSide(color: badge.border)),
-                ),
-                child: Text(
-                  '$confidence%',
-                  style: TextStyle(
-                    color: badge.foreground,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-            onTap: rowTap,
-          )
-        else if (rows.any((r) => getDisplayMatch(r).confidence != null))
-          DataCell(cell(const SizedBox.shrink()), onTap: rowTap),
-        if (rows.any((r) => (r['company']?.toString() ?? '').trim().isNotEmpty))
-          DataCell(
-            cell(Text(row['company']?.toString() ?? '—', style: TextStyle(color: mutedColor))),
-            onTap: rowTap,
-          ),
-        if (rows.any((r) => (r['title']?.toString() ?? '').trim().isNotEmpty))
-          DataCell(
-            cell(Text(row['title']?.toString() ?? '—', style: TextStyle(color: mutedColor))),
-            onTap: rowTap,
-          ),
-        if (rows.any((row) => getDisplayMatch(row).evidence.isNotEmpty))
-          DataCell(
-            cell(
-              SizedBox(
-                width: 180,
-                child: Text(
-                  displayMatch.evidence.isEmpty
-                      ? (confidence == null ? '' : '—')
-                      : displayMatch.evidence,
-                  style: TextStyle(color: mutedColor),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            onTap: rowTap,
-          ),
-        DataCell(
-          cell(
-            profileUrl.isEmpty
-                ? const Text('—', style: TextStyle(color: Color(0xFFD5D3CE)))
-                : Text(
-                    profileUrl.replaceFirst(RegExp(r'^https?://(www\.)?'), ''),
-                    style: TextStyle(color: mutedColor),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-          ),
-          onTap: rowTap,
-        ),
-        DataCell(
-          cell(
-            IconButton(
-              onPressed: () {},
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              icon: _DeepSearchSvgIcon(
-                DeepSearchResultsAssets.bookmark,
-                size: 16,
-                color: const Color(0xFFB5B3AE),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SortableDataColumn extends DataColumn {
-  _SortableDataColumn({
-    required String label,
-    required DeepSearchResultsSortColumn column,
-    required bool active,
-    required bool ascending,
-    required ValueChanged<DeepSearchResultsSortColumn> onSort,
-  }) : super(
-          label: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(label),
-              const SizedBox(width: 4),
-              Icon(
-                active
-                    ? (ascending
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down)
-                    : Icons.swap_vert,
-                size: 14,
-                color: active
-                    ? const Color(0xFF8A8880)
-                    : const Color(0xFFD5D3CE),
-              ),
-            ],
-          ),
-          onSort: (index, ascending) => onSort(column),
-        );
 }

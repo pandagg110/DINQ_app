@@ -20,6 +20,69 @@ abstract final class DeepSearchResultsColors {
   static const filterBorder = Color(0xFFE5E3DE);
 }
 
+enum DeepSearchSelectCheckboxSize { sm, md }
+
+/// 与 TSX `SelectCheckbox` 对齐：正方形、圆角、未选中白底。
+class DeepSearchSelectCheckbox extends StatelessWidget {
+  const DeepSearchSelectCheckbox({
+    super.key,
+    required this.checked,
+    required this.onChanged,
+    this.disabled = false,
+    this.size = DeepSearchSelectCheckboxSize.sm,
+  });
+
+  final bool checked;
+  final VoidCallback? onChanged;
+  final bool disabled;
+  final DeepSearchSelectCheckboxSize size;
+
+  static const _radius = 4.0;
+
+  double get _boxSize =>
+      size == DeepSearchSelectCheckboxSize.md ? 20 : 16;
+
+  double get _iconSize =>
+      size == DeepSearchSelectCheckboxSize.md ? 14 : 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = !disabled && onChanged != null;
+    final borderRadius = BorderRadius.circular(_radius);
+
+    final Color backgroundColor;
+    final Color borderColor;
+    if (disabled) {
+      backgroundColor = const Color(0xFFF8F7F4);
+      borderColor = const Color(0xFFECE9E3);
+    } else if (checked) {
+      backgroundColor = const Color(0xFF171717);
+      borderColor = const Color(0xFF171717);
+    } else {
+      backgroundColor = Colors.white;
+      borderColor = const Color(0xFFECE9E3);
+    }
+
+    return GestureDetector(
+      onTap: enabled ? onChanged : null,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: _boxSize,
+        height: _boxSize,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: borderRadius,
+          border: Border.all(color: borderColor),
+        ),
+        child: checked && enabled
+            ? Icon(Icons.check, size: _iconSize, color: Colors.white)
+            : null,
+      ),
+    );
+  }
+}
+
 const highMatchThreshold = 75;
 const mediumMatchThreshold = 50;
 
