@@ -200,12 +200,15 @@ class AgenticSearchLogic extends ChangeNotifier {
   AgenticSearchLogic({
     required this.searchService,
     required this.searchStore,
+    this.resolveUserId,
     this.onSearchComplete,
     this.onScrollToBottom,
   });
 
   final SearchService searchService;
   final SearchStore searchStore;
+  /// 与 TSX `deepSearchStream` 内 `user?.user?.id` 对齐。
+  final String? Function()? resolveUserId;
   final void Function(List<Map<String, dynamic>> candidates, String query)?
   onSearchComplete;
   final VoidCallback? onScrollToBottom;
@@ -609,6 +612,11 @@ class AgenticSearchLogic extends ChangeNotifier {
       onSessionId: (sessionId) {
         if (sessionId.isNotEmpty) _setSessionId(sessionId);
       },
+      onClaudeSessionId: (claudeSessionId) {
+        if (claudeSessionId.isNotEmpty) {
+          searchStore.setClaudeSessionId(claudeSessionId);
+        }
+      },
       onSseEventsId: (sseEventsId) {
         if (sseEventsId.isNotEmpty) g.sseEventsId = sseEventsId;
       },
@@ -926,6 +934,12 @@ class AgenticSearchLogic extends ChangeNotifier {
       final id = convId is int ? convId : int.tryParse(convId.toString());
       if (id != null) searchStore.setCurrentConversationId(id);
     }
+    final claudeSessionId = conversation['claude_session_id']?.toString();
+    searchStore.setClaudeSessionId(
+      claudeSessionId != null && claudeSessionId.isNotEmpty
+          ? claudeSessionId
+          : null,
+    );
 
     // 与 dinq-client restoreMatch / restoreCitation / restoreAnalyze 对齐 activeTool
     switch (convType) {
@@ -1242,6 +1256,8 @@ class AgenticSearchLogic extends ChangeNotifier {
       mode: simple ? 'fast' : 'research',
       conversationId: searchStore.currentConversationId,
       sessionId: _activeSessionId,
+      claudeSessionId: searchStore.claudeSessionId,
+      userId: resolveUserId?.call(),
       attachment: attachment,
       modelProvider: modelProvider,
     );

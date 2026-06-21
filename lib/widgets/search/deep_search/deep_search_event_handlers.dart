@@ -13,6 +13,7 @@ class DeepSearchEventDispatcher {
     required this.contentBlocks,
     required this.onCandidatesChanged,
     this.onSessionId,
+    this.onClaudeSessionId,
     this.onSseEventsId,
     this.onDurationMs,
     this.onError,
@@ -23,6 +24,7 @@ class DeepSearchEventDispatcher {
   List<MessagePart> contentBlocks;
   final void Function(List<Map<String, dynamic>> candidates) onCandidatesChanged;
   final void Function(String sessionId)? onSessionId;
+  final void Function(String claudeSessionId)? onClaudeSessionId;
   final void Function(String sseEventsId)? onSseEventsId;
   final void Function(int durationMs)? onDurationMs;
   final void Function(String message)? onError;
@@ -160,6 +162,10 @@ class DeepSearchEventDispatcher {
     final sessionId = event['session_id']?.toString();
     if (sessionId != null && sessionId.isNotEmpty) {
       onSessionId?.call(sessionId);
+    }
+    final claudeSessionId = event['claude_session_id']?.toString();
+    if (claudeSessionId != null && claudeSessionId.isNotEmpty) {
+      onClaudeSessionId?.call(claudeSessionId);
     }
     final sseEventsId = event['sse_events_id']?.toString();
     if (sseEventsId != null && sseEventsId.isNotEmpty) {
@@ -601,6 +607,10 @@ class DeepSearchEventDispatcher {
     final sessionId = event['session_id']?.toString();
     if (sessionId != null && sessionId.isNotEmpty) {
       onSessionId?.call(sessionId);
+    }
+    final claudeSessionId = event['claude_session_id']?.toString();
+    if (claudeSessionId != null && claudeSessionId.isNotEmpty) {
+      onClaudeSessionId?.call(claudeSessionId);
     }
 
     contentBlocks = closeActiveBlock(contentBlocks);

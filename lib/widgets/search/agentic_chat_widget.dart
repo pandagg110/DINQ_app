@@ -91,6 +91,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       _logic = AgenticSearchLogic(
         searchService: SearchService(),
         searchStore: context.read<SearchStore>(),
+        resolveUserId: () => context.read<UserStore>().user?.user.id,
         onSearchComplete: widget.onSearchComplete,
         onScrollToBottom: _scrollToBottom,
       );

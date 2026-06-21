@@ -20,36 +20,55 @@ class SearchService {
       final lines = buffer.split('\n');
       buffer = lines.removeLast();
       for (final line in lines) {
-        final trimmed = line.trim();
-        if (!trimmed.startsWith('data: ')) continue;
-        final data = trimmed.substring(6);
-        if (data == '[DONE]') return;
-        try {
-          yield jsonDecode(data) as Map<String, dynamic>;
-        } catch (_) {
-          // ignore parse errors
-        }
+        final event = _normalizeStreamEvent(line);
+        if (event != null) yield event;
       }
     }
-    final trimmed = buffer.trim();
-    if (!trimmed.startsWith('data: ')) return;
+    final event = _normalizeStreamEvent(buffer.trim());
+    if (event != null) yield event;
+  }
+
+  /// 与 TSX deep-search.ts normalizeStreamEvent 对齐
+  Map<String, dynamic>? _normalizeStreamEvent(String line) {
+    final trimmed = line.trim();
+    if (!trimmed.startsWith('data: ')) return null;
     final data = trimmed.substring(6);
-    if (data == '[DONE]') return;
+    if (data == '[DONE]') return null;
     try {
-      yield jsonDecode(data) as Map<String, dynamic>;
+      final decoded = jsonDecode(data);
+      if (decoded is! Map<String, dynamic>) return null;
+      final type = decoded['type']?.toString();
+      if (type == 'llm_end') {
+        final message = decoded['message']?.toString() ?? '';
+        if (RegExp(r'insufficient\s+credits', caseSensitive: false).hasMatch(message)) {
+          return {
+            'type': 'error',
+            'message': _normalizeStreamErrorMessage(message),
+          };
+        }
+      }
+      return decoded;
     } catch (_) {
-      // ignore parse errors
+      return null;
     }
+  }
+
+  String _normalizeStreamErrorMessage(String message) {
+    return message
+        .replaceFirst(RegExp(r'^⚠️\s*'), '')
+        .replaceAll('**', '')
+        .trim();
   }
 
   /// POST /scholar/deep-search/stream（主链路）;
   /// 失败时回退到 /discover/chat/stream（兼容旧后端）
-  /// [query] 搜索词，[mode] fast | research
   Stream<Map<String, dynamic>> chatStream({
     String? query,
     String mode = 'research',
     int? conversationId,
     String? sessionId,
+    String? claudeSessionId,
+    String? userId,
     String? attachment,
     String modelProvider = 'anthropic-hao',
   }) async* {
@@ -57,7 +76,6 @@ class SearchService {
       'scene': 'search_v2',
       'model_provider': modelProvider,
       'permission_mode': 'dontAsk',
-      'mode': mode,
     };
     if (query != null && query.trim().isNotEmpty) {
       deepSearchBody['query'] = query.trim();
@@ -65,8 +83,18 @@ class SearchService {
     if (attachment != null && attachment.trim().isNotEmpty) {
       deepSearchBody['attachment'] = attachment.trim();
     }
-    if (conversationId != null) deepSearchBody['conversation_id'] = conversationId;
-    if (sessionId != null && sessionId.isNotEmpty) deepSearchBody['session_id'] = sessionId;
+    if (sessionId != null && sessionId.isNotEmpty) {
+      deepSearchBody['session_id'] = sessionId;
+    }
+    if (claudeSessionId != null && claudeSessionId.isNotEmpty) {
+      deepSearchBody['claude_session_id'] = claudeSessionId;
+    }
+    if (userId != null && userId.isNotEmpty) {
+      deepSearchBody['user_id'] = userId;
+    }
+    if (conversationId != null) {
+      deepSearchBody['conversation_id'] = conversationId;
+    }
 
     final streamOptions = Options(
       responseType: ResponseType.stream,

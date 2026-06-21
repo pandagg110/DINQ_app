@@ -58,8 +58,16 @@ class SearchStore extends ChangeNotifier {
   String? activeTool;
   /// Deep Search session id，对齐 Web `deepSearchStore.sessionId`
   String? deepSearchSessionId;
+  /// 与 TSX deepSearchStore.claudeSessionId 对齐
+  String? claudeSessionId;
   /// 与 TSX deepSearchStore.modelProvider 对齐
   String? modelProvider;
+
+  void setClaudeSessionId(String? sessionId) {
+    if (claudeSessionId == sessionId) return;
+    claudeSessionId = sessionId;
+    notifyListeners();
+  }
 
   void setModelProvider(String? provider) {
     if (modelProvider == provider) return;
@@ -201,6 +209,7 @@ class SearchStore extends ChangeNotifier {
     extraType = null;
     activeTool = null;
     deepSearchSessionId = null;
+    claudeSessionId = null;
     resetVersion += 1;
     notifyListeners();
   }
