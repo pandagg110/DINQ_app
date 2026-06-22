@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -46,6 +47,14 @@ class _TalentRadarCreatePageState extends State<TalentRadarCreatePage> {
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  // 提取后端友好错误（ApiClient 拦截器把 code!=0 的 message 放进 DioException.error）
+  String _errMsg(Object e) {
+    if (e is DioException) {
+      return (e.error ?? e.response?.data?.toString() ?? e.message ?? 'Request failed').toString();
+    }
+    return e.toString();
   }
 
   void _handle(Map<String, dynamic> resp) {
@@ -111,7 +120,7 @@ class _TalentRadarCreatePageState extends State<TalentRadarCreatePage> {
       }
       _handle(resp);
     } catch (e) {
-      _snack('Failed: $e');
+      _snack(_errMsg(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
