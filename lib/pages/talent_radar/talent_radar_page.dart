@@ -6,6 +6,7 @@ import '../../stores/user_store.dart';
 import '../../theme/dinq_icons.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
+import 'talent_radar_create_page.dart';
 
 /// Talent Radar Tab（持续找人）。
 /// 无 Radar 时显示空状态（还原 my_first_app `_TasksPageOverlay`）；
@@ -179,12 +180,12 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
     );
   }
 
-  void _onCreate() {
-    // TODO(radar-create): 创建 Radar 流程（自然语言需求 → AI 细化 → 启动）。
-    // 设计已就绪，作为 6.25 P2 后续；当前先占位提示。
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create Radar — coming soon')),
+  Future<void> _onCreate() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const TalentRadarCreatePage()),
     );
+    if (created == true) await _load();
   }
 
   // ============== 无数据：空状态（还原 _TasksPageOverlay）==============

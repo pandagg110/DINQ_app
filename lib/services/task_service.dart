@@ -13,7 +13,7 @@ class TaskService {
     return _unwrapList(resp.data);
   }
 
-  /// POST /tasks — 创建 Radar。data: { prompt, auto_search }
+  /// POST /tasks — 创建 Radar（旧接口）。data: { prompt, auto_search }
   Future<Map<String, dynamic>> createTask({
     required String prompt,
     bool autoSearch = true,
@@ -21,6 +21,32 @@ class TaskService {
     final resp = await _dio.post('/tasks', data: {
       'prompt': prompt,
       'auto_search': autoSearch,
+    });
+    return Map<String, dynamic>.from(resp.data as Map? ?? {});
+  }
+
+  /// POST /scheduler/create-task — 对话式创建（mode: check 细化维度 / create 启动）。
+  /// 对齐 web taskApi.createSchedulerTask。返回 follow_up_question / quick_options /
+  /// dimensions / dimensions_ready / task_session_id / task_id 等。
+  Future<Map<String, dynamic>> createSchedulerTask({
+    required String description,
+    required String userId,
+    String mode = 'check',
+    String? taskSessionId,
+    String? searchFrequency,
+    int? searchQuantity,
+    String? email,
+    String? title,
+  }) async {
+    final resp = await _dio.post('/scheduler/create-task', data: {
+      'description': description,
+      'user_id': userId,
+      'mode': mode,
+      if (taskSessionId != null && taskSessionId.isNotEmpty) 'task_session_id': taskSessionId,
+      if (searchFrequency != null) 'search_frequency': searchFrequency,
+      if (searchQuantity != null) 'search_quantity': searchQuantity,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (title != null && title.isNotEmpty) 'title': title,
     });
     return Map<String, dynamic>.from(resp.data as Map? ?? {});
   }
