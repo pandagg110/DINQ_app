@@ -51,6 +51,14 @@ class TaskService {
     return Map<String, dynamic>.from(resp.data as Map? ?? {});
   }
 
+  /// GET /scheduler/tasks/{id} — Radar 详情。
+  Future<Map<String, dynamic>> getTask(String id) async {
+    final resp = await _dio.get('/scheduler/tasks/$id');
+    final d = resp.data;
+    if (d is Map && d['data'] is Map) return Map<String, dynamic>.from(d['data'] as Map);
+    return Map<String, dynamic>.from(d as Map? ?? {});
+  }
+
   /// PUT /scheduler/tasks/{id} — 更新（暂停/恢复用 status: paused / active）。
   Future<void> updateTask(String id, Map<String, dynamic> data) async {
     await _dio.put('/scheduler/tasks/$id', data: data);

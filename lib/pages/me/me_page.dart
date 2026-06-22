@@ -169,6 +169,13 @@ class _MePageState extends State<MePage> {
                       () => context.push('/me/api-keys'),
                     ),
                     const SizedBox(height: 16),
+                    // 推送设置
+                    _buildMenuRow(
+                      Icons.notifications_outlined,
+                      'Push notifications',
+                      () => context.push('/me/push-settings'),
+                    ),
+                    const SizedBox(height: 16),
                     // Settings 入口
                     _buildSettingsButton(),
                     const SizedBox(height: 16),

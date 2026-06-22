@@ -7,6 +7,7 @@ import '../../theme/dinq_icons.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
 import 'talent_radar_create_page.dart';
+import 'talent_radar_detail_page.dart';
 
 /// Talent Radar Tab（持续找人）。
 /// 无 Radar 时显示空状态（还原 my_first_app `_TasksPageOverlay`）；
@@ -173,6 +174,7 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
                 scale: s,
                 task: Map<String, dynamic>.from(t as Map),
                 onMore: () => _showActions(Map<String, dynamic>.from(t)),
+                onTap: () => _openDetail(Map<String, dynamic>.from(t)),
               ),
             ),
         ],
@@ -186,6 +188,14 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
       MaterialPageRoute(builder: (_) => const TalentRadarCreatePage()),
     );
     if (created == true) await _load();
+  }
+
+  Future<void> _openDetail(Map<String, dynamic> task) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TalentRadarDetailPage(task: task)),
+    );
+    if (mounted) await _load();
   }
 
   // ============== 无数据：空状态（还原 _TasksPageOverlay）==============
@@ -319,11 +329,17 @@ class _PageHeaderTitle extends StatelessWidget {
 
 /// Radar 卡片（还原 my_first_app `_TaskCard`）。
 class _RadarCard extends StatelessWidget {
-  const _RadarCard({required this.scale, required this.task, required this.onMore});
+  const _RadarCard({
+    required this.scale,
+    required this.task,
+    required this.onMore,
+    required this.onTap,
+  });
 
   final double scale;
   final Map<String, dynamic> task;
   final VoidCallback onMore;
+  final VoidCallback onTap;
 
   int _int(String key) => int.tryParse((task[key] ?? '0').toString()) ?? 0;
 
@@ -340,6 +356,7 @@ class _RadarCard extends StatelessWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTap: onTap,
       onLongPress: onMore,
       child: Container(
         padding: EdgeInsets.all(16 * s),
