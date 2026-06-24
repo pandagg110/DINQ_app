@@ -77,6 +77,7 @@ class _ShortlistCandidateCardState extends State<ShortlistCandidateCard> {
       onTap: widget.onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
+        clipBehavior: Clip.antiAlias,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -310,7 +311,7 @@ class _ShortlistCandidateCardState extends State<ShortlistCandidateCard> {
   }
 }
 
-/// 对齐 Web `flex items-center gap-1.5` 标签行，避免 Wrap 换行后子项撑满整行。
+/// 对齐 Web `flex flex-wrap items-center gap-1.5`，宽度不足时自动换行。
 class _TagRow extends StatelessWidget {
   const _TagRow({
     required this.tags,
@@ -344,28 +345,16 @@ class _TagRow extends StatelessWidget {
     final shown = tags.take(shownCount).toList();
     final remaining = tags.length - shown.length;
 
-    return tagsExpanded
-        ? Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _children(
-              shown: shown,
-              remaining: 0,
-              canExpand: canExpand,
-            ),
-          )
-        : SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: _children(
-                shown: shown,
-                remaining: remaining,
-                canExpand: canExpand,
-              ),
-            ),
-          );
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: _children(
+        shown: shown,
+        remaining: tagsExpanded ? 0 : remaining,
+        canExpand: canExpand,
+      ),
+    );
   }
 
   List<Widget> _children({
@@ -375,38 +364,29 @@ class _TagRow extends StatelessWidget {
   }) {
     return [
       for (final tag in shown)
-        Padding(
-          padding: const EdgeInsets.only(right: 6),
-          child: _TagChip(label: tag, onRemove: () => onRemoveTag(tag)),
-        ),
+        _TagChip(label: tag, onRemove: () => onRemoveTag(tag)),
       if (remaining > 0)
-        Padding(
-          padding: const EdgeInsets.only(right: 6),
-          child: GestureDetector(
-            onTap: onToggleExpanded,
-            child: _TagPill(
-              backgroundColor: const Color(0xFFECE9E3),
-              child: Text(
-                '+$remaining',
-                style: _tagTextStyle(fontWeight: FontWeight.w500),
-              ),
+        GestureDetector(
+          onTap: onToggleExpanded,
+          child: _TagPill(
+            backgroundColor: const Color(0xFFECE9E3),
+            child: Text(
+              '+$remaining',
+              style: _tagTextStyle(fontWeight: FontWeight.w500),
             ),
           ),
         ),
       if (tagsExpanded && canExpand)
-        Padding(
-          padding: const EdgeInsets.only(right: 6),
-          child: GestureDetector(
-            onTap: onToggleExpanded,
-            child: _TagPill(
-              width: 24,
-              backgroundColor: const Color(0xFFECE9E3),
-              padding: EdgeInsets.zero,
-              child: const Icon(
-                Icons.keyboard_arrow_up,
-                size: 14,
-                color: Color(0xFF8A8880),
-              ),
+        GestureDetector(
+          onTap: onToggleExpanded,
+          child: _TagPill(
+            width: 24,
+            backgroundColor: const Color(0xFFECE9E3),
+            padding: EdgeInsets.zero,
+            child: const Icon(
+              Icons.keyboard_arrow_up,
+              size: 14,
+              color: Color(0xFF8A8880),
             ),
           ),
         ),
@@ -498,37 +478,39 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 对齐 Web `inline-flex max-w-[140px] shrink`：短文案随内容收缩，长文案截断。
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 140),
       child: _TagPill(
-      backgroundColor: const Color(0xFFF6F4F0),
-      padding: const EdgeInsets.only(left: 10, right: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 110),
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: _tagTextStyle(),
-            ),
-          ),
-          GestureDetector(
-            onTap: onRemove,
-            child: const Padding(
-              padding: EdgeInsets.all(2),
-              child: Icon(
-                Icons.close,
-                size: 10,
-                color: Color(0xFFB5B3AE),
+        backgroundColor: const Color(0xFFF6F4F0),
+        padding: const EdgeInsets.only(left: 10, right: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 110),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _tagTextStyle(),
               ),
             ),
-          ),
-        ],
+            GestureDetector(
+              onTap: onRemove,
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(
+                  Icons.close,
+                  size: 10,
+                  color: Color(0xFFB5B3AE),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
