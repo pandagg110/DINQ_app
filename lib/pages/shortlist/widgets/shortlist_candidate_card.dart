@@ -72,7 +72,6 @@ class _ShortlistCandidateCardState extends State<ShortlistCandidateCard> {
     final name = item.name.isEmpty ? '—' : item.name;
     final metaLine = item.roleLine;
     final avatarColor = nameToAvatarColor(name);
-    const visibleTags = 2;
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -281,128 +280,213 @@ class _ShortlistCandidateCardState extends State<ShortlistCandidateCard> {
                   ),
                 ),
               ),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ..._buildVisibleTags(visibleTags),
-                if (_editingTag)
-                  SizedBox(
-                    width: 96,
-                    height: 24,
-                    child: TextField(
-                      controller: _tagController,
-                      focusNode: _tagFocus,
-                      onSubmitted: (_) async {
-                        await _addTag();
-                        setState(() => _editingTag = false);
-                      },
-                      onEditingComplete: () async {
-                        await _addTag();
-                        setState(() => _editingTag = false);
-                      },
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        hintText: ShortlistStrings.cardTagNewPlaceholder,
-                        hintStyle: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFB5B3AE),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          borderSide: const BorderSide(color: Color(0xFFC0C0C0)),
-                        ),
-                      ),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  )
-                else
-                  _TagAddButton(
-                    onTap: () {
-                      setState(() {
-                        _editingTag = true;
-                        _tagController.clear();
-                      });
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _tagFocus.requestFocus();
-                      });
-                    },
-                  ),
-              ],
+            _TagRow(
+              tags: _tagList,
+              tagsExpanded: _tagsExpanded,
+              editingTag: _editingTag,
+              tagController: _tagController,
+              tagFocus: _tagFocus,
+              onToggleExpanded: () =>
+                  setState(() => _tagsExpanded = !_tagsExpanded),
+              onRemoveTag: _removeTag,
+              onStartEditTag: () {
+                setState(() {
+                  _editingTag = true;
+                  _tagController.clear();
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _tagFocus.requestFocus();
+                });
+              },
+              onFinishEditTag: () async {
+                await _addTag();
+                if (mounted) setState(() => _editingTag = false);
+              },
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  List<Widget> _buildVisibleTags(int visibleCount) {
-    final tags = _tagList;
-    final canExpand = tags.length > visibleCount;
+/// 对齐 Web `flex items-center gap-1.5` 标签行，避免 Wrap 换行后子项撑满整行。
+class _TagRow extends StatelessWidget {
+  const _TagRow({
+    required this.tags,
+    required this.tagsExpanded,
+    required this.editingTag,
+    required this.tagController,
+    required this.tagFocus,
+    required this.onToggleExpanded,
+    required this.onRemoveTag,
+    required this.onStartEditTag,
+    required this.onFinishEditTag,
+  });
+
+  static const _visibleCount = 2;
+
+  final List<String> tags;
+  final bool tagsExpanded;
+  final bool editingTag;
+  final TextEditingController tagController;
+  final FocusNode tagFocus;
+  final VoidCallback onToggleExpanded;
+  final ValueChanged<String> onRemoveTag;
+  final VoidCallback onStartEditTag;
+  final Future<void> Function() onFinishEditTag;
+
+  @override
+  Widget build(BuildContext context) {
+    final canExpand = tags.length > _visibleCount;
     final shownCount =
-        _tagsExpanded ? tags.length : visibleCount.clamp(0, tags.length);
+        tagsExpanded ? tags.length : _visibleCount.clamp(0, tags.length);
     final shown = tags.take(shownCount).toList();
     final remaining = tags.length - shown.length;
-    final widgets = <Widget>[];
 
-    for (final tag in shown) {
-      widgets.add(_TagChip(
-        label: tag,
-        onRemove: () => _removeTag(tag),
-      ));
-    }
-
-    if (remaining > 0) {
-      widgets.add(
-        GestureDetector(
-          onTap: () => setState(() => _tagsExpanded = true),
-          child: Container(
-            height: 24,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECE9E3),
-              borderRadius: BorderRadius.circular(6),
+    return tagsExpanded
+        ? Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _children(
+              shown: shown,
+              remaining: 0,
+              canExpand: canExpand,
             ),
-            alignment: Alignment.center,
-            child: Text(
-              '+$remaining',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+          )
+        : SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: _children(
+                shown: shown,
+                remaining: remaining,
+                canExpand: canExpand,
+              ),
+            ),
+          );
+  }
+
+  List<Widget> _children({
+    required List<String> shown,
+    required int remaining,
+    required bool canExpand,
+  }) {
+    return [
+      for (final tag in shown)
+        Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: _TagChip(label: tag, onRemove: () => onRemoveTag(tag)),
+        ),
+      if (remaining > 0)
+        Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: GestureDetector(
+            onTap: onToggleExpanded,
+            child: _TagPill(
+              backgroundColor: const Color(0xFFECE9E3),
+              child: Text(
+                '+$remaining',
+                style: _tagTextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ),
+      if (tagsExpanded && canExpand)
+        Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: GestureDetector(
+            onTap: onToggleExpanded,
+            child: _TagPill(
+              width: 24,
+              backgroundColor: const Color(0xFFECE9E3),
+              padding: EdgeInsets.zero,
+              child: const Icon(
+                Icons.keyboard_arrow_up,
+                size: 14,
                 color: Color(0xFF8A8880),
               ),
             ),
           ),
         ),
-      );
-    }
-
-    if (_tagsExpanded && canExpand) {
-      widgets.add(
-        GestureDetector(
-          onTap: () => setState(() => _tagsExpanded = false),
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: const Color(0xFFECE9E3),
-              borderRadius: BorderRadius.circular(6),
+      if (editingTag)
+        SizedBox(
+          width: 96,
+          height: 24,
+          child: TextField(
+            controller: tagController,
+            focusNode: tagFocus,
+            onSubmitted: (_) => onFinishEditTag(),
+            onEditingComplete: onFinishEditTag,
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              hintText: ShortlistStrings.cardTagNewPlaceholder,
+              hintStyle: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFFB5B3AE),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: Color(0xFFC0C0C0)),
+              ),
             ),
-            child: const Icon(
-              Icons.keyboard_arrow_up,
-              size: 14,
-              color: Color(0xFF8A8880),
-            ),
+            style: const TextStyle(fontSize: 12),
           ),
-        ),
-      );
-    }
+        )
+      else
+        _TagAddButton(onTap: onStartEditTag),
+    ];
+  }
+}
 
-    return widgets;
+const double _tagHeight = 24;
+
+TextStyle _tagTextStyle({FontWeight? fontWeight}) => TextStyle(
+      fontSize: 12,
+      height: 1,
+      fontWeight: fontWeight,
+      color: const Color(0xFF8A8880),
+    );
+
+/// 统一 h-6 标签 pill，对齐 Web `inline-flex items-center h-6`。
+class _TagPill extends StatelessWidget {
+  const _TagPill({
+    required this.child,
+    this.width,
+    this.backgroundColor,
+    this.border,
+    this.padding = const EdgeInsets.symmetric(horizontal: 8),
+  });
+
+  final Widget child;
+  final double? width;
+  final Color? backgroundColor;
+  final BoxBorder? border;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: _tagHeight,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(6),
+        border: border,
+      ),
+      child: Align(
+        alignment: Alignment.center,
+        widthFactor: 1,
+        heightFactor: 1,
+        child: child,
+      ),
+    );
   }
 }
 
@@ -414,37 +498,37 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 140),
-      height: 24,
+      child: _TagPill(
+      backgroundColor: const Color(0xFFF6F4F0),
       padding: const EdgeInsets.only(left: 10, right: 2),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6F4F0),
-        borderRadius: BorderRadius.circular(6),
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Flexible(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 110),
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF8A8880)),
+              style: _tagTextStyle(),
             ),
           ),
           GestureDetector(
             onTap: onRemove,
-            child: Padding(
-              padding: const EdgeInsets.all(2),
+            child: const Padding(
+              padding: EdgeInsets.all(2),
               child: Icon(
                 Icons.close,
                 size: 10,
-                color: const Color(0xFFB5B3AE),
+                color: Color(0xFFB5B3AE),
               ),
             ),
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -458,25 +542,15 @@ class _TagAddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 24,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: const Color(0xFFD5D3CE),
-            style: BorderStyle.solid,
-          ),
-        ),
+      child: _TagPill(
+        border: Border.all(color: const Color(0xFFD5D3CE)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Icon(Icons.add, size: 12, color: Color(0xFFB5B3AE)),
             const SizedBox(width: 4),
-            Text(
-              ShortlistStrings.cardTagAdd,
-              style: const TextStyle(fontSize: 12, color: Color(0xFFB5B3AE)),
-            ),
+            Text(ShortlistStrings.cardTagAdd, style: _tagTextStyle()),
           ],
         ),
       ),
