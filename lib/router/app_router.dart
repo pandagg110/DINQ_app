@@ -56,6 +56,7 @@ import '../pages/me/api_keys_page.dart';
 import '../pages/me/organization_page.dart';
 import '../pages/me/organization_detail_page.dart';
 import '../pages/me/integration_page.dart';
+import '../pages/me/push_settings_page.dart';
 import '../pages/mydinq/mydinq_page.dart';
 import '../stores/user_store.dart';
 
@@ -248,6 +249,10 @@ class AppRouter {
         GoRoute(
           path: '/me/integration',
           builder: (context, state) => const IntegrationPage(),
+        ),
+        GoRoute(
+          path: '/me/push-settings',
+          builder: (context, state) => const PushSettingsPage(),
         ),
         GoRoute(
           path: '/me/resume',
