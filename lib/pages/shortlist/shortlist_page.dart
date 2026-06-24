@@ -1,17 +1,34 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
+import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../constants/shortlist_constants.dart';
+import '../../models/deep_search_enrich_models.dart';
 import '../../models/shortlist_models.dart';
+import '../../services/search_service.dart';
+import '../../services/shortlist_service.dart';
+import '../../stores/deep_search_enrich_store.dart';
+import '../../stores/main_store.dart';
+import '../../stores/search_store.dart';
 import '../../stores/shortlist_store.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_icons.dart';
-import '../../theme/dinq_tokens.dart';
+import '../../utils/top_toast_util.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
-import 'candidate_detail_page.dart';
+import '../../widgets/search/enrich/enrich_profile_view.dart';
+import '../../widgets/search/enrich/enrich_stream_controller.dart';
+import 'shortlist_strings.dart';
+import 'widgets/shortlist_candidate_card.dart';
+import 'widgets/shortlist_export_modal.dart';
+import 'widgets/shortlist_move_folder_sheet.dart';
+import 'widgets/shortlist_project_sidebar.dart';
+import 'widgets/shortlist_shared_widgets.dart';
 
-/// Shortlist Tab（存人 / 候选人库）。
-/// 1:1 还原 `my_first_app` 的 `_ShortlistPage`，接线上 `/favorite-projects` + `/favorites`。
+/// Shortlist Tab — 严格对齐 Web `(workspace)/shortlist/page.tsx` 移动端。
 class ShortlistPage extends StatefulWidget {
   const ShortlistPage({super.key});
 
@@ -20,130 +37,332 @@ class ShortlistPage extends StatefulWidget {
 }
 
 class _ShortlistPageState extends State<ShortlistPage> {
-  bool _selectionMode = false;
-  final Set<String> _selectedIds = <String>{};
+  final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+  Timer? _debounce;
+  EnrichStreamController? _enrichController;
+  bool _controllerReady = false;
+  bool _isExporting = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadWhenReady();
   }
 
-  /// 轮询等待登录态就绪后再加载。
-  /// UserStore 启动时异步读取 token 并注入 ApiClient；其 initialize() 若因
-  /// 个别接口异常而未 notify，也不影响——这里只依赖 isLoggedIn()（token 已就绪）。
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_controllerReady) return;
+    _controllerReady = true;
+    _enrichController = EnrichStreamController(
+      enrichStore: context.read<DeepSearchEnrichStore>(),
+      searchService: SearchService(),
+      sessionIdProvider: () =>
+          context.read<SearchStore>().deepSearchSessionId ?? '',
+    );
+    context.read<DeepSearchEnrichStore>().addListener(_syncBottomNav);
+    _syncBottomNav();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _scrollController.dispose();
+    context.read<DeepSearchEnrichStore>().removeListener(_syncBottomNav);
+    _enrichController?.close();
+    super.dispose();
+  }
+
+  void _syncBottomNav() {
+    if (!mounted) return;
+    final enrichOpen = context.read<DeepSearchEnrichStore>().isOpen;
+    context.read<MainStore>().setShowBottomNav(!enrichOpen);
+  }
+
   Future<void> _loadWhenReady() async {
     for (int i = 0; i < 25; i++) {
       if (!mounted) return;
       if (context.read<UserStore>().isLoggedIn()) {
-        await context.read<ShortlistStore>().load();
+        await context.read<ShortlistStore>().initialize();
         return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 200));
     }
   }
 
-  void _exitSelection() {
-    setState(() {
-      _selectionMode = false;
-      _selectedIds.clear();
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      final store = context.read<ShortlistStore>();
+      store.setNameQuery(value);
+      store.loadFavorites(clear: true);
     });
   }
 
-  Future<void> _removeSelected() async {
-    final ids = Set<String>.from(_selectedIds);
-    if (ids.isEmpty) return;
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
     final store = context.read<ShortlistStore>();
-    _exitSelection();
-    await store.removeFavorites(ids);
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!store.isLoading && store.hasMore) {
+        store.loadMore();
+      }
+    }
   }
 
-  /// 批量移动到其他文件夹：选目标项目 → 接真实接口移动。
-  Future<void> _moveSelected() async {
-    final ids = Set<String>.from(_selectedIds);
-    if (ids.isEmpty) return;
+  Future<void> _handleRowClick(FavoriteItem item) async {
     final store = context.read<ShortlistStore>();
-    final target = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.28),
-      builder: (_) => _FolderSheet(projects: store.projects, selectedId: null),
+    if (store.selectionActive) {
+      store.toggleSelected(item.id);
+      return;
+    }
+    final row = item.toEnrichRow();
+    await _enrichController?.openEnrich(row);
+    _syncBottomNav();
+  }
+
+  Future<void> _openBulkDeleteConfirm() async {
+    final store = context.read<ShortlistStore>();
+    final ids = store.selectedIds.toList();
+    if (ids.isEmpty) return;
+    await ShortlistConfirmModal.show(
+      context,
+      title: ShortlistStrings.bulkRemoveTitle(ids.length),
+      message: ShortlistStrings.bulkRemoveMessage,
+      confirmLabel: ShortlistStrings.bulkRemoveConfirm,
+      variant: ShortlistConfirmVariant.destructive,
+      onConfirm: () async {
+        final result = await store.bulkRemove(ids);
+        if (!mounted) return;
+        if (result.fail > 0) {
+          TopToastUtil.showError(
+            context: context,
+            title: ShortlistStrings.bulkRemovePartial(
+              result.ok,
+              ids.length,
+              result.fail,
+            ),
+            description: '',
+          );
+        } else {
+          TopToastUtil.showSuccess(
+            context: context,
+            title: ShortlistStrings.bulkRemoveSuccess(result.ok),
+            description: '',
+          );
+        }
+        store.clearSelected();
+      },
+    );
+  }
+
+  Future<void> _openMoveSheet() async {
+    final store = context.read<ShortlistStore>();
+    final target = await showShortlistMoveFolderSheet(
+      context,
+      currentFolderName: store.activeProjectName,
+      selectedCount: store.selectedIds.length,
+      targetProjects: store.moveTargetProjects,
     );
     if (target == null || !mounted) return;
-    _exitSelection();
-    await store.moveFavorites(ids, target);
+    final targetName = target.isDefault
+        ? ShortlistStrings.foldersDefaultName
+        : target.name;
+    final ids = store.selectedIds.toList();
+    if (!mounted) return;
+    await ShortlistConfirmModal.show(
+      context,
+      title: ShortlistStrings.bulkMoveTitle(ids.length, targetName),
+      confirmLabel: ShortlistStrings.bulkMoveConfirm,
+      onConfirm: () async {
+        final result = await store.bulkMove(ids, target.id);
+        if (!mounted) return;
+        if (result.fail > 0) {
+          TopToastUtil.showError(
+            context: context,
+            title: ShortlistStrings.bulkMovePartial(
+              result.ok,
+              ids.length,
+              result.fail,
+            ),
+            description: '',
+          );
+        } else {
+          TopToastUtil.showSuccess(
+            context: context,
+            title: ShortlistStrings.bulkMoveSuccess(result.ok, targetName),
+            description: '',
+          );
+        }
+        store.clearSelected();
+      },
+    );
+  }
+
+  Future<void> _handleExport(ShortlistExportFormat format) async {
+    if (_isExporting) return;
+    final store = context.read<ShortlistStore>();
+    final projectId = store.activeProjectId;
+    if (projectId == null) {
+      TopToastUtil.showError(
+        context: context,
+        title: ShortlistStrings.exportNoFolder,
+        description: '',
+      );
+      return;
+    }
+
+    setState(() => _isExporting = true);
+    final service = ShortlistService();
+    try {
+      List<FavoriteItem> rows;
+      if (store.selectedIds.isNotEmpty) {
+        rows = store.favorites
+            .where((item) => store.selectedIds.contains(item.id))
+            .toList();
+      } else {
+        rows = [];
+        for (var offset = 0; ; offset += shortlistExportPageSize) {
+          final page = await service.listFavorites(
+            projectId: projectId,
+            name: store.nameQuery,
+            status: store.statusFilter,
+            limit: shortlistExportPageSize,
+            offset: offset,
+          );
+          rows.addAll(page);
+          if (page.length < shortlistExportPageSize) break;
+        }
+      }
+
+      if (rows.isEmpty) {
+        if (!mounted) return;
+        TopToastUtil.showError(
+          context: context,
+          title: ShortlistStrings.exportEmpty,
+          description: '',
+        );
+        return;
+      }
+
+      final folder = store.activeProject;
+      final folderName =
+          folder?.isDefault == true ? 'Default' : (folder?.name ?? 'shortlist');
+      final date = DateTime.now().toIso8601String().substring(0, 10);
+      final slug = service.safeFilenamePart(folderName);
+
+      if (format == ShortlistExportFormat.pdf) {
+        if (rows.length > shortlistMaxPdfExportRows) {
+          if (!mounted) return;
+          TopToastUtil.showError(
+            context: context,
+            title: ShortlistStrings.exportPdfLimit(shortlistMaxPdfExportRows),
+            description: '',
+          );
+          return;
+        }
+        final result = await service.exportPdf(rows.map((r) => r.id).toList());
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/${result.filename}');
+        await file.writeAsBytes(result.bytes);
+        await Share.shareXFiles([XFile(file.path)], subject: result.filename);
+      } else {
+        final csv = service.buildCsvContent(rows);
+        final dir = await getTemporaryDirectory();
+        final filename = '$slug-$date.csv';
+        final file = File('${dir.path}/$filename');
+        await file.writeAsString(csv);
+        await Share.shareXFiles([XFile(file.path)], subject: filename);
+      }
+
+      if (mounted) {
+        TopToastUtil.showSuccess(
+          context: context,
+          title: ShortlistStrings.exportSuccess(rows.length),
+          description: '',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        TopToastUtil.showError(
+          context: context,
+          title: ShortlistStrings.exportError,
+          description: e.toString(),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ShortlistStore>();
-    const double s = 1;
-    final items = store.visibleItems;
-    final visibleIds = items.map((e) => e.id).toSet();
-    final allSelected =
-        visibleIds.isNotEmpty && visibleIds.every(_selectedIds.contains);
+    final enrichStore = context.watch<DeepSearchEnrichStore>();
+    final waitingForProject =
+        store.activeProjectId == null && !store.projectsLoaded && store.projectsLoadError == null;
+    final hasSearchOrStatus =
+        _searchQuery.isNotEmpty || store.statusFilter != null;
 
     return Scaffold(
-      backgroundColor: DinqTokens.bgPage,
+      backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
         child: Stack(
           children: [
             Column(
               children: [
-                _Header(
-                  scale: s,
-                  selectionMode: _selectionMode,
-                  selectedCount: _selectedIds.length,
-                  folderName: store.selectedFolderName,
-                  allSelected: allSelected,
-                  onFolderTap: () => _openFolderSheet(store),
-                  onEnterSelection: () => setState(() => _selectionMode = true),
-                  onCloseSelection: _exitSelection,
-                  onToggleSelectAll: () {
-                    setState(() {
-                      if (allSelected) {
-                        _selectedIds.removeAll(visibleIds);
-                      } else {
-                        _selectedIds.addAll(visibleIds);
-                      }
-                    });
-                  },
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16 * s, 12 * s, 16 * s, 12 * s),
-                  child: Column(
-                    children: [
-                      _SearchField(
-                        scale: s,
-                        onChanged: store.setQuery,
-                      ),
-                      SizedBox(height: 12 * s),
-                      _StatusFilter(
-                        scale: s,
-                        options: ShortlistStore.statusOptions,
-                        selected: store.selectedStatus,
-                        onSelected: store.selectStatus,
-                      ),
-                    ],
+                _TopBar(
+                  isExporting: _isExporting,
+                  onOpenFolders: () => showShortlistFoldersDrawer(context),
+                  onExport: () => ShortlistExportModal.show(
+                    context,
+                    onSelect: _handleExport,
                   ),
                 ),
+                _Toolbar(
+                  searchController: _searchController,
+                  onSearchChanged: _onSearchChanged,
+                  statusFilter: store.statusFilter,
+                  onStatusChanged: (status) {
+                    store.setStatusFilter(status);
+                    store.loadFavorites(clear: true);
+                  },
+                ),
+                if (store.selectionActive)
+                  _SelectionBar(
+                    count: store.selectedIds.length,
+                    onCancel: store.clearSelected,
+                    onDelete: _openBulkDeleteConfirm,
+                    onMove: _openMoveSheet,
+                  ),
                 Expanded(
-                  child: _body(store, items, s),
+                  child: _buildBody(
+                    store,
+                    waitingForProject: waitingForProject,
+                    hasSearchOrStatus: hasSearchOrStatus,
+                  ),
                 ),
               ],
             ),
-            if (_selectedIds.isNotEmpty)
-              Positioned(
-                left: 16 * s,
-                right: 16 * s,
-                bottom: 18 * s,
-                child: _BatchBar(
-                  scale: s,
-                  onMove: _moveSelected,
-                  onRemove: _removeSelected,
-                ),
+            if (enrichStore.isOpen)
+              _EnrichOverlay(
+                entry: enrichStore.selectedEntry,
+                selectedRowId: enrichStore.selectedRowId,
+                confidencePct:
+                    enrichStore.confidenceFor(enrichStore.selectedRowId),
+                onClose: () {
+                  _enrichController?.close();
+                  _syncBottomNav();
+                },
+                onRefresh: () =>
+                    _enrichController?.refreshEnrich() ?? Future.value(),
               ),
           ],
         ),
@@ -151,319 +370,140 @@ class _ShortlistPageState extends State<ShortlistPage> {
     );
   }
 
-  Widget _body(ShortlistStore store, List<FavoriteItem> items, double s) {
-    if (store.loading && store.projects.isEmpty) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+  Widget _buildBody(
+    ShortlistStore store, {
+    required bool waitingForProject,
+    required bool hasSearchOrStatus,
+  }) {
+    if (waitingForProject) {
+      return const _ShortlistLoadingState(
+        label: ShortlistStrings.loadingFolders,
+      );
     }
-    if (store.error != null && store.projects.isEmpty) {
-      return _ErrorState(message: store.error!, onRetry: store.load);
+    if (store.activeProjectId == null && store.projectsLoadError != null) {
+      return _FolderLoadErrorState(onRetry: store.loadProjects);
     }
-    if (items.isEmpty) {
-      return const _EmptyState();
+    if (store.isLoading && store.favorites.isEmpty) {
+      return _CardSkeletonList();
     }
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(
-        16 * s,
-        0,
-        16 * s,
-        // 底部留白需清开 dev 的悬浮底栏（约 110）。
-        (_selectedIds.isEmpty ? 110 : 160) * s,
-      ),
-      children: [
-        for (final item in items) ...[
-          _CandidateCard(
-            scale: s,
-            item: item,
-            selectionMode: _selectionMode,
-            selected: _selectedIds.contains(item.id),
-            onTap: () {
-              if (_selectionMode) {
-                setState(() {
-                  if (!_selectedIds.add(item.id)) _selectedIds.remove(item.id);
-                });
-              } else {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => CandidateDetailPage(item: item),
-                  ),
-                );
-              }
-            },
-            onLongPress: () {
-              setState(() {
-                _selectionMode = true;
-                _selectedIds.add(item.id);
-              });
-            },
-          ),
-          SizedBox(height: 12 * s),
-        ],
-      ],
-    );
-  }
+    if (store.activeProjectId == null) {
+      return _EmptyCenter(
+        title: ShortlistStrings.emptyNoFoldersTitle,
+        description: ShortlistStrings.emptyNoFoldersDescription,
+      );
+    }
+    if (store.favorites.isEmpty) {
+      if (hasSearchOrStatus) {
+        return _EmptyCenter(
+          title: ShortlistStrings.emptyNoMatchesTitle,
+          description: ShortlistStrings.emptyNoMatchesDescription,
+          actionLabel: ShortlistStrings.emptyNoMatchesReset,
+          onAction: () {
+            _searchController.clear();
+            setState(() => _searchQuery = '');
+            store.clearFilters();
+            store.loadFavorites(clear: true);
+          },
+        );
+      }
+      return const _EmptyCenter(
+        title: ShortlistStrings.emptyNoFavoritesTitle,
+        description: ShortlistStrings.emptyNoFavoritesDescription,
+      );
+    }
 
-  Future<void> _openFolderSheet(ShortlistStore store) async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.28),
-      builder: (_) => _FolderSheet(
-        projects: store.projects,
-        selectedId: store.selectedProject?.id,
-      ),
+    return ListView.separated(
+      controller: _scrollController,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      itemCount: store.favorites.length + (store.hasMore ? 1 : 0),
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        if (index >= store.favorites.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        final item = store.favorites[index];
+        return ShortlistCandidateCard(
+          item: item,
+          store: store,
+          isSelected: store.selectedIds.contains(item.id),
+          onTap: () => _handleRowClick(item),
+          onToggleSelect: () => store.toggleSelected(item.id),
+        );
+      },
     );
-    if (selected != null) store.selectProject(selected);
   }
 }
 
-// ───────────────────────── Header ─────────────────────────
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.scale,
-    required this.selectionMode,
-    required this.selectedCount,
-    required this.folderName,
-    required this.allSelected,
-    required this.onFolderTap,
-    required this.onEnterSelection,
-    required this.onCloseSelection,
-    required this.onToggleSelectAll,
+class _TopBar extends StatelessWidget {
+  const _TopBar({
+    required this.isExporting,
+    required this.onOpenFolders,
+    required this.onExport,
   });
 
-  final double scale;
-  final bool selectionMode;
-  final int selectedCount;
-  final String folderName;
-  final bool allSelected;
-  final VoidCallback onFolderTap;
-  final VoidCallback onEnterSelection;
-  final VoidCallback onCloseSelection;
-  final VoidCallback onToggleSelectAll;
+  final bool isExporting;
+  final VoidCallback onOpenFolders;
+  final VoidCallback onExport;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16 * scale, 18 * scale, 16 * scale, 0),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: selectionMode
-                ? _TextButton(
-                    scale: scale, label: 'Cancel', onTap: onCloseSelection)
-                : _FolderPill(
-                    scale: scale, folderName: folderName, onTap: onFolderTap),
-          ),
-          if (selectionMode)
-            Text(
-              '$selectedCount selected',
-              style: TextStyle(
-                fontSize: 17 * scale,
-                fontWeight: FontWeight.w600,
-                color: DinqTokens.textPrimary,
-              ),
-            ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: selectionMode
-                ? _TextButton(
-                    scale: scale,
-                    label: allSelected ? 'Deselect all' : 'Select all',
-                    onTap: onToggleSelectAll,
-                    color: allSelected
-                        ? const Color(0xFFE24B3C)
-                        : const Color(0xFF2563EB),
-                    plain: true,
-                  )
-                : _TextButton(
-                    scale: scale,
-                    label: 'Select',
-                    onTap: onEnterSelection,
-                    color: const Color(0xFF2563EB),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TextButton extends StatelessWidget {
-  const _TextButton({
-    required this.scale,
-    required this.label,
-    required this.onTap,
-    this.color = const Color(0xFF2563EB),
-    this.plain = false,
-  });
-
-  final double scale;
-  final String label;
-  final VoidCallback onTap;
-  final Color color;
-  final bool plain;
-
-  @override
-  Widget build(BuildContext context) {
-    if (plain) {
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 9 * scale),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 14 * scale,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      );
-    }
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        height: 42 * scale,
-        padding: EdgeInsets.symmetric(horizontal: 18 * scale),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: DinqTokens.bgCard,
-          borderRadius: BorderRadius.circular(999 * scale),
-          boxShadow: [
-            BoxShadow(
-              color: DinqTokens.shadow,
-              blurRadius: 16 * scale,
-              offset: Offset(0, 1 * scale),
-            ),
-          ],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 14 * scale,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FolderPill extends StatelessWidget {
-  const _FolderPill({
-    required this.scale,
-    required this.folderName,
-    required this.onTap,
-  });
-
-  final double scale;
-  final String folderName;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 188 * scale),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          height: 42 * scale,
-          padding: EdgeInsets.fromLTRB(14 * scale, 0, 13 * scale, 0),
-          decoration: BoxDecoration(
-            color: DinqTokens.bgCard,
-            borderRadius: BorderRadius.circular(999 * scale),
-            boxShadow: [
-              BoxShadow(
-                color: DinqTokens.shadow,
-                blurRadius: 16 * scale,
-                offset: Offset(0, 1 * scale),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder_outlined,
-                  size: 19 * scale, color: DinqTokens.textPrimary),
-              SizedBox(width: 8 * scale),
-              Flexible(
-                child: Text(
-                  folderName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: DinqTokens.textPrimary,
-                    fontSize: 14 * scale,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              SizedBox(width: 8 * scale),
-              DinqSvgIcon(
-                assetName: DinqIcons.caretDown,
-                size: 14 * scale,
-                color: DinqTokens.textPrimary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ───────────────────────── Search + Filter ─────────────────────────
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.scale, required this.onChanged});
-
-  final double scale;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 40 * scale,
-      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
-      decoration: BoxDecoration(
-        color: DinqTokens.bgCard,
-        borderRadius: BorderRadius.circular(12 * scale),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
         children: [
-          DinqSvgIcon(
-            assetName: DinqIcons.searchShortlist,
-            size: 18 * scale,
-            color: DinqTokens.textTertiary,
+          Text(
+            ShortlistStrings.headerTitle,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF171717),
+            ),
           ),
-          SizedBox(width: 14 * scale),
-          Expanded(
-            child: TextField(
-              onChanged: onChanged,
-              decoration: InputDecoration(
-                hintText: 'Search keyword (fuzzy)',
-                hintStyle: TextStyle(
-                  color: DinqTokens.textTertiary,
-                  fontSize: 14 * scale,
-                  fontWeight: FontWeight.w500,
+          const SizedBox(width: 8),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onOpenFolders,
+              borderRadius: BorderRadius.circular(8),
+              child: const SizedBox(
+                width: 36,
+                height: 36,
+                child: Icon(
+                  Icons.folder_open_outlined,
+                  size: 16,
+                  color: Color(0xFF171717),
                 ),
-                border: InputBorder.none,
-                isDense: true,
               ),
-              style: TextStyle(
-                color: DinqTokens.textPrimary,
-                fontSize: 14 * scale,
-                fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          OutlinedButton.icon(
+            onPressed: isExporting ? null : onExport,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              side: const BorderSide(color: Color(0xFFF0EFEB)),
+              foregroundColor: const Color(0xFF171717),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
+            ),
+            icon: const Icon(Icons.download_outlined, size: 16),
+            label: Text(
+              isExporting
+                  ? ShortlistStrings.exportingLabel
+                  : ShortlistStrings.exportLabel,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -472,391 +512,275 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-class _StatusFilter extends StatelessWidget {
-  const _StatusFilter({
-    required this.scale,
-    required this.options,
-    required this.selected,
-    required this.onSelected,
+class _Toolbar extends StatelessWidget {
+  const _Toolbar({
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.statusFilter,
+    required this.onStatusChanged,
   });
 
-  final double scale;
-  final List<String> options;
-  final String selected;
-  final ValueChanged<String> onSelected;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final String? statusFilter;
+  final ValueChanged<String?> onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40 * scale,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: options.length,
-        separatorBuilder: (context, index) => SizedBox(width: 10 * scale),
-        itemBuilder: (context, i) {
-          final option = options[i];
-          final sel = option == selected;
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => onSelected(option),
-            child: Container(
-              height: 40 * scale,
-              constraints: BoxConstraints(minWidth: 60 * scale),
-              padding: EdgeInsets.symmetric(horizontal: 18 * scale),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: sel ? const Color(0xFFEAF1FF) : DinqTokens.bgCard,
-                borderRadius: BorderRadius.circular(999 * scale),
-                border: Border.all(
-                  color: sel ? Colors.transparent : DinqTokens.borderL,
-                  width: 0.5 * scale,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        children: [
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE5E3DE)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                DinqSvgIcon(
+                  assetName: DinqIcons.searchShortlist,
+                  size: 16,
+                  color: const Color(0xFFB5B3AE),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: DinqTokens.shadow,
-                    blurRadius: 16 * scale,
-                    offset: Offset(0, 1 * scale),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: onSearchChanged,
+                    decoration: const InputDecoration(
+                      hintText: ShortlistStrings.searchPlaceholder,
+                      hintStyle: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFFB5B3AE),
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF171717),
+                    ),
                   ),
-                ],
-              ),
-              child: Text(
-                option,
-                style: TextStyle(
-                  color: sel ? const Color(0xFF2563EB) : DinqTokens.textPrimary,
-                  fontSize: 13 * scale,
-                  fontWeight: sel ? FontWeight.w600 : FontWeight.w500,
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _StatusDropdown(
+            statusFilter: statusFilter,
+            onStatusChanged: onStatusChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusDropdown extends StatelessWidget {
+  const _StatusDropdown({
+    required this.statusFilter,
+    required this.onStatusChanged,
+  });
+
+  final String? statusFilter;
+  final ValueChanged<String?> onStatusChanged;
+
+  String get _label => statusFilter == null
+      ? ShortlistStrings.statusAll
+      : ShortlistStrings.statusLabelFor(statusFilter!);
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () async {
+          final selected = await showModalBottomSheet<String?>(
+            context: context,
+            backgroundColor: Colors.white,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFD5D3CE),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(ShortlistStrings.statusAll),
+                      ],
+                    ),
+                    onTap: () => Navigator.pop(ctx, null),
+                  ),
+                  const Divider(height: 1),
+                  for (final status in favoriteStatuses)
+                    ListTile(
+                      title: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: favoriteStatusColors[status]!.dot,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(ShortlistStrings.statusLabelFor(status)),
+                        ],
+                      ),
+                      onTap: () => Navigator.pop(ctx, status),
+                    ),
+                ],
               ),
             ),
           );
+          onStatusChanged(selected);
         },
-      ),
-    );
-  }
-}
-
-// ───────────────────────── Candidate Card ─────────────────────────
-
-const List<Color> _avatarPalette = [
-  Color(0xFFECD9AC),
-  Color(0xFFF4D7C4),
-  Color(0xFFF2D7B6),
-  Color(0xFFEED0D6),
-  Color(0xFFD9E4CF),
-  Color(0xFFD8DDF2),
-  Color(0xFFD4E8E1),
-  Color(0xFFE5D8EF),
-];
-
-Color _avatarColorFor(String seed) {
-  final int h = seed.codeUnits.fold<int>(0, (a, c) => a + c);
-  return _avatarPalette[h % _avatarPalette.length];
-}
-
-Color _statusColor(String label) {
-  switch (label) {
-    case 'Email obtained':
-      return const Color(0xFFB7B4AE);
-    case 'Contacted':
-      return const Color(0xFF6E9B72);
-    default:
-      return const Color(0xFFD6D3CE);
-  }
-}
-
-List<String> _socialIconsFor(String seed) {
-  final int offset = seed.codeUnits.fold<int>(0, (a, c) => a + c);
-  final pool = DinqIcons.shortlistSocialPool;
-  return List<String>.generate(
-    5,
-    (i) => pool[(offset + i * 3) % pool.length],
-    growable: false,
-  );
-}
-
-class _CandidateCard extends StatelessWidget {
-  const _CandidateCard({
-    required this.scale,
-    required this.item,
-    required this.selectionMode,
-    required this.selected,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  final double scale;
-  final FavoriteItem item;
-  final bool selectionMode;
-  final bool selected;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-
-  @override
-  Widget build(BuildContext context) {
-    final double avatarSize = 68 * scale;
-    final socials = _socialIconsFor(item.id);
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.fromLTRB(20 * scale, 20 * scale, 20 * scale, 18 * scale),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF7FAFF) : DinqTokens.bgCard,
-          borderRadius: BorderRadius.circular(22 * scale),
-          border: Border.all(
-            color: selected ? const Color(0xFF2F6FED) : const Color(0xFFEAE6E0),
-            width: selected ? 1 * scale : 0.5 * scale,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFF0EFEB)),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (selectionMode) ...[
-                  Padding(
-                    padding: EdgeInsets.only(right: 12 * scale, top: 4 * scale),
-                    child: _Checkbox(scale: scale, selected: selected),
-                  ),
-                ],
-                Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: _avatarColorFor(item.id),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    item.initials,
-                    style: TextStyle(
-                      color: DinqTokens.textPrimary,
-                      fontSize: 24 * scale,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 18 * scale),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: DinqTokens.textPrimary,
-                                fontSize: 15 * scale,
-                                height: 20 / 15,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 8 * scale),
-                          _StatusPill(scale: scale, label: item.statusLabel),
-                        ],
-                      ),
-                      SizedBox(height: 4 * scale),
-                      Text(
-                        item.roleLine,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: DinqTokens.textSecondary,
-                          fontSize: 12 * scale,
-                          height: 18 / 12,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 18 * scale),
-            Row(
-              children: [
-                for (int i = 0; i < socials.length; i++) ...[
-                  if (i > 0) SizedBox(width: 8 * scale),
-                  SizedBox(
-                    width: 24 * scale,
-                    height: 24 * scale,
-                    child: Center(
-                      child: SvgPicture.asset(
-                        socials[i],
-                        width: 24 * scale,
-                        height: 24 * scale,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.scale, required this.label});
-
-  final double scale;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _statusColor(label);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 120 * scale),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6 * scale,
-            height: 6 * scale,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          SizedBox(width: 7 * scale),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 12 * scale,
-                height: 16 / 12,
-                fontWeight: FontWeight.w600,
+          child: Row(
+            children: [
+              Text(
+                ShortlistStrings.statusLabel,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF8A8880)),
               ),
-            ),
+              const Spacer(),
+              Text(
+                _label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF171717),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.keyboard_arrow_down,
+                size: 14,
+                color: Color(0xFF8A8880),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Checkbox extends StatelessWidget {
-  const _Checkbox({required this.scale, required this.selected});
-
-  final double scale;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
-      width: 20 * scale,
-      height: 20 * scale,
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xFF2F6FED) : DinqTokens.bgCard,
-        borderRadius: BorderRadius.circular(6 * scale),
-        border: Border.all(
-          color: selected ? const Color(0xFF2F6FED) : const Color(0xFFD7D2CA),
-          width: selected ? 0.5 * scale : 1 * scale,
         ),
       ),
-      child: selected
-          ? Icon(Icons.check_rounded, size: 14 * scale, color: DinqTokens.bgCard)
-          : null,
     );
   }
 }
 
-// ───────────────────────── Batch bar / states ─────────────────────────
-
-class _BatchBar extends StatelessWidget {
-  const _BatchBar({
-    required this.scale,
+class _SelectionBar extends StatelessWidget {
+  const _SelectionBar({
+    required this.count,
+    required this.onCancel,
+    required this.onDelete,
     required this.onMove,
-    required this.onRemove,
   });
 
-  final double scale;
+  final int count;
+  final VoidCallback onCancel;
+  final VoidCallback onDelete;
   final VoidCallback onMove;
-  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 60 * scale,
-      padding: EdgeInsets.symmetric(horizontal: 8 * scale),
-      decoration: BoxDecoration(
-        color: DinqTokens.bgCard,
-        borderRadius: BorderRadius.circular(18 * scale),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24 * scale,
-            offset: Offset(0, 6 * scale),
-          ),
-        ],
-        border: Border.all(color: DinqTokens.borderL, width: 0.5),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          _batchAction(Icons.drive_file_move_outline, 'Move', onMove),
-          _batchAction(Icons.delete_outline, 'Remove', onRemove,
-              color: const Color(0xFFE24B3C)),
+          Text(
+            ShortlistStrings.selectionCount(count),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF6B6962)),
+          ),
+          OutlinedButton(
+            onPressed: onCancel,
+            style: _outlinedStyle(const Color(0xFF6B6962)),
+            child: Text(ShortlistStrings.selectionCancel),
+          ),
+          OutlinedButton(
+            onPressed: onDelete,
+            style: _outlinedStyle(const Color(0xFFA04444))
+                .copyWith(side: WidgetStateProperty.all(
+              const BorderSide(color: Color(0xFFE9C6C6)),
+            )),
+            child: Text(ShortlistStrings.selectionDelete),
+          ),
+          OutlinedButton.icon(
+            onPressed: onMove,
+            style: _outlinedStyle(const Color(0xFF171717)),
+            icon: const Icon(Icons.folder_open_outlined, size: 14),
+            label: Text(ShortlistStrings.selectionMove),
+          ),
         ],
       ),
     );
   }
 
-  Widget _batchAction(IconData icon, String label, VoidCallback onTap,
-      {Color color = const Color(0xFF171717)}) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 20 * scale, color: color),
-          SizedBox(height: 2 * scale),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11 * scale, fontWeight: FontWeight.w500, color: color)),
-        ],
-      ),
+  ButtonStyle _outlinedStyle(Color color) {
+    return OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 36),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      foregroundColor: color,
+      side: const BorderSide(color: Color(0xFFF0EFEB)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+class _ShortlistLoadingState extends StatelessWidget {
+  const _ShortlistLoadingState({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(
-        'No candidates yet',
-        style: TextStyle(
-          fontSize: 14,
-          color: DinqTokens.textTertiary,
-          fontWeight: FontWeight.w500,
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF8A8880)),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
+class _FolderLoadErrorState extends StatelessWidget {
+  const _FolderLoadErrorState({required this.onRetry});
 
-  final String message;
   final VoidCallback onRetry;
 
   @override
@@ -865,82 +789,178 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off, color: DinqTokens.textTertiary),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: DinqTokens.textTertiary),
+          Text(
+            ShortlistStrings.loadFoldersTitle,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF171717),
             ),
           ),
-          const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
+          const SizedBox(height: 4),
+          Text(
+            ShortlistStrings.loadFoldersDescription,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF8A8880)),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: onRetry,
+            child: Text(ShortlistStrings.loadFoldersRetry),
+          ),
         ],
       ),
     );
   }
 }
 
-// ───────────────────────── Folder sheet ─────────────────────────
+class _EmptyCenter extends StatelessWidget {
+  const _EmptyCenter({
+    required this.title,
+    required this.description,
+    this.actionLabel,
+    this.onAction,
+  });
 
-class _FolderSheet extends StatelessWidget {
-  const _FolderSheet({required this.projects, required this.selectedId});
-
-  final List<FavoriteProject> projects;
-  final String? selectedId;
+  final String title;
+  final String description;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: DinqTokens.bgPage,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      child: SafeArea(
-        top: false,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: DinqTokens.borderL,
-                  borderRadius: BorderRadius.circular(2),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF171717),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF8A8880)),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CardSkeletonList extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: 6,
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (_, __) => Container(
+        height: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFEAE8E3)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 20,
+              width: 180,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EFE9),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: 14,
+              width: 120,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EFE9),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const Spacer(),
+            Container(
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EFE9),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EnrichOverlay extends StatelessWidget {
+  const _EnrichOverlay({
+    required this.entry,
+    required this.selectedRowId,
+    required this.confidencePct,
+    required this.onClose,
+    required this.onRefresh,
+  });
+
+  final EnrichEntry? entry;
+  final String? selectedRowId;
+  final int? confidencePct;
+  final VoidCallback onClose;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: onClose,
+        child: ColoredBox(
+          color: Colors.black.withValues(alpha: 0.4),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onTap: () {},
+              child: FractionallySizedBox(
+                widthFactor: 1,
+                heightFactor: 0.85,
+                child: Material(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: entry == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+                          child: EnrichProfileView(
+                            entry: entry!,
+                            isMobile: true,
+                            selectedRowId: selectedRowId,
+                            confidencePct: confidencePct,
+                            onRefresh: onRefresh,
+                          ),
+                        ),
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 8),
-              child: Text('Folders',
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: DinqTokens.textPrimary)),
-            ),
-            for (final p in projects)
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: const Icon(Icons.folder_outlined,
-                    color: DinqTokens.textPrimary),
-                title: Text(p.name,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: DinqTokens.textPrimary)),
-                trailing: Text('${p.talentCount}',
-                    style: const TextStyle(
-                        color: DinqTokens.textTertiary, fontSize: 14)),
-                selected: p.id == selectedId,
-                onTap: () => Navigator.of(context).pop(p.id),
-              ),
-          ],
+          ),
         ),
       ),
     );

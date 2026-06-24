@@ -1,133 +1,320 @@
 import 'package:flutter/foundation.dart';
 
+import '../constants/shortlist_constants.dart';
 import '../models/shortlist_models.dart';
+import '../pages/shortlist/shortlist_strings.dart';
 import '../services/shortlist_service.dart';
 
-/// Shortlist 状态：文件夹、候选人、筛选与搜索。
+/// Shortlist 状态，对齐 Web `favoriteStore` + `favoriteProjectStore`。
 class ShortlistStore extends ChangeNotifier {
   ShortlistStore({ShortlistService? service})
       : _service = service ?? ShortlistService();
 
   final ShortlistService _service;
-
-  static const List<String> statusOptions = [
-    'All',
-    'Not obtained',
-    'Email obtained',
-    'Contacted',
-  ];
+  int _loadRequestId = 0;
 
   List<FavoriteProject> _projects = [];
-  List<FavoriteItem> _items = [];
-  String? _selectedProjectId;
-  String _selectedStatus = 'All';
-  String _query = '';
-  bool _loading = false;
-  String? _error;
+  bool _projectsLoading = false;
+  bool _projectsLoaded = false;
+  String? _projectsLoadError;
+  String? _activeProjectId;
+
+  List<FavoriteItem> _favorites = [];
+  bool _isLoading = false;
+  bool _hasMore = false;
+  String _nameQuery = '';
+  String? _statusFilter;
+  final Set<String> _selectedIds = <String>{};
 
   List<FavoriteProject> get projects => _projects;
-  bool get loading => _loading;
-  String? get error => _error;
-  String get selectedStatus => _selectedStatus;
+  bool get projectsLoading => _projectsLoading;
+  bool get projectsLoaded => _projectsLoaded;
+  String? get projectsLoadError => _projectsLoadError;
+  String? get activeProjectId => _activeProjectId;
 
-  FavoriteProject? get selectedProject {
-    if (_projects.isEmpty) return null;
-    return _projects.firstWhere(
-      (p) => p.id == _selectedProjectId,
-      orElse: () => _projects.first,
-    );
+  List<FavoriteItem> get favorites => _favorites;
+  bool get isLoading => _isLoading;
+  bool get hasMore => _hasMore;
+  String get nameQuery => _nameQuery;
+  String? get statusFilter => _statusFilter;
+  Set<String> get selectedIds => Set.unmodifiable(_selectedIds);
+  bool get selectionActive => _selectedIds.isNotEmpty;
+
+  FavoriteProject? get activeProject {
+    if (_activeProjectId == null) return null;
+    for (final p in _projects) {
+      if (p.id == _activeProjectId) return p;
+    }
+    return null;
   }
 
-  String get selectedFolderName => selectedProject?.name ?? 'Default';
-
-  /// 当前文件夹 + 状态 + 搜索过滤后的候选人。
-  List<FavoriteItem> get visibleItems {
-    final String? pid = selectedProject?.id;
-    final String q = _query.trim().toLowerCase();
-    return _items.where((item) {
-      if (pid != null && item.projectId != pid) return false;
-      if (_selectedStatus != 'All' && item.statusLabel != _selectedStatus) {
-        return false;
-      }
-      if (q.isNotEmpty) {
-        final haystack =
-            '${item.name} ${item.roleLine} ${item.tags}'.toLowerCase();
-        if (!haystack.contains(q)) return false;
-      }
-      return true;
-    }).toList();
+  String get activeProjectName {
+    final p = activeProject;
+    if (p == null) return ShortlistStrings.foldersUnknown;
+    return p.isDefault ? ShortlistStrings.foldersDefaultName : p.name;
   }
 
-  Future<void> load() async {
-    _loading = true;
-    _error = null;
+  List<FavoriteProject> get sortedProjects {
+    final list = List<FavoriteProject>.from(_projects);
+    list.sort((a, b) {
+      if (a.isDefault != b.isDefault) return a.isDefault ? -1 : 1;
+      final aAt = a.createdAt ?? '';
+      final bAt = b.createdAt ?? '';
+      if (aAt.isNotEmpty && bAt.isNotEmpty) return bAt.compareTo(aAt);
+      return a.name.compareTo(b.name);
+    });
+    return list;
+  }
+
+  List<FavoriteProject> get moveTargetProjects =>
+      sortedProjects.where((p) => p.id != _activeProjectId).toList();
+
+  Future<void> loadProjects() async {
+    if (_projectsLoading) return;
+    if (_projectsLoaded) return;
+    _projectsLoading = true;
+    _projectsLoadError = null;
     notifyListeners();
     try {
-      final results = await Future.wait([
-        _service.listProjects(),
-        _service.listFavorites(),
-      ]);
-      _projects = results[0] as List<FavoriteProject>;
-      _items = results[1] as List<FavoriteItem>;
-      // 默认选中 isDefault 项目，否则第一个。
-      _selectedProjectId = _projects
-          .firstWhere(
-            (p) => p.isDefault,
-            orElse: () =>
-                _projects.isNotEmpty ? _projects.first : _emptyProject,
-          )
-          .id;
+      final list = await _service.listProjects();
+      final activeExists =
+          _activeProjectId != null && list.any((p) => p.id == _activeProjectId);
+      final fallback =
+          list.where((p) => p.isDefault).firstOrNull ?? list.firstOrNull;
+      _projects = list;
+      _activeProjectId =
+          activeExists ? _activeProjectId : fallback?.id;
+      _projectsLoaded = true;
+      _projectsLoadError = null;
     } catch (e) {
-      _error = e.toString();
+      _projectsLoaded = false;
+      _projectsLoadError = e.toString();
     } finally {
-      _loading = false;
+      _projectsLoading = false;
       notifyListeners();
     }
   }
 
-  static const FavoriteProject _emptyProject =
-      FavoriteProject(id: '', name: 'Default', isDefault: true, talentCount: 0);
-
-  void selectProject(String id) {
-    _selectedProjectId = id;
-    notifyListeners();
+  Future<FavoriteProject?> createProject(String name) async {
+    if (!_projectsLoaded) await loadProjects();
+    try {
+      final created = await _service.createProject(name);
+      _projects = [..._projects, created];
+      _activeProjectId = created.id;
+      notifyListeners();
+      return created;
+    } catch (_) {
+      return null;
+    }
   }
 
-  void selectStatus(String status) {
-    _selectedStatus = status;
-    notifyListeners();
+  Future<bool> renameProject(String id, String name) async {
+    try {
+      final updated = await _service.renameProject(id, name);
+      _projects = _projects.map((p) => p.id == id ? updated : p).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  void setQuery(String q) {
-    _query = q;
-    notifyListeners();
-  }
-
-  /// 批量移除收藏（接真实接口），成功后本地同步移除。
-  Future<void> removeFavorites(Set<String> ids) async {
-    if (ids.isEmpty) return;
-    await Future.wait(ids.map(_service.removeFavorite));
-    _items = _items.where((item) => !ids.contains(item.id)).toList();
-    notifyListeners();
-  }
-
-  /// 批量移动收藏到指定项目（接真实接口），成功后本地同步更新 projectId。
-  Future<void> moveFavorites(Set<String> ids, String projectId) async {
-    if (ids.isEmpty || projectId.isEmpty) return;
-    await Future.wait(ids.map((id) => _service.moveFavorite(id, projectId)));
-    _items = _items.map((item) {
-      if (ids.contains(item.id)) {
-        return FavoriteItem(
-          id: item.id,
-          projectId: projectId,
-          title: item.title,
-          field: item.field,
-          tags: item.tags,
-          status: item.status,
-        );
+  Future<bool> deleteProject(String id) async {
+    try {
+      await _service.deleteProject(id);
+      _projects = _projects.where((p) => p.id != id).toList();
+      if (_activeProjectId == id) {
+        final fallback = _projects.where((p) => p.isDefault).firstOrNull ??
+            _projects.firstOrNull;
+        _activeProjectId = fallback?.id;
       }
-      return item;
-    }).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void setActiveProjectId(String? id) {
+    _activeProjectId = id;
     notifyListeners();
+  }
+
+  void setNameQuery(String query) {
+    _nameQuery = query;
+    notifyListeners();
+  }
+
+  void setStatusFilter(String? status) {
+    _statusFilter = status;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _nameQuery = '';
+    _statusFilter = null;
+    notifyListeners();
+  }
+
+  void toggleSelected(String id) {
+    if (!_selectedIds.add(id)) _selectedIds.remove(id);
+    notifyListeners();
+  }
+
+  void clearSelected() {
+    _selectedIds.clear();
+    notifyListeners();
+  }
+
+  Future<void> loadFavorites({bool clear = false}) async {
+    if (_activeProjectId == null) return;
+    final requestId = ++_loadRequestId;
+    if (clear) {
+      _favorites = [];
+      _hasMore = false;
+      _selectedIds.clear();
+    }
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final items = await _service.listFavorites(
+        projectId: _activeProjectId,
+        name: _nameQuery,
+        status: _statusFilter,
+        limit: shortlistPageSize,
+        offset: 0,
+      );
+      if (requestId != _loadRequestId) return;
+      _favorites = items;
+      _hasMore = items.length == shortlistPageSize;
+    } catch (_) {
+      if (requestId != _loadRequestId) return;
+    } finally {
+      if (requestId == _loadRequestId) {
+        _isLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (_isLoading || !_hasMore || _activeProjectId == null) return;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final items = await _service.listFavorites(
+        projectId: _activeProjectId,
+        name: _nameQuery,
+        status: _statusFilter,
+        limit: shortlistPageSize,
+        offset: _favorites.length,
+      );
+      _favorites = [..._favorites, ...items];
+      _hasMore = items.length == shortlistPageSize;
+    } catch (_) {
+      // keep current list
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> removeFavorite(String id) async {
+    final previous = _favorites.where((f) => f.id == id).firstOrNull;
+    try {
+      await _service.removeFavorite(id);
+      _favorites = _favorites.where((f) => f.id != id).toList();
+      _selectedIds.remove(id);
+      if (previous != null) {
+        _adjustTalentCount(previous.projectId, -1);
+      }
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<ShortlistBulkResult> bulkRemove(List<String> ids) async {
+    var ok = 0;
+    var fail = 0;
+    for (final id in ids) {
+      if (await removeFavorite(id)) {
+        ok++;
+      } else {
+        fail++;
+      }
+    }
+    return ShortlistBulkResult(ok: ok, fail: fail);
+  }
+
+  Future<bool> updateTags(String id, String tags) async {
+    final index = _favorites.indexWhere((f) => f.id == id);
+    if (index < 0) return false;
+    final previous = _favorites[index];
+    _favorites[index] = previous.copyWith(tags: tags);
+    notifyListeners();
+    try {
+      final updated = await _service.updateFavorite(id, tags: tags);
+      _favorites[index] = updated;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      _favorites[index] = previous;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<ShortlistBulkResult> bulkMove(
+    List<String> ids,
+    String projectId,
+  ) async {
+    var ok = 0;
+    var fail = 0;
+    for (final id in ids) {
+      try {
+        await _service.moveFavorite(id, projectId);
+        final item = _favorites.where((f) => f.id == id).firstOrNull;
+        if (item != null) {
+          _adjustTalentCount(item.projectId, -1);
+          _adjustTalentCount(projectId, 1);
+        }
+        ok++;
+      } catch (_) {
+        fail++;
+      }
+    }
+    _favorites =
+        _favorites.where((f) => !ids.contains(f.id)).toList();
+    _selectedIds.removeAll(ids);
+    notifyListeners();
+    return ShortlistBulkResult(ok: ok, fail: fail);
+  }
+
+  void _adjustTalentCount(String projectId, int delta) {
+    _projects = _projects.map((p) {
+      if (p.id != projectId) return p;
+      return p.copyWith(talentCount: (p.talentCount + delta).clamp(0, 999999));
+    }).toList();
+  }
+
+  /// 启动时加载项目并拉取收藏列表。
+  Future<void> initialize() async {
+    await loadProjects();
+    if (_activeProjectId != null) {
+      await loadFavorites(clear: true);
+    }
+  }
+
+  @Deprecated('Use initialize()')
+  Future<void> load() => initialize();
+}
+
+extension<T> on Iterable<T> {
+  T? get firstOrNull {
+    final it = iterator;
+    if (it.moveNext()) return it.current;
+    return null;
   }
 }
