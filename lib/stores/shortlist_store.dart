@@ -25,6 +25,7 @@ class ShortlistStore extends ChangeNotifier {
   String _nameQuery = '';
   String? _statusFilter;
   final Set<String> _selectedIds = <String>{};
+  bool _selectionMode = false;
 
   List<FavoriteProject> get projects => _projects;
   bool get projectsLoading => _projectsLoading;
@@ -38,7 +39,8 @@ class ShortlistStore extends ChangeNotifier {
   String get nameQuery => _nameQuery;
   String? get statusFilter => _statusFilter;
   Set<String> get selectedIds => Set.unmodifiable(_selectedIds);
-  bool get selectionActive => _selectedIds.isNotEmpty;
+  bool get selectionMode => _selectionMode;
+  bool get selectionActive => _selectionMode || _selectedIds.isNotEmpty;
 
   FavoriteProject? get activeProject {
     if (_activeProjectId == null) return null;
@@ -156,13 +158,36 @@ class ShortlistStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void enterSelectionMode() {
+    if (_selectionMode) return;
+    _selectionMode = true;
+    notifyListeners();
+  }
+
+  void exitSelectionMode() {
+    _selectionMode = false;
+    _selectedIds.clear();
+    notifyListeners();
+  }
+
   void toggleSelected(String id) {
+    _selectionMode = true;
     if (!_selectedIds.add(id)) _selectedIds.remove(id);
     notifyListeners();
   }
 
-  void clearSelected() {
-    _selectedIds.clear();
+  void clearSelected() => exitSelectionMode();
+
+  void toggleSelectAllVisible(Iterable<String> ids) {
+    final visible = ids.toSet();
+    if (visible.isEmpty) return;
+    final allSelected = visible.every(_selectedIds.contains);
+    _selectionMode = true;
+    if (allSelected) {
+      _selectedIds.removeAll(visible);
+    } else {
+      _selectedIds.addAll(visible);
+    }
     notifyListeners();
   }
 
@@ -173,6 +198,7 @@ class ShortlistStore extends ChangeNotifier {
       _favorites = [];
       _hasMore = false;
       _selectedIds.clear();
+      _selectionMode = false;
     }
     _isLoading = true;
     notifyListeners();

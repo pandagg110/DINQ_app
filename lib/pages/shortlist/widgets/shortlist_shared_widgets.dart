@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../constants/shortlist_constants.dart';
 import '../../../models/shortlist_models.dart';
+import '../../../theme/dinq_tokens.dart';
 import '../shortlist_strings.dart';
 
 /// 对齐 Web `ConfirmModal.tsx`。
@@ -176,7 +177,7 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-/// 对齐 Web `StatusBadge`。
+/// 对齐 `my_first_app` `_ShortlistStatusPill`。
 class ShortlistStatusBadge extends StatelessWidget {
   const ShortlistStatusBadge({super.key, required this.status});
 
@@ -185,27 +186,29 @@ class ShortlistStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalized = normalizeFavoriteStatus(status);
-    final colors = favoriteStatusColors[normalized]!;
-    return Container(
-      height: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+    final color = shortlistStatusAccentColor(normalized);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 120),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: colors.dot,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
-          Text(
-            ShortlistStrings.statusLabelFor(normalized),
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF171717),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              ShortlistStrings.statusLabelFor(normalized),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                height: 16 / 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
             ),
           ),
         ],
@@ -214,7 +217,7 @@ class ShortlistStatusBadge extends StatelessWidget {
   }
 }
 
-/// 对齐 Web `SelectCheckbox`。
+/// 对齐 `my_first_app` `_ShortlistCheckbox`。
 class ShortlistSelectCheckbox extends StatelessWidget {
   const ShortlistSelectCheckbox({
     super.key,
@@ -229,8 +232,8 @@ class ShortlistSelectCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final box = size == ShortlistCheckboxSize.md ? 20.0 : 16.0;
-    final icon = size == ShortlistCheckboxSize.md ? 14.0 : 12.0;
+    final box = size == ShortlistCheckboxSize.md ? 20.0 : 20.0;
+    final icon = size == ShortlistCheckboxSize.md ? 14.0 : 14.0;
     return GestureDetector(
       onTap: onChanged,
       child: AnimatedContainer(
@@ -238,14 +241,15 @@ class ShortlistSelectCheckbox extends StatelessWidget {
         width: box,
         height: box,
         decoration: BoxDecoration(
-          color: checked ? const Color(0xFF171717) : Colors.white,
-          borderRadius: BorderRadius.circular(4),
+          color: checked ? const Color(0xFF2F6FED) : DinqTokens.bgCard,
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: checked ? const Color(0xFF171717) : const Color(0xFFECE9E3),
+            color: checked ? const Color(0xFF2F6FED) : const Color(0xFFD7D2CA),
+            width: checked ? 0.5 : 1,
           ),
         ),
         child: checked
-            ? Icon(Icons.check, size: icon, color: Colors.white)
+            ? Icon(Icons.check_rounded, size: icon, color: DinqTokens.bgCard)
             : null,
       ),
     );

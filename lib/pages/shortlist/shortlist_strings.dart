@@ -30,6 +30,8 @@ abstract final class ShortlistStrings {
 
   static String selectionCount(int count) => '$count selected';
   static const selectionCancel = 'Cancel';
+  static const selectionSelectAll = 'Select all';
+  static const selectionDeselectAll = 'Deselect all';
   static const selectionDelete = 'Delete';
   static const selectionMove = 'Move';
 

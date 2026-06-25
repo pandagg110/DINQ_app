@@ -64,6 +64,18 @@ int getShortlistProjectLimit(String? plan) {
   return -1;
 }
 
+/// 对齐 `my_first_app` `_ShortlistStatusPill`。
+Color shortlistStatusAccentColor(String status) {
+  switch (normalizeFavoriteStatus(status)) {
+    case 'email_obtained':
+      return const Color(0xFFB7B4AE);
+    case 'contacted':
+      return const Color(0xFF6E9B72);
+    default:
+      return const Color(0xFFD6D3CE);
+  }
+}
+
 bool isShortlistProjectLimitReached(int projectCount, String? plan) {
   final limit = getShortlistProjectLimit(plan);
   return limit > 0 && projectCount >= limit;

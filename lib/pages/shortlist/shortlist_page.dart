@@ -17,6 +17,7 @@ import '../../stores/search_store.dart';
 import '../../stores/shortlist_store.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_icons.dart';
+import '../../theme/dinq_tokens.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
 import '../../widgets/search/enrich/enrich_profile_view.dart';
@@ -28,7 +29,7 @@ import 'widgets/shortlist_move_folder_sheet.dart';
 import 'widgets/shortlist_project_sidebar.dart';
 import 'widgets/shortlist_shared_widgets.dart';
 
-/// Shortlist Tab — 严格对齐 Web `(workspace)/shortlist/page.tsx` 移动端。
+/// Shortlist Tab — 对齐 `my_first_app` `_ShortlistPage` 视觉样式。
 class ShortlistPage extends StatefulWidget {
   const ShortlistPage({super.key});
 
@@ -118,7 +119,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
 
   Future<void> _handleRowClick(FavoriteItem item) async {
     final store = context.read<ShortlistStore>();
-    if (store.selectionActive) {
+    if (store.selectionMode) {
       store.toggleSelected(item.id);
       return;
     }
@@ -301,6 +302,24 @@ class _ShortlistPageState extends State<ShortlistPage> {
     }
   }
 
+  Future<void> _openExportSheet({bool selectedOnly = false}) async {
+    if (_isExporting) return;
+    if (selectedOnly) {
+      final count = context.read<ShortlistStore>().selectedIds.length;
+      if (count == 0) return;
+    }
+    await ShortlistExportModal.show(
+      context,
+      onSelect: (format) async {
+        await _handleExport(format);
+        if (!mounted) return;
+        if (selectedOnly) {
+          context.read<ShortlistStore>().exitSelectionMode();
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ShortlistStore>();
@@ -309,40 +328,51 @@ class _ShortlistPageState extends State<ShortlistPage> {
         store.activeProjectId == null && !store.projectsLoaded && store.projectsLoadError == null;
     final hasSearchOrStatus =
         _searchQuery.isNotEmpty || store.statusFilter != null;
+    final visibleIds = store.favorites.map((item) => item.id);
+    final allVisibleSelected = visibleIds.isNotEmpty &&
+        visibleIds.every(store.selectedIds.contains);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: DinqTokens.bgPage,
       body: SafeArea(
         bottom: false,
         child: Stack(
           children: [
             Column(
               children: [
-                _TopBar(
+                _ShortlistHeader(
+                  selectionMode: store.selectionMode,
+                  selectedCount: store.selectedIds.length,
+                  folderName: store.activeProjectName,
                   isExporting: _isExporting,
-                  onOpenFolders: () => showShortlistFoldersDrawer(context),
-                  onExport: () => ShortlistExportModal.show(
-                    context,
-                    onSelect: _handleExport,
+                  allVisibleSelected: allVisibleSelected,
+                  onFolderTap: () => showShortlistFoldersDrawer(context),
+                  onExport: () => _openExportSheet(),
+                  onEnterSelection: store.enterSelectionMode,
+                  onCloseSelection: store.exitSelectionMode,
+                  onToggleSelectAll: () =>
+                      store.toggleSelectAllVisible(visibleIds),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Column(
+                    children: [
+                      _ShortlistSearchField(
+                        controller: _searchController,
+                        onChanged: _onSearchChanged,
+                      ),
+                      const SizedBox(height: 12),
+                      _ShortlistStatusPillFilter(
+                        statusFilter: store.statusFilter,
+                        onStatusChanged: (status) {
+                          if (status == store.statusFilter) return;
+                          store.setStatusFilter(status);
+                          store.loadFavorites(clear: true);
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                _Toolbar(
-                  searchController: _searchController,
-                  onSearchChanged: _onSearchChanged,
-                  statusFilter: store.statusFilter,
-                  onStatusChanged: (status) {
-                    if (status == store.statusFilter) return;
-                    store.setStatusFilter(status);
-                    store.loadFavorites(clear: true);
-                  },
-                ),
-                if (store.selectionActive)
-                  _SelectionBar(
-                    count: store.selectedIds.length,
-                    onCancel: store.clearSelected,
-                    onDelete: _openBulkDeleteConfirm,
-                    onMove: _openMoveSheet,
-                  ),
                 Expanded(
                   child: _buildBody(
                     store,
@@ -352,6 +382,17 @@ class _ShortlistPageState extends State<ShortlistPage> {
                 ),
               ],
             ),
+            if (store.selectedIds.isNotEmpty)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 18,
+                child: _ShortlistBatchBar(
+                  onMove: _openMoveSheet,
+                  onExport: () => _openExportSheet(selectedOnly: true),
+                  onRemove: _openBulkDeleteConfirm,
+                ),
+              ),
             if (enrichStore.isOpen)
               _EnrichOverlay(
                 entry: enrichStore.selectedEntry,
@@ -416,9 +457,14 @@ class _ShortlistPageState extends State<ShortlistPage> {
     return ListView.separated(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        store.selectedIds.isEmpty ? 120 : 112,
+      ),
       itemCount: store.favorites.length + (store.hasMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         if (index >= store.favorites.length) {
           return const Padding(
@@ -436,8 +482,13 @@ class _ShortlistPageState extends State<ShortlistPage> {
         return ShortlistCandidateCard(
           item: item,
           store: store,
+          selectionMode: store.selectionMode,
           isSelected: store.selectedIds.contains(item.id),
           onTap: () => _handleRowClick(item),
+          onLongPress: () {
+            store.enterSelectionMode();
+            store.toggleSelected(item.id);
+          },
           onToggleSelect: () => store.toggleSelected(item.id),
         );
       },
@@ -445,248 +496,227 @@ class _ShortlistPageState extends State<ShortlistPage> {
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({
+class _ShortlistHeader extends StatelessWidget {
+  const _ShortlistHeader({
+    required this.selectionMode,
+    required this.selectedCount,
+    required this.folderName,
     required this.isExporting,
-    required this.onOpenFolders,
+    required this.allVisibleSelected,
+    required this.onFolderTap,
     required this.onExport,
+    required this.onEnterSelection,
+    required this.onCloseSelection,
+    required this.onToggleSelectAll,
   });
 
+  final bool selectionMode;
+  final int selectedCount;
+  final String folderName;
   final bool isExporting;
-  final VoidCallback onOpenFolders;
+  final bool allVisibleSelected;
+  final VoidCallback onFolderTap;
   final VoidCallback onExport;
+  final VoidCallback onEnterSelection;
+  final VoidCallback onCloseSelection;
+  final VoidCallback onToggleSelectAll;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Text(
-            ShortlistStrings.headerTitle,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF171717),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onOpenFolders,
-              borderRadius: BorderRadius.circular(8),
-              child: const SizedBox(
-                width: 36,
-                height: 36,
-                child: Icon(
-                  Icons.folder_open_outlined,
-                  size: 16,
-                  color: Color(0xFF171717),
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          OutlinedButton.icon(
-            onPressed: isExporting ? null : onExport,
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, 32),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              side: const BorderSide(color: Color(0xFFF0EFEB)),
-              foregroundColor: const Color(0xFF171717),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            icon: const Icon(Icons.download_outlined, size: 16),
-            label: Text(
-              isExporting
-                  ? ShortlistStrings.exportingLabel
-                  : ShortlistStrings.exportLabel,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Toolbar extends StatelessWidget {
-  const _Toolbar({
-    required this.searchController,
-    required this.onSearchChanged,
-    required this.statusFilter,
-    required this.onStatusChanged,
-  });
-
-  final TextEditingController searchController;
-  final ValueChanged<String> onSearchChanged;
-  final String? statusFilter;
-  final ValueChanged<String?> onStatusChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Column(
-        children: [
-          Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE5E3DE)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                DinqSvgIcon(
-                  assetName: DinqIcons.searchShortlist,
-                  size: 16,
-                  color: const Color(0xFFB5B3AE),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: onSearchChanged,
-                    decoration: const InputDecoration(
-                      hintText: ShortlistStrings.searchPlaceholder,
-                      hintStyle: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFB5B3AE),
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF171717),
-                    ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: selectionMode
+                ? _ShortlistHeaderTextAction(
+                    label: ShortlistStrings.selectionCancel,
+                    onTap: onCloseSelection,
+                  )
+                : _ShortlistFolderPill(
+                    folderName: folderName,
+                    onTap: onFolderTap,
                   ),
-                ),
-              ],
-            ),
           ),
-          const SizedBox(height: 12),
-          _StatusDropdown(
-            statusFilter: statusFilter,
-            onStatusChanged: onStatusChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusDropdown extends StatelessWidget {
-  const _StatusDropdown({
-    required this.statusFilter,
-    required this.onStatusChanged,
-  });
-
-  /// 与「取消/点遮罩关闭」区分；点选 All 时 pop 此值。
-  static const _allSentinel = '__shortlist_status_all__';
-
-  final String? statusFilter;
-  final ValueChanged<String?> onStatusChanged;
-
-  String get _label => statusFilter == null
-      ? ShortlistStrings.statusAll
-      : ShortlistStrings.statusLabelFor(statusFilter!);
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: () async {
-          final picked = await showModalBottomSheet<String>(
-            context: context,
-            backgroundColor: Colors.white,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          if (selectionMode)
+            Text(
+              ShortlistStrings.selectionCount(selectedCount),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 17,
+                height: 22 / 17,
+                fontWeight: FontWeight.w600,
+                color: DinqTokens.textPrimary,
+              ),
             ),
-            builder: (ctx) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    title: Row(
+          Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: selectionMode
+                  ? _ShortlistHeaderTextAction(
+                      label: allVisibleSelected
+                          ? ShortlistStrings.selectionDeselectAll
+                          : ShortlistStrings.selectionSelectAll,
+                      onTap: onToggleSelectAll,
+                      color: allVisibleSelected
+                          ? const Color(0xFFE24B3C)
+                          : const Color(0xFF2563EB),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFD5D3CE),
-                            shape: BoxShape.circle,
-                          ),
+                        _ShortlistHeaderIconButton(
+                          iconAsset: DinqIcons.download,
+                          onTap: isExporting ? null : onExport,
                         ),
                         const SizedBox(width: 8),
-                        Text(ShortlistStrings.statusAll),
+                        _ShortlistHeaderIconButton(
+                          iconAsset: DinqIcons.listTodo,
+                          onTap: onEnterSelection,
+                        ),
                       ],
                     ),
-                    onTap: () => Navigator.pop(ctx, _allSentinel),
-                  ),
-                  const Divider(height: 1),
-                  for (final status in favoriteStatuses)
-                    ListTile(
-                      title: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: favoriteStatusColors[status]!.dot,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(ShortlistStrings.statusLabelFor(status)),
-                        ],
-                      ),
-                      onTap: () => Navigator.pop(ctx, status),
-                    ),
-                ],
-              ),
             ),
-          );
-          // 点遮罩/下滑关闭时 picked == null，不应触发筛选或重新加载。
-          if (picked == null) return;
-          final next = picked == _allSentinel ? null : picked;
-          onStatusChanged(next);
-        },
-        borderRadius: BorderRadius.circular(8),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortlistHeaderIconButton extends StatelessWidget {
+  const _ShortlistHeaderIconButton({
+    required this.iconAsset,
+    required this.onTap,
+  });
+
+  final String iconAsset;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        height: 42,
+        width: 42,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: DinqTokens.bgCard,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: const [
+            BoxShadow(
+              color: DinqTokens.shadow,
+              blurRadius: 16,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        child: DinqSvgIcon(
+          assetName: iconAsset,
+          size: 18,
+          color: DinqTokens.textPrimary,
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortlistHeaderTextAction extends StatelessWidget {
+  const _ShortlistHeaderTextAction({
+    required this.label,
+    required this.onTap,
+    this.color = const Color(0xFF2563EB),
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: color,
+            fontSize: 14,
+            height: 18 / 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortlistFolderPill extends StatelessWidget {
+  const _ShortlistFolderPill({
+    required this.folderName,
+    required this.onTap,
+  });
+
+  final String folderName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 188),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
         child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: 42,
+          padding: const EdgeInsets.fromLTRB(14, 0, 13, 0),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFF0EFEB)),
+            color: DinqTokens.bgCard,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: const [
+              BoxShadow(
+                color: DinqTokens.shadow,
+                blurRadius: 16,
+                offset: Offset(0, 1),
+              ),
+            ],
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                ShortlistStrings.statusLabel,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF8A8880)),
+              const Icon(
+                Icons.folder_outlined,
+                size: 19,
+                color: DinqTokens.textPrimary,
               ),
-              const Spacer(),
-              Text(
-                _label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF171717),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  folderName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: DinqTokens.textPrimary,
+                    fontSize: 14,
+                    height: 18 / 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.keyboard_arrow_down,
+              const SizedBox(width: 8),
+              const DinqSvgIcon(
+                assetName: DinqIcons.caretDown,
                 size: 14,
-                color: Color(0xFF8A8880),
+                color: DinqTokens.textPrimary,
               ),
             ],
           ),
@@ -696,64 +726,245 @@ class _StatusDropdown extends StatelessWidget {
   }
 }
 
-class _SelectionBar extends StatelessWidget {
-  const _SelectionBar({
-    required this.count,
-    required this.onCancel,
-    required this.onDelete,
-    required this.onMove,
+class _ShortlistSearchField extends StatelessWidget {
+  const _ShortlistSearchField({
+    required this.controller,
+    required this.onChanged,
   });
 
-  final int count;
-  final VoidCallback onCancel;
-  final VoidCallback onDelete;
-  final VoidCallback onMove;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: DinqTokens.bgCard,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
         children: [
-          Text(
-            ShortlistStrings.selectionCount(count),
-            style: const TextStyle(fontSize: 14, color: Color(0xFF6B6962)),
+          const DinqSvgIcon(
+            assetName: DinqIcons.searchShortlist,
+            size: 18,
+            color: DinqTokens.textTertiary,
           ),
-          OutlinedButton(
-            onPressed: onCancel,
-            style: _outlinedStyle(const Color(0xFF6B6962)),
-            child: Text(ShortlistStrings.selectionCancel),
-          ),
-          OutlinedButton(
-            onPressed: onDelete,
-            style: _outlinedStyle(const Color(0xFFA04444))
-                .copyWith(side: WidgetStateProperty.all(
-              const BorderSide(color: Color(0xFFE9C6C6)),
-            )),
-            child: Text(ShortlistStrings.selectionDelete),
-          ),
-          OutlinedButton.icon(
-            onPressed: onMove,
-            style: _outlinedStyle(const Color(0xFF171717)),
-            icon: const Icon(Icons.folder_open_outlined, size: 14),
-            label: Text(ShortlistStrings.selectionMove),
+          const SizedBox(width: 14),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              decoration: const InputDecoration(
+                hintText: ShortlistStrings.searchPlaceholder,
+                hintStyle: TextStyle(
+                  color: DinqTokens.textTertiary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+              style: const TextStyle(
+                color: DinqTokens.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  ButtonStyle _outlinedStyle(Color color) {
-    return OutlinedButton.styleFrom(
-      minimumSize: const Size(0, 36),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      foregroundColor: color,
-      side: const BorderSide(color: Color(0xFFF0EFEB)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+class _ShortlistStatusPillFilter extends StatelessWidget {
+  const _ShortlistStatusPillFilter({
+    required this.statusFilter,
+    required this.onStatusChanged,
+  });
+
+  final String? statusFilter;
+  final ValueChanged<String?> onStatusChanged;
+
+  static const _options = <String?>[null, ...favoriteStatuses];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _options.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final option = _options[index];
+          final label = option == null
+              ? ShortlistStrings.statusAll
+              : ShortlistStrings.statusLabelFor(option);
+          final selected = option == statusFilter;
+          return _ShortlistStatusChoicePill(
+            label: label,
+            selected: selected,
+            onTap: () => onStatusChanged(option),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ShortlistStatusChoicePill extends StatelessWidget {
+  const _ShortlistStatusChoicePill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor =
+        selected ? const Color(0xFF2563EB) : DinqTokens.textPrimary;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        height: 40,
+        constraints: const BoxConstraints(minWidth: 60),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFEAF1FF) : DinqTokens.bgCard,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? Colors.transparent : DinqTokens.borderL,
+            width: 0.5,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: DinqTokens.shadow,
+              blurRadius: 16,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 13,
+            height: 18 / 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortlistBatchBar extends StatelessWidget {
+  const _ShortlistBatchBar({
+    required this.onMove,
+    required this.onExport,
+    required this.onRemove,
+  });
+
+  final VoidCallback onMove;
+  final VoidCallback onExport;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: DinqTokens.textPrimary,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ShortlistBatchButton(
+              label: ShortlistStrings.selectionMove,
+              icon: Icons.drive_file_move_outlined,
+              onTap: onMove,
+            ),
+          ),
+          Expanded(
+            child: _ShortlistBatchButton(
+              label: ShortlistStrings.exportLabel,
+              icon: Icons.download_outlined,
+              onTap: onExport,
+            ),
+          ),
+          Expanded(
+            child: _ShortlistBatchButton(
+              label: ShortlistStrings.cardRemove,
+              icon: Icons.delete_outline_rounded,
+              onTap: onRemove,
+              color: const Color(0xFFFF7A66),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortlistBatchButton extends StatelessWidget {
+  const _ShortlistBatchButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.color = const Color(0xFFE7E5E1),
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 52,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -871,15 +1082,15 @@ class _CardSkeletonList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
       itemCount: 6,
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, __) => Container(
-        height: 160,
+        height: 180,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFEAE8E3)),
+          color: DinqTokens.bgCard,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFFEAE6E0), width: 0.5),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(

@@ -8,6 +8,12 @@ class DinqIcons {
   static const String caretDown = 'assets/icons/caret-down.svg';
   static const String searchShortlist = 'assets/icons/search-shortlist.svg';
   static const String arrowLeft = 'assets/icons/arrow-left.svg';
+  static const String download = 'assets/icons/mydinq/resume/download.svg';
+  static const String resumeDownload = 'assets/icons/mydinq/resume/download.svg';
+  static const String lucideBriefcase = 'assets/icons/bag-iconly-pro.svg';
+  static const String listTodo = 'assets/icons/grid-layout-menu-more.svg';
+  static const String shortlistMapPinLight =
+      'assets/icons/search/enrich/map-pin.svg';
 
   /// Shortlist 候选人卡上的社交图标池（1..15）。
   static const List<String> shortlistSocialPool = [

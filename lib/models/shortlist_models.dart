@@ -109,6 +109,18 @@ class FavoriteItem {
   String get roleTitle => (field['title'] ?? '').toString();
   String get company => (field['company'] ?? '').toString();
   String get profileUrl => (field['profile_url'] ?? '').toString();
+  String? get avatarUrl {
+    final raw = field['avatar_url'] ?? field['avatar'] ?? field['image_url'];
+    final value = raw?.toString().trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? get location {
+    final raw = field['location'] ?? field['city'] ?? field['region'];
+    final value = raw?.toString().trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
   String get evidence => (field['evidence'] ?? '').toString();
   String? get rowId => field['row_id']?.toString();
   double get confidence => (field['confidence'] as num?)?.toDouble() ?? 0;
