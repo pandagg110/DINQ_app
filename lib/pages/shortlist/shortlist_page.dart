@@ -331,6 +331,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
                   onSearchChanged: _onSearchChanged,
                   statusFilter: store.statusFilter,
                   onStatusChanged: (status) {
+                    if (status == store.statusFilter) return;
                     store.setStatusFilter(status);
                     store.loadFavorites(clear: true);
                   },
@@ -586,6 +587,9 @@ class _StatusDropdown extends StatelessWidget {
     required this.onStatusChanged,
   });
 
+  /// 与「取消/点遮罩关闭」区分；点选 All 时 pop 此值。
+  static const _allSentinel = '__shortlist_status_all__';
+
   final String? statusFilter;
   final ValueChanged<String?> onStatusChanged;
 
@@ -600,7 +604,7 @@ class _StatusDropdown extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: () async {
-          final selected = await showModalBottomSheet<String?>(
+          final picked = await showModalBottomSheet<String>(
             context: context,
             backgroundColor: Colors.white,
             shape: const RoundedRectangleBorder(
@@ -625,7 +629,7 @@ class _StatusDropdown extends StatelessWidget {
                         Text(ShortlistStrings.statusAll),
                       ],
                     ),
-                    onTap: () => Navigator.pop(ctx, null),
+                    onTap: () => Navigator.pop(ctx, _allSentinel),
                   ),
                   const Divider(height: 1),
                   for (final status in favoriteStatuses)
@@ -650,7 +654,10 @@ class _StatusDropdown extends StatelessWidget {
               ),
             ),
           );
-          onStatusChanged(selected);
+          // 点遮罩/下滑关闭时 picked == null，不应触发筛选或重新加载。
+          if (picked == null) return;
+          final next = picked == _allSentinel ? null : picked;
+          onStatusChanged(next);
         },
         borderRadius: BorderRadius.circular(8),
         child: Container(
