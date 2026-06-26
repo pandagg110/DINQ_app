@@ -165,9 +165,9 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   bool _isEmbeddedInMainTab(BuildContext context) {
-    final segments = GoRouterState.of(context).uri.pathSegments;
-    return segments.isEmpty ||
-        (segments.length == 1 && segments.first == 'search');
+    final path = GoRouterState.of(context).uri.path;
+    // 与 _syncBottomNav 一致：仅 /search/... 详情路由隐藏底栏，其余 MainTab 路由均视为嵌入。
+    return !path.startsWith('/search/');
   }
 
   @override
