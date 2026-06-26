@@ -129,11 +129,11 @@ class _RoundSectionState extends State<RoundSection> {
     final showMarkdownCopy = hasRows && status != DeepSearchRoundStatus.error;
 
     final quickRepliesStore = context.watch<QuickRepliesStore>();
+    // 与 TSX 一致：仅 confirm 块等待交互时隐藏 logo；Quick Replies 阶段仍展示。
     final hasPendingConfirmBlock = _hasReasoningBlock(
       group,
       (b) =>
-          (b.text.startsWith('[confirm]') ||
-              parseEnvelope(b.text).type == 'confirm') &&
+          parseEnvelope(b.text).type == 'confirm' &&
           !quickRepliesStore.isUsed(b.id),
     );
 
@@ -314,10 +314,14 @@ class _RoundSectionState extends State<RoundSection> {
             toolType == null &&
             !hasPendingConfirmBlock &&
             !widget.hideUserQueryBubble)
-          Transform.translate(
-            offset: Offset(0, showMarkdownCopy ? 4 : -8),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+          // 对齐 TSX：`pb-1` + 无 copy 时 `-mt-2`
+          Padding(
+            padding: EdgeInsets.only(
+              top: showMarkdownCopy ? 4 : 0,
+              bottom: 4,
+            ),
+            child: Transform.translate(
+              offset: Offset(0, showMarkdownCopy ? 0 : -8),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: DinqLogoButton(

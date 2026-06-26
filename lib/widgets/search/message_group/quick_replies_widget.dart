@@ -143,17 +143,15 @@ class _BinaryQuickReplies extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: maxWidth,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Flexible(
-              child: _PrimaryButton(label: primary, onTap: onPrimary),
-            ),
-            const SizedBox(width: _binaryGap),
-            _SecondaryButton(label: secondary, onTap: onSecondary),
-          ],
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _PrimaryButton(label: primary, onTap: onPrimary),
+          const SizedBox(width: _binaryGap),
+          Flexible(
+            child: _SecondaryButton(label: secondary, onTap: onSecondary),
+          ),
+        ],
       ),
     );
   }
@@ -177,19 +175,17 @@ class _PrimaryButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         hoverColor: const Color(0xFF3A3836),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 40),
+        child: SizedBox(
+          height: 40,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    style: _labelStyle,
-                    softWrap: true,
-                  ),
+                Text(
+                  label,
+                  style: _labelStyle,
                 ),
                 const SizedBox(width: 8),
                 const Icon(
@@ -233,24 +229,18 @@ class _SecondaryButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         hoverColor: const Color(0xFF6B6862).withValues(alpha: 0.08),
         splashColor: const Color(0xFF6B6862).withValues(alpha: 0.12),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 40),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  height: 1.25,
-                  color: Color(0xFFA5A39E),
-                ),
-                softWrap: true,
-                textAlign: TextAlign.left,
-              ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              height: 1.25,
+              color: Color(0xFFA5A39E),
             ),
+            softWrap: true,
+            textAlign: TextAlign.left,
           ),
         ),
       ),
