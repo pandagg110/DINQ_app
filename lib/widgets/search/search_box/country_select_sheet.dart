@@ -141,6 +141,11 @@ class _CountrySelectSheetState extends State<CountrySelectSheet> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: const Text('Cancel'),
                   ),
                 ),
@@ -154,6 +159,9 @@ class _CountrySelectSheetState extends State<CountrySelectSheet> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF171717),
                       foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Text('Confirm'),
                   ),
