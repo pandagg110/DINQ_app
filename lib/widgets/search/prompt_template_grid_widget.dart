@@ -88,7 +88,7 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
       width: double.infinity,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -120,6 +120,7 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
           ),
           const SizedBox(height: 10),
           Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: List.generate(displayCount, (index) {
               final prompt = _displayedPrompts[index];
               return Padding(
@@ -154,43 +155,49 @@ class _PromptCard extends StatefulWidget {
 }
 
 class _PromptCardState extends State<_PromptCard> {
+  var _hovered = false;
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: double.infinity,
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE6E1DA), width: 1),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.prompt.title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF171717),
-                  height: 1.2,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: double.infinity,
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: _hovered ? const Color(0xFFF7F6F2) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFD5D3CE), width: 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.prompt.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF171717),
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.left,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.left,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: Color(0xFF9E9B93),
-            ),
-          ],
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Color(0xFFB8B4AD),
+              ),
+            ],
+          ),
         ),
       ),
     );

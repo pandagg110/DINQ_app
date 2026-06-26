@@ -821,7 +821,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
                         children: [
