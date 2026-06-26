@@ -310,7 +310,6 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                         ),
                       ),
                     ),
-                    if (i != groups.length - 1) const SizedBox(height: 10),
                   ],
                   SizedBox(height: _spacerHeight),
                 ],

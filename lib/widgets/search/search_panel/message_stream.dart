@@ -27,6 +27,7 @@ class MessagePartListProcess extends StatelessWidget {
     final grouped = groupBlocksIntoPhases(processBlocks);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (grouped.firstNarration != null)
@@ -140,6 +141,20 @@ String getMessagePartSummaryText(
   return summaryBlock != null
       ? parseEnvelope(summaryBlock.text).cleanText.trim()
       : '';
+}
+
+/// 与 TSX `SearchPanel.getRoundSummaryText` 对齐。
+String getRoundSummaryText({
+  required Map<String, SubAgentInfo> subAgents,
+  required List<MessagePart> contentBlocks,
+  required bool allowFallbackSummary,
+}) {
+  final virtualSummary = getSingleAgentSummaryText(subAgents);
+  if (virtualSummary.isNotEmpty) return virtualSummary;
+  return getMessagePartSummaryText(
+    contentBlocks,
+    allowFallbackSummary: allowFallbackSummary,
+  );
 }
 
 /// 与 TSX MessageStream.splitRoundBlocks 对齐。

@@ -102,10 +102,8 @@ class SingleAgentSummary extends StatelessWidget {
     final summary = classified.summary;
     if (summary == null) return const SizedBox.shrink();
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 40),
-      child: NarrationBlockView(block: summary, isSummary: true),
-    );
+    // Web: `return <NarrationBlockView block={summary} isSummary />` — no wrapper padding.
+    return NarrationBlockView(block: summary, isSummary: true);
   }
 }
 
@@ -354,32 +352,31 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
               ],
             ),
           ),
-          Padding(
-            padding: EdgeInsets.only(
-              top: showIntro ? 0 : (widget.compactTop ? 0 : 24),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => setState(() {
-                  _chainCollapsed = !_chainCollapsed;
-                  if (_chainCollapsed) {
-                    _chainMaskTop = false;
-                    _chainMaskBottom = false;
-                  } else if (_chainAutoScroll && isRunning) {
-                    _scheduleChainScrollToBottom();
-                  }
-                }),
-                borderRadius: BorderRadius.circular(8),
-                hoverColor: const Color(0xFFFBFAF7),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 4),
+          // Web: `flex items-center leading-7 ml-1 cursor-pointer` — no top margin.
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() {
+                _chainCollapsed = !_chainCollapsed;
+                if (_chainCollapsed) {
+                  _chainMaskTop = false;
+                  _chainMaskBottom = false;
+                } else if (_chainAutoScroll && isRunning) {
+                  _scheduleChainScrollToBottom();
+                }
+              }),
+              borderRadius: BorderRadius.circular(8),
+              hoverColor: const Color(0xFFFBFAF7),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: SizedBox(
+                  height: 28,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       if (isSearching)
                         const Padding(
-                          padding: EdgeInsets.only(right: 8),
+                          padding: EdgeInsets.only(right: 12),
                           child: _SpiralSpinner(size: 16),
                         ),
                       if (headerText != null)
@@ -387,6 +384,7 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
                           headerText,
                           style: TextStyle(
                             fontSize: 15,
+                            height: 28 / 15,
                             fontWeight: FontWeight.w500,
                             color: isRunning
                                 ? const Color(0xFF6B6862)
@@ -401,21 +399,25 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
                           maxMs: 8000,
                           style: const TextStyle(
                             fontSize: 15,
+                            height: 28 / 15,
                             fontWeight: FontWeight.w500,
                             color: Color(0xFF6B6862),
                           ),
                         ),
                       if (isSearching) const _PulsingDots(),
-                      const SizedBox(width: 8),
-                      Text(
-                        TraceStrings.chainSubtitle(
-                          agent.candidatesFound,
-                          toolCount,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8A8880),
-                          fontFeatures: [FontFeature.tabularFigures()],
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          TraceStrings.chainSubtitle(
+                            agent.candidatesFound,
+                            toolCount,
+                          ),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            height: 28 / 12,
+                            color: Color(0xFF8A8880),
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
                         ),
                       ),
                     ],

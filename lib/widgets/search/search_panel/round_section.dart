@@ -16,11 +16,8 @@ import '../analysis/analysis_results_view.dart';
 import '../analysis/analysis_tool_phases.dart';
 import '../advisor/advisors_results_view.dart';
 import '../message_group/dinq_logo.dart';
-import '../message_group/dinq_results_view.dart';
-import '../message_group/thinking_bubble.dart';
 import 'collapsible_bubble.dart';
 import 'message_stream.dart';
-import 'phase_timeline.dart';
 import 'result_entry_card.dart';
 import 'tool_search_progress.dart';
 
@@ -126,221 +123,231 @@ class _RoundSectionState extends State<RoundSection> {
         hasResultWorkspace && widget.onOpenResultsRound != null;
     final resultCardSelected =
         widget.activeResultsRoundId == group.id;
-    final showMarkdownCopy = hasRows && status != DeepSearchRoundStatus.error;
+    final summaryText = getRoundSummaryText(
+      subAgents: group.subAgents,
+      contentBlocks: group.contentBlocks,
+      allowFallbackSummary: allowFallbackSummary,
+    );
+    final showMarkdownCopy =
+        status == DeepSearchRoundStatus.done && summaryText.isNotEmpty;
 
     final quickRepliesStore = context.watch<QuickRepliesStore>();
-    // 与 TSX 一致：仅 confirm 块等待交互时隐藏 logo；Quick Replies 阶段仍展示。
     final hasPendingConfirmBlock = _hasReasoningBlock(
       group,
       (b) =>
           parseEnvelope(b.text).type == 'confirm' &&
           !quickRepliesStore.isUsed(b.id),
     );
-    final hasVisibleQuickReplies = _hasReasoningBlock(
-      group,
-      (b) =>
-          parseEnvelope(b.text).options.isNotEmpty &&
-          !quickRepliesStore.isUsed(b.id),
-    );
 
     final attachment = group.pdfAttachment;
     final displayQuery = group.displayQuery ?? group.userQuery;
-    final isDinqSearch = group.searchType == 'dinq';
+
+    final sections = <Widget>[];
+
+    void addSection(Widget section) {
+      if (sections.isNotEmpty) {
+        sections.add(const SizedBox(height: 16));
+      }
+      sections.add(section);
+    }
+
+    if (widget.hideUserQueryBubble && group.recordCreatedAt != null) {
+      addSection(
+        Text(
+          formatLogRecordTimestamp(group.recordCreatedAt!),
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF9E9B93),
+          ),
+        ),
+      );
+    }
+
+    if (!widget.hideUserQueryBubble) {
+      addSection(
+        Padding(
+          padding: const EdgeInsets.only(top: 48),
+          child: CollapsibleBubble(
+            text: displayQuery,
+            attachment: attachment,
+            hideActions: widget.resultEntryMode == ResultEntryMode.mobile,
+          ),
+        ),
+      );
+    }
+
+    final processChildren = <Widget>[
+      if (group.subAgents.isNotEmpty)
+        SubAgentTracker(
+          subAgents: group.subAgents,
+          compactTop: widget.hideUserQueryBubble,
+        ),
+      if (hasMessageParts)
+        MessagePartListProcess(
+          blocks: group.contentBlocks,
+          allowFallbackSummary: allowFallbackSummary,
+        ),
+    ];
+    if (processChildren.isNotEmpty) {
+      addSection(
+        MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: processChildren,
+          ),
+        ),
+      );
+    }
+
+    if (group.errorMessage != null &&
+        group.roundStatus == DeepSearchRoundStatus.error) {
+      addSection(
+        _RoundErrorBar(
+          message: normalizeRoundErrorMessage(group.errorMessage!),
+          isCreditsError: isInsufficientCredits(group.errorMessage!),
+          toolType: toolType,
+          onUpgrade: () => context.push('/pricing'),
+          onRetry: () => context.go('/search'),
+        ),
+      );
+    }
+
+    if (toolType == 'who-cites-me' && group.toolResult != null) {
+      addSection(
+        _CitationToolSection(
+          group: group,
+          onCandidateClick: widget.onCandidateClick,
+        ),
+      );
+    }
+
+    if (toolType == 'find-advisor' &&
+        (group.toolResult != null ||
+            (group.advisorResults?.isNotEmpty ?? false))) {
+      addSection(
+        _AdvisorToolSection(
+          group: group,
+          onCandidateClick: widget.onCandidateClick,
+          onShuffle: widget.onAdvisorShuffle,
+          shuffleLoading: widget.advisorShuffleLoading,
+        ),
+      );
+    }
+
+    if (toolType == 'analysis' && group.toolResult != null) {
+      addSection(
+        _AnalysisToolSection(
+          group: group,
+          onCandidateClick: widget.onCandidateClick,
+        ),
+      );
+    }
+
+    if (showResultsStatusCard) {
+      addSection(
+        ResultEntryCard(
+          isSearching: isSearching,
+          resultCount: resultCount,
+          toolCount: toolCount,
+          mode: widget.resultEntryMode,
+          selected: resultCardSelected,
+          enabled: canOpenResults,
+          onTap: canOpenResults
+              ? () => widget.onOpenResultsRound!(group.id)
+              : null,
+        ),
+      );
+    }
+
+    if (showInlineResultsBlock) {
+      addSection(
+        Padding(
+          padding: const EdgeInsets.only(top: 24),
+          child: DeepSearchResults(
+            candidates: group.candidates,
+            isSearching: isSearching,
+            isInterrupted: status == DeepSearchRoundStatus.interrupted,
+            selectedRowId: widget.selectedRowId,
+            roundStatus: status,
+            contentBlocks: group.contentBlocks,
+            subAgents: group.subAgents,
+            sessionId: context.read<SearchStore>().deepSearchSessionId,
+            sseEventsId: group.sseEventsId,
+            onRowClick: (row) {
+              final idx = group.candidates.indexWhere(
+                (c) =>
+                    c['row_id']?.toString() == row['row_id']?.toString() ||
+                    c['name'] == row['name'],
+              );
+              widget.onCandidateClick(
+                candidateRowToTabCandidate(row),
+                idx >= 0 ? idx : 0,
+                group.id,
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    addSection(
+      MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (group.subAgents.isNotEmpty)
+              SingleAgentSummary(subAgents: group.subAgents),
+            if (hasMessageParts)
+              MessagePartListSummary(
+                blocks: group.contentBlocks,
+                allowFallbackSummary: allowFallbackSummary,
+              ),
+            if (showMarkdownCopy)
+              RoundMarkdownCopyButton(
+                alwaysVisible: widget.isLatest ||
+                    _isHovered ||
+                    widget.resultEntryMode == ResultEntryMode.mobile,
+                copied: widget.copied,
+                onCopy: widget.onCopyMarkdown,
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (widget.isLatest &&
+        toolType == null &&
+        !hasPendingConfirmBlock &&
+        !widget.hideUserQueryBubble) {
+      addSection(
+        Padding(
+          padding: EdgeInsets.only(
+            top: showMarkdownCopy ? 4 : 0,
+            bottom: 4,
+          ),
+          child: Transform.translate(
+            offset: Offset(0, showMarkdownCopy ? 0 : -8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: DinqLogoButton(
+                isLoading: isSearching,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.hideUserQueryBubble && group.recordCreatedAt != null)
-          Text(
-            formatLogRecordTimestamp(group.recordCreatedAt!),
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF9E9B93),
-            ),
-          ),
-
-        if (!widget.hideUserQueryBubble)
-          Padding(
-            padding: const EdgeInsets.only(top: 48),
-            child: CollapsibleBubble(
-              text: displayQuery,
-              attachment: attachment,
-            ),
-          ),
-
-        MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (group.subAgents.isNotEmpty)
-                SubAgentTracker(
-                  subAgents: group.subAgents,
-                  compactTop: widget.hideUserQueryBubble,
-                ),
-
-              if (hasMessageParts)
-                MessagePartListProcess(
-                  blocks: group.contentBlocks,
-                  allowFallbackSummary: allowFallbackSummary,
-                )
-              else ...[
-                if (isDinqSearch)
-                  DinqResultsView(
-                    results: group.dinqResults ?? [],
-                    loading: group.loading,
-                  ),
-                if (!isDinqSearch &&
-                    !group.isDeepSearch &&
-                    toolType == null &&
-                    group.thinkingSteps.isNotEmpty &&
-                    group.roundStatus != DeepSearchRoundStatus.error)
-                  ThinkingBubble(
-                    steps: group.thinkingSteps,
-                    expanded: group.thinkingExpanded,
-                    loading: group.loading,
-                    onToggle: () {},
-                  ),
-                if (!isDinqSearch &&
-                    group.assistantText.trim().isNotEmpty &&
-                    group.subAgents.isEmpty &&
-                    group.roundStatus != DeepSearchRoundStatus.error)
-                  NarrationBlockView(
-                    block: ReasoningBlock(
-                      id: 'group-${group.id}',
-                      text: group.assistantText,
-                      isStreaming: group.assistantStreaming,
-                    ),
-                  ),
-              ],
-            ],
-          ),
-        ),
-
-        if (group.errorMessage != null &&
-            group.roundStatus == DeepSearchRoundStatus.error)
-          _RoundErrorBar(
-            message: normalizeRoundErrorMessage(group.errorMessage!),
-            isCreditsError: isInsufficientCredits(group.errorMessage!),
-            toolType: toolType,
-            onUpgrade: () => context.push('/pricing'),
-            onRetry: () => context.go('/search'),
-          ),
-
-        if (toolType == 'who-cites-me' && group.toolResult != null)
-          _CitationToolSection(
-            group: group,
-            onCandidateClick: widget.onCandidateClick,
-          ),
-
-        if (toolType == 'find-advisor' &&
-            (group.toolResult != null || (group.advisorResults?.isNotEmpty ?? false)))
-          _AdvisorToolSection(
-            group: group,
-            onCandidateClick: widget.onCandidateClick,
-            onShuffle: widget.onAdvisorShuffle,
-            shuffleLoading: widget.advisorShuffleLoading,
-          ),
-
-        if (toolType == 'analysis' && group.toolResult != null)
-          _AnalysisToolSection(
-            group: group,
-            onCandidateClick: widget.onCandidateClick,
-          ),
-
-        if (showResultsStatusCard)
-          Padding(
-            padding: const EdgeInsets.only(top: 24),
-            child: ResultEntryCard(
-              isSearching: isSearching,
-              resultCount: resultCount,
-              toolCount: toolCount,
-              mode: widget.resultEntryMode,
-              selected: resultCardSelected,
-              enabled: canOpenResults,
-              onTap: canOpenResults
-                  ? () => widget.onOpenResultsRound!(group.id)
-                  : null,
-            ),
-          ),
-
-        if (showInlineResultsBlock)
-          Padding(
-            padding: const EdgeInsets.only(top: 24),
-            child: DeepSearchResults(
-              candidates: group.candidates,
-              isSearching: isSearching,
-              isInterrupted: status == DeepSearchRoundStatus.interrupted,
-              selectedRowId: widget.selectedRowId,
-              roundStatus: status,
-              contentBlocks: group.contentBlocks,
-              subAgents: group.subAgents,
-              sessionId: context.read<SearchStore>().deepSearchSessionId,
-              sseEventsId: group.sseEventsId,
-              onRowClick: (row) {
-                final idx = group.candidates.indexWhere(
-                  (c) =>
-                      c['row_id']?.toString() == row['row_id']?.toString() ||
-                      c['name'] == row['name'],
-                );
-                widget.onCandidateClick(
-                  candidateRowToTabCandidate(row),
-                  idx >= 0 ? idx : 0,
-                  group.id,
-                );
-              },
-            ),
-          ),
-
-        MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (group.subAgents.isNotEmpty)
-                SingleAgentSummary(subAgents: group.subAgents),
-              if (hasMessageParts)
-                MessagePartListSummary(
-                  blocks: group.contentBlocks,
-                  allowFallbackSummary: allowFallbackSummary,
-                ),
-              if (showMarkdownCopy)
-                RoundMarkdownCopyButton(
-                  alwaysVisible: widget.isLatest || _isHovered,
-                  copied: widget.copied,
-                  onCopy: widget.onCopyMarkdown,
-                ),
-            ],
-          ),
-        ),
-
-        if (widget.isLatest &&
-            toolType == null &&
-            !hasPendingConfirmBlock &&
-            !widget.hideUserQueryBubble)
-          // Quick Replies 阶段按钮可能换行变高，取消 -mt-2 避免与 logo 重叠
-          Padding(
-            padding: EdgeInsets.only(
-              top: showMarkdownCopy ? 4 : (hasVisibleQuickReplies ? 8 : 0),
-              bottom: 4,
-            ),
-            child: Transform.translate(
-              offset: Offset(
-                0,
-                (showMarkdownCopy || hasVisibleQuickReplies) ? 0 : -8,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: DinqLogoButton(
-                  isLoading: isSearching,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-      ],
+      children: sections,
     );
   }
 }
