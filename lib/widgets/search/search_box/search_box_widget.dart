@@ -89,6 +89,7 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
   bool _showToolsMenu = false;
   bool _panelCanSubmit = false;
   double _textHeight = kSearchBoxMinHeight;
+  double _lastInputMaxWidth = 0;
 
   String _attachmentUrl = '';
   String _attachmentName = '';
@@ -144,7 +145,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
     setState(() {});
   }
 
-  void _adjustHeight() {
+  void _adjustHeight({double? maxWidth}) {
+    final width = maxWidth ?? _lastInputMaxWidth;
+    if (width <= 0) return;
     final painter = TextPainter(
       text: TextSpan(
         text: _inputController.text.isEmpty ? ' ' : _inputController.text,
@@ -152,9 +155,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
       ),
       maxLines: null,
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: double.infinity);
+    )..layout(maxWidth: width);
     final h = painter.size.height.clamp(kSearchBoxMinHeight, kSearchBoxMaxHeight);
-    if ((h - _textHeight).abs() > 1 && mounted) {
+    if ((h - _textHeight).abs() > 0.5 && mounted) {
       setState(() => _textHeight = h);
     }
   }
@@ -345,33 +348,41 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                             onRemove: _clearAttachment,
                           ),
                         ),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: kSearchBoxMinHeight,
-                          maxHeight: kSearchBoxMaxHeight,
-                        ),
-                        child: TextField(
-                          controller: _inputController,
-                          focusNode: _focusNode,
-                          maxLines: null,
-                          maxLength: kSearchBoxMaxLength,
-                          decoration: searchBoxInputDecoration(
-                            hintText: widget.isMobile ? 'Ask' : 'Ask DINQ',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Color(0xFF1F2937),
-                            height: 1.75,
-                          ),
-                          onChanged: (_) {
-                            _adjustHeight();
-                            setState(() {});
-                          },
-                          onSubmitted: (_) {
-                            if (!_isLoading && !_isSendDisabled) _handleDeepSearchSubmit();
-                          },
-                        ),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          _lastInputMaxWidth = constraints.maxWidth;
+                          return SizedBox(
+                            height: _textHeight,
+                            width: constraints.maxWidth,
+                            child: TextField(
+                              controller: _inputController,
+                              focusNode: _focusNode,
+                              expands: true,
+                              maxLines: null,
+                              maxLength: kSearchBoxMaxLength,
+                              textAlignVertical: TextAlignVertical.top,
+                              scrollPhysics: const ClampingScrollPhysics(),
+                              decoration: searchBoxInputDecoration(
+                                hintText: widget.isMobile ? 'Ask' : 'Ask DINQ',
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF1F2937),
+                                height: 1.75,
+                              ),
+                              onChanged: (_) {
+                                _adjustHeight(maxWidth: constraints.maxWidth);
+                                setState(() {});
+                              },
+                              onSubmitted: (_) {
+                                if (!_isLoading && !_isSendDisabled) {
+                                  _handleDeepSearchSubmit();
+                                }
+                              },
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

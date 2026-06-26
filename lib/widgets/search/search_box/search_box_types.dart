@@ -98,7 +98,7 @@ const Map<String, String> kAnalysisPlaceholders = {
 };
 
 const double kSearchBoxMinHeight = 28;
-const double kSearchBoxMaxHeight = 240;
+const double kSearchBoxMaxHeight = 180;
 const int kSearchBoxMaxLength = 2000;
 const int kSearchBoxShowLimitThreshold = 1800;
 
