@@ -136,6 +136,12 @@ class _RoundSectionState extends State<RoundSection> {
           parseEnvelope(b.text).type == 'confirm' &&
           !quickRepliesStore.isUsed(b.id),
     );
+    final hasVisibleQuickReplies = _hasReasoningBlock(
+      group,
+      (b) =>
+          parseEnvelope(b.text).options.isNotEmpty &&
+          !quickRepliesStore.isUsed(b.id),
+    );
 
     final attachment = group.pdfAttachment;
     final displayQuery = group.displayQuery ?? group.userQuery;
@@ -314,14 +320,17 @@ class _RoundSectionState extends State<RoundSection> {
             toolType == null &&
             !hasPendingConfirmBlock &&
             !widget.hideUserQueryBubble)
-          // 对齐 TSX：`pb-1` + 无 copy 时 `-mt-2`
+          // Quick Replies 阶段按钮可能换行变高，取消 -mt-2 避免与 logo 重叠
           Padding(
             padding: EdgeInsets.only(
-              top: showMarkdownCopy ? 4 : 0,
+              top: showMarkdownCopy ? 4 : (hasVisibleQuickReplies ? 8 : 0),
               bottom: 4,
             ),
             child: Transform.translate(
-              offset: Offset(0, showMarkdownCopy ? 0 : -8),
+              offset: Offset(
+                0,
+                (showMarkdownCopy || hasVisibleQuickReplies) ? 0 : -8,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: DinqLogoButton(

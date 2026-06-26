@@ -61,7 +61,7 @@ class _QuickRepliesWidgetState extends State<QuickRepliesWidget> {
       final primary = widget.options[0];
       final secondary = widget.options[1];
       return Padding(
-        padding: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.only(top: 12, bottom: 4),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return _BinaryQuickReplies(
@@ -107,6 +107,8 @@ class _QuickRepliesWidgetState extends State<QuickRepliesWidget> {
                     child: Text(
                       opt,
                       style: const TextStyle(fontSize: 15, height: 1.25),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       softWrap: true,
                     ),
                   ),
@@ -146,9 +148,12 @@ class _BinaryQuickReplies extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _PrimaryButton(label: primary, onTap: onPrimary),
-          const SizedBox(width: _binaryGap),
           Flexible(
+            fit: FlexFit.loose,
+            child: _PrimaryButton(label: primary, onTap: onPrimary),
+          ),
+          const SizedBox(width: _binaryGap),
+          Expanded(
             child: _SecondaryButton(label: secondary, onTap: onSecondary),
           ),
         ],
@@ -175,17 +180,20 @@ class _PrimaryButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         hoverColor: const Color(0xFF3A3836),
-        child: SizedBox(
-          height: 40,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 40),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  label,
-                  style: _labelStyle,
+                Flexible(
+                  child: Text(
+                    label,
+                    style: _labelStyle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 const Icon(
@@ -239,6 +247,8 @@ class _SecondaryButton extends StatelessWidget {
               height: 1.25,
               color: Color(0xFFA5A39E),
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             softWrap: true,
             textAlign: TextAlign.left,
           ),
