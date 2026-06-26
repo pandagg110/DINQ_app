@@ -303,6 +303,11 @@ class _CustomInputRowState extends State<_CustomInputRow> {
               decoration: const InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 hintText: 'Or type your own…',
                 hintStyle: TextStyle(color: Color(0xFFA5A39E)),
                 contentPadding: EdgeInsets.symmetric(vertical: 10),
