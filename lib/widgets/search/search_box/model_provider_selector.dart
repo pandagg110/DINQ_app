@@ -119,102 +119,120 @@ class _ModelProviderSelectorState extends State<ModelProviderSelector> {
   }
 
   Future<void> _showMobileSheet(BuildContext context) async {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final sheetHeight =
-        72.0 + widget.options.length * 52.0 + bottomInset + 24;
-
     final selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
+        final maxListHeight = MediaQuery.sizeOf(ctx).height * 0.55;
         return Container(
-          height: sheetHeight,
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
           ),
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Model',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2A2826),
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        'Model',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2A2826),
+                        ),
+                      ),
+                      const Spacer(),
+                      InkWell(
+                        onTap: () => Navigator.of(ctx).pop(),
+                        borderRadius: BorderRadius.circular(8),
+                        child: const SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: Center(
+                            child: Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Color(0xFF6B6862),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    icon: const Icon(Icons.close, size: 18, color: Color(0xFF6B6862)),
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size(32, 32),
-                      padding: EdgeInsets.zero,
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: maxListHeight),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: widget.options.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 4),
+                      itemBuilder: (context, index) {
+                        final option = widget.options[index];
+                        final isSelected = option.value == widget.modelProvider;
+                        return Material(
+                          color: isSelected
+                              ? const Color(0xFFF5F4F0)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            onTap: () => Navigator.of(ctx).pop(option.value),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _ModelProviderIcon(
+                                    iconAsset: option.iconAsset,
+                                    label: option.label,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      option.displayLabel,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        height: 1.3,
+                                        color: isSelected
+                                            ? const Color(0xFF2A2826)
+                                            : const Color(0xFF6B6862),
+                                      ),
+                                      softWrap: true,
+                                    ),
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 8),
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 1),
+                                      child: Icon(
+                                        Icons.check,
+                                        size: 16,
+                                        color: Color(0xFF2A2826),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.separated(
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: widget.options.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
-                  itemBuilder: (context, index) {
-                    final option = widget.options[index];
-                    final isSelected = option.value == widget.modelProvider;
-                    return Material(
-                      color: isSelected
-                          ? const Color(0xFFF5F4F0)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        onTap: () => Navigator.of(ctx).pop(option.value),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 14,
-                          ),
-                          child: Row(
-                            children: [
-                              _ModelProviderIcon(
-                                iconAsset: option.iconAsset,
-                                label: option.label,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  option.displayLabel,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: isSelected
-                                        ? const Color(0xFF2A2826)
-                                        : const Color(0xFF6B6862),
-                                  ),
-                                ),
-                              ),
-                              if (isSelected)
-                                const Icon(
-                                  Icons.check,
-                                  size: 18,
-                                  color: Color(0xFF2A2826),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
