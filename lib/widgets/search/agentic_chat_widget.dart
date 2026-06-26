@@ -136,6 +136,13 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     }
   }
 
+  bool _isMainTabHomeRoute(BuildContext context) {
+    final segments = GoRouterState.of(context).uri.pathSegments;
+    return segments.isEmpty ||
+        (segments.length == 1 &&
+            (segments.first == 'search' || segments.first == 'me'));
+  }
+
   void _startFreshDeepSearch({
     required String query,
     String? displayQuery,
@@ -161,8 +168,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       simple: simple,
     );
 
-    final needsNavigate =
-        widget.embeddedInMainTab && searchStore.deepSearchSessionId == null;
+    final needsNavigate = _isMainTabHomeRoute(context) &&
+        searchStore.deepSearchSessionId == null &&
+        searchStore.currentConversationId == null;
 
     if (needsNavigate) {
       final newSessionId = const Uuid().v4();

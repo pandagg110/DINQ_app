@@ -118,9 +118,39 @@ class _SearchPageState extends State<SearchPage> {
 
       final conversationId = int.tryParse(idText);
       if (conversationId == null && segments.length == 2) {
+        if (searchStore.pendingDeepSearch != null) {
+          searchStore.clearExtraType();
+          searchStore.setCurrentConversationId(null);
+          searchStore.setDeepSearchSessionId(idText);
+          return;
+        }
+
+        // /search/:uuid — 历史 discover 会话，走 discover/sessions API 恢复
+        const convType = 'discover';
         searchStore.clearExtraType();
         searchStore.setCurrentConversationId(null);
         searchStore.setDeepSearchSessionId(idText);
+        searchStore.clearPendingConversation();
+        searchStore.setLoadingConversation(true);
+
+        try {
+          final detail = await chatHistoryStore.fetchConversationDetail(
+            idText,
+            convType,
+          );
+          if (!mounted) return;
+          if (detail != null) {
+            chatHistoryStore.setActiveConversationId(idText, type: convType);
+            searchStore.setPendingConversation({
+              ...detail,
+              if (!detail.containsKey('type')) 'type': convType,
+            });
+          }
+        } finally {
+          if (mounted) {
+            searchStore.setLoadingConversation(false);
+          }
+        }
         return;
       }
 
@@ -164,10 +194,15 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
+  bool _isMainTabHomeRoute(GoRouterState state) {
+    final segments = state.uri.pathSegments;
+    return segments.isEmpty ||
+        (segments.length == 1 &&
+            (segments.first == 'search' || segments.first == 'me'));
+  }
+
   bool _isEmbeddedInMainTab(BuildContext context) {
-    final path = GoRouterState.of(context).uri.path;
-    // 与 _syncBottomNav 一致：仅 /search/... 详情路由隐藏底栏，其余 MainTab 路由均视为嵌入。
-    return !path.startsWith('/search/');
+    return _isMainTabHomeRoute(GoRouterState.of(context));
   }
 
   @override
