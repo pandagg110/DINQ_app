@@ -250,10 +250,13 @@ class _SearchPageState extends State<SearchPage> {
             child: SizedBox(
               height: mq.size.height,
               width: double.infinity,
-              child: SafeArea(
-                bottom: false,
-                child: Stack(
-                  children: [
+              child: Padding(
+                // 键盘顶起后 SafeArea 会随内容上移，补回等高的 top padding 避免与状态栏重叠
+                padding: EdgeInsets.only(top: keyboardHeight),
+                child: SafeArea(
+                  bottom: false,
+                  child: Stack(
+                    children: [
                 // 主聊天区域
                 AgenticSearchContentWidget(
                   embeddedInMainTab: embeddedInMainTab,
@@ -270,7 +273,8 @@ class _SearchPageState extends State<SearchPage> {
                   isOpen: searchStore.isTabPanelOpen,
                   onClose: () => searchStore.setTabPanelOpen(false),
                 ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
