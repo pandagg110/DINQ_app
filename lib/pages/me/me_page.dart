@@ -87,8 +87,6 @@ class _MePageState extends State<MePage> {
         bottom: false,
         child: Column(
           children: [
-            // 顶部工具栏
-            _buildTopBar(credits),
             // 主内容区
             Expanded(
               child: SingleChildScrollView(
@@ -99,19 +97,30 @@ class _MePageState extends State<MePage> {
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     // 头像区域
                     _buildAvatarSection(user?.userData.avatarUrl ?? ''),
                     const SizedBox(height: 16),
-                    // 用户名
-                    Text(
-                      user?.userData.name ?? '',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Geist',
-                        color: ColorUtil.textColor,
-                      ),
+                    // 用户名 + 编辑
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          user?.userData.name ?? '',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Geist',
+                            color: ColorUtil.textColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => context.push('/settings/profile'),
+                          child: Icon(Icons.edit_outlined, size: 18, color: ColorUtil.sub1TextColor),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     // 域名
@@ -124,130 +133,34 @@ class _MePageState extends State<MePage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // 订阅卡片
+                    // 套餐卡（Free/Upgrade + Available Credits + Invite friends）
                     _buildSubscriptionCard(plan, credits),
                     const SizedBox(height: 16),
-                    // My DINQ — 个人主页
-                    _buildMenuRow(
-                      Icons.badge_outlined,
-                      'My DINQ',
-                      () => context.push('/admin/mydinq'),
-                    ),
-                    const SizedBox(height: 16),
-                    // 邀请赚积分
-                    _buildMenuRow(
-                      Icons.card_giftcard_outlined,
-                      'Invite friends, earn credits',
-                      () => context.push('/me/invite'),
-                    ),
-                    const SizedBox(height: 16),
-                    // 简历管理
-                    _buildMenuRow(
-                      Icons.description_outlined,
-                      'Resume',
-                      () => context.push('/admin/mydinq/resume'),
-                    ),
-                    const SizedBox(height: 16),
-                    // 组织
-                    _buildMenuRow(
-                      Icons.business_outlined,
-                      'Organization',
-                      () => context.push('/me/organization'),
-                    ),
-                    const SizedBox(height: 16),
-                    // 集成（已连接平台）
-                    _buildMenuRow(
-                      Icons.hub_outlined,
-                      'Integration',
-                      () => context.push('/me/integration'),
-                    ),
-                    const SizedBox(height: 16),
-                    // 开发者 API Keys
-                    _buildMenuRow(
-                      Icons.vpn_key_outlined,
-                      'API Keys',
-                      () => context.push('/me/api-keys'),
-                    ),
-                    const SizedBox(height: 16),
-                    // 推送设置
-                    _buildMenuRow(
-                      Icons.notifications_outlined,
-                      'Push notifications',
-                      () => context.push('/me/push-settings'),
-                    ),
-                    const SizedBox(height: 16),
-                    // Settings 入口
-                    _buildSettingsButton(),
-                    const SizedBox(height: 16),
-                    // 帮助与合规
-                    _buildMenuRow(
-                      Icons.help_outline_rounded,
-                      'Help & Support',
-                      () => context.push('/guidelines'),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMenuRow(
-                      Icons.description_outlined,
-                      'Terms & Privacy',
-                      () => context.push('/terms'),
-                    ),
+                    // 菜单分组卡
+                    _menuCard([
+                      _menuItem(Icons.badge_outlined, 'My DINQ', () => context.push('/admin/mydinq')),
+                      _menuDivider(),
+                      _menuItem(Icons.business_outlined, 'Organization',
+                          () => context.push('/me/organization')),
+                      _menuDivider(),
+                      _menuItem(Icons.code_rounded, 'API Playground',
+                          () => context.push('/me/api-keys')),
+                      _menuDivider(),
+                      _menuItem(Icons.description_outlined, 'Resume',
+                          () => context.push('/admin/mydinq/resume')),
+                      _menuDivider(),
+                      _menuItem(Icons.hub_outlined, 'Integrations',
+                          () => context.push('/me/integration')),
+                      _menuDivider(),
+                      _menuItem(Icons.settings_outlined, 'Settings',
+                          () => context.push('/settings')),
+                    ]),
                   ],
                 ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar(int credits) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // 左侧积分和升级按钮
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Color(0xFFEBEBEB), width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AssetImageView("remaining_score", width: 20, height: 20),
-                const SizedBox(width: 4),
-                Text(
-                  '$credits',
-                  style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: ColorUtil.textColor),
-                ),
-                const SizedBox(width: 10),
-                Container(height: 12, width: 1, color: Color(0xFFEAEAEA)),
-                const SizedBox(width: 10),
-                NormalButton(
-                  onTap: () => context.push('/pricing'),
-                  child: const Text(
-                    'Upgrade',
-                    style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: Color(0xFF1487FA)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 右侧扫码图标
-          GestureDetector(
-            onTap: () {
-              // TODO: 实现扫码功能
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              child: AssetImageView("qr_scan", width: 24, height: 24),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -371,7 +284,7 @@ class _MePageState extends State<MePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Credits',
+                    'Available Credits',
                     style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: Color(0xFF636363)),
                   ),
                   Row(
@@ -395,42 +308,54 @@ class _MePageState extends State<MePage> {
               ),
             ),
           ),
+          DashedLine(color: Color(0xFFECECEC)),
+          // 邀请赚积分
+          NormalButton(
+            onTap: () => context.push('/me/invite'),
+            child: SizedBox(
+              height: 54,
+              child: Row(
+                children: [
+                  Icon(Icons.card_giftcard_outlined, size: 20, color: Color(0xFF636363)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Invite friends, earn credits',
+                    style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: ColorUtil.textColor),
+                  ),
+                  const Spacer(),
+                  AssetImageView("gray_right", width: 20, height: 20),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsButton() {
+  // 菜单分组卡（对齐设计：单卡 + 分割线）
+  Widget _menuCard(List<Widget> children) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _menuDivider() => const Divider(
+      height: 1, thickness: 1, color: Color(0xFFF3F2EF), indent: 16, endIndent: 16);
+
+  Widget _menuItem(IconData icon, String label, VoidCallback onTap) {
     return NormalButton(
-      onTap: () => context.push('/settings'),
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
         height: 54,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          // boxShadow: [
-          //   BoxShadow(
-          //     color: Colors.black.withAlpha((255 * 0.05).toInt()),
-          //     blurRadius: 10,
-          //     offset: const Offset(0, 2),
-          //   ),
-          // ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            AssetImageView("setting", width: 20, height: 20),
-            const SizedBox(width: 8),
-            Text(
-              'Settings',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Geist',
-                color: ColorUtil.textColor,
-              ),
-            ),
+            Icon(icon, size: 22, color: ColorUtil.textColor),
+            const SizedBox(width: 12),
+            Text(label,
+                style: TextStyle(fontSize: 15, fontFamily: 'Geist', color: ColorUtil.textColor)),
             const Spacer(),
             AssetImageView("gray_right", width: 20, height: 20),
           ],
@@ -439,36 +364,4 @@ class _MePageState extends State<MePage> {
     );
   }
 
-  /// 通用菜单行（帮助/法务等），样式与 Settings 入口一致。
-  Widget _buildMenuRow(IconData icon, String title, VoidCallback onTap) {
-    return NormalButton(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        height: 54,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: ColorUtil.textColor),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Geist',
-                color: ColorUtil.textColor,
-              ),
-            ),
-            const Spacer(),
-            AssetImageView("gray_right", width: 20, height: 20),
-          ],
-        ),
-      ),
-    );
-  }
 }
