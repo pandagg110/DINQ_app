@@ -1,4 +1,5 @@
 import 'package:dinq_app/utils/cache_manager.dart';
+import '../../utils/api_error.dart';
 import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dinq_app/widgets/account/agreement_protocol_modal.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
@@ -374,7 +375,7 @@ class _SignUpPageState extends State<SignUpPage> {
       debugPrint('error9999: $error, $email');
       await ToastUtil.dismiss();
       // setState(() => _error = error.toString());
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     } finally {
       // setState(() => _isSendingCode = false);
     }

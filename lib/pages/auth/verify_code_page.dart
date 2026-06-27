@@ -1,4 +1,5 @@
 import 'package:dinq_app/utils/top_toast_util.dart';
+import '../../utils/api_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
@@ -222,7 +223,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
     } catch (error) {
       debugPrint('error9999: $error, $email');
       await ToastUtil.dismiss();
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     } finally {
       // setState(() => _isSendingCode = false);
     }
@@ -255,7 +256,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
       });
     } catch (error) {
       await ToastUtil.dismiss();
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     }
   }
 }
