@@ -125,17 +125,19 @@ class _InvitePageState extends State<InvitePage> {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
-                _headerRow(),
+                _illustrationHeader(),
                 const SizedBox(height: 20),
                 _stats(),
                 const SizedBox(height: 20),
-                _sectionTitle('Your Invite Codes'),
+                _enterCodeButton(),
+                const SizedBox(height: 24),
+                _sectionTitle('Your invite codes'),
                 const SizedBox(height: 12),
                 _codesCard(),
-                const SizedBox(height: 20),
-                _sectionTitle('Invite History'),
+                const SizedBox(height: 24),
+                _sectionTitle('Invite history'),
                 const SizedBox(height: 12),
                 _historyCard(),
               ],
@@ -143,33 +145,46 @@ class _InvitePageState extends State<InvitePage> {
     );
   }
 
-  Widget _headerRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _illustrationHeader() {
+    return Column(
       children: [
-        const Expanded(
+        Container(
+          width: 72,
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFFD9C2A1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(Icons.mail_outline_rounded, size: 30, color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+        const Text('Invite friends',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: _ink)),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24),
           child: Text(
             'Share your invite links with friends. You both earn credits for each successful invite.',
+            textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, height: 1.4, color: _muted),
           ),
         ),
-        const SizedBox(width: 12),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _enterInviteCode,
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border.all(color: _border),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text('Enter invite code',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: _ink)),
-          ),
-        ),
       ],
+    );
+  }
+
+  Widget _enterCodeButton() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _enterInviteCode,
+      child: Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: _ink, borderRadius: BorderRadius.circular(12)),
+        child: const Text('Enter invite code',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+      ),
     );
   }
 
@@ -180,32 +195,22 @@ class _InvitePageState extends State<InvitePage> {
     return Row(
       children: [
         Expanded(child: _statCard('TOTAL', total)),
-        const SizedBox(width: 12),
         Expanded(child: _statCard('USED', used)),
-        const SizedBox(width: 12),
         Expanded(child: _statCard('LEFT', left)),
       ],
     );
   }
 
   Widget _statCard(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 11, letterSpacing: 0.5, fontWeight: FontWeight.w500, color: _muted)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: _ink)),
-        ],
-      ),
+    return Column(
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11, letterSpacing: 0.5, fontWeight: FontWeight.w500, color: _muted)),
+        const SizedBox(height: 4),
+        Text(value,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: _ink)),
+      ],
     );
   }
 
@@ -216,6 +221,7 @@ class _InvitePageState extends State<InvitePage> {
     final codes = (_data['codes'] as List?) ?? const [];
     return Container(
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(color: _border),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -269,29 +275,15 @@ class _InvitePageState extends State<InvitePage> {
             ),
           ),
           if (isUsed)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: _rowBorder,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text('Used',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: _muted)),
-            )
+            const Text('Used',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: _muted))
           else
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => _copy(code),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _ink,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(copied ? 'Copied!' : 'Copy link',
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white)),
-              ),
+              child: Text(copied ? 'Copied!' : 'Copy link',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600, color: _ink)),
             ),
         ],
       ),
@@ -301,16 +293,24 @@ class _InvitePageState extends State<InvitePage> {
   Widget _historyCard() {
     return Container(
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(color: _border),
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
       child: _history.isEmpty
           ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+              padding: EdgeInsets.symmetric(vertical: 36, horizontal: 16),
               child: Center(
-                child: Text('No history yet. Start inviting friends to see your progress here.',
-                    textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: _muted)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.groups_outlined, size: 32, color: _muted),
+                    SizedBox(height: 12),
+                    Text('No history yet. Invite friends to track your progress here.',
+                        textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: _muted)),
+                  ],
+                ),
               ),
             )
           : Column(
