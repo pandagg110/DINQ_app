@@ -272,7 +272,25 @@ class _ApiKeysPageState extends State<ApiKeysPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
-      appBar: DefaultAppBar(context, titleString: 'API Keys'),
+      appBar: DefaultAppBar(
+        context,
+        titleString: 'API Keys',
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _create,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(color: Color(0xFF171717), shape: BoxShape.circle),
+                child: const Icon(Icons.add, size: 20, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: _body(),
     );
   }
@@ -281,40 +299,6 @@ class _ApiKeysPageState extends State<ApiKeysPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // 头部：标题 + 说明 + Create
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Expanded(
-              child: Text('Create and manage API keys for DINQ integrations.',
-                  style: TextStyle(fontSize: 14, height: 1.4, color: Color(0xFF8A8880))),
-            ),
-            const SizedBox(width: 12),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _create,
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF171717),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 16, color: Colors.white),
-                    SizedBox(width: 6),
-                    Text('Create',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
         if (_loading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 48),
@@ -352,6 +336,7 @@ class _ApiKeysPageState extends State<ApiKeysPage> {
     );
   }
 
+  // 卡片形式（对齐 set_a 设计稿）：图标 + 名称 + Created 日期 + 掩码条 + Copy/Reveal/Delete
   Widget _keyRow(Map<String, dynamic> k) {
     final id = _idOf(k);
     final name = (k['name'] ?? 'Key').toString();
@@ -366,70 +351,122 @@ class _ApiKeysPageState extends State<ApiKeysPage> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F9F9),
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEFEDE9)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            // 图标 + 名称 + 日期
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F0EC),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.vpn_key_outlined, size: 20, color: Color(0xFF171717)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Flexible(
-                        child: Text(name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF171717))),
-                      ),
-                      if (!isActive) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE5E5E5),
-                            borderRadius: BorderRadius.circular(4),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF171717))),
                           ),
-                          child: const Text('Disabled',
-                              style: TextStyle(fontSize: 11, color: Color(0xFF737373))),
-                        ),
+                          if (!isActive) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE5E5E5),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('Disabled',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF737373))),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (created.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text('Created $created',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFFA3A3A3))),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(display,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 12, fontFamily: 'monospace', color: Color(0xFF737373))),
-                  if (created.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text('Created $created',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFFA3A3A3))),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            _iconBtn(visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                () => setState(() => visible ? _visible.remove(id) : _visible.add(id))),
-            _iconBtn(Icons.copy_rounded, () => _showCopyDialog(k)),
-            _iconBtn(Icons.delete_outline, () => _delete(k)),
+            const SizedBox(height: 12),
+            // 掩码条
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F3EF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(display,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 13, fontFamily: 'monospace', color: Color(0xFF737373))),
+            ),
+            const SizedBox(height: 12),
+            // Copy / Reveal / Delete
+            Row(
+              children: [
+                Expanded(child: _actionBtn(Icons.copy_rounded, 'Copy', const Color(0xFF171717),
+                    () => _showCopyDialog(k))),
+                const SizedBox(width: 10),
+                Expanded(child: _actionBtn(
+                    visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    visible ? 'Hide' : 'Reveal',
+                    const Color(0xFF171717),
+                    () => setState(() => visible ? _visible.remove(id) : _visible.add(id)))),
+                const SizedBox(width: 10),
+                Expanded(child: _actionBtn(Icons.delete_outline, 'Delete', const Color(0xFFDC2626),
+                    () => _delete(k))),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _iconBtn(IconData icon, VoidCallback onTap) {
+  Widget _actionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Icon(icon, size: 18, color: const Color(0xFF737373)),
+      child: Container(
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE5E2DC)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
+          ],
+        ),
       ),
     );
   }
