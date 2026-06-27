@@ -103,7 +103,10 @@ class _EducationVerificationPageState extends State<EducationVerificationPage> {
   Widget build(BuildContext context) {
     final status = _existingData?['status']?.toString();
 
+    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
+    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
     return KeyboardDismissOnTap(
+      dismissOnCapturedTaps: true,
       child: Scaffold(
         appBar: DefaultAppBar(
           context,
