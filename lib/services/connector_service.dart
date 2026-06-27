@@ -104,6 +104,36 @@ class EmailSettingsService {
     return const [];
   }
 
+  /// 新建邮箱发件设置（账号刚连接、还没有 setting 时用）。
+  /// 对齐 web CreateEmailSettingRequest：{emailType, email, displayName?, signature?}。
+  Future<void> create({
+    required String emailType,
+    required String email,
+    String? displayName,
+    String? signature,
+  }) async {
+    await _dio.post('/email-settings', data: {
+      'emailType': emailType,
+      'email': email,
+      if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
+      if (signature != null && signature.isNotEmpty) 'signature': signature,
+    });
+  }
+
+  /// connector platform → 后端 emailType（与 web PLATFORM_TO_EMAIL_TYPE 一致）。
+  static String? emailTypeForPlatform(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'gmail':
+        return 'gmail';
+      case 'microsoft':
+        return 'outlook';
+      case 'imap':
+        return 'nylas';
+      default:
+        return null;
+    }
+  }
+
   /// 更新发件人显示名/签名。
   Future<void> update(String id, {String? displayName, String? signature}) async {
     await _dio.put('/email-settings/$id', data: {
