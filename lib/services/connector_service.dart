@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../constants/app_constants.dart';
 import 'api_client.dart';
 
 class ConnectorAccount {
@@ -25,12 +26,16 @@ class ConnectorAccount {
   }
 }
 
-/// Connector API，对齐 Web `connector.ts`（经网关 /connector）。
+/// Connector API，对齐 Web `connector.ts`。
+/// 注意：连接器在网关根路径 `/connector`，**不在 `/api/v1` 下**。
+/// ApiClient 的 baseUrl 是 `$gatewayUrl/api/v1`，所以这里必须用绝对 URL，
+/// 否则会被拼成 `/api/v1/connector/...` → 404（Integration 链接邮箱报错的根因）。
 class ConnectorService {
   final Dio _dio = ApiClient.instance.dio;
+  String get _base => '$gatewayUrl/connector';
 
   Future<List<ConnectorAccount>> getAccounts() async {
-    final response = await _dio.get<Map<String, dynamic>>('/connector/auth/accounts');
+    final response = await _dio.get<Map<String, dynamic>>('$_base/auth/accounts');
     final data = response.data;
     final accounts = data?['accounts'];
     if (accounts is! List) return const [];
@@ -43,7 +48,7 @@ class ConnectorService {
   /// 发起连接，返回 OAuth 跳转地址（platform: gmail/microsoft/imap）。
   Future<String?> initiateConnect(String platform, String callbackUrl) async {
     final response = await _dio.post<Map<String, dynamic>>(
-      '/connector/auth/connect',
+      '$_base/auth/connect',
       data: {'platform': platform, 'callback_url': callbackUrl},
     );
     return response.data?['redirect_url']?.toString();
@@ -51,7 +56,7 @@ class ConnectorService {
 
   /// 断开某个已连接账号。
   Future<void> disconnect(String accountId) async {
-    await _dio.delete('/connector/auth/accounts/$accountId');
+    await _dio.delete('$_base/auth/accounts/$accountId');
   }
 }
 

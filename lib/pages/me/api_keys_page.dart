@@ -286,17 +286,8 @@ class _ApiKeysPageState extends State<ApiKeysPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('API keys',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF171717))),
-                  SizedBox(height: 4),
-                  Text('Create and manage API keys for DINQ integrations.',
-                      style: TextStyle(fontSize: 14, height: 1.4, color: Color(0xFF8A8880))),
-                ],
-              ),
+              child: Text('Create and manage API keys for DINQ integrations.',
+                  style: TextStyle(fontSize: 14, height: 1.4, color: Color(0xFF8A8880))),
             ),
             const SizedBox(width: 12),
             GestureDetector(
