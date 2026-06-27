@@ -1,4 +1,5 @@
 import 'package:dinq_app/utils/cache_manager.dart';
+import '../../utils/api_error.dart';
 import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dinq_app/widgets/account/agreement_protocol_modal.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
@@ -65,7 +66,10 @@ class _SignUpPageState extends State<SignUpPage> {
     // final userStore = context.watch<UserStore>();
     // final isLoading = userStore.isLoading;
 
+    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
+    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
     return KeyboardDismissOnTap(
+      dismissOnCapturedTaps: true,
       child: Scaffold(
         appBar: DefaultAppBar(context),
         resizeToAvoidBottomInset: false,
@@ -374,7 +378,7 @@ class _SignUpPageState extends State<SignUpPage> {
       debugPrint('error9999: $error, $email');
       await ToastUtil.dismiss();
       // setState(() => _error = error.toString());
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     } finally {
       // setState(() => _isSendingCode = false);
     }

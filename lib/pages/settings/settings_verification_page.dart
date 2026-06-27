@@ -452,7 +452,7 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
           ),
           const SizedBox(height: 16),
           NormalButton(
-            onTap: () => _handleSocialLink('X', isLinkedinLinked),
+            onTap: () => _handleSocialLink('X', isTwitterLinked),
             child: Row(
               children: [
                 AssetImageView("icon_x", width: 24, height: 24),

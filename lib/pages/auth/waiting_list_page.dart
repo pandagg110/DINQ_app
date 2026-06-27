@@ -1,4 +1,5 @@
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
+import '../../utils/api_error.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -251,7 +252,7 @@ class _WaitingListPageState extends State<WaitingListPage> {
       setState(() => _isSuccess = true);
     } catch (error) {
       // setState(() => _error = error.toString());
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     } finally {
       setState(() => _isSubmitting = false);
     }

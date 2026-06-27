@@ -61,7 +61,10 @@ class _SignInPageState extends State<SignInPage> {
     final userStore = context.watch<UserStore>();
     final isLoading = userStore.isLoading;
 
+    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
+    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
     return KeyboardDismissOnTap(
+      dismissOnCapturedTaps: true,
       child: Scaffold(
         // 登录页不需要返回按钮，避免用户误返回到空白或历史页
         appBar: DefaultAppBar(context, isShowBack: false),

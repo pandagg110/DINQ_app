@@ -27,6 +27,7 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
   List<Conversation>? _searchResults;
   bool _isSearching = false;
   String _currentUserId = '';
+  int _tab = 0; // 0 = Inbox, 1 = Notifications
 
   @override
   void initState() {
@@ -124,30 +125,23 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
           // 标题 + 搜索
           _buildHeader(),
 
-          // 列表
+          // 列表（按 Tab 切换）
           Expanded(
-            child: messagesStore.isLoadingConversations
-                ? _buildLoadingSkeleton()
-                : ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      // 通知入口
-                      _buildNotificationEntry(notificationsStore),
-
-                      // 对话列表
-                      ...conversations.map((conv) => _buildConversationItem(
-                            conv,
-                            currentUserId,
-                          )),
-
-                      // 空状态
-                      if (conversations.isEmpty && !_isSearching)
-                        _buildEmptyState(),
-
-                      // 底部安全区域
-                      SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
-                    ],
-                  ),
+            child: _tab == 0
+                ? (messagesStore.isLoadingConversations
+                    ? _buildLoadingSkeleton()
+                    : ListView(
+                        padding: EdgeInsets.zero,
+                        children: [
+                          ...conversations.map((conv) => _buildConversationItem(
+                                conv,
+                                currentUserId,
+                              )),
+                          if (conversations.isEmpty && !_isSearching) _buildEmptyState(),
+                          SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
+                        ],
+                      ))
+                : _buildNotificationsTab(notificationsStore),
           ),
         ],
       ),
@@ -156,54 +150,57 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Inbox',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF171717),
-              fontFamily: 'Geist',
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 搜索框
+          // 分段切换 Inbox / Notifications
           Container(
             height: 44,
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              color: const Color(0xFFF0EEEB),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                const SizedBox(width: 12),
-                Icon(Icons.search, size: 20, color: Colors.grey[400]),
+                _segTab('Inbox', 0),
+                _segTab('Notifications', 1),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // 搜索框（灰色填充，无分割线/双边框）
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0EEEB),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 14),
+                Icon(Icons.search, size: 20, color: Colors.grey[500]),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
                     onChanged: _onSearchChanged,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontFamily: 'Geist',
-                    ),
+                    style: const TextStyle(fontSize: 15, fontFamily: 'Geist'),
                     decoration: InputDecoration(
-                      hintText: 'Search names...',
+                      hintText: 'Search conversations',
                       hintStyle: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 14,
+                        color: Colors.grey[500],
+                        fontSize: 15,
                         fontFamily: 'Geist',
                       ),
                       border: InputBorder.none,
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 11),
                     ),
                   ),
                 ),
+                const SizedBox(width: 12),
               ],
             ),
           ),
@@ -212,113 +209,152 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
     );
   }
 
-  /// 通知入口
-  Widget _buildNotificationEntry(NotificationsStore store) {
-    final hasUnread = store.unreadCount > 0;
-    final latestNotification = store.notifications.isNotEmpty ? store.notifications.first : null;
-
-    return InkWell(
-      onTap: () => context.push('/admin/inbox/notifications'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
-        ),
-        child: Row(
-          children: [
-            // 通知图标
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF171717),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: SvgPicture.asset(
-                      'assets/icons/bell-notifications.svg',
-                      width: 28,
-                      height: 28,
-                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                    ),
-                  ),
-                ),
-                if (hasUnread)
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 22),
-                      height: 22,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444),
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        store.unreadCount > 99 ? '99+' : '${store.unreadCount}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Geist',
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+  Widget _segTab(String label, int index) {
+    final active = _tab == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _tab = index),
+        child: Container(
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: active
+                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4, offset: const Offset(0, 1))]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+              color: active ? const Color(0xFF171717) : const Color(0xFF8A8880),
+              fontFamily: 'Geist',
             ),
-            const SizedBox(width: 12),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // 内容
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+  /// Notifications Tab 内容（标题 + Mark read + 列表 / 空态）
+  Widget _buildNotificationsTab(NotificationsStore store) {
+    final notifications = store.notifications;
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: Row(
+            children: [
+              const Text(
+                'Notifications',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF171717),
+                  fontFamily: 'Geist',
+                ),
+              ),
+              const Spacer(),
+              if (notifications.isNotEmpty)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => store.markAllRead(),
+                  child: Row(
                     children: [
-                      const Expanded(
-                        child: Text(
-                          'Notifications',
+                      Icon(Icons.done_all_rounded, size: 16, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Text('Mark read',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF171717),
-                            fontFamily: 'Geist',
-                          ),
-                        ),
-                      ),
-                      if (latestNotification != null)
-                        Text(
-                          formatMessageDate(latestNotification.createdAt),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[500],
-                            fontFamily: 'Geist',
-                          ),
-                        ),
+                              fontSize: 14, color: Colors.grey[500], fontFamily: 'Geist')),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    latestNotification?.title ?? 'No new notifications',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                      fontFamily: 'Geist',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                ),
+            ],
+          ),
         ),
+        if (notifications.isEmpty)
+          _buildNotificationsEmpty()
+        else
+          ...notifications.map(_buildNotificationItem),
+        SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
+      ],
+    );
+  }
+
+  Widget _buildNotificationsEmpty() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 120),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(color: Color(0xFFF0EEEB), shape: BoxShape.circle),
+            child: Icon(Icons.notifications_none_rounded, size: 26, color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 16),
+          const Text('No notifications yet',
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF171717), fontFamily: 'Geist')),
+          const SizedBox(height: 6),
+          Text('New updates will appear here.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500], fontFamily: 'Geist')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationItem(AppNotification n) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(top: 6, right: 10),
+            decoration: BoxDecoration(
+              color: n.isRead ? Colors.transparent : const Color(0xFFEF4444),
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(n.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600,
+                              color: Color(0xFF171717), fontFamily: 'Geist')),
+                    ),
+                    Text(formatMessageDate(n.createdAt),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500], fontFamily: 'Geist')),
+                  ],
+                ),
+                if (n.content.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(n.content,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600], fontFamily: 'Geist')),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

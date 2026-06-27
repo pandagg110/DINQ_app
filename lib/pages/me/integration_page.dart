@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/connector_service.dart';
 import '../../theme/dinq_tokens.dart';
+import '../../utils/api_error.dart';
 import '../../widgets/common/default_app_bar.dart';
 
 /// My → 开发者 → Integration。1:1 还原 web integration/page.tsx：
@@ -278,9 +279,11 @@ class _IntegrationPageState extends State<IntegrationPage> {
                   if (v == 'edit') _editEmailSetting(a, setting);
                   if (v == 'disconnect') _disconnect(a);
                 },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit settings')),
+                itemBuilder: (_) => [
                   PopupMenuItem(
+                      value: 'edit',
+                      child: Text(setting == null ? 'Set up settings' : 'Edit settings')),
+                  const PopupMenuItem(
                       value: 'disconnect',
                       child: Text('Disconnect', style: TextStyle(color: Color(0xFF9A6A44)))),
                 ],
@@ -327,18 +330,21 @@ class _IntegrationPageState extends State<IntegrationPage> {
   }
 
   Future<void> _editEmailSetting(ConnectorAccount a, EmailSetting? setting) async {
-    if (setting == null) {
-      _snack('No email setting to edit');
+    final isCreate = setting == null;
+    // 新建场景需要 platform → emailType 的映射；不支持的平台直接提示。
+    final emailType = EmailSettingsService.emailTypeForPlatform(a.platform);
+    if (isCreate && emailType == null) {
+      _snack('Unsupported platform for email settings');
       return;
     }
-    final senderCtrl = TextEditingController(text: setting.displayName ?? '');
-    final sigCtrl = TextEditingController(text: setting.signature ?? '');
+    final senderCtrl = TextEditingController(text: setting?.displayName ?? '');
+    final sigCtrl = TextEditingController(text: setting?.signature ?? '');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text('Edit email settings',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _ink)),
+        title: Text(isCreate ? 'Set up email settings' : 'Edit email settings',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _ink)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,11 +375,20 @@ class _IntegrationPageState extends State<IntegrationPage> {
     );
     if (ok != true) return;
     try {
-      await _emailSettings.update(setting.id,
-          displayName: senderCtrl.text, signature: sigCtrl.text);
+      if (isCreate) {
+        await _emailSettings.create(
+          emailType: emailType!,
+          email: a.accountEmail ?? '',
+          displayName: senderCtrl.text,
+          signature: sigCtrl.text,
+        );
+      } else {
+        await _emailSettings.update(setting.id,
+            displayName: senderCtrl.text, signature: sigCtrl.text);
+      }
       await _load();
     } catch (e) {
-      _snack('Save failed: $e');
+      _snack('Save failed: ${apiErrorMessage(e)}');
     }
   }
 

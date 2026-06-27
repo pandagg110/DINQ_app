@@ -1,4 +1,5 @@
 import 'package:dinq_app/utils/top_toast_util.dart';
+import '../../utils/api_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
@@ -70,7 +71,10 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
 
   @override
   Widget build(BuildContext context) {
+    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
+    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
     return KeyboardDismissOnTap(
+      dismissOnCapturedTaps: true,
       child: Scaffold(
         appBar: DefaultAppBar(context),
         body: Padding(
@@ -222,7 +226,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
     } catch (error) {
       debugPrint('error9999: $error, $email');
       await ToastUtil.dismiss();
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     } finally {
       // setState(() => _isSendingCode = false);
     }
@@ -255,7 +259,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
       });
     } catch (error) {
       await ToastUtil.dismiss();
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     }
   }
 }

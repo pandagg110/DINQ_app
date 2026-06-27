@@ -179,7 +179,10 @@ class _ChangeDomainModalState extends State<ChangeDomainModal> {
     final isSameUsername = domain.toLowerCase() == widget.currentDomain.toLowerCase();
     final canSubmit = domain.length >= 3 && _isAvailable && !_isChecking && !_isSubmitting;
 
+    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
+    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
     return KeyboardDismissOnTap(
+      dismissOnCapturedTaps: true,
       child: Container(
         height: MediaQuery.of(context).size.height * 0.9,
         decoration: const BoxDecoration(

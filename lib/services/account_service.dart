@@ -59,8 +59,8 @@ class AccountService {
     final resp = await _dio.get('/orgs');
     final data = resp.data;
     if (data is List) return data;
-    if (data is Map && data['items'] is List) return data['items'] as List;
-    if (data is Map && data['orgs'] is List) return data['orgs'] as List;
+    // /orgs 实际返回 {organizations, total}（与 web ListOrgsResponse 一致）
+    if (data is Map && data['organizations'] is List) return data['organizations'] as List;
     return const [];
   }
 
@@ -111,6 +111,53 @@ class AccountService {
   /// DELETE /orgs/{id}/members/{uid} — 移除成员。需 admin/owner，不能移除 owner。
   Future<void> removeOrgMember(String id, String uid) async {
     await _dio.delete('/orgs/$id/members/$uid');
+  }
+
+  /// POST /org — 创建组织。
+  Future<Map<String, dynamic>> createOrg({
+    required String name,
+    required String slug,
+    String? orgType,
+    String? description,
+  }) async {
+    final resp = await _dio.post<Map<String, dynamic>>('/org', data: {
+      'name': name,
+      'slug': slug,
+      if (orgType != null) 'org_type': orgType,
+      if (description != null && description.isNotEmpty) 'description': description,
+    });
+    return Map<String, dynamic>.from(resp.data as Map? ?? {});
+  }
+
+  /// GET /org/check-slug?slug= — 检查 slug 可用性，返回 {available, suggestions}。
+  Future<bool> checkOrgSlug(String slug) async {
+    final resp = await _dio.get('/org/check-slug', queryParameters: {'slug': slug});
+    final d = resp.data;
+    return d is Map ? d['available'] == true : false;
+  }
+
+  /// GET /orgs — 发现所有可加入组织（公开），支持 keyword。
+  Future<List<dynamic>> discoverOrgs({String? keyword}) async {
+    final resp = await _dio.get('/orgs',
+        queryParameters: {if (keyword != null && keyword.isNotEmpty) 'keyword': keyword});
+    final d = resp.data;
+    if (d is List) return d;
+    if (d is Map && d['organizations'] is List) return d['organizations'] as List;
+    return const [];
+  }
+
+  /// POST /orgs/{id}/request-join — 申请加入（无邀请码）。返回 status。
+  Future<String> requestJoinOrg(String id) async {
+    final resp = await _dio.post('/orgs/$id/request-join');
+    final d = resp.data;
+    return (d is Map ? d['status'] : '')?.toString() ?? '';
+  }
+
+  /// POST /org/join/{code} — 用邀请码加入。返回 status。
+  Future<String> joinOrgByCode(String code) async {
+    final resp = await _dio.post('/org/join/$code');
+    final d = resp.data;
+    return (d is Map ? d['status'] : '')?.toString() ?? '';
   }
 
   // ============== 简历 / Resume ==============

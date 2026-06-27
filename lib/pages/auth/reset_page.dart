@@ -1,4 +1,5 @@
 ﻿import 'package:dinq_app/widgets/common/default_app_bar.dart';
+import '../../utils/api_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
@@ -47,7 +48,10 @@ class _ResetPageState extends State<ResetPage> {
 
   @override
   Widget build(BuildContext context) {
+    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
+    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
     return KeyboardDismissOnTap(
+      dismissOnCapturedTaps: true,
       child: Scaffold(
         appBar: DefaultAppBar(context),
         body: SingleChildScrollView(
@@ -290,7 +294,7 @@ class _ResetPageState extends State<ResetPage> {
     } catch (error) {
       await ToastUtil.dismiss();
 
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
       // setState(() => _message = error.toString());
     } finally {
       setState(() => _isSending = false);

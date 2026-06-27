@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../utils/api_error.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/auth_service.dart';
@@ -110,7 +111,7 @@ class _ResetCallbackPageState extends State<ResetCallbackPage> {
       setState(() => _message = 'Password updated. You can sign in now.');
     } catch (error) {
       // setState(() => _message = error.toString());
-      await ToastUtil.show(error.toString());
+      await ToastUtil.show(apiErrorMessage(error));
     } finally {
       setState(() => _isLoading = false);
     }

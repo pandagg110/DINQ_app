@@ -5,6 +5,8 @@ import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../widgets/common/default_app_bar.dart';
+import 'organization_create_page.dart';
+import 'organization_discover_page.dart';
 
 /// My → Organization。接 /orgs（我加入/创建的组织列表）。
 class OrganizationPage extends StatefulWidget {
@@ -47,11 +49,46 @@ class _OrganizationPageState extends State<OrganizationPage> {
     }
   }
 
+  Future<void> _openCreate() async {
+    final created = await Navigator.push<bool>(
+      context, MaterialPageRoute(builder: (_) => const OrganizationCreatePage()));
+    if (created == true && mounted) await _load();
+  }
+
+  Future<void> _openDiscover() async {
+    final joined = await Navigator.push<bool>(
+      context, MaterialPageRoute(builder: (_) => const OrganizationDiscoverPage()));
+    if (joined == true && mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
-      appBar: DefaultAppBar(context, titleString: 'Organization'),
+      appBar: DefaultAppBar(
+        context,
+        titleString: 'Organization',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF171717)),
+            tooltip: 'Discover',
+            onPressed: _openDiscover,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _openCreate,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(color: Color(0xFF171717), shape: BoxShape.circle),
+                child: const Icon(Icons.add, size: 20, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: _body(),
     );
   }
@@ -73,18 +110,27 @@ class _OrganizationPageState extends State<OrganizationPage> {
       );
     }
     if (_orgs.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.business_outlined, size: 40, color: DinqTokens.textTertiary),
-            SizedBox(height: 12),
-            Text('No organizations yet',
+            const Icon(Icons.business_outlined, size: 40, color: DinqTokens.textTertiary),
+            const SizedBox(height: 12),
+            const Text('No organizations yet',
                 style: TextStyle(
                     fontSize: 16, fontWeight: FontWeight.w600, color: DinqTokens.textPrimary)),
-            SizedBox(height: 4),
-            Text('Organizations you join or create appear here.',
+            const SizedBox(height: 4),
+            const Text('Organizations you join or create appear here.',
                 style: TextStyle(fontSize: 13, color: DinqTokens.textSecondary)),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _emptyBtn('Create', filled: true, onTap: _openCreate),
+                const SizedBox(width: 12),
+                _emptyBtn('Discover', filled: false, onTap: _openDiscover),
+              ],
+            ),
           ],
         ),
       );
@@ -92,6 +138,26 @@ class _OrganizationPageState extends State<OrganizationPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [for (final o in _orgs) _orgRow(Map<String, dynamic>.from(o as Map))],
+    );
+  }
+
+  Widget _emptyBtn(String label, {required bool filled, required VoidCallback onTap}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+        decoration: BoxDecoration(
+          color: filled ? ColorUtil.textColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: filled ? null : Border.all(color: DinqTokens.borderL),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: filled ? Colors.white : ColorUtil.textColor)),
+      ),
     );
   }
 
