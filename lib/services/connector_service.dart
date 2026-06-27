@@ -107,7 +107,9 @@ class EmailSettingsService {
   /// 更新发件人显示名/签名。
   Future<void> update(String id, {String? displayName, String? signature}) async {
     await _dio.put('/email-settings/$id', data: {
-      if (displayName != null) 'display_name': displayName,
+      // 后端字段为 camelCase displayName（与 web UpdateEmailSettingRequest 一致）；
+      // 用 display_name 会被忽略，导致显示名更新无效。
+      if (displayName != null) 'displayName': displayName,
       if (signature != null) 'signature': signature,
     });
   }

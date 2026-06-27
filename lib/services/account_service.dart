@@ -59,8 +59,8 @@ class AccountService {
     final resp = await _dio.get('/orgs');
     final data = resp.data;
     if (data is List) return data;
-    if (data is Map && data['items'] is List) return data['items'] as List;
-    if (data is Map && data['orgs'] is List) return data['orgs'] as List;
+    // /orgs 实际返回 {organizations, total}（与 web ListOrgsResponse 一致）
+    if (data is Map && data['organizations'] is List) return data['organizations'] as List;
     return const [];
   }
 
