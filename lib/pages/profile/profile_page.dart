@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_portal/flutter_portal.dart';
+import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../models/user_models.dart';
+import '../../services/message_service.dart';
 import '../../services/profile_service.dart';
+import '../../utils/api_error.dart';
 import '../../stores/card_store.dart';
 import '../../stores/main_store.dart';
 import '../../stores/user_store.dart';
@@ -49,7 +52,9 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   final ProfileService _profileService = ProfileService();
+  final MessageService _messageService = MessageService();
   bool _isLoading = true;
+  bool _isStartingChat = false;
   UserData? _userData;
   bool _isStatusModalOpen = false;
   CardStore? _cardStore;
@@ -197,6 +202,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       );
     }
     if (widget.showAppBar) {
+      // 站内私信：仅当查看的是「已注册且有主页」的他人主页（有 user_id 且非本人）时显示
+      final canMessage = userData != null &&
+          userData.userId.isNotEmpty &&
+          !_isEditable(userData);
       return AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -209,6 +218,20 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         foregroundColor: const Color(0xFF171717),
         elevation: 0,
         scrolledUnderElevation: 0,
+        actions: [
+          if (canMessage)
+            IconButton(
+              tooltip: 'Message',
+              icon: _isStartingChat
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.chat_bubble_outline_rounded),
+              onPressed: _isStartingChat ? null : () => _startChat(userData),
+            ),
+        ],
       );
     }
     return null;
@@ -434,6 +457,39 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     final userStore = context.read<UserStore>();
     return userStore.isLoggedIn() &&
         userStore.user?.userData.domain == data.domain;
+  }
+
+  /// 站内私信：对已注册且有主页的用户发起私聊（对齐 web ProfileSection.handleStartChat）。
+  /// 未登录跳登录；成功后进入会话详情页。
+  Future<void> _startChat(UserData owner) async {
+    if (owner.userId.isEmpty || _isStartingChat) return;
+    final userStore = context.read<UserStore>();
+    if (!userStore.isLoggedIn()) {
+      context.push('/signin');
+      return;
+    }
+    setState(() => _isStartingChat = true);
+    try {
+      final resp = await _messageService.createPrivateConversation(owner.userId);
+      final conv = resp['conversation'];
+      final convId =
+          (conv is Map ? (conv['id'] ?? conv['conversation_id']) : resp['id'])?.toString() ?? '';
+      if (!mounted) return;
+      if (convId.isNotEmpty) {
+        context.push('/admin/inbox/$convId');
+      } else {
+        _snack('Failed to open conversation');
+      }
+    } catch (e) {
+      if (mounted) _snack(apiErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _isStartingChat = false);
+    }
+  }
+
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
   void _handlePlaceholderClick(PlaceholderCardConfig config) {

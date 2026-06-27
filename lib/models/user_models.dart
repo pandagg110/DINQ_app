@@ -89,6 +89,7 @@ class UserData {
     required this.avatarUrl,
     required this.bio,
     required this.domain,
+    this.userId = '',
     this.email = '',
     this.fullPosition = '',
     this.fullDegree = '',
@@ -105,6 +106,8 @@ class UserData {
   final String avatarUrl;
   final String bio;
   final String domain;
+  /// 该主页所属用户的 user_id（私信 receiver_id 用）。注意区别于 user-data 记录自身的 `id`。
+  final String userId;
   final String email;
   final String fullPosition;
   final String fullDegree;
@@ -122,6 +125,7 @@ class UserData {
       avatarUrl: json['avatar_url']?.toString() ?? json['avatarUrl']?.toString() ?? '',
       bio: json['bio']?.toString() ?? '',
       domain: json['domain']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? json['userId']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       fullPosition: json['full_position']?.toString() ?? '',
       fullDegree: json['full_degree']?.toString() ?? '',
