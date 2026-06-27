@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../utils/onboarding_social_icons.dart';
+
 /// 对齐 Web `EnrichProfileView.tsx` lucide-react 图标 + social-icons 资源。
 abstract final class EnrichIcons {
   static const briefcase = 'assets/icons/search/enrich/briefcase.svg';
@@ -20,17 +22,22 @@ abstract final class EnrichIcons {
   static const zap = 'assets/icons/search/enrich/zap.svg';
 }
 
-/// 对齐 Web `socialIconPath()` → `/icons/social-icons/{mapped}.svg`
+/// 社媒图标：复用全量 [OnboardingSocialIcons.typeToIconFile]（22 个平台）映射到
+/// `assets/icons/social-icons/*`。此前只映射 6 个平台、其余 fallback 到 Link，
+/// 导致详情页大部分社媒图标缺失（显示成通用链接图标）。
 String enrichSocialIconAsset(String type) {
-  const map = {
-    'google_scholar': 'assets/icons/social-icons/Scholar.svg',
-    'linkedin': 'assets/icons/search/linkedin.svg',
-    'github': 'assets/icons/search/github.svg',
-    'openreview': 'assets/icons/social-icons/OpenReview.svg',
-    'twitter': 'assets/icons/social-icons/Twitter.svg',
-    'huggingface': 'assets/icons/social-icons/HuggingFace.svg',
+  var key = type.toUpperCase();
+  // 类型别名：后端可能用 google_scholar / x 等
+  const aliases = {
+    'GOOGLE_SCHOLAR': 'SCHOLAR',
+    'X': 'TWITTER',
+    'HOMEPAGE': 'WEBSITE',
+    'PERSONAL': 'WEBSITE',
+    'PERSONAL_WEBSITE': 'WEBSITE',
   };
-  return map[type] ?? 'assets/icons/social-icons/Link.svg';
+  key = aliases[key] ?? key;
+  final file = OnboardingSocialIcons.typeToIconFile[key] ?? 'link.svg';
+  return OnboardingSocialIcons.assetFor(file);
 }
 
 class EnrichSvgIcon extends StatelessWidget {
