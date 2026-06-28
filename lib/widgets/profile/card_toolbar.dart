@@ -4,7 +4,7 @@ import '../../models/card_models.dart';
 import '../../stores/card_store.dart';
 import '../cards/factory/card_registry.dart';
 
-/// 卡片工具栏：仅支持尺寸切换功能。viewMode 固定为 mobile，与 TS CardToolbar 对应。
+/// 卡片编辑底栏：尺寸切换 + Done（取消选中）。
 class CardToolbar extends StatelessWidget {
   const CardToolbar({
     super.key,
@@ -23,9 +23,7 @@ class CardToolbar extends StatelessWidget {
     final sizeConfig = definition.sizes.mobile;
     final availableSizes = sizeConfig.supported;
     final currentSize = card.layout.mobile.size;
-
-    // 只有多个尺寸选项时才显示工具栏
-    if (availableSizes.length <= 1) return const SizedBox.shrink();
+    final showSizeOptions = availableSizes.length > 1;
 
     return Positioned(
       left: 0,
@@ -36,15 +34,76 @@ class CardToolbar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: Center(
-            child: _buildToolbarContent(
-              context,
-              cardStore: cardStore,
-              availableSizes: availableSizes,
-              currentSize: currentSize,
+            child: Container(
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFF171717),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showSizeOptions) ...[
+                      _buildToolbarContent(
+                        context,
+                        cardStore: cardStore,
+                        availableSizes: availableSizes,
+                        currentSize: currentSize,
+                      ),
+                      const SizedBox(width: 16),
+                      _buildDivider(),
+                      const SizedBox(width: 16),
+                    ],
+                    _buildDoneButton(context, cardStore),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDoneButton(BuildContext context, CardStore cardStore) {
+    return Material(
+      color: const Color(0xFF1487FA),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: cardStore.clearSelection,
+        borderRadius: BorderRadius.circular(8),
+        splashColor: Colors.white.withOpacity(0.2),
+        highlightColor: Colors.white.withOpacity(0.1),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Done',
+            style: TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 16,
+      color: Colors.white.withOpacity(0.15),
     );
   }
 
@@ -58,90 +117,64 @@ class CardToolbar extends StatelessWidget {
     const optionSize = 32.0;
     const iconSize = 16.0;
     const innerRadius = 6.0;
-    const padding = 2.0;
 
     final selectedIndex = availableSizes.indexOf(currentSize).clamp(0, availableSizes.length - 1);
 
-    return Container(
-      padding: const EdgeInsets.all(padding),
-      decoration: BoxDecoration(
-        color: const Color(0xFF171717).withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.15),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // 滑块：32x32
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            left: selectedIndex * optionSize,
-            top: 0,
-            width: optionSize,
-            height: optionSize,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(innerRadius),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // 滑块：32x32
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          left: selectedIndex * optionSize,
+          top: 0,
+          width: optionSize,
+          height: optionSize,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(innerRadius),
             ),
           ),
-          // 按钮层：每个 32x32
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: availableSizes.map((size) {
-              final isActive = currentSize == size;
-              return SizedBox(
-                width: optionSize,
-                height: optionSize,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      final currentLayout = card.layout.mobile;
-                      final newLayout = CardLayout(
-                        desktop: card.layout.desktop,
-                        mobile: CardLayoutState(
-                          size: size,
-                          position: currentLayout.position,
-                        ),
-                      );
-                      cardStore.updateCardLayout(card.id, newLayout);
-                      cardStore.compactLayoutAfterSizeChange();
-                    },
-                    borderRadius: BorderRadius.circular(innerRadius),
-                    child: Center(
-                      child: _SizeIcon(
+        ),
+        // 按钮层：每个 32x32
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: availableSizes.map((size) {
+            final isActive = currentSize == size;
+            return SizedBox(
+              width: optionSize,
+              height: optionSize,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    final currentLayout = card.layout.mobile;
+                    final newLayout = CardLayout(
+                      desktop: card.layout.desktop,
+                      mobile: CardLayoutState(
                         size: size,
-                        active: isActive,
-                        iconSize: iconSize,
+                        position: currentLayout.position,
                       ),
+                    );
+                    cardStore.updateCardLayout(card.id, newLayout);
+                    cardStore.compactLayoutAfterSizeChange();
+                  },
+                  borderRadius: BorderRadius.circular(innerRadius),
+                  child: Center(
+                    child: _SizeIcon(
+                      size: size,
+                      active: isActive,
+                      iconSize: iconSize,
                     ),
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }
