@@ -493,14 +493,13 @@ class _CardRendererState extends State<CardRenderer> {
     // 从注册表获取卡片定义
     final definition = registry.getDefinition(type);
     if (definition != null) {
-      // 在渲染前先适配卡片数据
+      // 渲染前适配 metadata（对齐 Web adaptCard）
       final adaptedCard = registry.adapt(widget.card, viewMode);
-      // 使用注册表中的定义来渲染
       return definition.render(
         CardRenderParams(
-          card: widget.card,
+          card: adaptedCard,
           size: size,
-          editable: false,
+          editable: widget.editable,
           isSelected: isSelected,
           onUpdate: (data) {
             // 更新卡片数据

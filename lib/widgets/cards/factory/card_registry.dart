@@ -21,7 +21,7 @@ class CardRegistry {
     return _definitions[type.toUpperCase()];
   }
 
-  /// 适配后端返回的卡片数据
+  /// 适配后端返回的卡片数据（对齐 Web adaptCard：仅 COMPLETED 或无 status 时适配 metadata）
   CardItem adapt(CardItem card, ViewMode viewMode) {
     final type = card.data.type.toUpperCase();
     final definition = getDefinition(type);
@@ -31,22 +31,20 @@ class CardRegistry {
       return card;
     }
 
-    // 如果定义了适配器，则适配 metadata
-    // 对于 COMPLETED 状态的卡片，总是适配
-    // 对于其他状态的卡片，如果 metadata 不完整（只有 type），也适配以填充默认值
-    final adaptedMetadata = definition.adapt(card.data.metadata);
-    if (adaptedMetadata != null) {
-      final shouldAdapt = card.data.status == 'COMPLETED' ||
-          // 对于客户端卡片（如 NOTE, MARKDOWN），如果 metadata 只有 type，需要适配
-          (card.data.metadata.length <= 1 && card.data.metadata.containsKey('type'));
-      
-      if (shouldAdapt) {
-        // 合并原始 metadata 和适配后的 metadata，保留原始数据中不在适配结果中的字段
-        final mergedMetadata = {
-          ...card.data.metadata,  // 先保留原始数据
-          ...adaptedMetadata,      // 然后用适配后的数据覆盖
-        };
-        
+    if (card.data.status == 'COMPLETED' || card.data.status.isEmpty) {
+      final unwrapped = unwrapEnvelope(card.data.metadata);
+      final adaptedMetadata = definition.adapt(unwrapped);
+      if (adaptedMetadata != null) {
+        final preservedUrl = card.data.metadata['url'];
+        final preservedDisplayMode = card.data.metadata['displayMode'];
+        final metadata = Map<String, dynamic>.from(adaptedMetadata);
+        if (preservedUrl != null && preservedUrl.toString().isNotEmpty) {
+          metadata['url'] = preservedUrl;
+        }
+        if (preservedDisplayMode != null) {
+          metadata['displayMode'] = preservedDisplayMode;
+        }
+
         card = CardItem(
           id: card.id,
           data: CardData(
@@ -54,7 +52,7 @@ class CardRegistry {
             type: card.data.type,
             title: card.data.title,
             description: card.data.description,
-            metadata: mergedMetadata,  // 使用合并后的 metadata
+            metadata: metadata,
             status: card.data.status,
           ),
           layout: card.layout,
@@ -102,6 +100,24 @@ class CardRegistry {
     }
 
     return card;
+  }
+
+  /// 剥离后端 `{ code, message, data }` 信封（对齐 Web adapters.unwrapEnvelope）
+  static dynamic unwrapEnvelope(dynamic raw) {
+    if (raw == null || raw is! Map) return raw;
+    if (!raw.containsKey('code') && !raw.containsKey('message')) return raw;
+
+    final inner = raw['data'];
+    if (inner == null) return raw;
+    if (inner is List) return inner;
+    if (inner is Map) {
+      final rest = Map<String, dynamic>.from(raw);
+      rest.remove('code');
+      rest.remove('message');
+      rest.remove('data');
+      return {...Map<String, dynamic>.from(inner), ...rest};
+    }
+    return raw;
   }
 
   /// 创建新卡片
