@@ -13,6 +13,12 @@ class LinkedInCardDefinition extends CardDefinition {
   String get name => 'LinkedIn';
 
   @override
+  CardAddFlow? get addFlow => CardAddFlow.url;
+
+  @override
+  String? get urlPlaceholder => 'linkedin.com/in/username';
+
+  @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
         desktop: CardSizeConfig(
           supported: ['2x2', '2x4', '4x2', '4x4'],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../stores/card_store.dart';
+import '../../utils/card_url_validation.dart';
 import '../cards/factory/card_definition.dart';
 import 'add_card_forms/form_factory.dart';
 import 'add_card_forms/card_form_base.dart';
@@ -50,6 +51,8 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
   double? _safeAreaBottom;
   /// 上一次的键盘高度，用于检测键盘关闭事件
   double _lastKeyboardHeight = 0.0;
+  bool _isSubmitting = false;
+  String? _inputError;
 
   @override
   void initState() {
@@ -98,22 +101,52 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
   }
 
   Future<void> _onAdd() async {
+    if (_isSubmitting) return;
+
     final formData = await _form.getFormData();
     if (formData == null || !mounted) return;
-    final cardStore = context.read<CardStore>();
-    if(widget.definition.type == 'ACHIEVEMENT_NETWORK') {
-      await cardStore.addCard(
-        type: widget.definition.type,
-        metadata: {'metadata': formData},
-      );
-    }else{
-      debugPrint('addCardaddCardaddCard: ${formData.toString()}');
-      await cardStore.addCard(
-        type: widget.definition.type,
-        metadata: formData,
-      );
+
+    setState(() {
+      _isSubmitting = true;
+      _inputError = null;
+    });
+
+    try {
+      final cardStore = context.read<CardStore>();
+      final def = widget.definition;
+      final typeUpper = def.type.toUpperCase();
+
+      if (typeUpper == 'ACHIEVEMENT_NETWORK') {
+        await cardStore.addCard(
+          type: def.type,
+          metadata: {'metadata': formData},
+        );
+      } else if (def.addFlow == CardAddFlow.username) {
+        await cardStore.addCard(
+          type: def.type,
+          metadata: formData,
+        );
+      } else {
+        final rawUrl = formData['url']?.toString() ?? '';
+        final validated = await validateCardUrlInput(rawUrl);
+        await cardStore.addCard(
+          type: validated.type,
+          metadata: {'url': validated.url},
+        );
+      }
+
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _inputError = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
-    if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
@@ -176,14 +209,14 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
                     ),
                   ),
                   TextButton(
-                    onPressed: _onAdd,
+                    onPressed: _isSubmitting ? null : _onAdd,
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF2563EB),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    child: const Text(
-                      'Add',
-                      style: TextStyle(
+                    child: Text(
+                      _isSubmitting ? 'Adding...' : 'Add',
+                      style: const TextStyle(
                         fontFamily: 'Geist',
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -194,6 +227,25 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
               ),
               const SizedBox(height: 16),
               _form.build(context, def),
+              if (_inputError != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.error_outline, size: 16, color: Color(0xFFEF4444)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _inputError!,
+                        style: const TextStyle(
+                          fontFamily: 'Geist',
+                          fontSize: 13,
+                          color: Color(0xFFEF4444),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

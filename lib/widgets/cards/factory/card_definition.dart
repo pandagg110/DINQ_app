@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../models/card_models.dart';
 
+/// 添加卡片时的输入流程（对齐 Web CardDefinition.addFlow）
+enum CardAddFlow {
+  url,
+  username,
+  custom,
+}
+
 /// 卡片尺寸配置
 class CardSizeConfig {
   final List<String> supported;
@@ -53,6 +60,12 @@ abstract class CardDefinition {
 
   /// 尺寸配置
   CardViewModeSizes get sizes;
+
+  /// 创建时的输入流程；社交 URL 卡默认为 [CardAddFlow.url]
+  CardAddFlow? get addFlow => null;
+
+  /// URL 输入框 placeholder（仅 addFlow 为 url 时有效）
+  String? get urlPlaceholder => null;
 
   /// 数据适配器（可选）
   /// 将后端API返回的raw_metadata转换为Card的metadata格式

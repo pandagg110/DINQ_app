@@ -67,9 +67,7 @@ class LinkForm extends CardFormBase {
   }
 
   String _getPlaceholder(CardDefinition def) {
-    final t = def.type.toUpperCase();
-    if (t == 'LINKEDIN') return 'linkedin.com/in/username';
-    return 'Input URL for ${def.name}';
+    return def.urlPlaceholder ?? 'Input URL for ${def.name}';
   }
 
   Widget _buildIcon(CardDefinition def) {

@@ -4,12 +4,13 @@ import '../asset_icon.dart';
 import '../../../utils/icon_mapping.dart' as icon_mapping;
 import 'card_form_base.dart';
 
-/// 默认/非 Link 类型的表单
-class DefaultForm extends CardFormBase {
+/// Username 输入表单（WeChat / Telegram，对齐 Web addFlow: username）
+class UsernameForm extends CardFormBase {
   final TextEditingController controller;
   final FocusNode focusNode;
   final CardDefinition definition;
-  DefaultForm({
+
+  UsernameForm({
     required this.controller,
     required this.focusNode,
     required this.definition,
@@ -27,7 +28,7 @@ class DefaultForm extends CardFormBase {
             controller: controller,
             focusNode: focusNode,
             decoration: InputDecoration(
-              hintText: _getPlaceholder(definition),
+              hintText: 'Username for ${definition.name}',
               hintStyle: const TextStyle(
                 fontFamily: 'Geist',
                 fontSize: 14,
@@ -64,17 +65,13 @@ class DefaultForm extends CardFormBase {
   Future<Map<String, dynamic>?> getFormData() async {
     final value = controller.text.trim();
     if (value.isEmpty) return null;
-    return {'url': value};
-  }
-
-  String _getPlaceholder(CardDefinition def) {
-    return def.urlPlaceholder ?? 'Input URL for ${def.name}';
+    return {'username': value};
   }
 
   Widget _buildIcon(CardDefinition def) {
     final icon = def.icon;
     if (icon.startsWith('i-lucide-') || icon.startsWith('i-mdi:')) {
-      return _iconFallback(def.type);
+      return _iconFallback();
     }
     final asset = icon.startsWith('/') ? icon.substring(1) : icon;
     String finalAsset = asset;
@@ -93,7 +90,7 @@ class DefaultForm extends CardFormBase {
     );
   }
 
-  Widget _iconFallback(String type) {
+  Widget _iconFallback() {
     return Container(
       width: 48,
       height: 48,
@@ -102,7 +99,7 @@ class DefaultForm extends CardFormBase {
         color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(Icons.link, size: 24, color: Colors.grey.shade700),
+      child: Icon(Icons.person, size: 24, color: Colors.grey.shade700),
     );
   }
 }
