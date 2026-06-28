@@ -40,11 +40,12 @@ int getGroupToolCount(AgenticMessageGroup group) {
 bool groupHasResultWorkspace(AgenticMessageGroup group, {required bool isSearching}) {
   if (group.toolType != null) return false;
   final hasRows = group.candidates.isNotEmpty;
+  if (hasRows) return true;
+  // 与 Web SearchPanel.tsx RoundSection 一致：仅搜索进行中且（有工具 / start search）时展示结果工作区入口
+  if (!isSearching) return false;
   final toolCount = getGroupToolCount(group);
-  return hasRows ||
-      toolCount > 0 ||
-      (isSearching &&
-          isStartSearchMarker(group.displayQuery ?? group.userQuery));
+  return toolCount > 0 ||
+      isStartSearchMarker(group.displayQuery ?? group.userQuery);
 }
 
 /// 与 TSX `SearchPanel.tsx` result-entry-flow-card 对齐。
