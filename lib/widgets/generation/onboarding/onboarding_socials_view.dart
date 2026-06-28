@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../utils/card_url_validation.dart';
 import '../../../utils/onboarding_social_icons.dart';
+import '../../common/asset_icon.dart';
 import 'onboarding_top_bar.dart';
 
 class OnboardingAddedLink {
@@ -227,30 +227,54 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
   }
 
   Widget _buildIconGrid() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 336),
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            ...OnboardingSocialIcons.platformIconFiles.map(
-              (icon) => _PlatformIconTile(
-                asset: OnboardingSocialIcons.assetFor(icon.file),
-                label: icon.name,
-              ),
-            ),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0EEE8),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF9E9B93)),
-            ),
+    const iconSize = 40.0;
+    const gap = 10.0;
+    const iconsPerRow = 9;
+
+    final tiles = <Widget>[
+      ...OnboardingSocialIcons.platformIconFiles.map(
+        (icon) => _PlatformIconTile(
+          asset: OnboardingSocialIcons.assetFor(icon.file),
+          label: icon.name,
+        ),
+      ),
+      Container(
+        width: iconSize,
+        height: iconSize,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0EEE8),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF9E9B93)),
+      ),
+    ];
+
+    Widget buildRow(List<Widget> items) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const SizedBox(width: gap),
+            items[i],
           ],
+        ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              buildRow(tiles.sublist(0, iconsPerRow)),
+              const SizedBox(height: gap),
+              buildRow(tiles.sublist(iconsPerRow)),
+            ],
+          ),
         ),
       ),
     );
@@ -283,6 +307,12 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
                     color: Color(0x66303030),
                   ),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -469,16 +499,7 @@ class _PlatformIconTile extends StatelessWidget {
         child: SizedBox(
           width: 40,
           height: 40,
-          child: SvgPicture.asset(
-            asset,
-            width: 40,
-            height: 40,
-            fit: BoxFit.contain,
-            placeholderBuilder: (_) => Container(
-              color: const Color(0xFFF0EEE8),
-              child: const Icon(Icons.link, size: 20, color: Color(0xFF9E9B93)),
-            ),
-          ),
+          child: AssetIcon(asset: asset, size: 40),
         ),
       ),
     );
@@ -529,18 +550,7 @@ class _AddedRow extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: SvgPicture.asset(
-              iconAsset,
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-              placeholderBuilder: (_) => Container(
-                width: 24,
-                height: 24,
-                color: const Color(0xFFF0EEE8),
-                child: const Icon(Icons.link, size: 14, color: Color(0xFF6B6862)),
-              ),
-            ),
+            child: AssetIcon(asset: iconAsset, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(

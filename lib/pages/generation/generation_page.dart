@@ -115,6 +115,8 @@ class _GenerationPageState extends State<GenerationPage> {
   int _redirectCountdown = 3;
   Timer? _redirectTimer;
   String? _onboardingReturnPath;
+  bool _isStandaloneSocialsEntry = false;
+  bool _queryStepApplied = false;
   
   // Confetti 控制器
   late ConfettiController _confettiController;
@@ -255,6 +257,15 @@ class _GenerationPageState extends State<GenerationPage> {
     
     // 从 URL query 参数获取 domain / handle（优先级更高）
     final query = GoRouterState.of(context).uri.queryParameters;
+    if (!_queryStepApplied) {
+      _queryStepApplied = true;
+      final step = query['step']?.trim().toLowerCase();
+      if (step == 'socials' || step == 'social-links' || step == 'social') {
+        _isStandaloneSocialsEntry = true;
+        _onboardingReturnPath ?? '/me';
+        setState(() => _currentStep = GenerationStep.onboardingSocials);
+      }
+    }
     final next = query['next']?.trim();
     if (next != null && next.isNotEmpty) {
       _onboardingReturnPath = next;
@@ -512,9 +523,17 @@ class _GenerationPageState extends State<GenerationPage> {
         body: SafeArea(
           child: OnboardingSocialsView(
             initialLinks: _onboardingSocialLinks,
-            onBack: () => setState(() {
-              _currentStep = GenerationStep.welcome;
-            }),
+            onBack: () {
+              if (_isStandaloneSocialsEntry) {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go(_onboardingReturnPath ?? '/me');
+                }
+              } else {
+                setState(() => _currentStep = GenerationStep.welcome);
+              }
+            },
             onFinish: _finishOnboardingSocials,
           ),
         ),

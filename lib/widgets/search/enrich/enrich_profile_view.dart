@@ -14,6 +14,7 @@ import '../../../services/shortlist_service.dart';
 import '../../../stores/deep_search_enrich_store.dart';
 import '../../../stores/search_store.dart';
 import '../deep_search/deep_search_results_helpers.dart';
+import '../../common/asset_icon.dart';
 import 'enrich_contact_email_modal.dart';
 import 'enrich_icons.dart';
 import 'enrich_tool_log_timeline.dart';
@@ -1208,7 +1209,7 @@ class _SocialChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (asset != null)
-                SvgPicture.asset(asset, width: 14, height: 14)
+                AssetIcon(asset: asset, size: 14)
               else
                 const EnrichSvgIcon(
                   EnrichIcons.externalLink,

@@ -149,6 +149,11 @@ class _MePageState extends State<MePage> {
                       _menuItem(Icons.description_outlined, 'Resume',
                           () => context.push('/admin/mydinq/resume')),
                       _menuDivider(),
+                      _menuItem(Icons.link_outlined, 'Add social links', () {
+                        final next = Uri.encodeComponent('/me');
+                        context.push('/generation?step=socials&next=$next');
+                      }),
+                      _menuDivider(),
                       _menuItem(Icons.hub_outlined, 'Integrations',
                           () => context.push('/me/integration')),
                       _menuDivider(),

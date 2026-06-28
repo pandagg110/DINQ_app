@@ -26,6 +26,10 @@ abstract final class OnboardingSocialIcons {
     'threads.svg': 'Threads.svg',
     'bluesky.svg': 'BlueSky.svg',
     'website.svg': 'website.svg',
+    'bilibili.svg': 'Bilibili.svg',
+    'netease.svg': 'Netease.svg',
+    'red-note.svg': 'RedNote.svg',
+    'vibe.svg': 'Vibe.svg',
   };
 
   static const platformIconFiles = <({String file, String name})>[

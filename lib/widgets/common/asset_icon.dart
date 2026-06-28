@@ -20,9 +20,12 @@ class AssetIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // If it's a social-icons SVG, map it to logo PNG
-    String finalAsset = asset;
-    if (asset.contains('icons/social-icons/')) {
-      finalAsset = mapSvgToPng(asset);
+    var finalAsset = asset;
+    if (finalAsset.startsWith('assets/')) {
+      finalAsset = finalAsset.substring('assets/'.length);
+    }
+    if (finalAsset.contains('icons/social-icons/')) {
+      finalAsset = mapSvgToPng(finalAsset);
     }
 
     final path = assetPath(finalAsset);

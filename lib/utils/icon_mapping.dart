@@ -27,11 +27,21 @@ String mapSvgToPng(String svgPath) {
     'Snapchat': 'Snapchat',
     'Vimeo': 'Vimeo',
     'Discord': 'Discord',
+    'Medium': 'Medium',
+    'Substack': 'Substack',
+    'HuggingFace': 'HuggingFace',
+    'BlueSky': 'BlueSky',
+    'Threads': 'Threads',
+    'RedNote': 'RedNote',
   };
-  
+
+  if (svgName == 'Link' || svgName == 'website') {
+    return 'icons/link.png';
+  }
+
   // Get the PNG filename (default to original name if not in mapping)
   final pngName = mapping[svgName] ?? svgName;
-  
+
   // Return the path to logo PNG
   return 'icons/logo/$pngName.png';
 }
