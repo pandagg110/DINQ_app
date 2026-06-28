@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../widgets/common/base_page.dart';
 import 'onboarding_icons.dart';
@@ -149,35 +148,21 @@ class _MobileStartLayout extends StatelessWidget {
           const SizedBox(height: 32),
           _MobileOptionCard(
             onTap: onLinkedIn,
-            icon: _LinkedInIconBadge(),
+            icon: const OnboardingOptionIcon(OnboardingIcons.linkedinOption),
             title: 'Import from LinkedIn',
             subtitle: 'Fastest and most comprehensive',
           ),
           const SizedBox(height: 12),
           _MobileOptionCard(
             onTap: onUploadResume,
-            icon: _TintedIconBadge(
-              backgroundColor: Color(0xFFEAF3FF),
-              child: OnboardingSvgIcon(
-                OnboardingIcons.fileUp,
-                size: 22,
-                color: Color(0xFF2563EB),
-              ),
-            ),
+            icon: const OnboardingOptionIcon(OnboardingIcons.uploadOption),
             title: 'Upload Resume',
             subtitle: 'Parse a PDF or Word doc',
           ),
           const SizedBox(height: 12),
           _MobileOptionCard(
             onTap: onStartManual,
-            icon: _TintedIconBadge(
-              backgroundColor: Color(0xFFFFF0E6),
-              child: OnboardingSvgIcon(
-                OnboardingIcons.userPlus,
-                size: 22,
-                color: Color(0xFFE87A35),
-              ),
-            ),
+            icon: const OnboardingOptionIcon(OnboardingIcons.scratchOption),
             title: 'Start from Scratch',
             subtitle: 'Build manually step by step',
           ),
@@ -302,42 +287,6 @@ class _MobileOptionCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LinkedInIconBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SvgPicture.asset(
-        OnboardingIcons.linkedin,
-        width: 48,
-        height: 48,
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-}
-
-class _TintedIconBadge extends StatelessWidget {
-  const _TintedIconBadge({required this.backgroundColor, required this.child});
-
-  final Color backgroundColor;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: child,
     );
   }
 }
@@ -627,11 +576,11 @@ class _LinkedInHeroCard extends StatelessWidget {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: SvgPicture.asset(
-                        OnboardingIcons.linkedin,
+                      child: Image.asset(
+                        OnboardingIcons.linkedinOption,
                         width: 40,
                         height: 40,
-                        fit: BoxFit.contain,
+                        fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -888,13 +837,13 @@ class _SecondaryOptions extends StatelessWidget {
       childAspectRatio: 1.05,
       children: [
         OnboardingSecondaryCard(
-          iconAsset: OnboardingIcons.fileUp,
+          iconAsset: OnboardingIcons.uploadOption,
           title: 'Upload Resume',
           description: 'Parse a PDF resume',
           onTap: onUploadResume,
         ),
         OnboardingSecondaryCard(
-          iconAsset: OnboardingIcons.pencilLine,
+          iconAsset: OnboardingIcons.scratchOption,
           title: 'Start from Scratch',
           description: 'Build manually step by step',
           onTap: onStartManual,

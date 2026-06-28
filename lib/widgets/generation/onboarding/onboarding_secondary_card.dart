@@ -48,16 +48,7 @@ class OnboardingSecondaryCard extends StatelessWidget {
   }
 
   Widget _iconBox() {
-    return Container(
-      width: 48,
-      height: 48,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEEEDE9)),
-      ),
-      child: OnboardingSvgIcon(iconAsset, size: 20),
-    );
+    return OnboardingOptionIcon(iconAsset, size: 48);
   }
 
   Widget _textColumn({required bool showDescription}) {
@@ -94,22 +85,7 @@ class OnboardingSecondaryCard extends StatelessWidget {
   Widget _mobileLayout() {
     return Row(
       children: [
-        SizedBox(
-          width: 40,
-          height: 40,
-          child: Center(
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFEEEDE9)),
-              ),
-              child: OnboardingSvgIcon(iconAsset, size: 20),
-            ),
-          ),
-        ),
+        OnboardingOptionIcon(iconAsset, size: 40),
         const SizedBox(width: 12),
         Expanded(child: _textColumn(showDescription: false)),
       ],

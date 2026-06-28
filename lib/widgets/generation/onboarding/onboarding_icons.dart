@@ -5,6 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 abstract final class OnboardingIcons {
   static const _base = 'assets/icons/generation/onboarding';
   static const linkedin = 'assets/icons/social-icons/LinkedIn.svg';
+  static const linkedinOption = 'assets/images/generation/linkin.png';
+  static const uploadOption = 'assets/images/generation/upload.svg';
+  static const scratchOption = 'assets/images/generation/scratch.svg';
   static const fileUp = '$_base/file-up.svg';
   static const pencilLine = '$_base/pencil-line.svg';
   static const alertCircle = '$_base/alert-circle.svg';
@@ -39,6 +42,40 @@ class OnboardingSvgIcon extends StatelessWidget {
         fit: BoxFit.contain,
         colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       ),
+    );
+  }
+}
+
+/// 首屏三选项图标（含背景，PNG / SVG 原色展示）。
+class OnboardingOptionIcon extends StatelessWidget {
+  const OnboardingOptionIcon(
+    this.asset, {
+    super.key,
+    this.size = 48,
+  });
+
+  final String asset;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget image = asset.endsWith('.png')
+        ? Image.asset(
+            asset,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          )
+        : SvgPicture.asset(
+            asset,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(width: size, height: size, child: image),
     );
   }
 }
