@@ -254,6 +254,10 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         final bSelected = selectedIds.contains(b.i);
         if (aSelected && !bSelected) return 1;
         if (!aSelected && bSelected) return -1;
+        if (aSelected && bSelected) {
+          // y 较小的卡片（靠上）后绘制，底部 move 按钮可盖住下方卡片
+          return b.y.compareTo(a.y);
+        }
         return 0;
       });
     if (_gridState == null) {
@@ -320,25 +324,7 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    GridLayoutWidget(
-                      state: _gridState!,
-                      params: params,
-                      itemBuilder: (context, item) {
-                        final card = cardById[item.i];
-                        if (card == null) return const SizedBox.shrink();
-                        final content = widget.editable
-                            ? GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () =>
-                                    cardStore.toggleCardSelection(card.id),
-                                child: CardRenderer(
-                                    card: card, editable: widget.editable),
-                              )
-                            : CardRenderer(
-                                card: card, editable: widget.editable);
-                        return content;
-                      },
-                    ),
+                    // 占位符先绘制，卡片后绘制，避免选中卡片底部 move 按钮被占位符遮挡
                     if (placeholderPositions.isNotEmpty)
                       Positioned(
                         left: 0,
@@ -359,6 +345,25 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                           ),
                         ),
                       ),
+                    GridLayoutWidget(
+                      state: _gridState!,
+                      params: params,
+                      itemBuilder: (context, item) {
+                        final card = cardById[item.i];
+                        if (card == null) return const SizedBox.shrink();
+                        final content = widget.editable
+                            ? GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () =>
+                                    cardStore.toggleCardSelection(card.id),
+                                child: CardRenderer(
+                                    card: card, editable: widget.editable),
+                              )
+                            : CardRenderer(
+                                card: card, editable: widget.editable);
+                        return content;
+                      },
+                    ),
                   ],
                 );
               },
