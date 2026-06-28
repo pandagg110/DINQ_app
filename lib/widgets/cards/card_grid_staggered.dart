@@ -191,8 +191,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                     mainRowHeight: mainRowHeight,
                     onPlaceholderClick: (pos) =>
                         widget.onPlaceholderClick?.call(pos.config),
-                    onPlaceholderDelete: (type) =>
-                        placeholderNotifier.hidePlaceholder(type),
                   ),
               ],
             ),
@@ -231,8 +229,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                     mainRowHeight: mainRowHeight,
                     onPlaceholderClick: (pos) =>
                         widget.onPlaceholderClick?.call(pos.config),
-                    onPlaceholderDelete: (type) =>
-                        placeholderNotifier.hidePlaceholder(type),
                   ),
               ],
             ),
@@ -340,8 +336,6 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                             dragSnapshot: dragSnapshot,
                             onPlaceholderClick: (pos) =>
                                 widget.onPlaceholderClick?.call(pos.config),
-                            onPlaceholderDelete: (type) =>
-                                placeholderNotifier.hidePlaceholder(type),
                           ),
                         ),
                       ),

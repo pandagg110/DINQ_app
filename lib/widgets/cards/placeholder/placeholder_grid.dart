@@ -13,7 +13,6 @@ class PlaceholderGrid extends StatelessWidget {
     required this.contentSlotWidth,
     required this.mainRowHeight,
     required this.onPlaceholderClick,
-    required this.onPlaceholderDelete,
     required this.width,
     this.dragSnapshot,
   });
@@ -22,7 +21,6 @@ class PlaceholderGrid extends StatelessWidget {
   final double contentSlotWidth;
   final double mainRowHeight;
   final void Function(PlaceholderPosition pos) onPlaceholderClick;
-  final void Function(String type) onPlaceholderDelete;
   final double width;
   /// 拖拽过程中的数据（由外部从 GridLayoutState.dragState 转换后传入）
   final GridDragSnapshot? dragSnapshot;
@@ -61,7 +59,6 @@ class PlaceholderGrid extends StatelessWidget {
                 child: PlaceholderCard(
                   config: pos.config,
                   onTap: () => onPlaceholderClick(pos),
-                  onDelete: () => onPlaceholderDelete(pos.config.type),
                 ),
               ),
             ),
