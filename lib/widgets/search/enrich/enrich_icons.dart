@@ -24,8 +24,8 @@ abstract final class EnrichIcons {
 String enrichSocialIconAsset(String type) {
   const map = {
     'google_scholar': 'assets/icons/social-icons/Scholar.svg',
-    'linkedin': 'assets/icons/social-icons/LinkedIn.svg',
-    'github': 'assets/icons/social-icons/Github.svg',
+    'linkedin': 'assets/icons/search/linkedin.svg',
+    'github': 'assets/icons/search/github.svg',
     'openreview': 'assets/icons/social-icons/OpenReview.svg',
     'twitter': 'assets/icons/social-icons/Twitter.svg',
     'huggingface': 'assets/icons/social-icons/HuggingFace.svg',
