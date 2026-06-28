@@ -2785,7 +2785,7 @@ class _GenerationPageState extends State<GenerationPage> {
         _useOnboardingHandle = true;
         _draftUserData = result['user_data'] as Map<String, dynamic>?;
         _isAnalyzing = false;
-        _currentStep = GenerationStep.domain;
+        _currentStep = GenerationStep.profileBasics;
       });
       _prefillProfileFromDraft();
       _maybePrefillHandle();
@@ -2930,7 +2930,13 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   void _handleBasicsBack() {
-    setState(() => _currentStep = GenerationStep.start);
+    setState(() {
+      if (_analyzeMode == 'resume') {
+        _currentStep = GenerationStep.upload;
+      } else {
+        _currentStep = GenerationStep.start;
+      }
+    });
   }
 
   void _handleBasicsContinue() {

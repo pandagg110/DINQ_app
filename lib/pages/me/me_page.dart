@@ -140,6 +140,11 @@ class _MePageState extends State<MePage> {
                     _menuCard([
                       _menuItem(Icons.badge_outlined, 'My DINQ', () => context.push('/admin/mydinq')),
                       _menuDivider(),
+                      _menuItem(Icons.add_circle_outline, 'Create DINQ', () {
+                        final next = Uri.encodeComponent('/me');
+                        context.push('/generation?next=$next');
+                      }),
+                      _menuDivider(),
                       _menuItem(Icons.business_outlined, 'Organization',
                           () => context.push('/me/organization')),
                       _menuDivider(),
