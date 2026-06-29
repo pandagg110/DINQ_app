@@ -95,6 +95,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Future<void> _loadData() async {
     final cardStore = _cardStore!;
+    await _refreshProfileData(checkInitialName: true);
+    await cardStore.loadCards(widget.username);
+  }
+
+  Future<void> _refreshProfileData({bool checkInitialName = false}) async {
     try {
       final userData = await _profileService.getUserData(widget.username);
       if (!mounted) return;
@@ -114,7 +119,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       final flowStatus = myFlow?.status;
       final nameIsEmpty = userData.name.isEmpty || userData.name.trim().isEmpty;
 
-      if (mounted && isEditable && flowStatus == 'success' && nameIsEmpty) {
+      if (mounted &&
+          checkInitialName &&
+          isEditable &&
+          flowStatus == 'success' &&
+          nameIsEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showSetNameDialog();
         });
@@ -123,7 +132,6 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
-    await cardStore.loadCards(widget.username);
   }
 
   Future<void> _showSetNameDialog() async {
@@ -145,10 +153,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               final userStore = context.read<UserStore>();
               await userStore.updateUserData({'name': name});
 
-              if (mounted) {
+              if (mounted && dialogContext.mounted) {
                 Navigator.of(dialogContext).pop(true);
                 // 刷新数据
-                await _loadData();
+                await _refreshProfileData();
               }
             } catch (e) {
               if (mounted) {
@@ -203,7 +211,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
     if (widget.showAppBar) {
       // 站内私信：仅当查看的是「已注册且有主页」的他人主页（有 user_id 且非本人）时显示
-      final canMessage = userData != null &&
+      final canMessage =
+          userData != null &&
           userData.userId.isNotEmpty &&
           !_isEditable(userData);
       return AppBar(
@@ -238,10 +247,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   bool get _hasTopBar =>
-      !widget.embeddedInMyDinq && (widget.showAppBar || widget.showMyDinqTopBar);
+      !widget.embeddedInMyDinq &&
+      (widget.showAppBar || widget.showMyDinqTopBar);
 
   bool get _isEditMode =>
-      widget.embeddedInMyDinq || (!_isPreviewMode && _userData != null && _isEditable(_userData!));
+      widget.embeddedInMyDinq ||
+      (!_isPreviewMode && _userData != null && _isEditable(_userData!));
 
   @override
   Widget build(BuildContext context) {
@@ -289,8 +300,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               )
             else
               Scaffold(
-                backgroundColor:
-                    widget.showMyDinqTopBar ? DinqTokens.bgPage : null,
+                backgroundColor: widget.showMyDinqTopBar
+                    ? DinqTokens.bgPage
+                    : null,
                 appBar: _buildAppBar(
                   context: context,
                   isEditable: isEditable,
@@ -342,10 +354,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                   },
                 ),
               ] else
-                FloatingToolbar(
-                  isMobile: true,
-                  isSaving: _cardStore!.isSaving,
-                ),
+                FloatingToolbar(isMobile: true, isSaving: _cardStore!.isSaving),
             ],
           ],
         ),
@@ -355,12 +364,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   Widget _buildProfileBody(bool isEditable) {
     final hasFloatingEditToolbar = _isEditMode && isEditable;
-    final baseBottomPadding =
-        widget.embeddedInMyDinq || widget.showMyDinqTopBar
-            ? 32.0
-            : ConstantsTool.bottomTabHeight + 32.0;
-    final scrollBottomPadding = baseBottomPadding +
-        (hasFloatingEditToolbar ? 112.0 : 0.0);
+    final baseBottomPadding = widget.embeddedInMyDinq || widget.showMyDinqTopBar
+        ? 32.0
+        : ConstantsTool.bottomTabHeight + 32.0;
+    final scrollBottomPadding =
+        baseBottomPadding + (hasFloatingEditToolbar ? 112.0 : 0.0);
 
     return SafeArea(
       top: !_hasTopBar && !widget.embeddedInMyDinq,
@@ -379,15 +387,13 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                         _handlePreviewModeChanged(true);
                       }
                     },
-               child: SingleChildScrollView(
-                 padding: EdgeInsets.only(
-                   top: widget.embeddedInMyDinq
-                       ? 16
-                       : (widget.showMyDinqTopBar
-                           ? 16
-                           : (_hasTopBar ? 24 : 68)),
-                   bottom: scrollBottomPadding,
-                 ),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  top: widget.embeddedInMyDinq
+                      ? 16
+                      : (widget.showMyDinqTopBar ? 16 : (_hasTopBar ? 24 : 68)),
+                  bottom: scrollBottomPadding,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -406,10 +412,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                               ? false
                               : _isPreviewMode,
                           onPreviewModeChanged: _handlePreviewModeChanged,
-                          onAvatarUpdated: _loadData,
+                          onAvatarUpdated: _refreshProfileData,
                           onStatusEdit: () =>
                               _showStatusModal(context, _userData!),
-                          onDataUpdated: _loadData,
+                          onDataUpdated: _refreshProfileData,
                           onShare: () {
                             if (_userData == null) return;
                             ShareProfileDialog.show(
@@ -420,7 +426,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                             );
                           },
                           showToggle: false,
-                          showShare: !widget.showMyDinqTopBar &&
+                          showShare:
+                              !widget.showMyDinqTopBar &&
                               !widget.embeddedInMyDinq,
                         ),
                       ),
@@ -476,10 +483,14 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     }
     setState(() => _isStartingChat = true);
     try {
-      final resp = await _messageService.createPrivateConversation(owner.userId);
+      final resp = await _messageService.createPrivateConversation(
+        owner.userId,
+      );
       final conv = resp['conversation'];
       final convId =
-          (conv is Map ? (conv['id'] ?? conv['conversation_id']) : resp['id'])?.toString() ?? '';
+          (conv is Map ? (conv['id'] ?? conv['conversation_id']) : resp['id'])
+              ?.toString() ??
+          '';
       if (!mounted) return;
       if (convId.isNotEmpty) {
         context.push('/admin/inbox/$convId');
