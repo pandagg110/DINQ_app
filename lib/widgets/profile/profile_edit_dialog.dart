@@ -485,6 +485,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
           hintText: 'Not set',
           enableSearch: false,
           enableFilter: false,
+          menuStyle: const MenuStyle(
+            backgroundColor: WidgetStatePropertyAll(Colors.white),
+            surfaceTintColor: WidgetStatePropertyAll(Colors.white),
+          ),
           dropdownMenuEntries: _kJobStatuses
               .map(
                 (e) => DropdownMenuEntry<String>(
@@ -546,6 +550,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
           hintText: 'Select timezone',
           enableSearch: false,
           enableFilter: false,
+          menuStyle: const MenuStyle(
+            backgroundColor: WidgetStatePropertyAll(Colors.white),
+            surfaceTintColor: WidgetStatePropertyAll(Colors.white),
+          ),
           dropdownMenuEntries: _kTimezones
               .map(
                 (tz) => DropdownMenuEntry<String>(

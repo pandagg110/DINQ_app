@@ -354,6 +354,14 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   }
 
   Widget _buildProfileBody(bool isEditable) {
+    final hasFloatingEditToolbar = _isEditMode && isEditable;
+    final baseBottomPadding =
+        widget.embeddedInMyDinq || widget.showMyDinqTopBar
+            ? 32.0
+            : ConstantsTool.bottomTabHeight + 32.0;
+    final scrollBottomPadding = baseBottomPadding +
+        (hasFloatingEditToolbar ? 112.0 : 0.0);
+
     return SafeArea(
       top: !_hasTopBar && !widget.embeddedInMyDinq,
       bottom: false,
@@ -371,17 +379,15 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                         _handlePreviewModeChanged(true);
                       }
                     },
-              child: SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  top: widget.embeddedInMyDinq
-                      ? 16
-                      : (widget.showMyDinqTopBar
-                          ? 16
-                          : (_hasTopBar ? 24 : 68)),
-                  bottom: widget.embeddedInMyDinq || widget.showMyDinqTopBar
-                      ? 32
-                      : ConstantsTool.bottomTabHeight + 32,
-                ),
+               child: SingleChildScrollView(
+                 padding: EdgeInsets.only(
+                   top: widget.embeddedInMyDinq
+                       ? 16
+                       : (widget.showMyDinqTopBar
+                           ? 16
+                           : (_hasTopBar ? 24 : 68)),
+                   bottom: scrollBottomPadding,
+                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
