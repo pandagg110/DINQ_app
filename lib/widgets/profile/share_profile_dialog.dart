@@ -108,8 +108,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   }
 
   void _shareWhatsApp() {
-    final url =
-        'https://wa.me/?text=${Uri.encodeComponent(_shareContent)}';
+    final url = 'https://wa.me/?text=${Uri.encodeComponent(_shareContent)}';
     _openShareUrl(url);
   }
 
@@ -128,7 +127,8 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   Future<void> _showMoreMenu() async {
     final box = _moreButtonKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !mounted) return;
-    final overlay = Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    final overlay =
+        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
     if (overlay == null) return;
     final buttonRect = box.localToGlobal(Offset.zero) & box.size;
     const menuHeight = 96.0;
@@ -159,11 +159,18 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.download_outlined, size: 20, color: Color(0xFF374151)),
+                  : const Icon(
+                      Icons.download_outlined,
+                      size: 20,
+                      color: Color(0xFF374151),
+                    ),
               const SizedBox(width: 12),
               const Text(
                 'Download',
-                style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF111827),
+                ),
               ),
             ],
           ),
@@ -176,7 +183,10 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
               SizedBox(width: 12),
               Text(
                 'Copy link',
-                style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF111827),
+                ),
               ),
             ],
           ),
@@ -251,7 +261,11 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                   padding: const EdgeInsets.only(right: 18),
                   child: IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, size: 20, color: Color(0xFF4B5563)),
+                    icon: const Icon(
+                      Icons.close,
+                      size: 20,
+                      color: Color(0xFF4B5563),
+                    ),
                     style: IconButton.styleFrom(
                       padding: const EdgeInsets.all(6),
                       minimumSize: const Size(32, 32),
@@ -315,7 +329,6 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                             },
                           )
                         : Container(
-                            
                             alignment: Alignment.center,
                             child: FittedBox(
                               fit: BoxFit.contain,
@@ -408,7 +421,6 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
       ),
     );
   }
-
 }
 
 class _SegmentButton extends StatelessWidget {
@@ -456,7 +468,9 @@ class _SegmentButton extends StatelessWidget {
                   width: 20,
                   height: 20,
                   colorFilter: ColorFilter.mode(
-                    selected ? const Color(0xFF171717) : const Color(0xFF6B7280),
+                    selected
+                        ? const Color(0xFF171717)
+                        : const Color(0xFF6B7280),
                     BlendMode.srcIn,
                   ),
                 ),
@@ -468,7 +482,9 @@ class _SegmentButton extends StatelessWidget {
                   fontFamily: 'Geist',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: selected ? const Color(0xFF171717) : const Color(0xFF6B7280),
+                  color: selected
+                      ? const Color(0xFF171717)
+                      : const Color(0xFF6B7280),
                 ),
               ),
             ],

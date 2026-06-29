@@ -16,10 +16,7 @@ class AddPage extends StatelessWidget {
 
   /// Recommended：前 4 个 general + 前 4 个 social，按 type 去重。
   static List<CardDefinition> get recommendedCards {
-    final combined = [
-      ...generalCards.take(4),
-      ...socialCards.take(4),
-    ];
+    final combined = [...generalCards.take(4), ...socialCards.take(4)];
     final seen = <String>{};
     return combined.where((c) => seen.add(c.type.toUpperCase())).toList();
   }
@@ -36,6 +33,10 @@ class AddPage extends StatelessWidget {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
             onPressed: () => Navigator.of(context).pop(),
+            style: IconButton.styleFrom(
+              splashFactory: NoSplash.splashFactory,
+              overlayColor: Colors.transparent,
+            ),
           ),
           title: const Text(
             'Add',
@@ -48,6 +49,8 @@ class AddPage extends StatelessWidget {
           ),
           centerTitle: true,
           bottom: TabBar(
+            splashFactory: NoSplash.splashFactory,
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
             labelColor: const Color(0xFF2563EB),
             unselectedLabelColor: const Color(0xFF6B7280),
             indicatorColor: const Color(0xFF2563EB),
@@ -84,8 +87,9 @@ class _AddGrid extends StatelessWidget {
     if (type != 'ACHIEVEMENT_NETWORK' && type != 'CAREER_TRAJECTORY') {
       return false;
     }
-    return existingCards
-        .any((c) => c.data.type.toUpperCase() == type.toUpperCase());
+    return existingCards.any(
+      (c) => c.data.type.toUpperCase() == type.toUpperCase(),
+    );
   }
 
   @override
@@ -109,10 +113,7 @@ class _AddGrid extends StatelessWidget {
           final disabled = _isCardDisabled(def.type, existingCards);
           return SizedBox(
             width: itemWidth,
-            child: AddCardBtn(
-              definition: def,
-              disabled: disabled,
-            ),
+            child: AddCardBtn(definition: def, disabled: disabled),
           );
         }).toList(),
       ),
@@ -121,10 +122,7 @@ class _AddGrid extends StatelessWidget {
 }
 
 class AddCardBtn extends StatelessWidget {
-  const AddCardBtn({
-    required this.definition,
-    required this.disabled,
-  });
+  const AddCardBtn({required this.definition, required this.disabled});
 
   final CardDefinition definition;
   final bool disabled;
@@ -144,10 +142,7 @@ class AddCardBtn extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    width: 1,
-                    color: const Color(0x12303030),
-                  ),
+                  border: Border.all(width: 1, color: const Color(0x12303030)),
                 ),
                 child: InkWell(
                   onTap: () async {
@@ -167,7 +162,9 @@ class AddCardBtn extends StatelessWidget {
                     height: 48,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
                       child: Row(
                         children: [
                           _buildIcon(),

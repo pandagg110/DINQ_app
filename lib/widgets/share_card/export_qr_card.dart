@@ -25,41 +25,42 @@ class ExportQrCard extends StatelessWidget {
   final UserData userInfo;
   final String username;
   final String profileUrl;
+
   /// 是否用于导出（无圆角）
   final bool forExport;
+
   /// QR 码尺寸，默认 210
   final double size;
 
-  String get _qrValue => profileUrl.isNotEmpty ? profileUrl : 'https://mydinq.com/$username';
+  String get _qrValue =>
+      profileUrl.isNotEmpty ? profileUrl : 'https://mydinq.com/$username';
 
-  String get _avatarUrl =>
-      userInfo.avatarUrl.isNotEmpty ? userInfo.avatarUrl : assetPath('images/default-avatar.svg');
+  String get _avatarUrl => userInfo.avatarUrl.isNotEmpty
+      ? userInfo.avatarUrl
+      : assetPath('images/default-avatar.svg');
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 315,
       height: 330,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: forExport ? BorderRadius.zero : BorderRadius.circular(12),
+      ),
+      foregroundDecoration: BoxDecoration(
         border: Border.all(color: const Color(0xFFD8D8D8)),
         borderRadius: forExport ? BorderRadius.zero : BorderRadius.circular(12),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Center(
-              child: _buildQrWithAvatar(),
-            ),
-          ),
+          Expanded(child: Center(child: _buildQrWithAvatar())),
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Container(
-              height: 1,
-              color: const Color(0xFFD8D8D8),
-            ),
+            child: Container(height: 1, color: const Color(0xFFD8D8D8)),
           ),
           Container(
             color: Colors.white,
