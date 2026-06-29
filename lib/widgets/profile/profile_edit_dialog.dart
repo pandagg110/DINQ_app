@@ -2,8 +2,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:dinq_app/utils/top_toast_util.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:croppy/croppy.dart';
@@ -11,10 +9,9 @@ import 'package:croppy/croppy.dart';
 import '../../models/user_models.dart';
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
-import '../common/read_bytes_from_path_stub.dart'
-    if (dart.library.io) '../common/read_bytes_from_path_io.dart' as path_reader;
+import '../../utils/image_utils.dart';
 
-/// 编辑 Profile 的底部弹框，样式与 AddCardDialog 一致；修改后点 Save 保存并关闭。
+/// Bottom sheet for editing profile data.
 class ProfileEditDialog {
   static Future<bool?> show({
     required BuildContext context,
@@ -36,16 +33,14 @@ class ProfileEditDialog {
 }
 
 class _ProfileEditBottomSheet extends StatefulWidget {
-  const _ProfileEditBottomSheet({
-    required this.initialData,
-    this.onSaved,
-  });
+  const _ProfileEditBottomSheet({required this.initialData, this.onSaved});
 
   final UserData initialData;
   final VoidCallback? onSaved;
 
   @override
-  State<_ProfileEditBottomSheet> createState() => _ProfileEditBottomSheetState();
+  State<_ProfileEditBottomSheet> createState() =>
+      _ProfileEditBottomSheetState();
 }
 
 const List<Map<String, String>> _kJobStatuses = [
@@ -158,7 +153,9 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
       'tags': _tags.join(','),
     };
     if (_jobStatus.isNotEmpty) payload['job_status'] = _jobStatus;
-    if (_timezone != null && _timezone!.isNotEmpty) payload['timezone'] = _timezone;
+    if (_timezone != null && _timezone!.isNotEmpty) {
+      payload['timezone'] = _timezone;
+    }
     await context.read<UserStore>().updateUserData(payload);
     widget.onSaved?.call();
     if (mounted) Navigator.of(context).pop(true);
@@ -178,55 +175,43 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
   }
 
   Future<void> _pickCropAndUploadAvatar() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    );
-    if (result == null || result.files.isEmpty || !mounted) return;
-    final file = result.files.single;
-    Uint8List? imageBytes = file.bytes;
-    if (imageBytes == null && !kIsWeb && file.path != null && file.path!.isNotEmpty) {
-      try {
-        imageBytes = await path_reader.readBytesFromPath(file.path!);
-      } catch (e) {
-        if (mounted) {
-          TopToastUtil.showError(context: context, title: '读取失败', description: e.toString());
-        }
-        return;
-      }
-    }
-    if (imageBytes == null || !mounted) {
-      if (mounted) {
-        TopToastUtil.showError(context: context, title: '无法读取图片', description: '请重试');
-      }
-      return;
-    }
+    final imageFile = await ImageUtils.pickSinglePicture(context);
+    if (imageFile == null || !mounted) return;
+
+    final imageBytes = await imageFile.readAsBytes();
+    if (!mounted) return;
+
     Uint8List? croppedBytes;
     try {
       final result = await showMaterialImageCropper(
         context,
         imageProvider: MemoryImage(imageBytes),
-        cropPathFn: ellipseCropShapeFn, // 圆形/椭圆形裁剪
-        allowedAspectRatios: [const CropAspectRatio(width: 1, height: 1)], // 1:1 比例
+        cropPathFn: ellipseCropShapeFn,
+        allowedAspectRatios: [const CropAspectRatio(width: 1, height: 1)],
         enabledTransformations: [
-          Transformation.panAndScale, // 允许平移和缩放
-          Transformation.resize, // 允许调整大小
-          // 排除所有旋转：rotate, rotateZ, rotateY, rotateX
+          Transformation.panAndScale,
+          Transformation.resize,
         ],
       );
       if (result != null) {
-        // 将 ui.Image 转换为字节
-        final byteData = await result.uiImage.toByteData(format: ui.ImageByteFormat.png);
+        final byteData = await result.uiImage.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
         if (byteData != null) {
           croppedBytes = byteData.buffer.asUint8List();
         }
       }
     } catch (e) {
       if (mounted) {
-        TopToastUtil.showError(context: context, title: '裁剪失败', description: e.toString());
+        TopToastUtil.showError(
+          context: context,
+          title: 'Crop Failed',
+          description: e.toString(),
+        );
       }
       return;
     }
+
     if (croppedBytes == null || !mounted) return;
     setState(() => _isAvatarUploading = true);
     try {
@@ -237,16 +222,26 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
       );
       if (!mounted) return;
       await context.read<UserStore>().updateUserData({'avatar_url': fileUrl});
+      if (!mounted) return;
+
       setState(() {
         _avatarUrl = fileUrl;
         _isAvatarUploading = false;
       });
-      TopToastUtil.showSuccess(context: context, title: '头像已更新', description: '');
+      TopToastUtil.showSuccess(
+        context: context,
+        title: 'Avatar Updated',
+        description: '',
+      );
       widget.onSaved?.call();
     } catch (e) {
       if (mounted) {
         setState(() => _isAvatarUploading = false);
-        TopToastUtil.showError(context: context, title: '上传失败', description: e.toString());
+        TopToastUtil.showError(
+          context: context,
+          title: 'Upload Failed',
+          description: e.toString(),
+        );
       }
     }
   }
@@ -264,7 +259,9 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
     _lastKeyboardHeight = currentKeyboardHeight;
     if (currentKeyboardHeight > 0 && !_keyboardAlreadyActive) {
       _keyboardAlreadyActive = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _measureAndUpdateLift());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _measureAndUpdateLift(),
+      );
     }
     final bottomInset = _shouldLiftForKeyboard ? mq.viewInsets.bottom : 0.0;
 
@@ -284,7 +281,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 置顶头部：不随滚动隐藏，左 EditProfile、右 Save
+            // 缃《澶撮儴锛氫笉闅忔粴鍔ㄩ殣钘忥紝宸?EditProfile銆佸彸 Save
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
@@ -303,7 +300,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                     onPressed: _onSave,
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF2563EB),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     child: const Text(
                       'Save',
@@ -317,7 +317,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                 ],
               ),
             ),
-            // 可滚动内容区
+            // 鍙粴鍔ㄥ唴瀹瑰尯
             Expanded(
               child: Scrollbar(
                 controller: _scrollController,
@@ -329,81 +329,123 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                // 头像区：左对齐，支持点击修改
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      GestureDetector(
-                        onTap: _isAvatarUploading ? null : _pickCropAndUploadAvatar,
-                        child: CircleAvatar(
-                          radius: 48,
-                          backgroundColor: const Color(0xFFE5E7EB),
-                          backgroundImage: _displayAvatarUrl.isNotEmpty
-                              ? NetworkImage(_displayAvatarUrl)
-                              : null,
-                          child: _displayAvatarUrl.isEmpty
-                              ? const Icon(Icons.person, size: 48, color: Color(0xFF9CA3AF))
-                              : null,
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _isAvatarUploading ? null : _pickCropAndUploadAvatar,
-                            borderRadius: BorderRadius.circular(16),
-                            child: SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: Image.asset(
-                                'assets/profile/img-add-icon.png',
-                                fit: BoxFit.contain,
+                      // 澶村儚鍖猴細宸﹀榻愶紝鏀寔鐐瑰嚮淇敼
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            GestureDetector(
+                              onTap: _isAvatarUploading
+                                  ? null
+                                  : _pickCropAndUploadAvatar,
+                              child: CircleAvatar(
+                                radius: 48,
+                                backgroundColor: const Color(0xFFE5E7EB),
+                                backgroundImage: _displayAvatarUrl.isNotEmpty
+                                    ? NetworkImage(_displayAvatarUrl)
+                                    : null,
+                                child: _displayAvatarUrl.isEmpty
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 48,
+                                        color: Color(0xFF9CA3AF),
+                                      )
+                                    : null,
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                      if (_isAvatarUploading)
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.black.withOpacity(0.2),
-                            ),
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: _isAvatarUploading
+                                      ? null
+                                      : _pickCropAndUploadAvatar,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: SizedBox(
+                                    width: 32,
+                                    height: 32,
+                                    child: Image.asset(
+                                      'assets/profile/img-add-icon.png',
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                            if (_isAvatarUploading)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                  ),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _buildField('Your name', _nameController, hint: 'Your name', maxLength: 25),
-                const SizedBox(height: 12),
-                _buildJobStatusDropdown(),
-                const SizedBox(height: 12),
-                _buildField('Position', _positionController, hint: 'Your Position', maxLength: 100),
-                const SizedBox(height: 12),
-                _buildField('Degree', _degreeController, hint: 'Your degree', maxLength: 100),
-                const SizedBox(height: 12),
-                _buildField('Email', _emailController, hint: 'Your email', maxLength: 50),
-                const SizedBox(height: 12),
-                _buildField('Location', _locationController, hint: 'Your location', maxLength: 40),
-                const SizedBox(height: 12),
-                _buildTimezoneDropdown(),
-                const SizedBox(height: 12),
-                _buildField('Introduction', _bioController, hint: 'Tell us about yourself.', maxLength: 200, maxLines: 5, showCounter: true),
-                const SizedBox(height: 12),
-                _buildTagsSection(),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildField(
+                        'Your name',
+                        _nameController,
+                        hint: 'Your name',
+                        maxLength: 25,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildJobStatusDropdown(),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Position',
+                        _positionController,
+                        hint: 'Your Position',
+                        maxLength: 100,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Degree',
+                        _degreeController,
+                        hint: 'Your degree',
+                        maxLength: 100,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Email',
+                        _emailController,
+                        hint: 'Your email',
+                        maxLength: 50,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Location',
+                        _locationController,
+                        hint: 'Your location',
+                        maxLength: 40,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTimezoneDropdown(),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Introduction',
+                        _bioController,
+                        hint: 'Tell us about yourself.',
+                        maxLength: 200,
+                        maxLines: 5,
+                        showCounter: true,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTagsSection(),
                     ],
                   ),
                 ),
@@ -439,10 +481,12 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
           enableSearch: false,
           enableFilter: false,
           dropdownMenuEntries: _kJobStatuses
-              .map((e) => DropdownMenuEntry<String>(
-                    value: e['value']!,
-                    label: e['label']!,
-                  ))
+              .map(
+                (e) => DropdownMenuEntry<String>(
+                  value: e['value']!,
+                  label: e['label']!,
+                ),
+              )
               .toList(),
           onSelected: (v) => setState(() => _jobStatus = v ?? ''),
           inputDecorationTheme: InputDecorationTheme(
@@ -460,7 +504,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF171717), width: 1),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
           ),
           textStyle: const TextStyle(
             fontFamily: 'Geist',
@@ -495,10 +542,12 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
           enableSearch: false,
           enableFilter: false,
           dropdownMenuEntries: _kTimezones
-              .map((tz) => DropdownMenuEntry<String>(
-                    value: tz,
-                    label: tz.isEmpty ? 'Select timezone' : tz,
-                  ))
+              .map(
+                (tz) => DropdownMenuEntry<String>(
+                  value: tz,
+                  label: tz.isEmpty ? 'Select timezone' : tz,
+                ),
+              )
               .toList(),
           onSelected: (v) =>
               setState(() => _timezone = (v == null || v.isEmpty) ? null : v),
@@ -517,7 +566,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF171717), width: 1),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
           ),
           textStyle: const TextStyle(
             fontFamily: 'Geist',
@@ -579,9 +631,15 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF171717), width: 1),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF171717),
+                      width: 1,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
                 style: const TextStyle(
                   fontFamily: 'Geist',
@@ -601,7 +659,9 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                 child: const SizedBox(
                   width: 48,
                   height: 48,
-                  child: Center(child: Icon(Icons.add, color: Colors.white, size: 24)),
+                  child: Center(
+                    child: Icon(Icons.add, color: Colors.white, size: 24),
+                  ),
                 ),
               ),
             ),
@@ -615,7 +675,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
             children: List.generate(_tags.length, (i) {
               final color = _tagColors[i % _tagColors.length];
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(8),
@@ -635,7 +698,11 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                     const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () => _removeTag(i),
-                      child: const Icon(Icons.close, size: 16, color: Color(0xFFEF4444)),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFFEF4444),
+                      ),
                     ),
                   ],
                 ),
@@ -693,7 +760,10 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF171717), width: 1),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             counterText: showCounter ? null : '',
             counterStyle: const TextStyle(
               fontFamily: 'Geist',
@@ -711,4 +781,3 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
     );
   }
 }
-
