@@ -1,6 +1,6 @@
-/// Card Definitions Index
-/// 
-/// 导出所有卡片定义
+// Card Definitions Index
+//
+// 导出所有卡片定义
 
 export 'title_card.dart';
 export 'github_card.dart';
@@ -27,6 +27,8 @@ export 'facebook_card.dart';
 export 'medium_card.dart';
 export 'wechat_card.dart';
 export 'telegram_card.dart';
+export 'tiktok_card.dart';
+export 'vibe_card.dart';
 export 'career_trajectory_card.dart';
 export 'achievement_network_card.dart';
 export 'iframe_card.dart';
@@ -58,6 +60,8 @@ import 'facebook_card.dart';
 import 'medium_card.dart';
 import 'wechat_card.dart';
 import 'telegram_card.dart';
+import 'tiktok_card.dart';
+import 'vibe_card.dart';
 import 'career_trajectory_card.dart';
 import 'achievement_network_card.dart';
 import 'iframe_card.dart';
@@ -70,6 +74,7 @@ final List<CardDefinition> socialCards = [
   LinkedInCardDefinition(),
   TwitterCardDefinition(),
   OpenReviewCardDefinition(),
+  TikTokCardDefinition(),
   YouTubeCardDefinition(),
   HuggingFaceCardDefinition(),
   BlueskyCardDefinition(),
@@ -87,6 +92,8 @@ final List<CardDefinition> socialCards = [
   TelegramCardDefinition(),
 ];
 
+final List<CardDefinition> backendOnlyCards = [VibeCardDefinition()];
+
 /// 通用卡片定义列表
 final List<CardDefinition> generalCards = [
   MarkdownCardDefinition(),
@@ -103,6 +110,7 @@ final List<CardDefinition> generalCards = [
 final List<CardDefinition> allCardDefinitions = [
   ...generalCards,
   ...socialCards,
+  ...backendOnlyCards,
 ];
 
 /// AI 卡片定义列表
@@ -116,6 +124,7 @@ final List<CardDefinition> aiCards = [
   BlueskyCardDefinition(),
   InstagramCardDefinition(),
   RedditCardDefinition(),
+  TikTokCardDefinition(),
   YouTubeCardDefinition(),
   BilibiliCardDefinition(),
   SpotifyCardDefinition(),
@@ -133,8 +142,12 @@ final List<CardDefinition> aiCards = [
 ];
 
 /// 卡片类型集合，用于快速查找
-final Set<String> _socialCardTypes = socialCards.map((def) => def.type.toUpperCase()).toSet();
-final Set<String> _aiCardTypes = aiCards.map((def) => def.type.toUpperCase()).toSet();
+final Set<String> _socialCardTypes = socialCards
+    .map((def) => def.type.toUpperCase())
+    .toSet();
+final Set<String> _aiCardTypes = aiCards
+    .map((def) => def.type.toUpperCase())
+    .toSet();
 
 /// 检查卡片类型是否为社交卡片
 bool isSocialCard(String type) {
@@ -154,4 +167,3 @@ void initializeCardRegistry() {
     registry.register(def);
   }
 }
-

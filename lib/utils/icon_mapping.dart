@@ -3,7 +3,7 @@
 String mapSvgToPng(String svgPath) {
   // Extract the SVG filename from the path
   final svgName = svgPath.split('/').last.replaceAll('.svg', '');
-  
+
   // Mapping from SVG name to PNG filename (matching the renamed files)
   final Map<String, String> mapping = {
     'Github': 'Github',
@@ -19,6 +19,7 @@ String mapSvgToPng(String svgPath) {
     'Spotify': 'Spotify',
     'Telegram': 'Telegram',
     'Tiktok': 'Tiktok',
+    'TikTok': 'Tiktok',
     'Twitter': 'Twitter',
     'Youtube': 'Youtube',
     'WeChat': 'WeChat',
@@ -33,10 +34,14 @@ String mapSvgToPng(String svgPath) {
     'BlueSky': 'BlueSky',
     'Threads': 'Threads',
     'RedNote': 'RedNote',
+    'Vibe': 'Vibe',
   };
 
   if (svgName == 'Link' || svgName == 'website') {
     return 'icons/link.png';
+  }
+  if (svgName == 'Vibe') {
+    return svgPath;
   }
 
   // Get the PNG filename (default to original name if not in mapping)
@@ -45,4 +50,3 @@ String mapSvgToPng(String svgPath) {
   // Return the path to logo PNG
   return 'icons/logo/$pngName.png';
 }
-
