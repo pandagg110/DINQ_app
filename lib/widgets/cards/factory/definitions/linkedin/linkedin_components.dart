@@ -51,18 +51,33 @@ class LinkedInComponents {
   static Widget buildAvatarGroup({
     required List<Map<String, dynamic>> careerJourney,
   }) {
-    return Wrap(
-      spacing: -16,
-      children: careerJourney.take(7).map((item) {
-        return Container(
-          margin: const EdgeInsets.only(right: 16),
-          child: buildOrgLogo(
-            logo: item['logo']?.toString(),
-            name: item['name']?.toString() ?? '',
-            size: 'md',
-          ),
-        );
-      }).toList(),
+    final items = careerJourney.take(7).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    const logoSize = 32.0;
+    const groupHeight = 48.0;
+    final step = items.length <= 6 ? 22.0 : 18.0;
+    final totalWidth = logoSize + (items.length - 1) * step;
+
+    return SizedBox(
+      width: totalWidth,
+      height: groupHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          return Positioned(
+            left: index * step,
+            top: (groupHeight - logoSize) / 2,
+            child: buildOrgLogo(
+              logo: item['logo']?.toString(),
+              name: item['name']?.toString() ?? '',
+              size: 'md',
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
