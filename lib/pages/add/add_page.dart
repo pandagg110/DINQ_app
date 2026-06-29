@@ -122,7 +122,11 @@ class _AddGrid extends StatelessWidget {
 }
 
 class AddCardBtn extends StatelessWidget {
-  const AddCardBtn({required this.definition, required this.disabled});
+  const AddCardBtn({
+    super.key,
+    required this.definition,
+    required this.disabled,
+  });
 
   final CardDefinition definition;
   final bool disabled;
@@ -156,8 +160,8 @@ class AddCardBtn extends StatelessWidget {
                     }
                   },
                   borderRadius: BorderRadius.circular(8),
-                  splashColor: Colors.black.withOpacity(0.06),
-                  highlightColor: Colors.black.withOpacity(0.04),
+                  splashColor: Colors.black.withValues(alpha: 0.06),
+                  highlightColor: Colors.black.withValues(alpha: 0.04),
                   child: SizedBox(
                     height: 48,
                     child: Padding(
