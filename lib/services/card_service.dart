@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../models/card_models.dart';
 import 'api_client.dart';
 
@@ -7,21 +8,36 @@ class CardService {
 
   /// 获取 Card Board
   Future<List<CardItem>> getCardBoard(String username) async {
+    debugPrint('[CardAPI] GET /card-board username=$username -> start');
     final response = await _dio.get(
       '/card-board',
       queryParameters: {'username': username},
     );
     final data = Map<String, dynamic>.from(response.data as Map);
     final list = data['board'] as List<dynamic>? ?? [];
-    return list.map((item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    final cards = list
+        .map(
+          (item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+    debugPrint(
+      '[CardAPI] GET /card-board username=$username <- ${cards.length} cards '
+      '${cards.map((c) => '${c.id}:${c.data.id}:${c.data.type}:${c.data.status}').join(', ')}',
+    );
+    return cards;
   }
 
   /// 更新 Card Board（与 TS cardApi.updateCardBoard 一致：仅提交 dirty 卡片，AI 卡 type 转为 datasource）
   /// 服务端可能返回空或无 board 字段，需空安全解析避免 type 'Null' is not a subtype of type 'Map'
   Future<List<CardItem>> updateCardBoard(List<CardItem> board) async {
-    final response = await _dio.post('/card-board', data: {
-      'board': board.map((card) => card.toJson()).toList(),
-    });
+    debugPrint(
+      '[CardAPI] POST /card-board -> ${board.length} dirty cards '
+      '${board.map((c) => '${c.id}:${c.data.id}:${c.data.type}:${c.data.status}').join(', ')}',
+    );
+    final response = await _dio.post(
+      '/card-board',
+      data: {'board': board.map((card) => card.toJson()).toList()},
+    );
     final raw = response.data;
     if (raw == null) return [];
     final data = Map<String, dynamic>.from(raw as Map);
@@ -48,7 +64,11 @@ class CardService {
     final response = await _dio.post('/card-board/init', data: data);
     final responseData = Map<String, dynamic>.from(response.data as Map);
     final list = responseData['board'] as List<dynamic>? ?? [];
-    return list.map((item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return list
+        .map(
+          (item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   /// 添加卡片到 Board
@@ -64,17 +84,30 @@ class CardService {
     String? description,
     Map<String, dynamic>? metadata,
   }) async {
-    final response = await _dio.post('/card-board/add', data: {
-      'type': type,
-      'data': {
-        if (title != null) 'title': title,
-        if (content != null) 'content': content,
-        if (description != null) 'description': description,
-        if (metadata != null) 'metadata': metadata,
+    debugPrint(
+      '[CardAPI] POST /card-board/add -> type=$type metadata=$metadata',
+    );
+    final response = await _dio.post(
+      '/card-board/add',
+      data: {
+        'type': type,
+        'data': {
+          if (title != null) 'title': title,
+          if (content != null) 'content': content,
+          if (description != null) 'description': description,
+          if (metadata != null) 'metadata': metadata,
+        },
       },
-    });
+    );
     final data = Map<String, dynamic>.from(response.data as Map);
-    return CardItem.fromJson(Map<String, dynamic>.from(data['board'] as Map));
+    final card = CardItem.fromJson(
+      Map<String, dynamic>.from(data['board'] as Map),
+    );
+    debugPrint(
+      '[CardAPI] POST /card-board/add <- card=${card.id} datasource=${card.data.id} '
+      'type=${card.data.type} status=${card.data.status} metadata=${card.data.metadata}',
+    );
+    return card;
   }
 
   /// 获取所有卡片
@@ -82,13 +115,20 @@ class CardService {
     final response = await _dio.post('/tool/all/cards', data: data);
     final responseData = Map<String, dynamic>.from(response.data as Map);
     final list = responseData['board'] as List<dynamic>? ?? [];
-    return list.map((item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return list
+        .map(
+          (item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   /// 校验社交链接 URL（对齐 Web cardApi.validateUrl）
   Future<Map<String, dynamic>> validateUrl({required String url}) async {
+    debugPrint('[CardAPI] POST /card/validate-url -> url=$url');
     final response = await _dio.post('/card/validate-url', data: {'url': url});
-    return Map<String, dynamic>.from(response.data as Map);
+    final data = Map<String, dynamic>.from(response.data as Map);
+    debugPrint('[CardAPI] POST /card/validate-url <- $data');
+    return data;
   }
 
   /// 生成 Card
@@ -108,10 +148,10 @@ class CardService {
       if (url != null) 'url': url,
       if (extraMetadata != null) ...extraMetadata,
     };
-    print('generatedata: ${data.toString()}');
+    debugPrint('[CardAPI] POST /card/generate -> $data');
     final response = await _dio.post('/card/generate', data: data);
-    return Map<String, dynamic>.from(response.data as Map);
+    final result = Map<String, dynamic>.from(response.data as Map);
+    debugPrint('[CardAPI] POST /card/generate <- $result');
+    return result;
   }
 }
-
-

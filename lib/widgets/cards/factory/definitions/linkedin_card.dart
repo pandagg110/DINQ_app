@@ -20,20 +20,27 @@ class LinkedInCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    // Support both: { data: { linkedin: [...] } } and { data: [...] }
-    final rawData = rawMetadata['data'] ?? rawMetadata;
+    // Support the same shapes as the web adapter:
+    // [...] or { linkedin: [...] }, plus already-adapted { careerJourney: [...] }.
+    if (rawMetadata is Map && rawMetadata['careerJourney'] is List) {
+      return Map<String, dynamic>.from(rawMetadata);
+    }
+
+    final rawData = rawMetadata is Map && rawMetadata.containsKey('data')
+        ? rawMetadata['data']
+        : rawMetadata;
     List<dynamic> items;
     if (rawData is List) {
       items = rawData;
@@ -62,17 +69,11 @@ class LinkedInCardDefinition extends CardDefinition {
       };
     }).toList();
 
-    return {
-      'careerJourney': careerJourney,
-    };
+    return {'careerJourney': careerJourney};
   }
 
   @override
   Widget render(CardRenderParams params) {
-    return LinkedInWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return LinkedInWidget(card: params.card, size: params.size);
   }
 }
-

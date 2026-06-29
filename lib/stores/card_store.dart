@@ -31,6 +31,8 @@ class CardStore extends ChangeNotifier {
   Timer? _saveTimer;
   Timer? _pollingTimer;
   String? _currentUsername;
+  bool _isPolling = false;
+  bool _pendingPollingRerun = false;
 
   static const Duration _saveDelay = Duration(milliseconds: 1000);
   static const Duration _pollingInterval = Duration(seconds: 3);
@@ -78,10 +80,12 @@ class CardStore extends ChangeNotifier {
   }) async {
     isAdding = true;
     notifyListeners();
+    CardItem? pendingCard;
     try {
       // Create mock card using CardRegistry
       final mockCard = await _registry.create(type, metadata ?? {}, cards);
       final adaptedCard = _registry.adapt(mockCard, viewMode);
+      pendingCard = adaptedCard;
       // Add mock card to UI immediately at the beginning (新增卡片放到最前面)
       cards.insert(0, adaptedCard);
 
@@ -144,7 +148,9 @@ class CardStore extends ChangeNotifier {
           title: created.data.title,
           description: created.data.description,
           metadata: created.data.metadata,
-          status: created.data.status.isEmpty ? 'PROCESSING' : created.data.status,
+          status: created.data.status.isEmpty
+              ? 'PROCESSING'
+              : created.data.status,
         ),
         layout: created.layout,
       );
@@ -171,12 +177,39 @@ class CardStore extends ChangeNotifier {
 
         // If AI card, generate it
         if (isAICard(type)) {
-          await _cardService.generateCard(
-            datasourceId: realCard.data.id,
-            type: type,
-            extraMetadata: metadata,
-          );
-          _startPolling();
+          try {
+            await _cardService.generateCard(
+              datasourceId: realCard.data.id,
+              type: type,
+              extraMetadata: metadata,
+            );
+            _startPolling();
+          } catch (e) {
+            final failedIndex = cards.indexWhere((c) => c.id == realCard.id);
+            if (failedIndex >= 0) {
+              final failedCard = cards[failedIndex];
+              cards[failedIndex] = CardItem(
+                id: failedCard.id,
+                data: CardData(
+                  id: failedCard.data.id,
+                  type: failedCard.data.type,
+                  title: failedCard.data.title,
+                  description: failedCard.data.description,
+                  metadata: failedCard.data.metadata,
+                  status: 'FAILED',
+                ),
+                layout: failedCard.layout,
+              );
+            }
+            final prevState = cardStates[realCard.id] ?? CardState();
+            cardStates[realCard.id] = CardState(
+              loading: false,
+              isNew: prevState.isNew,
+            );
+            isAdding = false;
+            notifyListeners();
+            rethrow;
+          }
         }
 
         isAdding = false;
@@ -189,6 +222,29 @@ class CardStore extends ChangeNotifier {
       return adaptedCard;
     } catch (e) {
       debugPrint('CardStore: Error adding card: $e');
+      if (pendingCard != null) {
+        final failedIndex = cards.indexWhere((c) => c.id == pendingCard!.id);
+        if (failedIndex >= 0) {
+          final failedCard = cards[failedIndex];
+          cards[failedIndex] = CardItem(
+            id: failedCard.id,
+            data: CardData(
+              id: failedCard.data.id,
+              type: failedCard.data.type,
+              title: failedCard.data.title,
+              description: failedCard.data.description,
+              metadata: failedCard.data.metadata,
+              status: 'FAILED',
+            ),
+            layout: failedCard.layout,
+          );
+          final prevState = cardStates[failedCard.id] ?? CardState();
+          cardStates[failedCard.id] = CardState(
+            loading: false,
+            isNew: prevState.isNew,
+          );
+        }
+      }
       isAdding = false;
       notifyListeners();
       rethrow;
@@ -265,12 +321,21 @@ class CardStore extends ChangeNotifier {
   }
 
   /// 与网格一致：4 列；仅对 allowedSizes 的卡片做紧凑重排并写回 position，改尺寸后占位会整体下移
-  static const Set<String> _allowedSizesForCompact = {'2x2', '2x4', '4x2', '4x4', '4x1'};
+  static const Set<String> _allowedSizesForCompact = {
+    '2x2',
+    '2x4',
+    '4x2',
+    '4x4',
+    '4x1',
+  };
 
   void compactLayoutAfterSizeChange() {
     final ordered = cards
-        .where((c) => _allowedSizesForCompact
-            .contains(c.layout.mobile.size.toLowerCase().trim()))
+        .where(
+          (c) => _allowedSizesForCompact.contains(
+            c.layout.mobile.size.toLowerCase().trim(),
+          ),
+        )
         .toList();
     if (ordered.isEmpty) return;
     ordered.sort((a, b) {
@@ -279,8 +344,10 @@ class CardStore extends ChangeNotifier {
       if (pa.y != pb.y) return pa.y.compareTo(pb.y);
       return pa.x.compareTo(pb.x);
     });
-    final newPositions =
-        CardLayoutUtils.compactPositions(ordered, _gridColumns);
+    final newPositions = CardLayoutUtils.compactPositions(
+      ordered,
+      _gridColumns,
+    );
     var changed = false;
     for (var i = 0; i < ordered.length; i++) {
       final c = ordered[i];
@@ -471,6 +538,10 @@ class CardStore extends ChangeNotifier {
         )
         .map((card) => card.data.id)
         .toList();
+    debugPrint('[CardStore] pending datasource ids=$dataSourceIds');
+    debugPrint(
+      '[CardStore] current cards=${cards.map((c) => '${c.id}:${c.data.id}:${c.data.type}:${c.data.status}').join(', ')}',
+    );
 
     // if (dataSourceIds.isEmpty) return false;
 
@@ -486,88 +557,105 @@ class CardStore extends ChangeNotifier {
       for (final datasourceData in datasources) {
         final datasource = Map<String, dynamic>.from(datasourceData as Map);
         final datasourceId = datasource['id']?.toString() ?? '';
+        final datasourceType = datasource['type']?.toString() ?? '';
+        try {
+          final cardIndex = cards.indexWhere(
+            (card) => card.data.id == datasourceId,
+          );
+          if (cardIndex < 0) {
+            debugPrint(
+              '[CardStore] datasource id=$datasourceId returned but no matching card.data.id',
+            );
+            continue;
+          }
 
-        final cardIndex = cards.indexWhere(
-          (card) => card.data.id == datasourceId,
-        );
-        if (cardIndex < 0) continue;
+          final card = cards[cardIndex];
+          final status = datasource['status']?.toString() ?? '';
 
-        final card = cards[cardIndex];
-        final status = datasource['status']?.toString() ?? '';
+          if (status != 'COMPLETED' && status != 'FAILED') {
+            hasPending = true;
+          }
 
-        if (status != 'COMPLETED' && status != 'FAILED') {
-          hasPending = true;
-        }
+          final prevState = cardStates[card.id] ?? CardState();
+          cardStates[card.id] = CardState(
+            loading: status != 'COMPLETED' && status != 'FAILED',
+            isNew: prevState.isNew,
+          );
 
-        final prevState = cardStates[card.id] ?? CardState();
-        cardStates[card.id] = CardState(
-          loading: status != 'COMPLETED' && status != 'FAILED',
-          isNew: prevState.isNew,
-        );
-
-        Map<String, dynamic> metadata;
-        final rawMetadata = datasource['raw_metadata'];
-        if (status == 'COMPLETED') {
-          final prevDisplayMode = card.data.metadata['displayMode'];
-          if (rawMetadata is Map) {
-            metadata = Map<String, dynamic>.from(rawMetadata);
-            if (prevDisplayMode != null) {
-              metadata['displayMode'] = prevDisplayMode;
+          Map<String, dynamic> metadata;
+          final rawMetadata = datasource['raw_metadata'];
+          if (status == 'COMPLETED') {
+            final prevDisplayMode = card.data.metadata['displayMode'];
+            if (rawMetadata is Map) {
+              metadata = Map<String, dynamic>.from(rawMetadata);
+              if (prevDisplayMode != null) {
+                metadata['displayMode'] = prevDisplayMode;
+              }
+            } else if (rawMetadata is List) {
+              metadata = Map<String, dynamic>.from(card.data.metadata);
+            } else {
+              metadata = Map<String, dynamic>.from(card.data.metadata);
             }
-          } else if (rawMetadata is List) {
-            metadata = Map<String, dynamic>.from(card.data.metadata);
           } else {
             metadata = Map<String, dynamic>.from(card.data.metadata);
           }
-        } else {
-          metadata = Map<String, dynamic>.from(card.data.metadata);
-        }
 
-        final datasourceUrl = datasource['url']?.toString();
-        if (datasourceUrl != null && datasourceUrl.isNotEmpty) {
-          metadata['url'] = datasourceUrl;
-        }
-
-        final resolvedType =
-            (datasource['type']?.toString() ?? card.data.type).toUpperCase();
-        final cardType =
-            _registry.isRegistered(resolvedType) ? resolvedType : 'LINK';
-
-        CardItem updatedCard = CardItem(
-          id: card.id,
-          data: CardData(
-            id: card.data.id,
-            type: cardType,
-            title: card.data.title,
-            description: card.data.description,
-            metadata: metadata,
-            status: status,
-          ),
-          layout: card.layout,
-        );
-
-        if (status == 'COMPLETED' && rawMetadata is List) {
-          final definition = _registry.getDefinition(cardType);
-          final adaptedMetadata = definition?.adapt(rawMetadata);
-          if (adaptedMetadata != null) {
-            updatedCard = CardItem(
-              id: updatedCard.id,
-              data: CardData(
-                id: updatedCard.data.id,
-                type: updatedCard.data.type,
-                title: updatedCard.data.title,
-                description: updatedCard.data.description,
-                metadata: adaptedMetadata,
-                status: updatedCard.data.status,
-              ),
-              layout: updatedCard.layout,
-            );
+          final datasourceUrl = datasource['url']?.toString();
+          if (datasourceUrl != null && datasourceUrl.isNotEmpty) {
+            metadata['url'] = datasourceUrl;
           }
-        } else if (_registry.isRegistered(updatedCard.data.type)) {
-          updatedCard = _registry.adapt(updatedCard, viewMode);
-        }
 
-        cards[cardIndex] = updatedCard;
+          final resolvedType =
+              (datasource['type']?.toString() ?? card.data.type).toUpperCase();
+          final cardType = _registry.isRegistered(resolvedType)
+              ? resolvedType
+              : 'LINK';
+
+          CardItem updatedCard = CardItem(
+            id: card.id,
+            data: CardData(
+              id: card.data.id,
+              type: cardType,
+              title: card.data.title,
+              description: card.data.description,
+              metadata: metadata,
+              status: status,
+            ),
+            layout: card.layout,
+          );
+
+          if (status == 'COMPLETED' && rawMetadata is List) {
+            final definition = _registry.getDefinition(cardType);
+            final adaptedMetadata = definition?.adapt(rawMetadata);
+            if (adaptedMetadata != null) {
+              updatedCard = CardItem(
+                id: updatedCard.id,
+                data: CardData(
+                  id: updatedCard.data.id,
+                  type: updatedCard.data.type,
+                  title: updatedCard.data.title,
+                  description: updatedCard.data.description,
+                  metadata: adaptedMetadata,
+                  status: updatedCard.data.status,
+                ),
+                layout: updatedCard.layout,
+              );
+            }
+          } else if (_registry.isRegistered(updatedCard.data.type)) {
+            updatedCard = _registry.adapt(updatedCard, viewMode);
+          }
+
+          cards[cardIndex] = updatedCard;
+          debugPrint(
+            '[CardStore] updated card=${updatedCard.id} datasource=${updatedCard.data.id} '
+            'type=${updatedCard.data.type} status=${updatedCard.data.status} '
+            'metadataKeys=${updatedCard.data.metadata.keys.toList()}',
+          );
+        } catch (e) {
+          debugPrint(
+            '[CardStore] failed to apply datasource id=$datasourceId type=$datasourceType error=$e',
+          );
+        }
       }
 
       // Filter out datasource type cards
@@ -577,6 +665,7 @@ class CardStore extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('CardStore: Error analyzing datasource: $e');
+      hasPending = dataSourceIds.isNotEmpty;
     }
 
     return hasPending;
@@ -584,15 +673,37 @@ class CardStore extends ChangeNotifier {
 
   /// Start polling for datasource status
   void _startPolling() {
-    // If already polling, stop first
+    if (_isPolling) {
+      _pendingPollingRerun = true;
+      return;
+    }
+
+    final username = _currentUsername;
+    if (username == null) return;
+
     _pollingTimer?.cancel();
     _pollingTimer = null;
 
-    // Start polling
-    _pollingTimer = Timer(_pollingInterval, () async {
-      final hasPending = await _analyzeDatasource();
-      if (hasPending) {
-        _startPolling(); // Continue polling
+    _isPolling = true;
+    Future<void>(() async {
+      try {
+        final hasPending = await _analyzeDatasource();
+        if (hasPending && _currentUsername == username) {
+          _pollingTimer = Timer(_pollingInterval, _startPolling);
+        }
+      } catch (e) {
+        debugPrint('CardStore: Polling failed: $e');
+        if (_currentUsername == username) {
+          _pollingTimer = Timer(_pollingInterval, _startPolling);
+        }
+      } finally {
+        _isPolling = false;
+        if (_pendingPollingRerun) {
+          _pendingPollingRerun = false;
+          if (_currentUsername != null) {
+            _startPolling();
+          }
+        }
       }
     });
   }

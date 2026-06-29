@@ -217,10 +217,7 @@ class _CardRendererState extends State<CardRenderer> {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: borderColor,
-                    width: borderWidth,
-                  ),
+                  border: Border.all(color: borderColor, width: borderWidth),
                 ),
               ),
             ),
@@ -355,15 +352,14 @@ class _CardRendererState extends State<CardRenderer> {
                   : const SizedBox.shrink(),
             ],
 
-          
             Positioned(
-                left: 0,
-                right: 0,
-                bottom: -16,
-                child: Center(
-                  child: _buildCardToolbar(context, cardStore, viewMode),
-                ),
+              left: 0,
+              right: 0,
+              bottom: -16,
+              child: Center(
+                child: _buildCardToolbar(context, cardStore, viewMode),
               ),
+            ),
             //   // 工具栏 - 底部居中，选中时显示
           ],
         ],
@@ -478,6 +474,11 @@ class _CardRendererState extends State<CardRenderer> {
 
     // 处理 datasource 类型（小写） - 显示加载状态
     if (type == 'DATASOURCE' || type == 'datasource') {
+      debugPrint(
+        '[CardRenderer] rendering datasource placeholder card=${widget.card.id} '
+        'datasource=${widget.card.data.id} status=${widget.card.data.status} '
+        'metadataKeys=${widget.card.data.metadata.keys.toList()}',
+      );
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
