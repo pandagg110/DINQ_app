@@ -1,4 +1,4 @@
-/**
+/*
  * NetworkEditForm - Flutter 迁移自 Web NetworkEditModal.tsx
  * ACHIEVEMENT_NETWORK 卡片编辑表单：connections 增删改、头像上传、机构 logo 刷新
  */
@@ -6,7 +6,6 @@
 import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
@@ -16,7 +15,6 @@ import '../../../services/tool_service.dart';
 import '../../../services/upload_service.dart';
 import '../../../stores/card_store.dart';
 import '../../../utils/asset_path.dart';
-import '../../../utils/toast_util.dart';
 
 /// Network 连接项（对应 Web NetworkConnection）
 class NetworkConnection {
@@ -172,9 +170,7 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
         widget.card.data.metadata['connections'] as List<dynamic>? ?? [];
     _connections = list
         .whereType<Map>()
-        .map(
-          (e) => NetworkConnection.fromMap(Map<String, dynamic>.from(e)),
-        )
+        .map((e) => NetworkConnection.fromMap(Map<String, dynamic>.from(e)))
         .toList();
     if (_connections.isEmpty) {
       _connections = [
@@ -508,23 +504,7 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add, size: 16, color: Colors.white),
-                SizedBox(width: 4),
-                Text(
-                  'Add',
-                  style: TextStyle(
-                    fontFamily: 'Geist',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+            child: const Icon(Icons.add, size: 20, color: Colors.white),
           ),
         ),
     ];
@@ -546,10 +526,7 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
                 children: [
                   for (var j = 0; j < rowItems.length; j++) ...[
                     if (j > 0) SizedBox(width: gap),
-                    SizedBox(
-                      width: itemWidth,
-                      child: rowItems[j],
-                    ),
+                    SizedBox(width: itemWidth, child: rowItems[j]),
                   ],
                 ],
               ),
@@ -581,14 +558,12 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
                 height: 90,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFFD1D5DB),
-                    width: 2,
-                  ),
+                  border: Border.all(color: const Color(0xFFD1D5DB), width: 2),
                   color: const Color(0xFFF9FAFB),
                 ),
                 child: ClipOval(
-                  child: _current.avatarUrl.isNotEmpty &&
+                  child:
+                      _current.avatarUrl.isNotEmpty &&
                           _current.avatarUrl.startsWith('http')
                       ? Image.network(_current.avatarUrl, fit: BoxFit.cover)
                       : SvgPicture.asset(
@@ -716,7 +691,8 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
                       hintText: 'Company or Organization',
                       contentPadding: EdgeInsets.only(
                         left: 16,
-                        right: (_current.institutionLogoUrl != null &&
+                        right:
+                            (_current.institutionLogoUrl != null &&
                                     _current.institutionLogoUrl!.isNotEmpty) ||
                                 _isRefreshingLogo
                             ? 56
@@ -771,8 +747,8 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
               child: IconButton(
                 onPressed:
                     _isRefreshingLogo || _current.affiliation.trim().isEmpty
-                        ? null
-                        : _handleRefreshLogo,
+                    ? null
+                    : _handleRefreshLogo,
                 icon: const Icon(
                   Icons.refresh,
                   size: 20,
@@ -805,8 +781,8 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
 
   Widget _buildFooter(bool disabled) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      
+      padding: const EdgeInsets.fromLTRB(0, 16, 0, 20),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
