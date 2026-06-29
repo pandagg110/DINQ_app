@@ -283,7 +283,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
           children: [
             // 缃《澶撮儴锛氫笉闅忔粴鍔ㄩ殣钘忥紝宸?EditProfile銆佸彸 Save
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -302,7 +302,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                       foregroundColor: const Color(0xFF2563EB),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 8,
+                        vertical: 6,
                       ),
                     ),
                     child: const Text(
@@ -317,6 +317,11 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                 ],
               ),
             ),
+            const Divider(
+              height: 1,
+              thickness: 1,
+              color: Color(0xFFF0F0F0),
+            ),
             // 鍙粴鍔ㄥ唴瀹瑰尯
             Expanded(
               child: Scrollbar(
@@ -324,7 +329,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                 thumbVisibility: true,
                 child: SingleChildScrollView(
                   controller: _scrollController,
-                  padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + safeAreaBottom),
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + safeAreaBottom),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
