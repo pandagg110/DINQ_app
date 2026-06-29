@@ -70,6 +70,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       ),
     ).then((confirmed) async {
       if (confirmed != true) return;
+      if (!mounted) return;
       try {
         await context.read<CardStore>().regenerateCard();
       } catch (e) {
@@ -100,6 +101,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       ),
     ).then((confirmed) async {
       if (confirmed != true) return;
+      if (!mounted) return;
       try {
         await context.read<UserStore>().resetFlow();
         if (mounted) {
@@ -167,11 +169,14 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
           color: const Color(0xFF171717),
           borderRadius: BorderRadius.circular(16),
           border: Border(
-            bottom: BorderSide(width: 1, color: Colors.white.withOpacity(0.15)),
+            bottom: BorderSide(
+              width: 1,
+              color: Colors.white.withValues(alpha: 0.15),
+            ),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -190,9 +195,10 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                   final result = await Navigator.of(context).push<Object?>(
                     MaterialPageRoute<Object?>(builder: (_) => const AddPage()),
                   );
-                  if (result == null || !context.mounted) return;
-                  if (result is! CardDefinition)
+                  if (result == null || !mounted) return;
+                  if (result is! CardDefinition) {
                     return; // true 表示 IMAGE 已在 AddPage 内处理
+                  }
                   final cardStore = context.read<CardStore>();
                   final type = result.type.toUpperCase();
                   // 与 TSX handleCardSelect 一致：ACHIEVEMENT_NETWORK / Social/LINK/IFRAME 先弹输入框，其余直接 addCard
@@ -276,8 +282,8 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
             child: InkWell(
               onTap: onTap,
               borderRadius: BorderRadius.circular(8),
-              splashColor: Colors.white.withOpacity(0.25),
-              highlightColor: Colors.white.withOpacity(0.15),
+              splashColor: Colors.white.withValues(alpha: 0.25),
+              highlightColor: Colors.white.withValues(alpha: 0.15),
               child: const SizedBox.expand(),
             ),
           ),
@@ -299,7 +305,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         color: _moreMenuOpen
-            ? Colors.white.withOpacity(0.15)
+            ? Colors.white.withValues(alpha: 0.15)
             : Colors.transparent,
       ),
       child: Material(
@@ -332,11 +338,11 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     width: 1,
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 20,
                       offset: const Offset(0, 4),
                     ),
@@ -369,9 +375,8 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                         iconPath: 'icons/more-btns/setting.png',
                         label: 'Settings',
                         onTap: () {
-                          debugPrint('Settings clicked');
                           _closeMenu();
-                          // TODO: Handle settings
+                          context.push('/settings');
                         },
                       ),
                     ],
@@ -444,7 +449,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       width: 1,
       height: 16,
       // margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: Colors.white.withOpacity(0.15),
+      color: Colors.white.withValues(alpha: 0.15),
     );
   }
 }
