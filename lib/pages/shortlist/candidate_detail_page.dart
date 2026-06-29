@@ -171,20 +171,7 @@ class _ProfileCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 64 * scale,
-                height: 64 * scale,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                child: Text(
-                  item.initials,
-                  style: TextStyle(
-                    fontSize: 22 * scale,
-                    fontWeight: FontWeight.w700,
-                    color: DinqTokens.textPrimary,
-                  ),
-                ),
-              ),
+              _DetailAvatar(scale: scale, item: item, color: color),
               SizedBox(width: 16 * scale),
               Expanded(
                 child: Column(
@@ -218,6 +205,10 @@ class _ProfileCard extends StatelessWidget {
                         color: DinqTokens.textSecondary,
                       ),
                     ),
+                    if (item.location != null) ...[
+                      SizedBox(height: 6 * scale),
+                      _DetailLocationLine(scale: scale, location: item.location!),
+                    ],
                   ],
                 ),
               ),
@@ -235,6 +226,90 @@ class _ProfileCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// 头像：有真实 avatar 图时显示图片（加载中/失败回退首字母），否则首字母。
+/// 与 `ShortlistCandidateCard` 的 `_CandidateAvatar` 行为保持一致。
+class _DetailAvatar extends StatelessWidget {
+  const _DetailAvatar({
+    required this.scale,
+    required this.item,
+    required this.color,
+  });
+
+  final double scale;
+  final FavoriteItem item;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final double size = 64 * scale;
+    final url = item.avatarUrl;
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: url == null
+          ? _initials()
+          : Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _initials(),
+              loadingBuilder: (context, child, progress) =>
+                  progress == null ? child : _initials(),
+            ),
+    );
+  }
+
+  Widget _initials() {
+    return Center(
+      child: Text(
+        item.initials,
+        style: TextStyle(
+          fontSize: 22 * scale,
+          fontWeight: FontWeight.w700,
+          color: DinqTokens.textPrimary,
+        ),
+      ),
+    );
+  }
+}
+
+/// 所在地行：地图针图标 + 地点文案。仅 `item.location` 非空时渲染。
+/// 与 `ShortlistCandidateCard` 的 location 行样式一致。
+class _DetailLocationLine extends StatelessWidget {
+  const _DetailLocationLine({required this.scale, required this.location});
+
+  final double scale;
+  final String location;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        DinqSvgIcon(
+          assetName: DinqIcons.shortlistMapPinLight,
+          size: 14 * scale,
+          color: const Color(0xFFC9C5BD),
+        ),
+        SizedBox(width: 6 * scale),
+        Expanded(
+          child: Text(
+            location,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: DinqTokens.textSecondary,
+              fontSize: 12 * scale,
+              height: 18 / 12,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
