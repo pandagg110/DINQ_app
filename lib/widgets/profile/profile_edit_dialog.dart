@@ -317,11 +317,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                 ],
               ),
             ),
-            const Divider(
-              height: 1,
-              thickness: 1,
-              color: Color(0xFFF0F0F0),
-            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
             // 鍙粴鍔ㄥ唴瀹瑰尯
             Expanded(
               child: Scrollbar(
@@ -441,14 +437,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                       const SizedBox(height: 12),
                       _buildTimezoneDropdown(),
                       const SizedBox(height: 12),
-                      _buildField(
-                        'Introduction',
-                        _bioController,
-                        hint: 'Tell us about yourself.',
-                        maxLength: 200,
-                        maxLines: 5,
-                        showCounter: true,
-                      ),
+                      _buildIntroductionField(),
                       const SizedBox(height: 12),
                       _buildTagsSection(),
                     ],
@@ -714,7 +703,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
                       child: const Icon(
                         Icons.close,
                         size: 16,
-                        color: Color(0xFFEF4444),
+                        color: Color(0xFF4B5563),
                       ),
                     ),
                   ],
@@ -789,6 +778,79 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
             fontSize: 14,
             color: Color(0xFF171717),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntroductionField() {
+    const maxLength = 200;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Introduction',
+          style: TextStyle(
+            fontFamily: 'Geist',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF171717),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Stack(
+          children: [
+            TextField(
+              controller: _bioController,
+              maxLength: maxLength,
+              maxLines: 5,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Tell us about yourself.',
+                hintStyle: const TextStyle(
+                  fontFamily: 'Geist',
+                  fontSize: 14,
+                  color: Color(0xFF9CA3AF),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF171717),
+                    width: 1,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(12, 12, 56, 30),
+                counterText: '',
+              ),
+              style: const TextStyle(
+                fontFamily: 'Geist',
+                fontSize: 14,
+                color: Color(0xFF171717),
+              ),
+            ),
+            Positioned(
+              right: 12,
+              bottom: 10,
+              child: Text(
+                '${_bioController.text.characters.length}/$maxLength',
+                style: const TextStyle(
+                  fontFamily: 'Geist',
+                  fontSize: 12,
+                  color: Color(0xFF9CA3AF),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

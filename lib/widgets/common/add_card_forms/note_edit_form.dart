@@ -304,6 +304,7 @@ class _NoteEditFormWithSaveState extends State<NoteEditFormWithSave> {
         child: DropdownButton<int>(
           value: _fontSize,
           isExpanded: true,
+          dropdownColor: Colors.white,
           icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6B7280)),
           items: _fontSizes
               .map((s) => DropdownMenuItem(value: s, child: Text('${s}px')))
