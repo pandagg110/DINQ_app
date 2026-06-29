@@ -30,10 +30,13 @@ class ProfileHeader extends StatelessWidget {
   final VoidCallback? onAvatarUpdated;
   final VoidCallback? onStatusEdit;
   final VoidCallback? onDataUpdated;
+
   /// 右上角 Share 按钮点击
   final VoidCallback? onShare;
+
   /// 是否显示 Preview/Edit 切换按钮（默认显示，设为 false 时外部可用 Positioned 固定）
   final bool showToggle;
+
   /// 是否在头像行显示 Share（My DINQ 顶栏已有时设为 false）
   final bool showShare;
 
@@ -51,18 +54,19 @@ class ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userStore = context.watch<UserStore>();
-    final isEditable = userStore.isLoggedIn() &&
+    final isEditable =
+        userStore.isLoggedIn() &&
         userStore.user?.userData.domain == data.domain;
     final isEditMode = !isPreviewMode && isEditable;
 
     final tags = data.tags.isNotEmpty
         ? data.tags
-            .split(',')
-            .map((t) => t.trim())
-            .where((t) => t.isNotEmpty)
-            .take(5)
-            .map((t) => t.length > 20 ? t.substring(0, 20) : t)
-            .toList()
+              .split(',')
+              .map((t) => t.trim())
+              .where((t) => t.isNotEmpty)
+              .take(5)
+              .map((t) => t.length > 20 ? t.substring(0, 20) : t)
+              .toList()
         : <String>[];
 
     final content = Column(
@@ -85,7 +89,7 @@ class ProfileHeader extends StatelessWidget {
               avatarUrl: data.avatarUrl,
               userName: data.name.isNotEmpty ? data.name : username,
               editable: isEditMode,
-              size: 180,
+              size: 124,
               jobStatus: data.jobStatus,
               onAvatarUpdated: onAvatarUpdated,
               onStatusEdit: isEditable ? onStatusEdit : null,
@@ -94,7 +98,11 @@ class ProfileHeader extends StatelessWidget {
               const Spacer(),
               TextButton.icon(
                 onPressed: onShare,
-                icon: const Icon(Icons.share_outlined, size: 20, color: Color(0xFF171717)),
+                icon: const Icon(
+                  Icons.share_outlined,
+                  size: 20,
+                  color: Color(0xFF171717),
+                ),
                 label: const Text(
                   'Share',
                   style: TextStyle(
@@ -104,7 +112,10 @@ class ProfileHeader extends StatelessWidget {
                   ),
                 ),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -159,7 +170,8 @@ class ProfileHeader extends StatelessWidget {
             iconColor: const Color(0xFF303030),
             text: data.timezone ?? '',
             placeholder: 'Select timezone',
-            isPlaceholder: isEditMode && (data.timezone == null || data.timezone!.isEmpty),
+            isPlaceholder:
+                isEditMode && (data.timezone == null || data.timezone!.isEmpty),
           ),
         // 标签（编辑态始终显示区域，空时显示占位）
         if (isEditMode || tags.isNotEmpty) ...[
@@ -183,7 +195,10 @@ class ProfileHeader extends StatelessWidget {
                   children: tags.asMap().entries.map((e) {
                     final colorIndex = e.key % _tagColors.length;
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: _tagColors[colorIndex],
                         borderRadius: BorderRadius.circular(8),
@@ -217,7 +232,7 @@ class ProfileHeader extends StatelessWidget {
             ),
           ),
         ],
-       
+
         const SizedBox(height: 8),
       ],
     );
@@ -247,7 +262,9 @@ class ProfileHeader extends StatelessWidget {
       style: TextStyle(
         fontSize: 32,
         fontWeight: FontWeight.w600,
-        color: showPlaceholder ? const Color(0xFF9CA3AF) : const Color(0xFF171717),
+        color: showPlaceholder
+            ? const Color(0xFF9CA3AF)
+            : const Color(0xFF171717),
         height: 40 / 32,
       ),
     );
@@ -274,7 +291,9 @@ class ProfileHeader extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
-                color: isPlaceholder ? const Color(0xFF9CA3AF) : const Color(0xFF171717),
+                color: isPlaceholder
+                    ? const Color(0xFF9CA3AF)
+                    : const Color(0xFF171717),
                 height: 24 / 15,
               ),
             ),

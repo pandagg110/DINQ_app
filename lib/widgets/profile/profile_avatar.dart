@@ -23,7 +23,8 @@ class ProfileAvatar extends StatefulWidget {
   final String userName;
   final bool editable;
   final double size;
-  final String? jobStatus; // "Hiring" | "Open_to_work" | "Internship" | "Freelance" | "Hidden"
+  final String?
+  jobStatus; // "Hiring" | "Open_to_work" | "Internship" | "Freelance" | "Hidden"
   final VoidCallback? onAvatarUpdated;
   final VoidCallback? onStatusEdit;
 
@@ -47,12 +48,14 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
 
   Future<void> _handleFileSelect() async {
     if (_isUploading) return;
+    final userStore = context.read<UserStore>();
 
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
       );
+      if (!mounted) return;
 
       if (result != null && result.files.single.bytes != null) {
         final file = result.files.single;
@@ -78,26 +81,40 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
           );
 
           // 更新用户数据
-          final userStore = context.read<UserStore>();
           await userStore.updateUserData({'avatar_url': uploadedUrl});
+          if (!mounted) return;
 
           setState(() {
             _tempAvatarUrl = uploadedUrl;
             _isUploading = false;
           });
 
-          TopToastUtil.showSuccess(context: context, title: '上传成功', description: '头像已更新');
+          TopToastUtil.showSuccess(
+            context: context,
+            title: '上传成功',
+            description: '头像已更新',
+          );
 
           widget.onAvatarUpdated?.call();
         } catch (error) {
+          if (!mounted) return;
           setState(() {
             _isUploading = false;
           });
-          TopToastUtil.showError(context: context, title: '上传失败', description: error.toString());
+          TopToastUtil.showError(
+            context: context,
+            title: '上传失败',
+            description: error.toString(),
+          );
         }
       }
     } catch (error) {
-      TopToastUtil.showError(context: context, title: '选择文件失败', description: error.toString());
+      if (!mounted) return;
+      TopToastUtil.showError(
+        context: context,
+        title: '选择文件失败',
+        description: error.toString(),
+      );
     }
   }
 
@@ -109,7 +126,11 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
         return Center(
-          child: Icon(Icons.person, size: widget.size * 0.5, color: Colors.grey),
+          child: Icon(
+            Icons.person,
+            size: widget.size * 0.5,
+            color: Colors.grey,
+          ),
         );
       },
     );
@@ -139,14 +160,21 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
     final jobStatusCircleAsset = _getJobStatusCircleAsset();
 
     return MouseRegion(
-      onEnter: widget.editable && !_isUploading ? (_) => setState(() => _isHovering = true) : null,
-      onExit: widget.editable ? (_) => setState(() => _isHovering = false) : null,
+      onEnter: widget.editable && !_isUploading
+          ? (_) => setState(() => _isHovering = true)
+          : null,
+      onExit: widget.editable
+          ? (_) => setState(() => _isHovering = false)
+          : null,
       child: Stack(
         children: [
           Container(
             width: widget.size,
             height: widget.size,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFE5E5E5)),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFE5E5E5),
+            ),
             child: ClipOval(
               child: Stack(
                 children: [
@@ -170,7 +198,8 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                             if (loadingProgress == null) return child;
                             return Center(
                               child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
+                                value:
+                                    loadingProgress.expectedTotalBytes != null
                                     ? loadingProgress.cumulativeBytesLoaded /
                                           loadingProgress.expectedTotalBytes!
                                     : null,
@@ -204,7 +233,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                 ),
                 child: const Center(child: CircularProgressIndicator()),
               ),
@@ -216,7 +245,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -224,11 +253,17 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                     ElevatedButton.icon(
                       onPressed: _handleFileSelect,
                       icon: const Icon(Icons.upload, size: 16),
-                      label: const Text('Upload', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'Upload',
+                        style: TextStyle(fontSize: 12),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.1),
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                     if (widget.onStatusEdit != null) ...[
@@ -236,11 +271,17 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                       ElevatedButton.icon(
                         onPressed: widget.onStatusEdit,
                         icon: const Icon(Icons.edit, size: 16),
-                        label: const Text('Status', style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Status',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundColor: Colors.white.withValues(alpha: 0.1),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ],
