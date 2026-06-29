@@ -98,27 +98,38 @@ class _ConfirmDialogContent extends StatelessWidget {
   static const _kTextBody = Color(0xFF575757);
   static const _kBorder = Color(0xFFE5E5E5);
   static const _kHoverBg = Color(0xFFF5F5F5);
+  static const _kActionHeight = 44.0;
 
   ButtonStyle get _defaultOkStyle => ElevatedButton.styleFrom(
-        backgroundColor: _kTextPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        minimumSize: const Size(0, 36),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-      );
+    backgroundColor: _kTextPrimary,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    minimumSize: const Size(0, _kActionHeight),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    textStyle: const TextStyle(
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+    ),
+  );
 
   ButtonStyle get _cancelStyle => OutlinedButton.styleFrom(
-        foregroundColor: _kTextPrimary,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        minimumSize: const Size(0, 36),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        side: const BorderSide(color: _kBorder),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-      );
+    foregroundColor: _kTextPrimary,
+    backgroundColor: Colors.white,
+    elevation: 0,
+    minimumSize: const Size(0, _kActionHeight),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    side: const BorderSide(color: _kBorder),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    textStyle: const TextStyle(
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -169,17 +180,33 @@ class _ConfirmDialogContent extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             if (showCancelButton) ...[
-              OutlinedButton(
-                onPressed: onCancel,
-                style: _cancelStyle,
-                child: Text(cancelText),
+              SizedBox(
+                height: _kActionHeight,
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  style: _cancelStyle,
+                  child: Text(
+                    cancelText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
             ],
-            ElevatedButton(
-              onPressed: onConfirm,
-              style: okStyle ?? _defaultOkStyle,
-              child: Text(okText),
+            Flexible(
+              child: SizedBox(
+                height: _kActionHeight,
+                child: ElevatedButton(
+                  onPressed: onConfirm,
+                  style: okStyle ?? _defaultOkStyle,
+                  child: Text(
+                    okText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
