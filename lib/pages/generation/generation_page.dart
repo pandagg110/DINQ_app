@@ -266,6 +266,7 @@ class _GenerationPageState extends State<GenerationPage> {
       _queryStepApplied = true;
       final step = query['step']?.trim().toLowerCase();
       if (step == 'socials' || step == 'social-links' || step == 'social') {
+        _redirectTimer?.cancel();
         _isStandaloneSocialsEntry = true;
         _onboardingReturnPath ??= '/me';
         setState(() => _currentStep = GenerationStep.onboardingSocials);

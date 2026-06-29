@@ -440,18 +440,26 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
     );
   }
 
-  Widget _buildBodyContent() {
+  Widget _buildTopContent({double topPadding = 0}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (topPadding > 0) SizedBox(height: topPadding),
         _buildHeader(),
         const SizedBox(height: 24),
         _buildIconGrid(),
         const SizedBox(height: 24),
         _buildUrlInput(),
-        _buildAddedList(),
-        const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Widget _buildScrollableAddedList() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [_buildAddedList(), const SizedBox(height: 24)],
+      ),
     );
   }
 
@@ -461,7 +469,8 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: SingleChildScrollView(child: _buildBodyContent())),
+          _buildTopContent(),
+          Expanded(child: _buildScrollableAddedList()),
           _buildFooter(),
         ],
       );
@@ -473,12 +482,8 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(top: 24),
-                child: _buildBodyContent(),
-              ),
-            ),
+            _buildTopContent(topPadding: 24),
+            Expanded(child: _buildScrollableAddedList()),
             _buildFooter(),
           ],
         ),
