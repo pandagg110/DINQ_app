@@ -9,7 +9,7 @@ import '../../../stores/resume_store.dart';
 import '../../../utils/top_toast_util.dart';
 import 'resume_icons.dart';
 
-/// 对齐 Web `CreateResumeModal.tsx` + `AdaptiveModal.tsx`。
+/// 瀵归綈 Web `CreateResumeModal.tsx` + `AdaptiveModal.tsx`銆?
 class CreateResumeModal {
   CreateResumeModal._();
 
@@ -169,7 +169,10 @@ class _CreateResumeFormState extends State<_CreateResumeForm> {
     final t = _titleController.text.trim();
     if (t.isNotEmpty) return t;
     if (_fileName != null) {
-      return _fileName!.replaceAll(RegExp(r'\.(pdf|docx?|doc)$', caseSensitive: false), '');
+      return _fileName!.replaceAll(
+        RegExp(r'\.(pdf|docx?|doc)$', caseSensitive: false),
+        '',
+      );
     }
     return 'Untitled';
   }
@@ -260,7 +263,10 @@ class _CreateResumeFormState extends State<_CreateResumeForm> {
               hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -284,58 +290,65 @@ class _CreateResumeFormState extends State<_CreateResumeForm> {
               onTap: _pickFile,
               borderRadius: BorderRadius.circular(12),
               hoverColor: const Color(0xFFF5F5F5),
-              child: CustomPaint(
-                painter: _DashedBorderPainter(
-                  color: const Color(0xFFD1D5DB),
-                  radius: 12,
-                ),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  color: const Color(0xFFFAFAFA),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _fileName ?? 'Choose a resume file',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF171717),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _fileSize != null
-                                  ? '${(_fileSize! / 1024 / 1024).toStringAsFixed(1)} MB'
-                                  : 'PDF, DOC, DOCX — Max 10MB',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                        ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CustomPaint(
+                  foregroundPainter: _DashedBorderPainter(
+                    color: const Color(0xFFD1D5DB),
+                    radius: 12,
+                  ),
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(color: Color(0xFFFAFAFA)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
                       ),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: ResumeSvgIcon(
-                            ResumeIcons.upload,
-                            size: 16,
-                            color: Color(0xFF374151),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _fileName ?? 'Choose a resume file',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF171717),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _fileSize != null
+                                      ? '${(_fileSize! / 1024 / 1024).toStringAsFixed(1)} MB'
+                                      : 'PDF, DOC, DOCX - Max 10MB',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: ResumeSvgIcon(
+                                ResumeIcons.upload,
+                                size: 16,
+                                color: Color(0xFF374151),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -364,7 +377,10 @@ class _CreateResumeFormState extends State<_CreateResumeForm> {
                 onPressed: _isSubmitting ? null : widget.onSuccess,
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF171717),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -376,7 +392,9 @@ class _CreateResumeFormState extends State<_CreateResumeForm> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: (_isSubmitting || _filePath == null) ? null : _create,
+                onPressed: (_isSubmitting || _filePath == null)
+                    ? null
+                    : _create,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF171717),
                   foregroundColor: Colors.white,
@@ -384,7 +402,10 @@ class _CreateResumeFormState extends State<_CreateResumeForm> {
                   disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
                   elevation: 0,
                   minimumSize: const Size(132, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -400,7 +421,10 @@ class _CreateResumeFormState extends State<_CreateResumeForm> {
                       )
                     : const Text(
                         'Create',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
               ),
             ],
@@ -437,15 +461,16 @@ class _DashedBorderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    const strokeWidth = 1.0;
     final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
+      (Offset.zero & size).deflate(strokeWidth / 2),
       Radius.circular(radius),
     );
     final path = Path()..addRRect(rrect);
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = strokeWidth;
     const dash = 6.0;
     const gap = 4.0;
     for (final metric in path.computeMetrics()) {
