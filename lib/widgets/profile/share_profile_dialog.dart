@@ -1,11 +1,8 @@
-import 'dart:math';
-
 import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/card_models.dart';
@@ -15,7 +12,6 @@ import 'export_card_preview.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../utils/asset_path.dart';
-import '../../utils/toast_util.dart';
 
 /// 分享 Profile 的底部弹框，样式参考 [ProfileEditDialog]；内容参考 Web ShareModal。
 /// 包含 Card/QR 切换、预览占位、分享按钮（WhatsApp/LinkedIn/Twitter）、More（下载、复制链接）。
@@ -71,11 +67,14 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   final GlobalKey _moreButtonKey = GlobalKey();
 
   String get _shareTitle {
-    final userStore = context.read<UserStore>();
-    final isSelf = userStore.user?.userData.domain == widget.userData.domain;
-    return isSelf
+    return _isSelf
         ? '${widget.userData.name} here.'
         : 'Came across ${widget.userData.name}\'s personal profile.';
+  }
+
+  bool get _isSelf {
+    final userStore = context.read<UserStore>();
+    return userStore.user?.userData.domain == widget.userData.domain;
   }
 
   String get _shareContent {
@@ -86,14 +85,6 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   String get _shareContent2 {
     final bio = widget.userData.bio;
     return '$_shareTitle\n\n$bio\n';
-  }
-
-  /// 调起系统分享面板，可转发到微信、WhatsApp、邮件等任意已安装 App
-  Future<void> _shareToSystem() async {
-    await Share.share(
-      _shareContent,
-      subject: _shareTitle,
-    );
   }
 
   Future<void> _copyLink() async {
@@ -140,7 +131,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     final overlay = Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
     if (overlay == null) return;
     final buttonRect = box.localToGlobal(Offset.zero) & box.size;
-    const menuHeight = 140.0;
+    const menuHeight = 96.0;
     const gapAboveButton = 8.0;
     // 菜单在 More 按钮正上方、宽度与按钮一致、右对齐
     final position = RelativeRect.fromLTRB(
@@ -155,6 +146,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       menuPadding: EdgeInsets.zero,
       color: Colors.white,
+      constraints: const BoxConstraints.tightFor(width: 144),
       items: [
         PopupMenuItem<String>(
           value: 'download',
@@ -189,27 +181,12 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
             ],
           ),
         ),
-        const PopupMenuItem<String>(
-          value: 'share',
-          child: Row(
-            children: [
-              Icon(Icons.share_outlined, size: 20, color: Color(0xFF374151)),
-              SizedBox(width: 12),
-              Text(
-                'Share to app',
-                style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)),
-              ),
-            ],
-          ),
-        ),
       ],
     );
     if (result == 'download') {
       await _handleDownload();
     } else if (result == 'copy_link') {
       await _copyLink();
-    } else if (result == 'share') {
-      await _shareToSystem();
     }
   }
 
@@ -234,40 +211,52 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.of(context).size.height * 0.9;
+    final mediaSize = MediaQuery.of(context).size;
+    final maxHeight = mediaSize.height * 0.9;
+    final cardScale = (mediaSize.width - 48) / 600;
+    final cardPreviewHeight = (315 * cardScale) + (_isSelf ? 64 : 0);
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: const BoxDecoration(
         color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFEAE8E3))),
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header: Share Profile + close
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
+          SizedBox(
+            height: 56,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Share Profile',
-                  style: TextStyle(
-                    fontFamily: 'Geist',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF171717),
+                const Padding(
+                  padding: EdgeInsets.only(left: 24),
+                  child: Text(
+                    'Share Profile',
+                    style: TextStyle(
+                      fontFamily: 'Geist',
+                      fontSize: 16,
+                      height: 1.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF171717),
+                    ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 24, color: Color(0xFF6B7280)),
-                  style: IconButton.styleFrom(
-                    padding: const EdgeInsets.all(6),
+                Padding(
+                  padding: const EdgeInsets.only(right: 18),
+                  child: IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, size: 20, color: Color(0xFF4B5563)),
+                    style: IconButton.styleFrom(
+                      padding: const EdgeInsets.all(6),
+                      minimumSize: const Size(32, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 ),
               ],
@@ -276,7 +265,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
           // Content: Card/QR toggle + preview
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -309,10 +298,10 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   // Preview area: ExportCard/ShareCard 布局同步；watch CardStore 使移动卡片时预览同步更新
                   SizedBox(
-                    height: 240,
+                    height: _viewModeCard ? cardPreviewHeight : 330,
                     child: _viewModeCard
                         ? Builder(
                             builder: (context) {
@@ -320,7 +309,8 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                               return ExportCardPreview(
                                 userData: widget.userData,
                                 cards: cardStore.cards,
-                                height: 240,
+                                height: cardPreviewHeight,
+                                isEditable: _isSelf,
                               );
                             },
                           )
@@ -334,7 +324,6 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                                 username: widget.username,
                                 profileUrl: widget.profileUrl,
                                 forExport: false,
-                                size: 160,
                               ),
                             ),
                           ),
@@ -367,14 +356,12 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                     ),
                   ),
                 ],
-                Container(
+                SizedBox(
                   height: 48,
                   child: Row(
                     children: [
                       Expanded(
                         child: _SocialImageButton(
-                          imageWidth: 24,
-                          imageHeight: 24,
                           imagePath: 'profile/share-whatsapp.png',
                           backgroundColor: const Color(0xFF25D366),
                           onTap: _shareWhatsApp,
@@ -384,7 +371,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                       Expanded(
                         child: _SocialImageButton(
                           imagePath: 'profile/share-linkedin.png',
-                          backgroundColor: const Color(0xFF007EBB),
+                          backgroundColor: const Color(0xFF367CB6),
                           onTap: _shareLinkedIn,
                         ),
                       ),
@@ -400,13 +387,14 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                       // More button（使用 showMenu 弹出菜单）
                       SizedBox(
                         key: _moreButtonKey,
-                        width: 96,
+                        width: 56,
                         height: 48,
                         child: _ActionButton(
                           label: 'More',
                           backgroundColor: Colors.white,
                           outline: true,
                           icon: Icons.more_horiz,
+                          showLabel: false,
                           onTap: _showMoreMenu,
                         ),
                       ),
@@ -450,7 +438,7 @@ class _SegmentButton extends StatelessWidget {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -497,17 +485,11 @@ class _SocialImageButton extends StatelessWidget {
     required this.imagePath,
     required this.backgroundColor,
     required this.onTap,
-    this.imageWidth = 32,
-    this.imageHeight = 32,
   });
 
   final String imagePath;
   final Color backgroundColor;
   final VoidCallback onTap;
-  /// 图片宽度，默认 28
-  final double imageWidth;
-  /// 图片高度，默认 28
-  final double imageHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -522,8 +504,8 @@ class _SocialImageButton extends StatelessWidget {
           alignment: Alignment.center,
           child: Image.asset(
             assetPath(imagePath),
-            width: imageWidth,
-            height: imageHeight,
+            width: 20,
+            height: 20,
             fit: BoxFit.contain,
           ),
         ),
@@ -538,6 +520,7 @@ class _ActionButton extends StatelessWidget {
     required this.backgroundColor,
     this.icon,
     this.outline = false,
+    this.showLabel = true,
     required this.onTap,
   });
 
@@ -545,6 +528,7 @@ class _ActionButton extends StatelessWidget {
   final Color backgroundColor;
   final IconData? icon;
   final bool outline;
+  final bool showLabel;
   final VoidCallback onTap;
 
   @override
@@ -574,16 +558,17 @@ class _ActionButton extends StatelessWidget {
                   size: 20,
                   color: outline ? const Color(0xFF374151) : Colors.white,
                 ),
-              if (icon != null) const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: 'Geist',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: outline ? const Color(0xFF374151) : Colors.white,
+              if (icon != null && showLabel) const SizedBox(width: 6),
+              if (showLabel)
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'Geist',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: outline ? const Color(0xFF374151) : Colors.white,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

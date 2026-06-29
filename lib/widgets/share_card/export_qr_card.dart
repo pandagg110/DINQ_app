@@ -1,4 +1,4 @@
-/**
+/*
  * ExportQrCard - Flutter 迁移自 Web example/src/app/[username]/components/shareCard/ExportQrCard.tsx
  * 分享卡片 QR 码组件：QR 码 + 中心头像 + dinq.me/username
  */
@@ -55,24 +55,24 @@ class ExportQrCard extends StatelessWidget {
           ),
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Column(
-              children: [
-                Container(
-                  height: 1,
-                  color: const Color(0xFFD8D8D8),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'dinq.me/$username',
-                  style: const TextStyle(
-                    fontFamily: 'Geist',
-                    fontSize: 14,
-                    height: 1.4,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Container(
+              height: 1,
+              color: const Color(0xFFD8D8D8),
+            ),
+          ),
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(12),
+            alignment: Alignment.center,
+            child: Text(
+              'dinq.me/$username',
+              style: const TextStyle(
+                fontFamily: 'Geist',
+                fontSize: 14,
+                height: 1.4,
+                color: Color(0xFF1F2937),
+              ),
             ),
           ),
         ],
@@ -91,7 +91,7 @@ class ExportQrCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),

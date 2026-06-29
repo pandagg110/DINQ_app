@@ -88,9 +88,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
     final map = <String, dynamic>{};
     for (final c in list) {
       final meta = c.data.metadata;
-      map[c.data.type] = meta != null
-          ? Map<String, dynamic>.from(meta)
-          : <String, dynamic>{};
+      map[c.data.type] = Map<String, dynamic>.from(meta);
     }
     return map;
   }
@@ -163,13 +161,12 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
             ),
           ),
           ),  // Expanded
-          const SizedBox(height: 12),
           // Edit Background Color and Mode（与 ExportCard.tsx 一致）
           if (widget.isEditable) ...[
+            const SizedBox(height: 16),
             _buildControlsRow(),
             if (_themeMode == 'card') _buildCardDropdowns(),
-          ] else
-            _buildControlsRow(),
+          ],
         ],
       ),
     );
@@ -207,7 +204,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: widget.isEditable || true
+        onTap: widget.isEditable
             ? () {
                 _handleThemeChange('color', option);
               }
@@ -278,7 +275,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
                   borderRadius: BorderRadius.circular(6),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -344,7 +341,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
               width: 90,
               height: 32,
               child: DropdownButtonFormField<String>(
-                value: firstOptions.contains(leftValue)
+                initialValue: firstOptions.contains(leftValue)
                     ? leftValue
                     : firstOptions.first,
                 decoration: const InputDecoration(
@@ -383,7 +380,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
               width: 90,
               height: 32,
               child: DropdownButtonFormField<String>(
-                value: secondOptions.contains(rightValue)
+                initialValue: secondOptions.contains(rightValue)
                     ? rightValue
                     : secondOptions.first,
                 decoration: const InputDecoration(
