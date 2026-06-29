@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_models.dart';
 import '../../stores/user_store.dart';
+import '../../utils/asset_path.dart';
 import 'profile_avatar.dart';
 import 'profile_edit_dialog.dart';
 import 'preview_edit_toggle.dart';
@@ -130,7 +132,7 @@ class ProfileHeader extends StatelessWidget {
         // 职位（编辑态始终显示，空为占位）
         if (isEditMode || data.fullPosition.isNotEmpty)
           _buildRowTextOrPlaceholder(
-            icon: Icons.work_outline,
+            iconPath: 'icons/search/enrich/briefcase.svg',
             iconColor: const Color(0xFF303030),
             text: data.fullPosition,
             placeholder: 'Your position',
@@ -139,7 +141,7 @@ class ProfileHeader extends StatelessWidget {
         // 学历
         if (isEditMode || data.fullDegree.isNotEmpty)
           _buildRowTextOrPlaceholder(
-            icon: Icons.school_outlined,
+            iconPath: 'icons/search/enrich/graduation-cap.svg',
             iconColor: const Color(0xFF7C7C7C),
             text: data.fullDegree,
             placeholder: 'Your degree',
@@ -148,7 +150,7 @@ class ProfileHeader extends StatelessWidget {
         // Email
         if (isEditMode || data.email.isNotEmpty)
           _buildRowTextOrPlaceholder(
-            icon: Icons.mail_outline,
+            iconPath: 'icons/search/enrich/mail.svg',
             iconColor: const Color(0xFF303030),
             text: data.email,
             placeholder: 'Your email',
@@ -157,7 +159,7 @@ class ProfileHeader extends StatelessWidget {
         // Location
         if (isEditMode || data.location.isNotEmpty)
           _buildRowTextOrPlaceholder(
-            icon: Icons.location_on_outlined,
+            iconPath: 'icons/search/enrich/map-pin.svg',
             iconColor: const Color(0xFF303030),
             text: data.location,
             placeholder: 'Your location',
@@ -166,7 +168,7 @@ class ProfileHeader extends StatelessWidget {
         // Timezone（编辑态或有时区时显示）
         if (isEditMode || (data.timezone != null && data.timezone!.isNotEmpty))
           _buildRowTextOrPlaceholder(
-            icon: Icons.schedule_outlined,
+            iconPath: 'icons/search/enrich/clock.svg',
             iconColor: const Color(0xFF303030),
             text: data.timezone ?? '',
             placeholder: 'Select timezone',
@@ -271,7 +273,7 @@ class ProfileHeader extends StatelessWidget {
   }
 
   Widget _buildRowTextOrPlaceholder({
-    required IconData icon,
+    required String iconPath,
     required Color iconColor,
     required String text,
     required String placeholder,
@@ -283,7 +285,15 @@ class ProfileHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 16, color: iconColor.withValues(alpha: 0.64)),
+          SvgPicture.asset(
+            assetPath(iconPath),
+            width: 16,
+            height: 16,
+            colorFilter: ColorFilter.mode(
+              iconColor.withValues(alpha: 0.64),
+              BlendMode.srcIn,
+            ),
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
