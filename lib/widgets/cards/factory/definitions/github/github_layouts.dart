@@ -6,6 +6,32 @@ import 'github_constants.dart';
 import 'github_components.dart';
 
 class GitHubLayouts {
+  static Widget _buildStarsOrUsername({
+    required String username,
+    required int starCount,
+    MetricAlign align = MetricAlign.start,
+  }) {
+    if (starCount > 0) {
+      return MetricDisplay(
+        label: 'Stars',
+        value: starCount,
+        align: align,
+      );
+    }
+
+    return Text(
+      username.isNotEmpty ? '@$username' : '',
+      textAlign: align == MetricAlign.end ? TextAlign.right : TextAlign.left,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF171717),
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   // 2x2 Size - Bottom Left Card (Compact)
   static Widget build2x2Layout({
     required String username,
@@ -26,9 +52,9 @@ class GitHubLayouts {
           // Bottom Section: Stars
           Align(
             alignment: Alignment.bottomLeft,
-            child: MetricDisplay(
-              label: 'Stars',
-              value: starCount,
+            child: _buildStarsOrUsername(
+              username: username,
+              starCount: starCount,
               align: MetricAlign.start,
             ),
           ),
@@ -73,9 +99,9 @@ class GitHubLayouts {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MetricDisplay(
-                label: 'Stars',
-                value: starCount,
+              _buildStarsOrUsername(
+                username: username,
+                starCount: starCount,
                 align: MetricAlign.start,
               ),
               if (topLanguages.isNotEmpty) ...[
@@ -139,9 +165,9 @@ class GitHubLayouts {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    MetricDisplay(
-                      label: 'Stars',
-                      value: starCount,
+                    _buildStarsOrUsername(
+                      username: username,
+                      starCount: starCount,
                       align: MetricAlign.start,
                     ),
                     const SizedBox(width: 32),
@@ -227,9 +253,9 @@ class GitHubLayouts {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const AssetIcon(asset: 'icons/logo/Github.png', size: 40),
-              MetricDisplay(
-                label: 'Stars',
-                value: starCount,
+              _buildStarsOrUsername(
+                username: username,
+                starCount: starCount,
                 align: MetricAlign.end,
               ),
             ],
