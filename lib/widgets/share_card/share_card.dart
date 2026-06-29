@@ -1,4 +1,4 @@
-/**
+/*
  * ShareCard Component - Flutter 迁移自 Web example/src/components/business/ShareCard
  * 用于 OG 图 / 分享预览，纯布局与样式，无业务请求。
  */
@@ -255,7 +255,7 @@ class ShareCard extends StatelessWidget {
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.8),
+          color: Colors.white.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
@@ -274,33 +274,39 @@ class ShareCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 24),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _tags.asMap().entries.map((e) {
-                final i = e.key;
-                final tag = e.value;
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: themeColor == 'default'
-                        ? _tagColors[i % _tagColors.length].withOpacity(0.73)
-                        : const Color(0xFF888888).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  constraints: const BoxConstraints(minHeight: 54),
-                  alignment: Alignment.center,
-                  child: Text(
-                    tag,
-                    style: const TextStyle(
-                      fontFamily: 'Geist',
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF171717),
+            ClipRect(
+              child: Row(
+                children: _tags.asMap().entries.map((e) {
+                  final i = e.key;
+                  final tag = e.value;
+                  return Padding(
+                    padding: EdgeInsets.only(left: i == 0 ? 0 : 12),
+                    child: Container(
+                      height: 54,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: themeColor == 'default'
+                            ? _tagColors[i % _tagColors.length].withValues(alpha: 0.73)
+                            : const Color(0xFF888888).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        tag,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.clip,
+                        style: const TextStyle(
+                          fontFamily: 'Geist',
+                          fontSize: 24,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF171717),
+                        ),
+                      ),
                     ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
           ],
         ),
@@ -420,7 +426,7 @@ class ShareCard extends StatelessWidget {
               width: 24,
               height: 24,
               colorFilter: ColorFilter.mode(
-                const Color(0xFF9CA3AF).withOpacity(0.5),
+                const Color(0xFF9CA3AF).withValues(alpha: 0.5),
                 BlendMode.srcIn,
               ),
             ),

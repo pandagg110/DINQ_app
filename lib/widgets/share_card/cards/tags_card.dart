@@ -12,7 +12,7 @@ class TagsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
+        color: Colors.white.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Wrap(
@@ -22,7 +22,7 @@ class TagsCard extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF888888).withOpacity(0.1),
+              color: const Color(0xFF888888).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             constraints: const BoxConstraints(minHeight: 54),
