@@ -1,7 +1,5 @@
-/**
- * NoteEditForm - NOTE 卡片编辑表单
- * 编辑 text, fontSize, fontColor, bgColor, align, link
- */
+// NoteEditForm - NOTE 卡片编辑表单
+// 编辑 text, fontSize, fontColor, bgColor, align, link
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,8 +11,19 @@ const _fontSizes = [12, 14, 16, 18, 20, 24, 28, 32];
 
 // 圆形色板：2 行 x 6 列，与 UI 设计一致
 const _colorPalette = [
-  '#FFFFFF', '#93C5FD', '#3B82F6', '#FBBF24', '#F97316', '#F9A8D4',
-  '#C4B5FD', '#8B5CF6', '#6EE7B7', '#0D9488', '#15803D', '#525252', '#000000',
+  '#FFFFFF',
+  '#93C5FD',
+  '#3B82F6',
+  '#FBBF24',
+  '#F97316',
+  '#F9A8D4',
+  '#C4B5FD',
+  '#8B5CF6',
+  '#6EE7B7',
+  '#0D9488',
+  '#15803D',
+  '#525252',
+  '#000000',
 ];
 
 /// 根据背景色计算对比文字颜色
@@ -84,11 +93,12 @@ class _NoteEditFormWithSaveState extends State<NoteEditFormWithSave> {
     _fontSize = meta['fontSize'] is int
         ? meta['fontSize'] as int
         : (meta['fontSize'] is num
-            ? (meta['fontSize'] as num).toInt()
-            : int.tryParse(meta['fontSize']?.toString() ?? '14') ?? 14);
+              ? (meta['fontSize'] as num).toInt()
+              : int.tryParse(meta['fontSize']?.toString() ?? '14') ?? 14);
     if (!_fontSizes.contains(_fontSize)) _fontSize = 14;
     _bgColor = meta['bgColor']?.toString() ?? '#FFFFFF';
-    _fontColor = meta['fontColor']?.toString() ?? _getContrastFontColor(_bgColor);
+    _fontColor =
+        meta['fontColor']?.toString() ?? _getContrastFontColor(_bgColor);
     final alignRaw = meta['align'];
     if (alignRaw is List && alignRaw.length >= 2) {
       _align = [
@@ -175,7 +185,10 @@ class _NoteEditFormWithSaveState extends State<NoteEditFormWithSave> {
           controller: _linkController,
           decoration: _inputDecoration.copyWith(
             hintText: 'Enter a Link',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
           ),
           style: const TextStyle(fontFamily: 'Geist', fontSize: 14),
           maxLines: 1,
@@ -205,57 +218,64 @@ class _NoteEditFormWithSaveState extends State<NoteEditFormWithSave> {
       mainAxisAlignment = MainAxisAlignment.end;
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Container(
-          color: bgColor,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: mainAxisAlignment,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            TextField(
-              controller: _textController,
-              maxLines: 6,
-              minLines: 1,
-              style: TextStyle(
-                fontSize: _fontSize.toDouble(),
-                color: fontColor,
-                fontFamily: 'Geist',
-              ),
-              textAlign: textAlign,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                isDense: true,
-                hintText: 'Enter your note...',
-                hintStyle: TextStyle(
-                  color: fontColor.withOpacity(0.5),
-                  fontSize: _fontSize.toDouble(),
-                  fontFamily: 'Geist',
-                ),
-              ),
+    const previewRadius = 24.0;
+
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(previewRadius),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D000000),
+              blurRadius: 2,
+              offset: Offset(0, 1),
             ),
           ],
         ),
-      ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(previewRadius),
+          child: Container(
+            foregroundDecoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(previewRadius),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            color: bgColor,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: mainAxisAlignment,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                TextField(
+                  controller: _textController,
+                  maxLines: 6,
+                  minLines: 1,
+                  style: TextStyle(
+                    fontSize: _fontSize.toDouble(),
+                    color: fontColor,
+                    fontFamily: 'Geist',
+                  ),
+                  textAlign: textAlign,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                    hintText: 'Enter your note...',
+                    hintStyle: TextStyle(
+                      color: fontColor.withValues(alpha: 0.5),
+                      fontSize: _fontSize.toDouble(),
+                      fontFamily: 'Geist',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -285,9 +305,15 @@ class _NoteEditFormWithSaveState extends State<NoteEditFormWithSave> {
           value: _fontSize,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6B7280)),
-          items: _fontSizes.map((s) => DropdownMenuItem(value: s, child: Text('${s}px'))).toList(),
+          items: _fontSizes
+              .map((s) => DropdownMenuItem(value: s, child: Text('${s}px')))
+              .toList(),
           onChanged: (v) => setState(() => _fontSize = v ?? _fontSize),
-          style: const TextStyle(fontFamily: 'Geist', fontSize: 14, color: Color(0xFF171717)),
+          style: const TextStyle(
+            fontFamily: 'Geist',
+            fontSize: 14,
+            color: Color(0xFF171717),
+          ),
         ),
       ),
     );
@@ -308,7 +334,9 @@ class _NoteEditFormWithSaveState extends State<NoteEditFormWithSave> {
               shape: BoxShape.circle,
               color: _parseColor(c),
               border: Border.all(
-                color: selected ? const Color(0xFF3B82F6) : const Color(0xFFE5E7EB),
+                color: selected
+                    ? const Color(0xFF3B82F6)
+                    : const Color(0xFFE5E7EB),
                 width: selected ? 2.5 : 1,
               ),
             ),
