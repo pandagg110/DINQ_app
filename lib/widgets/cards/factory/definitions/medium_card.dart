@@ -14,27 +14,27 @@ class MediumCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
-    final topArticle = data['top_article'];
+    final data = cardAdapterMap(rawMetadata);
+    final topArticle = data['top_article'] ?? data['topArticle'];
     return {
       'username': data['username'],
       'name': data['name'],
       'bio': data['bio'],
       'avatar': data['avatar'],
-      'followerCount': data['follower_count'],
-      'followingCount': data['following_count'],
+      'followerCount': data['followerCount'] ?? data['follower_count'],
+      'followingCount': data['followingCount'] ?? data['following_count'],
       'topArticle': topArticle != null
           ? {
               'title': topArticle['title'],
@@ -42,7 +42,7 @@ class MediumCardDefinition extends CardDefinition {
               'url': topArticle['url'],
               'claps': topArticle['claps'],
               'responses': topArticle['responses'],
-              'ogImage': topArticle['og_image'],
+              'ogImage': topArticle['ogImage'] ?? topArticle['og_image'],
             }
           : null,
     };
@@ -50,10 +50,6 @@ class MediumCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return MediumWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return MediumWidget(card: params.card, size: params.size);
   }
 }
-

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 
 class CareerTrajectoryConstants {
   // Color scheme based on TSX version
-  static const List<String> colors = ['#E2C6FF', '#1487FA', '#DDFEBC']; // purple, blue, green
+  static const List<String> colors = [
+    '#E2C6FF',
+    '#1487FA',
+    '#DDFEBC',
+  ]; // purple, blue, green
 
   static const Map<String, Map<String, Color>> colorSchemes = {
     'purple': {
@@ -46,7 +50,7 @@ class CareerTrajectoryConstants {
   }
 
   static Map<String, Color> getColorScheme(String segmentColor) {
-    return colorSchemes[getColorSchemeName(segmentColor)] ?? colorSchemes['blue']!;
+    return colorSchemes[getColorSchemeName(segmentColor)] ??
+        colorSchemes['blue']!;
   }
 }
-

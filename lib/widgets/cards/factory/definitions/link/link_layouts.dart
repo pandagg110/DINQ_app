@@ -32,7 +32,8 @@ class LinkLayouts {
     required double dimension,
   }) {
     final specialIcon = getSpecialIcon(url);
-    final iconSrc = specialIcon ?? (favicon?.isNotEmpty == true ? favicon : null);
+    final iconSrc =
+        specialIcon ?? (favicon?.isNotEmpty == true ? favicon : null);
 
     if (iconSrc != null) {
       final isDinqLogo = specialIcon?.contains('dinq') == true;
@@ -50,12 +51,11 @@ class LinkLayouts {
             ),
           ],
         ),
-        padding: isDinqLogo ? EdgeInsets.all(dimension * 0.15) : EdgeInsets.zero,
+        padding: isDinqLogo
+            ? EdgeInsets.all(dimension * 0.15)
+            : EdgeInsets.zero,
         child: specialIcon != null
-            ? SvgPicture.asset(
-                'assets/$iconSrc',
-                fit: BoxFit.contain,
-              )
+            ? SvgPicture.asset('assets/$iconSrc', fit: BoxFit.contain)
             : Image.network(
                 iconSrc,
                 fit: BoxFit.contain,
@@ -78,7 +78,9 @@ class LinkLayouts {
   }
 
   static String cleanUrl(String url) {
-    return url.replaceAll(RegExp(r'^https?://'), '').replaceAll(RegExp(r'/$'), '');
+    return url
+        .replaceAll(RegExp(r'^https?://'), '')
+        .replaceAll(RegExp(r'/$'), '');
   }
 
   // 2x2 Size - Compact
@@ -359,4 +361,3 @@ class LinkLayouts {
     );
   }
 }
-

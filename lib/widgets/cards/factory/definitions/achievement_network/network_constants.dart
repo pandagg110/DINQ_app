@@ -44,4 +44,3 @@ class NetworkConstants {
   // Grid size (16x16 grid)
   static const String gridSize = '25px 25px';
 }
-

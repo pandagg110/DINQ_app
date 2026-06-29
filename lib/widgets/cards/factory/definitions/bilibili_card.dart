@@ -14,19 +14,19 @@ class BilibiliCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
+    final data = cardAdapterMap(rawMetadata);
     final extra = data['extra'] ?? {};
     return {
       'mid': data['mid'] ?? 0,
@@ -46,10 +46,6 @@ class BilibiliCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return BilibiliWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return BilibiliWidget(card: params.card, size: params.size);
   }
 }
-

@@ -9,7 +9,6 @@ import '../common/asset_icon.dart';
 import '../common/edit_card_dialog.dart';
 import 'factory/card_registry.dart';
 import 'factory/card_definition.dart';
-import 'factory/definitions/index.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 
 class CardRenderer extends StatefulWidget {
@@ -31,8 +30,7 @@ class CardRenderer extends StatefulWidget {
 class _CardRendererState extends State<CardRenderer> {
   bool _hasPrintedJson = false;
   bool _isDrag = false;
-  Timer? _dragEndTimer; // 用于跟踪延迟任务，防止连续点击导致状态异常
-
+  Timer? _dragEndTimer; // Tracks delayed drag reset after pointer release.
   @override
   void initState() {
     super.initState();
@@ -48,7 +46,7 @@ class _CardRendererState extends State<CardRenderer> {
   @override
   void didUpdateWidget(CardRenderer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 如果卡片 ID 或数据发生变化，重新打印
+    // Reprint card JSON when the card identity or state changes.
     if (oldWidget.card.id != widget.card.id ||
         oldWidget.card.data.type != widget.card.data.type ||
         oldWidget.card.data.status != widget.card.data.status) {
@@ -57,7 +55,7 @@ class _CardRendererState extends State<CardRenderer> {
     }
   }
 
-  /// 获取跳转 URL
+  /// Resolve the URL to open when the card is tapped.
   String? _getJumpUrl() {
     switch (widget.card.data.type.toUpperCase()) {
       case 'IMAGE':
@@ -68,7 +66,7 @@ class _CardRendererState extends State<CardRenderer> {
     }
   }
 
-  /// 打印卡片 JSON 信息用于调试
+  /// Print card JSON for datasource debugging.
   void _printCardJson() {
     if (_hasPrintedJson) return;
     _hasPrintedJson = true;
@@ -76,17 +74,19 @@ class _CardRendererState extends State<CardRenderer> {
     try {
       final jsonMap = widget.card.toJson();
       final jsonString = const JsonEncoder.withIndent('  ').convert(jsonMap);
-    } catch (e) {}
+      debugPrint('[CardRenderer] card json:\n$jsonString');
+    } catch (e) {
+      // Debug logging must not break card rendering.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final cardStore = context.watch<CardStore>();
     final cardState = cardStore.cardStates[widget.card.id];
-    // 只有在 cardState 明确设置为 loading 时才显示加载状态
-    // 如果 status 是 PROCESSING 且 cardState.loading 为 true，才显示加载状态
+    // Only show loading when cardState explicitly marks the card as loading.
     final isLoading = cardState?.loading ?? false;
-    // 如果 status 是 PROCESSING 但没有 cardState，可能是数据源类型，显示加载
+    // Datasource placeholder cards stay loading while the datasource is processing.
     final isProcessing =
         widget.card.data.status == 'PROCESSING' &&
         widget.card.data.type.toLowerCase() == 'datasource';
@@ -95,17 +95,16 @@ class _CardRendererState extends State<CardRenderer> {
     final viewMode = cardStore.viewMode;
     final jumpUrl = _getJumpUrl();
 
-    // 检查卡片是否被选中
+    // Check card selection.
     final isSelected =
         widget.editable && cardStore.isCardSelected(widget.card.id);
 
-    // 根据选中状态设置边框样式
     final borderColor = isSelected
-        ? const Color(0xFF3B82F6) // 蓝色高亮
-        : const Color(0xFFE5E7EB); // 默认灰色
+        ? const Color(0xFF3B82F6)
+        : const Color(0xFFE5E7EB);
     final borderWidth = isSelected ? 2.0 : 1.0;
 
-    // 卡片内容（不含 border，border 用 Positioned 单独一层）
+    // Card content. Border is rendered by a separate Positioned layer.
     final cardContent = Container(
       width: double.infinity,
       height: widget.card.data.type.toUpperCase() == 'TITLE' ? 100 : null,
@@ -115,8 +114,8 @@ class _CardRendererState extends State<CardRenderer> {
         boxShadow: [
           BoxShadow(
             color: isSelected
-                ? const Color(0xFF3B82F6).withOpacity(0.2) // 选中时蓝色阴影
-                : Colors.black.withOpacity(0.04),
+                ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
+                : Colors.black.withValues(alpha: 0.04),
             blurRadius: isSelected ? 8 : 6,
             offset: const Offset(0, 2),
           ),
@@ -124,13 +123,11 @@ class _CardRendererState extends State<CardRenderer> {
       ),
       child: Stack(
         children: [
-          // 主要内容 - 只有在加载状态时才隐藏
           if (!isLoading)
             Positioned.fill(
               child: _buildContent(context, viewMode, isSelected),
             ),
 
-          // 加载状态
           if (showLoading)
             Positioned.fill(
               child: Container(
@@ -154,7 +151,6 @@ class _CardRendererState extends State<CardRenderer> {
               ),
             ),
 
-          // 失败状态
           if (isFailed)
             Positioned.fill(
               child: Container(
@@ -211,7 +207,7 @@ class _CardRendererState extends State<CardRenderer> {
               ),
             ),
 
-          // 边框单独一层，不占布局、不拦截点击
+          // Render border as a separate layer without intercepting taps.
           Positioned.fill(
             child: IgnorePointer(
               child: Container(
@@ -230,7 +226,7 @@ class _CardRendererState extends State<CardRenderer> {
       onPointerUp: (event) {
         _dragEndTimer?.cancel();
 
-        // 延迟一下，确保不是拖拽过程中的短暂抬起
+        // Delay reset to avoid brief pointer-up events during drag.
         _dragEndTimer = Timer(const Duration(milliseconds: 400), () {
           if (mounted) {
             setState(() {
@@ -242,13 +238,13 @@ class _CardRendererState extends State<CardRenderer> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // 卡片主体内容
+          // Card body.
           Column(
             mainAxisSize: widget.card.data.type.toUpperCase() == 'TITLE'
                 ? MainAxisSize.min
                 : MainAxisSize.max,
             children: [
-              // 根据卡片类型决定是否使用 Expanded（TITLE 用 Expanded 约束高度，避免 4x1 格子溢出）
+              // TITLE uses Expanded to keep the 4x1 cell from overflowing.
               widget.card.data.type.toUpperCase() == 'TITLE'
                   ? Expanded(
                       child: ClipRRect(
@@ -261,11 +257,9 @@ class _CardRendererState extends State<CardRenderer> {
                             });
                           },
                           onTap: () {
-                            // 在编辑模式下，点击卡片切换选中状态
                             if (widget.editable) {
                               cardStore.toggleCardSelection(widget.card.id);
                             } else {
-                              // 非编辑模式下，点击跳转链接
                               if (jumpUrl != null && jumpUrl.isNotEmpty) {
                                 launchUrl(
                                   Uri.parse(jumpUrl),
@@ -289,11 +283,9 @@ class _CardRendererState extends State<CardRenderer> {
                             });
                           },
                           onTap: () {
-                            // 在编辑模式下，点击卡片切换选中状态
                             if (widget.editable) {
                               cardStore.toggleCardSelection(widget.card.id);
                             } else {
-                              // 非编辑模式下，点击跳转链接
                               if (jumpUrl != null && jumpUrl.isNotEmpty) {
                                 launchUrl(
                                   Uri.parse(jumpUrl),
@@ -310,8 +302,7 @@ class _CardRendererState extends State<CardRenderer> {
             ],
           ),
 
-          // 编辑模式下的按钮 - 放在 Stack 外层，避免被 ClipRRect 裁剪；拖拽时不显示删除和编辑按钮
-          // 仅在存在 Portal 祖先时使用 PortalTarget（如 ReorderableStaggeredGridView 内部构建时无 Portal）
+          // Edit controls live outside ClipRRect so they are not clipped.
           if (widget.editable && isSelected) ...[
             if (!_isDrag) ...[
               Positioned(
@@ -360,7 +351,6 @@ class _CardRendererState extends State<CardRenderer> {
                 child: _buildCardToolbar(context, cardStore, viewMode),
               ),
             ),
-            //   // 工具栏 - 底部居中，选中时显示
           ],
         ],
       ),
@@ -413,35 +403,32 @@ class _CardRendererState extends State<CardRenderer> {
     final registry = CardRegistry();
     final definition = registry.getDefinition(widget.card.data.type);
 
-    return Container(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 可以在这里添加更多工具栏按钮
-          // 例如：编辑、复制、设置等
-          if (definition != null)
-            GestureDetector(
-              behavior: HitTestBehavior.deferToChild,
-              onTapDown: (details) {
-                _dragEndTimer?.cancel();
-                setState(() {
-                  _isDrag = true;
-                });
-              },
-              onTapUp: (details) {
-                setState(() {
-                  _isDrag = false;
-                });
-              },
-              child: Image.asset(
-                'assets/icons/move.png',
-                width: 40,
-                height: 40,
-                fit: BoxFit.contain,
-              ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Toolbar buttons can be extended here.
+        if (definition != null)
+          GestureDetector(
+            behavior: HitTestBehavior.deferToChild,
+            onTapDown: (details) {
+              _dragEndTimer?.cancel();
+              setState(() {
+                _isDrag = true;
+              });
+            },
+            onTapUp: (details) {
+              setState(() {
+                _isDrag = false;
+              });
+            },
+            child: Image.asset(
+              'assets/icons/move.png',
+              width: 40,
+              height: 40,
+              fit: BoxFit.contain,
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -472,7 +459,6 @@ class _CardRendererState extends State<CardRenderer> {
     final registry = CardRegistry();
     final cardStore = context.read<CardStore>();
 
-    // 处理 datasource 类型（小写） - 显示加载状态
     if (type == 'DATASOURCE' || type == 'datasource') {
       debugPrint(
         '[CardRenderer] rendering datasource placeholder card=${widget.card.id} '
@@ -491,19 +477,17 @@ class _CardRendererState extends State<CardRenderer> {
       );
     }
 
-    // 从注册表获取卡片定义
+    // Resolve the card definition from the registry.
     final definition = registry.getDefinition(type);
     if (definition != null) {
-      // 渲染前适配 metadata（对齐 Web adaptCard）
-      final adaptedCard = registry.adapt(widget.card, viewMode);
       return definition.render(
         CardRenderParams(
-          card: adaptedCard,
+          card: widget.card,
           size: size,
           editable: widget.editable,
           isSelected: isSelected,
           onUpdate: (data) {
-            // 更新卡片数据
+            // Update card data.
             final updatedData = CardData(
               id: widget.card.data.id,
               type: widget.card.data.type,
@@ -518,7 +502,6 @@ class _CardRendererState extends State<CardRenderer> {
       );
     }
 
-    // 如果没有找到定义，使用默认渲染（向后兼容）
     return _buildDefaultCard();
   }
 
@@ -547,7 +530,6 @@ class _CardRendererState extends State<CardRenderer> {
   }
 
   Widget _buildDefaultCard() {
-    // 尝试从 metadata 中获取更多信息
     final displayTitle =
         widget.card.data.metadata['title']?.toString() ??
         widget.card.data.title;
@@ -555,7 +537,7 @@ class _CardRendererState extends State<CardRenderer> {
         widget.card.data.metadata['description']?.toString() ??
         widget.card.data.description;
 
-    // 如果 metadata 中有 url，尝试显示为链接卡片
+    // Show link fallback when metadata only has a URL.
     final url = widget.card.data.metadata['url']?.toString() ?? '';
     if (url.isNotEmpty && displayTitle.isEmpty) {
       return _buildLinkCard();

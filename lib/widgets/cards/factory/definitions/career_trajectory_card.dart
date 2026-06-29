@@ -14,37 +14,45 @@ class CareerTrajectoryCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    
+    final alreadyAdapted = cardAdapterMap(rawMetadata);
+    if (alreadyAdapted['segments'] is List) {
+      return {'segments': alreadyAdapted['segments']};
+    }
+
     // rawMetadata is an array of segments
-    final segments = (rawMetadata is List ? rawMetadata : []) as List<dynamic>;
+    final segments = cardAdapterList(rawMetadata);
     final adaptedSegments = segments.asMap().entries.map((entry) {
       final index = entry.key;
       final segment = entry.value as Map<String, dynamic>;
       final roleModel = segment['role_model'] as Map<String, dynamic>?;
-      
+
       Map<String, dynamic> representative;
       if (roleModel != null) {
         final data = roleModel['data'] as Map<String, dynamic>?;
         representative = {
           'name': roleModel['name'] ?? data?['name'] ?? 'Unknown',
-          'position': data?['highlight'] ?? 
-                      data?['company'] ?? 
-                      data?['institution'] ?? 
-                      'Unknown Position',
+          'position':
+              data?['highlight'] ??
+              data?['company'] ??
+              data?['institution'] ??
+              'Unknown Position',
           'dinq': data?['dinq'],
-          'avatarUrl': roleModel['photo'] ?? data?['photo'] ?? '/images/default-avatar.svg',
+          'avatarUrl':
+              roleModel['photo'] ??
+              data?['photo'] ??
+              '/images/default-avatar.svg',
           'brief': roleModel['brief'] ?? data?['brief'] ?? '',
           'highlight': data?['highlight'] ?? '',
           'school': roleModel['school'] ?? data?['school'] ?? '',
@@ -86,9 +94,7 @@ class CareerTrajectoryCardDefinition extends CardDefinition {
       };
     }).toList();
 
-    return {
-      'segments': adaptedSegments,
-    };
+    return {'segments': adaptedSegments};
   }
 
   String _getCareerColor(String type, int index) {
@@ -99,7 +105,7 @@ class CareerTrajectoryCardDefinition extends CardDefinition {
       '#FFE4CC', // entrepreneur - orange
       '#E2C6FF', // educator - purple
     ];
-    
+
     switch (type.toLowerCase()) {
       case 'developer':
         return '#1487FA';
@@ -116,9 +122,6 @@ class CareerTrajectoryCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return CareerTrajectoryWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return CareerTrajectoryWidget(card: params.card, size: params.size);
   }
 }

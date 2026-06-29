@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'wechat_layouts.dart';
 
 class WeChatWidget extends StatelessWidget {
-  const WeChatWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const WeChatWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -19,9 +15,7 @@ class WeChatWidget extends StatelessWidget {
 
     switch (size) {
       case '2x2':
-        return WeChatLayouts.build2x2Layout(
-          username: username,
-        );
+        return WeChatLayouts.build2x2Layout(username: username);
       case '2x4':
         return WeChatLayouts.build2x4Layout(
           username: username,
@@ -42,4 +36,3 @@ class WeChatWidget extends StatelessWidget {
     }
   }
 }
-

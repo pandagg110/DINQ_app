@@ -41,160 +41,170 @@ class NetworkModal extends StatelessWidget {
             border: Border.all(color: const Color(0xFF171717), width: 1),
           ),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header - 顶部圆角与弹框一致，border 显示完整
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(modalRadius),
-                  topRight: Radius.circular(modalRadius),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header - 顶部圆角与弹框一致，border 显示完整
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(modalRadius),
+                    topRight: Radius.circular(modalRadius),
+                  ),
+                  border: const Border(
+                    bottom: BorderSide(color: Color(0xFF171717), width: 1),
+                  ),
                 ),
-                border: const Border(
-                  bottom: BorderSide(color: Color(0xFF171717), width: 1),
-                ),
-              ),
-              child: Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: avatarUrl != null && avatarUrl.isNotEmpty
-                          ? Image.network(
-                              avatarUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/default-avatar.svg',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Center(
-                                      child: Text(
-                                        name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').join(''),
-                                        style: const TextStyle(fontSize: 20),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            )
-                          : Center(
-                              child: Text(
-                                name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').join(''),
-                                style: const TextStyle(fontSize: 20),
+                child: Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFE5E7EB),
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: avatarUrl != null && avatarUrl.isNotEmpty
+                            ? Image.network(
+                                avatarUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    'assets/images/default-avatar.svg',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Text(
+                                          name
+                                              .split(' ')
+                                              .map(
+                                                (n) => n.isNotEmpty ? n[0] : '',
+                                              )
+                                              .join(''),
+                                          style: const TextStyle(fontSize: 20),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              )
+                            : Center(
+                                child: Text(
+                                  name
+                                      .split(' ')
+                                      .map((n) => n.isNotEmpty ? n[0] : '')
+                                      .join(''),
+                                  style: const TextStyle(fontSize: 20),
+                                ),
                               ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Name and position
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF171717),
+                              height: 1.2,
                             ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Name and position
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF171717),
-                            height: 1.2,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          position.isNotEmpty
-                              ? '$position, $affiliation'
-                              : affiliation,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF6B7280),
+                          const SizedBox(height: 4),
+                          Text(
+                            position.isNotEmpty
+                                ? '$position, $affiliation'
+                                : affiliation,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF6B7280),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  // Close button
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    onPressed: onClose,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: const CircleBorder(),
-                      padding: const EdgeInsets.all(8),
+                    // Close button
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: onClose,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(8),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Content
-            if (reason != null && reason.isNotEmpty)
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Text(
-                    reason,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF6B7280),
-                      height: 1.6,
-                    ),
-                  ),
+                  ],
                 ),
               ),
 
-            // Action Buttons - 底部圆角与弹框一致，border 显示完整
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(modalRadius),
-                  bottomRight: Radius.circular(modalRadius),
-                ),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _handleSearchClick,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Search',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+              // Content
+              if (reason != null && reason.isNotEmpty)
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      reason,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6B7280),
+                        height: 1.6,
+                      ),
                     ),
                   ),
                 ),
+
+              // Action Buttons - 底部圆角与弹框一致，border 显示完整
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(modalRadius),
+                    bottomRight: Radius.circular(modalRadius),
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _handleSearchClick,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Search',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-

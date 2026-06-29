@@ -13,7 +13,7 @@ class InstagramComponents {
     String? profileUrl,
   }) {
     final url = profileUrl ?? 'https://www.instagram.com/$username';
-    
+
     return InkWell(
       onTap: () async {
         final uri = Uri.parse(url);
@@ -22,67 +22,67 @@ class InstagramComponents {
         }
       },
       child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipOval(
-          child: Image.network(
-            profileImage,
-            width: 48,
-            height: 48,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return SvgPicture.asset(
-                'assets/images/default-avatar.svg',
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
-              );
-            },
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipOval(
+            child: Image.network(
+              profileImage,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return SvgPicture.asset(
+                  'assets/images/default-avatar.svg',
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                );
+              },
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      fullName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F1419),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        fullName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F1419),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  if (verified) ...[
-                    const SizedBox(width: 4),
-                    SvgPicture.asset(
-                      'assets/icons/verified.svg',
-                      width: 18,
-                      height: 18,
-                    ),
+                    if (verified) ...[
+                      const SizedBox(width: 4),
+                      SvgPicture.asset(
+                        'assets/icons/verified.svg',
+                        width: 18,
+                        height: 18,
+                      ),
+                    ],
                   ],
-                ],
-              ),
-              Text(
-                '@$username',
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF536471),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+                Text(
+                  '@$username',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF536471),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 
@@ -94,9 +94,11 @@ class InstagramComponents {
     bool compact = false,
   }) {
     final followers = topSmartFollowers.take(4).toList();
-    
+
     return Column(
-      crossAxisAlignment: horizontal ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: horizontal
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
@@ -111,10 +113,13 @@ class InstagramComponents {
           spacing: -8.0,
           children: followers.map((follower) {
             final followerData = follower as Map<String, dynamic>;
-            final avatarSrc = followerData['profile_image'] ?? followerData['avatarUrl'] ?? '';
+            final avatarSrc =
+                followerData['profile_image'] ??
+                followerData['avatarUrl'] ??
+                '';
             final followerUsername = followerData['username'] as String? ?? '';
             final followerUrl = 'https://www.instagram.com/$followerUsername';
-            
+
             return InstagramHoverCard(
               follower: followerData,
               child: InkWell(
@@ -155,9 +160,7 @@ class InstagramComponents {
   }
 
   // Latest Post Component
-  static Widget buildLatestPost({
-    required Map<String, dynamic> latestPost,
-  }) {
+  static Widget buildLatestPost({required Map<String, dynamic> latestPost}) {
     final text = latestPost['text'] as String? ?? '';
     final url = latestPost['url'] as String? ?? '';
     final ogImage = latestPost['ogImage'] as String?;
@@ -221,7 +224,7 @@ class InstagramComponents {
         ],
       );
     }
-    
+
     // If only text, return simple text widget
     if (text.isNotEmpty) {
       return InkWell(
@@ -245,7 +248,7 @@ class InstagramComponents {
         ),
       );
     }
-    
+
     return const SizedBox.shrink();
   }
 
@@ -258,4 +261,3 @@ class InstagramComponents {
     return value.toString();
   }
 }
-

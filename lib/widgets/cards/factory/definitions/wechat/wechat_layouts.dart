@@ -3,9 +3,7 @@ import '../../../../common/asset_icon.dart';
 
 class WeChatLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required String username,
-  }) {
+  static Widget build2x2Layout({required String username}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -186,4 +184,3 @@ class WeChatLayouts {
     );
   }
 }
-

@@ -14,19 +14,19 @@ class LinkCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '2x2',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '2x2',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
+    final data = cardAdapterMap(rawMetadata);
     return {
       'url': data['url'] ?? '',
       'title': data['title'],
@@ -38,10 +38,6 @@ class LinkCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return LinkWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return LinkWidget(card: params.card, size: params.size);
   }
 }
-

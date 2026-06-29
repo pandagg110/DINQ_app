@@ -26,7 +26,7 @@ class VibeCardDefinition extends CardDefinition {
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata is Map ? (rawMetadata['data'] ?? rawMetadata) : {};
+    final data = rawMetadata is Map ? (cardAdapterMap(rawMetadata)) : {};
     return {
       'totalDays': data['total_days'] ?? data['totalDays'] ?? 0,
       'totalTokens': data['total_tokens'] ?? data['totalTokens'] ?? 0,

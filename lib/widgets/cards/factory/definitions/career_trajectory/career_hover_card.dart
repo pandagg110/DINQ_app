@@ -35,7 +35,8 @@ class CareerHoverCard extends StatelessWidget {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: Colors.white,
-                backgroundImage: (representative['avatarUrl'] as String?) != null
+                backgroundImage:
+                    (representative['avatarUrl'] as String?) != null
                     ? NetworkImage(representative['avatarUrl'] as String)
                     : null,
                 child: (representative['avatarUrl'] as String?) == null
@@ -57,7 +58,10 @@ class CareerHoverCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      (representative['dinq'] ?? representative['position'] ?? '') as String,
+                      (representative['dinq'] ??
+                              representative['position'] ??
+                              '')
+                          as String,
                       style: TextStyle(
                         fontSize: 12,
                         color: colorScheme['textGray'],
@@ -73,16 +77,15 @@ class CareerHoverCard extends StatelessWidget {
           const SizedBox(height: 12),
           Divider(color: colorScheme['divider'], height: 1),
           const SizedBox(height: 12),
-          
+
           // Category
           Text(
-            (segment['category'] as String? ?? '')
-                .isEmpty
+            (segment['category'] as String? ?? '').isEmpty
                 ? ''
                 : (segment['category'] as String)
-                    .substring(0, 1)
-                    .toUpperCase() +
-                    (segment['category'] as String).substring(1),
+                          .substring(0, 1)
+                          .toUpperCase() +
+                      (segment['category'] as String).substring(1),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -90,15 +93,13 @@ class CareerHoverCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Brief
-          if (representative['brief'] != null && (representative['brief'] as String).isNotEmpty)
+          if (representative['brief'] != null &&
+              (representative['brief'] as String).isNotEmpty)
             Text(
               representative['brief'] as String,
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme['textGray'],
-              ),
+              style: TextStyle(fontSize: 12, color: colorScheme['textGray']),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -107,4 +108,3 @@ class CareerHoverCard extends StatelessWidget {
     );
   }
 }
-

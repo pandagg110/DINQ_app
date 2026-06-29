@@ -38,9 +38,7 @@ class LinkedInCardDefinition extends CardDefinition {
       return Map<String, dynamic>.from(rawMetadata);
     }
 
-    final rawData = rawMetadata is Map && rawMetadata.containsKey('data')
-        ? rawMetadata['data']
-        : rawMetadata;
+    final rawData = cardAdapterData(rawMetadata);
     List<dynamic> items;
     if (rawData is List) {
       items = rawData;

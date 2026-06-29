@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Company logo badge component
 class CompanyLogoBadge extends StatelessWidget {
-  const CompanyLogoBadge({
-    super.key,
-    this.logoUrl,
-    this.size = 'md',
-  });
+  const CompanyLogoBadge({super.key, this.logoUrl, this.size = 'md'});
 
   final String? logoUrl;
   final String size; // 'sm' or 'md'
@@ -48,4 +44,3 @@ class CompanyLogoBadge extends StatelessWidget {
     );
   }
 }
-

@@ -17,22 +17,19 @@ class TelegramCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Future<Map<String, dynamic>>? create() async {
-    return {
-      'username': '',
-      'imageUrl': '',
-    };
+    return {'username': '', 'imageUrl': ''};
   }
 
   @override
@@ -46,10 +43,6 @@ class TelegramCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return TelegramWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return TelegramWidget(card: params.card, size: params.size);
   }
 }
-

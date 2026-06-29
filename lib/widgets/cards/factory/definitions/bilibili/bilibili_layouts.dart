@@ -5,9 +5,7 @@ import '../../../../common/metric_display.dart';
 
 class BilibiliLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int followers,
-  }) {
+  static Widget build2x2Layout({required int followers}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -51,9 +49,14 @@ class BilibiliLayouts {
                 onTap: () async {
                   final bvid = firstWork['bvid'] as String?;
                   if (bvid != null && bvid.isNotEmpty) {
-                    final uri = Uri.parse('https://www.bilibili.com/video/$bvid/');
+                    final uri = Uri.parse(
+                      'https://www.bilibili.com/video/$bvid/',
+                    );
                     if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
                     }
                   }
                 },
@@ -69,7 +72,10 @@ class BilibiliLayouts {
                           return Container(
                             color: Colors.grey[100],
                             child: const Center(
-                              child: Icon(Icons.video_library, color: Colors.grey),
+                              child: Icon(
+                                Icons.video_library,
+                                color: Colors.grey,
+                              ),
                             ),
                           );
                         },
@@ -113,7 +119,10 @@ class BilibiliLayouts {
                         top: 8,
                         left: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.6),
                             borderRadius: BorderRadius.circular(4),
@@ -121,10 +130,16 @@ class BilibiliLayouts {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.play_arrow, size: 12, color: Colors.white),
+                              const Icon(
+                                Icons.play_arrow,
+                                size: 12,
+                                color: Colors.white,
+                              ),
                               const SizedBox(width: 4),
                               Text(
-                                _formatCount((firstWork['play'] as num?)?.toInt() ?? 0),
+                                _formatCount(
+                                  (firstWork['play'] as num?)?.toInt() ?? 0,
+                                ),
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.white,
@@ -155,10 +170,7 @@ class BilibiliLayouts {
                     SizedBox(height: 8),
                     Text(
                       'No video',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -278,9 +290,14 @@ class BilibiliLayouts {
                 onTap: () async {
                   final bvid = firstWork['bvid'] as String?;
                   if (bvid != null && bvid.isNotEmpty) {
-                    final uri = Uri.parse('https://www.bilibili.com/video/$bvid/');
+                    final uri = Uri.parse(
+                      'https://www.bilibili.com/video/$bvid/',
+                    );
                     if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
                     }
                   }
                 },
@@ -296,7 +313,11 @@ class BilibiliLayouts {
                           return Container(
                             color: Colors.grey[100],
                             child: const Center(
-                              child: Icon(Icons.video_library, size: 48, color: Colors.grey),
+                              child: Icon(
+                                Icons.video_library,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
                             ),
                           );
                         },
@@ -349,10 +370,7 @@ class BilibiliLayouts {
             ),
             child: Text(
               bio.isNotEmpty ? bio : 'No description available',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF4B5563),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -371,4 +389,3 @@ class BilibiliLayouts {
     return value.toString();
   }
 }
-

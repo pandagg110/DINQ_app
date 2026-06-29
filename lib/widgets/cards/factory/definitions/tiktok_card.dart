@@ -29,7 +29,7 @@ class TikTokCardDefinition extends CardDefinition {
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata is Map ? (rawMetadata['data'] ?? rawMetadata) : {};
+    final data = rawMetadata is Map ? (cardAdapterMap(rawMetadata)) : {};
     final topVideo = data['top_video'] ?? data['topVideo'];
 
     return {

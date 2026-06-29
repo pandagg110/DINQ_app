@@ -4,9 +4,7 @@ import '../../../../common/metric_display.dart';
 
 class MediumLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int followerCount,
-  }) {
+  static Widget build2x2Layout({required int followerCount}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -160,7 +158,8 @@ class MediumLayouts {
     required String bio,
     Map<String, dynamic>? topArticle,
   }) {
-    final descriptionContent = topArticle?['subtitle'] ?? topArticle?['title'] ?? bio;
+    final descriptionContent =
+        topArticle?['subtitle'] ?? topArticle?['title'] ?? bio;
     final coverImage = topArticle?['ogImage'] as String?;
 
     return Padding(
@@ -212,9 +211,11 @@ class MediumLayouts {
                 ),
               ),
             ),
-          if (coverImage != null && coverImage.isNotEmpty) const SizedBox(height: 12),
+          if (coverImage != null && coverImage.isNotEmpty)
+            const SizedBox(height: 12),
           // Description
-          if (descriptionContent != null && descriptionContent.toString().isNotEmpty)
+          if (descriptionContent != null &&
+              descriptionContent.toString().isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -223,10 +224,7 @@ class MediumLayouts {
               ),
               child: Text(
                 descriptionContent.toString(),
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF374151),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -236,4 +234,3 @@ class MediumLayouts {
     );
   }
 }
-

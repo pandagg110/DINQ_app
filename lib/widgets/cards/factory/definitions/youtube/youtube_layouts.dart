@@ -6,9 +6,7 @@ import 'youtube_video_player.dart';
 
 class YouTubeLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int subscriberCount,
-  }) {
+  static Widget build2x2Layout({required int subscriberCount}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -51,10 +49,7 @@ class YouTubeLayouts {
           const Spacer(),
           // Video Embed Section - Square aspect ratio
           if (videoId != null)
-            YouTubeVideoPlayer(
-              videoId: videoId,
-              aspectRatio: 1.0,
-            )
+            YouTubeVideoPlayer(videoId: videoId, aspectRatio: 1.0)
           else
             AspectRatio(
               aspectRatio: 1.0,
@@ -67,7 +62,11 @@ class YouTubeLayouts {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.play_circle_outline, size: 48, color: Color(0xFF9CA3AF)),
+                      Icon(
+                        Icons.play_circle_outline,
+                        size: 48,
+                        color: Color(0xFF9CA3AF),
+                      ),
                       SizedBox(height: 8),
                       Text(
                         'No video configured',
@@ -183,10 +182,7 @@ class YouTubeLayouts {
           const SizedBox(height: 16),
           // Video Embed Section
           if (videoId != null)
-            YouTubeVideoPlayer(
-              videoId: videoId,
-              aspectRatio: 16 / 9,
-            )
+            YouTubeVideoPlayer(videoId: videoId, aspectRatio: 16 / 9)
           else
             AspectRatio(
               aspectRatio: 16 / 9,
@@ -199,7 +195,11 @@ class YouTubeLayouts {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.play_circle_outline, size: 48, color: Color(0xFF9CA3AF)),
+                      Icon(
+                        Icons.play_circle_outline,
+                        size: 48,
+                        color: Color(0xFF9CA3AF),
+                      ),
                       SizedBox(height: 8),
                       Text(
                         'No video configured',
@@ -224,10 +224,7 @@ class YouTubeLayouts {
               ),
               child: Text(
                 summary,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF4B5563),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -237,4 +234,3 @@ class YouTubeLayouts {
     );
   }
 }
-

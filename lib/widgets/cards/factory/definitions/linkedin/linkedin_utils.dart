@@ -2,8 +2,10 @@
 String formatDuration(String duration) {
   if (duration.isEmpty) return '';
 
-  final match = RegExp(r'^(\d{4})\.(\d{1,2})\s*-\s*(\d{4}|Present)(?:\.(\d{1,2}))?$', caseSensitive: false)
-      .firstMatch(duration);
+  final match = RegExp(
+    r'^(\d{4})\.(\d{1,2})\s*-\s*(\d{4}|Present)(?:\.(\d{1,2}))?$',
+    caseSensitive: false,
+  ).firstMatch(duration);
   if (match == null) return duration;
 
   final startYear = int.parse(match.group(1)!);
@@ -30,4 +32,3 @@ String formatDuration(String duration) {
   final moStr = months == 1 ? '1 mo' : '$months mos';
   return '$yrStr $moStr';
 }
-

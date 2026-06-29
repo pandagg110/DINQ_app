@@ -13,7 +13,7 @@ class TwitterComponents {
     String? profileUrl,
   }) {
     final url = profileUrl ?? 'https://x.com/$username';
-    
+
     return InkWell(
       onTap: () async {
         final uri = Uri.parse(url);
@@ -96,9 +96,11 @@ class TwitterComponents {
     bool compact = false,
   }) {
     final followers = topSmartFollowers.take(4).toList();
-    
+
     return Column(
-      crossAxisAlignment: horizontal ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: horizontal
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
@@ -113,10 +115,13 @@ class TwitterComponents {
           spacing: -8.0,
           children: followers.map((follower) {
             final followerData = follower as Map<String, dynamic>;
-            final avatarSrc = followerData['profile_image'] ?? followerData['avatarUrl'] ?? '';
+            final avatarSrc =
+                followerData['profile_image'] ??
+                followerData['avatarUrl'] ??
+                '';
             final followerUsername = followerData['username'] as String? ?? '';
             final followerUrl = 'https://x.com/$followerUsername';
-            
+
             return TwitterHoverCard(
               follower: followerData,
               child: InkWell(
@@ -225,7 +230,7 @@ class TwitterComponents {
         ],
       );
     }
-    
+
     // If only text, return simple text widget
     if (text.isNotEmpty) {
       return InkWell(
@@ -249,7 +254,7 @@ class TwitterComponents {
         ),
       );
     }
-    
+
     return const SizedBox.shrink();
   }
 
@@ -262,4 +267,3 @@ class TwitterComponents {
     return value.toString();
   }
 }
-

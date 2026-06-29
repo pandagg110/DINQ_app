@@ -3,9 +3,7 @@ import '../../../../common/asset_icon.dart';
 
 class TelegramLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required String username,
-  }) {
+  static Widget build2x2Layout({required String username}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -95,7 +93,10 @@ class TelegramLayouts {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const AssetIcon(asset: 'icons/social-icons/Telegram.svg', size: 40),
+              const AssetIcon(
+                asset: 'icons/social-icons/Telegram.svg',
+                size: 40,
+              ),
               if (username.isNotEmpty)
                 Text(
                   '@$username',
@@ -186,4 +187,3 @@ class TelegramLayouts {
     );
   }
 }
-

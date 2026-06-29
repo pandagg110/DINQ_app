@@ -5,9 +5,7 @@ import 'twitter_components.dart';
 
 class TwitterLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int followerCount,
-  }) {
+  static Widget build2x2Layout({required int followerCount}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -195,4 +193,3 @@ class TwitterLayouts {
     );
   }
 }
-

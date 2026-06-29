@@ -14,25 +14,23 @@ class HuggingFaceCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
+    final data = cardAdapterMap(rawMetadata);
     final orgs = data['orgs'] as List<dynamic>? ?? [];
     final topOrgs = orgs.take(4).map((org) {
       final orgMap = org as Map<String, dynamic>;
-      return {
-        'avatarUrl': orgMap['avatarUrl'] ?? '',
-      };
+      return {'avatarUrl': orgMap['avatarUrl'] ?? ''};
     }).toList();
 
     String getRelativeTime(String dateString) {
@@ -92,10 +90,6 @@ class HuggingFaceCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return HuggingFaceWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return HuggingFaceWidget(card: params.card, size: params.size);
   }
 }
-

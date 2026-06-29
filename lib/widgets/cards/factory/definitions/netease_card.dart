@@ -14,15 +14,15 @@ class NeteaseCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   String? validate(Map<String, dynamic> metadata) {
@@ -52,7 +52,7 @@ class NeteaseCardDefinition extends CardDefinition {
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
+    final data = cardAdapterMap(rawMetadata);
     final playlist = data['playlist'] as List<dynamic>? ?? [];
     final firstTrack = playlist.isNotEmpty ? playlist[0] : null;
     final rawTitle = data['title']?.toString() ?? '';
@@ -64,7 +64,9 @@ class NeteaseCardDefinition extends CardDefinition {
       final parts = rawTitle.split(' - ');
       if (parts.length >= 2) {
         artist = artist.isEmpty ? parts[0].trim() : artist;
-        songTitle = songTitle.isEmpty ? parts.sublist(1).join(' - ').trim() : songTitle;
+        songTitle = songTitle.isEmpty
+            ? parts.sublist(1).join(' - ').trim()
+            : songTitle;
       }
     }
 
@@ -81,10 +83,6 @@ class NeteaseCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return NeteaseWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return NeteaseWidget(card: params.card, size: params.size);
   }
 }
-

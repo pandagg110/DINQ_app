@@ -2,21 +2,14 @@ import 'package:flutter/material.dart';
 import '../../../models/card_models.dart';
 
 /// 添加卡片时的输入流程（对齐 Web CardDefinition.addFlow）
-enum CardAddFlow {
-  url,
-  username,
-  custom,
-}
+enum CardAddFlow { url, username, custom }
 
 /// 卡片尺寸配置
 class CardSizeConfig {
   final List<String> supported;
   final String defaultSize;
 
-  const CardSizeConfig({
-    required this.supported,
-    required this.defaultSize,
-  });
+  const CardSizeConfig({required this.supported, required this.defaultSize});
 }
 
 /// 卡片视图模式尺寸配置
@@ -24,10 +17,7 @@ class CardViewModeSizes {
   final CardSizeConfig desktop;
   final CardSizeConfig mobile;
 
-  const CardViewModeSizes({
-    required this.desktop,
-    required this.mobile,
-  });
+  const CardViewModeSizes({required this.desktop, required this.mobile});
 }
 
 /// 卡片渲染参数
@@ -86,3 +76,22 @@ abstract class CardDefinition {
   Widget render(CardRenderParams params);
 }
 
+dynamic cardAdapterData(dynamic rawMetadata) {
+  if (rawMetadata is Map && rawMetadata.containsKey('data')) {
+    return rawMetadata['data'];
+  }
+  return rawMetadata;
+}
+
+Map<String, dynamic> cardAdapterMap(dynamic rawMetadata) {
+  final data = cardAdapterData(rawMetadata);
+  if (data is Map<String, dynamic>) return data;
+  if (data is Map) return Map<String, dynamic>.from(data);
+  return <String, dynamic>{};
+}
+
+List<dynamic> cardAdapterList(dynamic rawMetadata) {
+  final data = cardAdapterData(rawMetadata);
+  if (data is List) return data;
+  return const <dynamic>[];
+}

@@ -16,30 +16,24 @@ class IframeCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Widget render(CardRenderParams params) {
-    return _IframeCardWidget(
-      card: params.card,
-      editable: params.editable,
-    );
+    return _IframeCardWidget(card: params.card, editable: params.editable);
   }
 }
 
 class _IframeCardWidget extends StatefulWidget {
-  const _IframeCardWidget({
-    required this.card,
-    required this.editable,
-  });
+  const _IframeCardWidget({required this.card, required this.editable});
 
   final dynamic card;
   final bool editable;
@@ -68,7 +62,7 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
 
   void _initializeController() {
     final rawUrl = widget.card.data.metadata['url']?.toString() ?? '';
-    
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -102,7 +96,7 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
           },
           onWebResourceError: (error) {
             _timeoutTimer?.cancel();
-            
+
             // 某些错误可能是暂时的，不立即显示错误
             // 例如 timeout 错误，如果页面最终加载成功，onPageFinished 会清除错误状态
             if (mounted) {
@@ -132,8 +126,7 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
 
   void _loadUrl(String rawUrl) {
     final embedUrl = _convertYouTubeToEmbed(rawUrl);
-    
-    
+
     try {
       // 统一使用 loadRequest
       _controller.loadRequest(Uri.parse(embedUrl));
@@ -150,7 +143,7 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
   String _convertYouTubeToEmbed(String url) {
     try {
       final uri = Uri.parse(url);
-      
+
       // YouTube watch URL: https://www.youtube.com/watch?v=VIDEO_ID
       if (uri.host.contains('youtube.com') && uri.path == '/watch') {
         final videoId = uri.queryParameters['v'];
@@ -158,15 +151,17 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
           return 'https://www.youtube.com/embed/$videoId';
         }
       }
-      
+
       // YouTube short URL: https://youtu.be/VIDEO_ID
       if (uri.host == 'youtu.be') {
-        final videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
+        final videoId = uri.pathSegments.isNotEmpty
+            ? uri.pathSegments.first
+            : '';
         if (videoId.isNotEmpty) {
           return 'https://www.youtube.com/embed/$videoId';
         }
       }
-      
+
       return url;
     } catch (e) {
       return url;
@@ -177,27 +172,26 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
     try {
       final uri = Uri.parse(url);
       var hostname = uri.host;
-      
+
       // Remove www. prefix
       if (hostname.startsWith('www.')) {
         hostname = hostname.substring(4);
       }
-      
+
       // Extract main domain name (e.g., youtube.com → youtube)
       final parts = hostname.split('.');
       final domainName = parts.isNotEmpty ? parts[0] : hostname;
-      
+
       // Capitalize first letter
       if (domainName.isNotEmpty) {
         return domainName[0].toUpperCase() + domainName.substring(1);
       }
-      
+
       return 'Embedded content';
     } catch (e) {
       return 'Embedded content';
     }
   }
-
 
   Widget _buildWebPlaceholder(String url) {
     return Center(
@@ -243,10 +237,7 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
               SizedBox(height: 8),
               Text(
                 'No URL configured',
-                style: TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
               ),
             ],
           ),
@@ -283,9 +274,7 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
                 borderRadius: BorderRadius.circular(24),
                 color: const Color(0xFFE5E7EB),
               ),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
 
           // Error state
@@ -303,18 +292,12 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
                     const SizedBox(height: 8),
                     const Text(
                       'Failed to load',
-                      style: TextStyle(
-                        color: Color(0xFF374151),
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(color: Color(0xFF374151), fontSize: 16),
                     ),
                     const SizedBox(height: 4),
                     const Text(
                       'This page may not allow embedding',
-                      style: TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
@@ -323,7 +306,8 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
                           _hasError = false;
                           _loading = true;
                         });
-                        final rawUrl = widget.card.data.metadata['url']?.toString() ?? '';
+                        final rawUrl =
+                            widget.card.data.metadata['url']?.toString() ?? '';
                         if (rawUrl.isNotEmpty) {
                           _loadUrl(rawUrl);
                         }
@@ -333,7 +317,10 @@ class _IframeCardWidgetState extends State<_IframeCardWidget> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF3B82F6),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                   ],

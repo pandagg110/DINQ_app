@@ -39,7 +39,8 @@ class CareerTrajectoryModal extends StatelessWidget {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: Colors.white,
-                    backgroundImage: (representative['avatarUrl'] as String?) != null
+                    backgroundImage:
+                        (representative['avatarUrl'] as String?) != null
                         ? NetworkImage(representative['avatarUrl'] as String)
                         : null,
                     child: (representative['avatarUrl'] as String?) == null
@@ -61,7 +62,10 @@ class CareerTrajectoryModal extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          (representative['dinq'] ?? representative['position'] ?? '') as String,
+                          (representative['dinq'] ??
+                                  representative['position'] ??
+                                  '')
+                              as String,
                           style: TextStyle(
                             fontSize: 14,
                             color: colorScheme['textGray'],
@@ -70,15 +74,12 @@ class CareerTrajectoryModal extends StatelessWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: onClose,
-                    icon: const Icon(Icons.close),
-                  ),
+                  IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
                 ],
               ),
             ),
             Divider(color: colorScheme['divider'], height: 1),
-            
+
             // Content
             Flexible(
               child: SingleChildScrollView(
@@ -88,13 +89,12 @@ class CareerTrajectoryModal extends StatelessWidget {
                   children: [
                     // Category
                     Text(
-                      (segment['category'] as String? ?? '')
-                          .isEmpty
+                      (segment['category'] as String? ?? '').isEmpty
                           ? ''
                           : (segment['category'] as String)
-                              .substring(0, 1)
-                              .toUpperCase() +
-                              (segment['category'] as String).substring(1),
+                                    .substring(0, 1)
+                                    .toUpperCase() +
+                                (segment['category'] as String).substring(1),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -102,9 +102,10 @@ class CareerTrajectoryModal extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Brief
-                    if (representative['brief'] != null && (representative['brief'] as String).isNotEmpty)
+                    if (representative['brief'] != null &&
+                        (representative['brief'] as String).isNotEmpty)
                       Text(
                         representative['brief'] as String,
                         style: TextStyle(
@@ -112,7 +113,7 @@ class CareerTrajectoryModal extends StatelessWidget {
                           color: colorScheme['textGray'],
                         ),
                       ),
-                    
+
                     // Additional info can be added here
                   ],
                 ),
@@ -124,4 +125,3 @@ class CareerTrajectoryModal extends StatelessWidget {
     );
   }
 }
-

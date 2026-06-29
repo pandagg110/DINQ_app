@@ -4,9 +4,7 @@ import '../../../../common/metric_display.dart';
 
 class ScholarLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int totalCitations,
-  }) {
+  static Widget build2x2Layout({required int totalCitations}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -15,7 +13,7 @@ class ScholarLayouts {
         children: [
           // Top Section: Icon
           const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
-          
+
           // Bottom Section: Citations
           Align(
             alignment: Alignment.bottomLeft,
@@ -43,7 +41,7 @@ class ScholarLayouts {
         children: [
           // Top Section: Icon
           const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
-          
+
           // Bottom Section: Metrics
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,7 +77,7 @@ class ScholarLayouts {
         children: [
           // Top Section: Icon
           const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
-          
+
           // Bottom Section: Metrics
           Row(
             children: [
@@ -120,9 +118,9 @@ class ScholarLayouts {
         children: [
           // Top Section: Icon
           const AssetIcon(asset: 'icons/logo/GoogleScholar.png', size: 40),
-          
+
           const SizedBox(height: 16),
-          
+
           // Metrics Grid: 2×2 Grid of Cards
           Expanded(
             child: Column(
@@ -205,9 +203,9 @@ class ScholarLayouts {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Summary Section
           Container(
             padding: const EdgeInsets.all(12),
@@ -229,4 +227,3 @@ class ScholarLayouts {
     );
   }
 }
-

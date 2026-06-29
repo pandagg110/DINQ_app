@@ -38,7 +38,8 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
   }
 
   void _initializeController() {
-    final embedUrl = 'https://www.youtube.com/embed/${widget.videoId}?rel=0&modestbranding=1&enablejsapi=1${widget.isMuted ? '&mute=1' : ''}';
+    final embedUrl =
+        'https://www.youtube.com/embed/${widget.videoId}?rel=0&modestbranding=1&enablejsapi=1${widget.isMuted ? '&mute=1' : ''}';
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -73,7 +74,7 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
           },
           onWebResourceError: (error) {
             _timeoutTimer?.cancel();
-            
+
             // 延迟设置错误状态，给页面一些时间完成加载
             if (mounted) {
               Future.delayed(const Duration(seconds: 2), () {
@@ -103,7 +104,8 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
   }
 
   Widget _buildWebPlaceholder() {
-    final thumbnailUrl = 'https://img.youtube.com/vi/${widget.videoId}/maxresdefault.jpg';
+    final thumbnailUrl =
+        'https://img.youtube.com/vi/${widget.videoId}/maxresdefault.jpg';
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
@@ -116,7 +118,11 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.play_circle_outline, size: 48, color: Colors.white.withOpacity(0.9)),
+            Icon(
+              Icons.play_circle_outline,
+              size: 48,
+              color: Colors.white.withOpacity(0.9),
+            ),
             const SizedBox(height: 8),
             Text(
               'Video: ${widget.videoId}',
@@ -152,9 +158,7 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: const Center(child: CircularProgressIndicator()),
               ),
 
             // Error state
@@ -168,7 +172,11 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.grey[600]),
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.grey[600],
+                      ),
                       const SizedBox(height: 8),
                       const Text(
                         'Failed to load video',
@@ -187,4 +195,3 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
     );
   }
 }
-

@@ -9,8 +9,14 @@ class LinkedInComponents {
     required String name,
     String size = 'md',
   }) {
-    final sizeValue = size == 'sm' ? 20.0 : size == 'lg' ? 40.0 : 32.0;
-    final displayLogo = (logo?.isNotEmpty == true) ? logo! : '/images/defaultCompany.png';
+    final sizeValue = size == 'sm'
+        ? 20.0
+        : size == 'lg'
+        ? 40.0
+        : 32.0;
+    final displayLogo = (logo?.isNotEmpty == true)
+        ? logo!
+        : '/images/defaultCompany.png';
 
     return Container(
       width: sizeValue,
@@ -147,10 +153,7 @@ class LinkedInComponents {
                   left: halfLogo,
                   top: finalPositions[0],
                   bottom: height - finalPositions[finalPositions.length - 1],
-                  child: Container(
-                    width: 1,
-                    color: const Color(0xFF171717),
-                  ),
+                  child: Container(width: 1, color: const Color(0xFF171717)),
                 ),
 
               // Timeline Nodes - center logo at finalPosition
@@ -270,10 +273,7 @@ class LinkedInComponents {
               left: horizontalPadding,
               right: horizontalPadding,
               top: 16,
-              child: Container(
-                height: 1,
-                color: const Color(0xFF171717),
-              ),
+              child: Container(height: 1, color: const Color(0xFF171717)),
             ),
 
             // Timeline Nodes - center at percentage position
@@ -346,127 +346,130 @@ class LinkedInComponents {
         // Add horizontal padding to ensure chart and logos are fully visible
         const horizontalPadding = 20.0;
         const marginBottom = 30.0; // Reserved for bottom titles
-        
+
         final chartWidth = constraints.maxWidth;
         final chartHeight = constraints.maxHeight;
         final plotWidth = chartWidth - horizontalPadding * 2;
         final plotHeight = chartHeight - marginBottom;
-        
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
               LineChart(
-        LineChartData(
-          gridData: FlGridData(
-          show: true,
-          drawVerticalLine: true,
-          drawHorizontalLine: false,
-          horizontalInterval: 1,
-          verticalInterval: 1,
-          getDrawingVerticalLine: (value) {
-            return FlLine(
-              color: const Color(0xFFA5A5A5),
-              strokeWidth: 1,
-              dashArray: [3, 3],
-            );
-          },
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              interval: 1,
-              getTitlesWidget: (value, meta) {
-                final index = value.toInt();
-                if (index >= 0 && index < chartData.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '${chartData[index]['year']}',
-                      style: const TextStyle(
-                        color: Color(0xFF9CA3AF),
-                        fontSize: 12,
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: true,
+                    drawHorizontalLine: false,
+                    horizontalInterval: 1,
+                    verticalInterval: 1,
+                    getDrawingVerticalLine: (value) {
+                      return FlLine(
+                        color: const Color(0xFFA5A5A5),
+                        strokeWidth: 1,
+                        dashArray: [3, 3],
+                      );
+                    },
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 30,
+                        interval: 1,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < chartData.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                '${chartData[index]['year']}',
+                                style: const TextStyle(
+                                  color: Color(0xFF9CA3AF),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            );
+                          }
+                          return const Text('');
+                        },
                       ),
                     ),
-                  );
-                }
-                return const Text('');
-              },
-            ),
-          ),
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        minX: 0,
-        maxX: (chartData.length - 1).toDouble(),
-        minY: yMin,
-        maxY: yMax,
-        lineBarsData: [
-          LineChartBarData(
-            spots: chartData.asMap().entries.map((entry) {
-              return FlSpot(entry.key.toDouble(), entry.value['score'] as double);
-            }).toList(),
-            isCurved: true,
-            curveSmoothness: 0.35,
-            color: const Color(0xFF171717),
-            barWidth: 1,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFCCE5FF).withOpacity(1.0),
-                  const Color(0xFFCCE5FF).withOpacity(0.1),
-                ],
-                stops: const [0.05, 0.95],
-              ),
-            ),
-          ),
-        ],
-        lineTouchData: LineTouchData(
-          enabled: true,
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (List<LineBarSpot> touchedSpots) {
-              return touchedSpots.map((LineBarSpot touchedSpot) {
-                final index = touchedSpot.x.toInt();
-                if (index >= 0 && index < chartData.length) {
-                  final item = chartData[index];
-                  return LineTooltipItem(
-                    '${item['name']}\n${item['position'] != null && item['position'].toString().isNotEmpty ? '${item['position']}\n' : ''}${formatDuration(item['duration'].toString())}',
-                    const TextStyle(
-                      color: Color(0xFF111827),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    leftTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
                     ),
-                  );
-                }
-                return null;
-              }).toList();
-            },
-            tooltipRoundedRadius: 8,
-            tooltipPadding: const EdgeInsets.all(12),
-            tooltipBorder: const BorderSide(
-              color: Color(0xFFE5E7EB),
-              width: 1,
-            ),
-          ),
-        ),
-        ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: (chartData.length - 1).toDouble(),
+                  minY: yMin,
+                  maxY: yMax,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: chartData.asMap().entries.map((entry) {
+                        return FlSpot(
+                          entry.key.toDouble(),
+                          entry.value['score'] as double,
+                        );
+                      }).toList(),
+                      isCurved: true,
+                      curveSmoothness: 0.35,
+                      color: const Color(0xFF171717),
+                      barWidth: 1,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: false),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFFCCE5FF).withOpacity(1.0),
+                            const Color(0xFFCCE5FF).withOpacity(0.1),
+                          ],
+                          stops: const [0.05, 0.95],
+                        ),
+                      ),
+                    ),
+                  ],
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                        return touchedSpots.map((LineBarSpot touchedSpot) {
+                          final index = touchedSpot.x.toInt();
+                          if (index >= 0 && index < chartData.length) {
+                            final item = chartData[index];
+                            return LineTooltipItem(
+                              '${item['name']}\n${item['position'] != null && item['position'].toString().isNotEmpty ? '${item['position']}\n' : ''}${formatDuration(item['duration'].toString())}',
+                              const TextStyle(
+                                color: Color(0xFF111827),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          }
+                          return null;
+                        }).toList();
+                      },
+                      tooltipRoundedRadius: 8,
+                      tooltipPadding: const EdgeInsets.all(12),
+                      tooltipBorder: const BorderSide(
+                        color: Color(0xFFE5E7EB),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                ),
               ),
               // Overlay company logos on chart dots
               ...chartData.asMap().entries.map((entry) {
@@ -474,17 +477,17 @@ class LinkedInComponents {
                 final item = entry.value;
                 final logo = item['logo']?.toString();
                 final score = item['score'] as double;
-                
+
                 // Calculate X position (based on index)
-                final xRatio = chartData.length > 1 
-                    ? index / (chartData.length - 1) 
+                final xRatio = chartData.length > 1
+                    ? index / (chartData.length - 1)
                     : 0.5;
                 final xPos = plotWidth * xRatio;
-                
+
                 // Calculate Y position (based on score, inverted because Y=0 is at top)
                 final yRatio = (score - yMin) / (yMax - yMin);
                 final yPos = plotHeight - (plotHeight * yRatio);
-                
+
                 return Positioned(
                   left: xPos - 15, // Center the 30px logo
                   top: yPos - 15, // Center the 30px logo
@@ -532,4 +535,3 @@ class LinkedInComponents {
     );
   }
 }
-

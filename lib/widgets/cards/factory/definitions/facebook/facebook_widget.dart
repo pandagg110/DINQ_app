@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'facebook_layouts.dart';
 
 class FacebookWidget extends StatelessWidget {
-  const FacebookWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const FacebookWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -23,9 +19,7 @@ class FacebookWidget extends StatelessWidget {
 
     switch (size) {
       case '2x2':
-        return FacebookLayouts.build2x2Layout(
-          followers: followers,
-        );
+        return FacebookLayouts.build2x2Layout(followers: followers);
       case '2x4':
         return FacebookLayouts.build2x4Layout(
           title: title,
@@ -54,4 +48,3 @@ class FacebookWidget extends StatelessWidget {
     }
   }
 }
-

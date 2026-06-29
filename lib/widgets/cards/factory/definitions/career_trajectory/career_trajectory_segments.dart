@@ -12,16 +12,18 @@ class CareerTrajectorySegments {
     required String? activeSegmentKey,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
     required bool isHorizontal,
     bool showPercentage = false,
   }) {
     final segmentKey = '${segment['category']}-$index';
     final representative = segment['representative'] as Map<String, dynamic>?;
-    final hasRepresentative = representative != null && representative['name'] != 'Unknown';
+    final hasRepresentative =
+        representative != null && representative['name'] != 'Unknown';
     final isActive = hasRepresentative && activeSegmentKey == segmentKey;
     final percentage = (segment['percentage'] as num?)?.toDouble() ?? 0.0;
-    
+
     Widget content = showPercentage
         ? Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -104,7 +106,8 @@ class CareerTrajectorySegments {
     required bool isActive,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
   }) {
     return MouseRegion(
       onEnter: (event) {
@@ -126,10 +129,7 @@ class CareerTrajectorySegments {
       onExit: (_) => onHoverEnd(),
       child: GestureDetector(
         onTap: () => onOpenModal(segment, representative, color),
-        child: Opacity(
-          opacity: isActive ? 1.0 : 0.7,
-          child: child,
-        ),
+        child: Opacity(opacity: isActive ? 1.0 : 0.7, child: child),
       ),
     );
   }
@@ -142,11 +142,13 @@ class CareerTrajectorySegments {
     required String? activeSegmentKey,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
   }) {
     final segmentKey = '${segment['category']}-$index';
     final representative = segment['representative'] as Map<String, dynamic>?;
-    final hasRepresentative = representative != null && representative['name'] != 'Unknown';
+    final hasRepresentative =
+        representative != null && representative['name'] != 'Unknown';
     final isActive = hasRepresentative && activeSegmentKey == segmentKey;
 
     if (!hasRepresentative) {
@@ -180,7 +182,8 @@ class CareerTrajectorySegments {
               CircleAvatar(
                 radius: 14,
                 backgroundColor: Colors.white,
-                backgroundImage: (representative['avatarUrl'] as String?) != null
+                backgroundImage:
+                    (representative['avatarUrl'] as String?) != null
                     ? NetworkImage(representative['avatarUrl'] as String)
                     : null,
                 child: (representative['avatarUrl'] as String?) == null
@@ -201,7 +204,8 @@ class CareerTrajectorySegments {
     required List<Map<String, dynamic>> sortedSegments,
   }) {
     final representative = segment['representative'] as Map<String, dynamic>?;
-    final hasRepresentative = representative != null && representative['name'] != 'Unknown';
+    final hasRepresentative =
+        representative != null && representative['name'] != 'Unknown';
 
     if (!hasRepresentative) {
       return const SizedBox.shrink();
@@ -210,9 +214,12 @@ class CareerTrajectorySegments {
     // Calculate center position
     double previousPercentage = 0;
     for (int i = 0; i < index; i++) {
-      previousPercentage += (sortedSegments[i]['percentage'] as num?)?.toDouble() ?? 0;
+      previousPercentage +=
+          (sortedSegments[i]['percentage'] as num?)?.toDouble() ?? 0;
     }
-    final centerPosition = previousPercentage + ((segment['percentage'] as num?)?.toDouble() ?? 0) / 2;
+    final centerPosition =
+        previousPercentage +
+        ((segment['percentage'] as num?)?.toDouble() ?? 0) / 2;
 
     return Positioned(
       left: (centerPosition / 100) * MediaQuery.of(context).size.width - 16,
@@ -237,11 +244,13 @@ class CareerTrajectorySegments {
     required String? activeSegmentKey,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
   }) {
     final segmentKey = '${segment['category']}-$index';
     final representative = segment['representative'] as Map<String, dynamic>?;
-    final hasRepresentative = representative != null && representative['name'] != 'Unknown';
+    final hasRepresentative =
+        representative != null && representative['name'] != 'Unknown';
     final isActive = hasRepresentative && activeSegmentKey == segmentKey;
     final category = segment['category'] as String? ?? '';
 
@@ -278,7 +287,8 @@ class CareerTrajectorySegments {
                 CircleAvatar(
                   radius: 28,
                   backgroundColor: Colors.white,
-                  backgroundImage: (representative['avatarUrl'] as String?) != null
+                  backgroundImage:
+                      (representative['avatarUrl'] as String?) != null
                       ? NetworkImage(representative['avatarUrl'] as String)
                       : null,
                   child: (representative['avatarUrl'] as String?) == null
@@ -294,7 +304,8 @@ class CareerTrajectorySegments {
                     Text(
                       category.isEmpty
                           ? ''
-                          : category.substring(0, 1).toUpperCase() + category.substring(1),
+                          : category.substring(0, 1).toUpperCase() +
+                                category.substring(1),
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -315,7 +326,10 @@ class CareerTrajectorySegments {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        (representative['dinq'] ?? representative['position'] ?? '') as String,
+                        (representative['dinq'] ??
+                                representative['position'] ??
+                                '')
+                            as String,
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF6B7280),
@@ -334,4 +348,3 @@ class CareerTrajectorySegments {
     );
   }
 }
-

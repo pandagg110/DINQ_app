@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'substack_layouts.dart';
 
 class SubstackWidget extends StatelessWidget {
-  const SubstackWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const SubstackWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -15,14 +11,13 @@ class SubstackWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final metadata = card.data.metadata;
     final bio = (metadata['bio'] as String?) ?? '';
-    final subscriberCount = (metadata['subscriber_count'] as num?)?.toInt() ?? 0;
+    final subscriberCount =
+        (metadata['subscriber_count'] as num?)?.toInt() ?? 0;
     final latestPost = metadata['latest_post'] as Map<String, dynamic>?;
 
     switch (size) {
       case '2x2':
-        return SubstackLayouts.build2x2Layout(
-          subscriberCount: subscriberCount,
-        );
+        return SubstackLayouts.build2x2Layout(subscriberCount: subscriberCount);
       case '2x4':
         return SubstackLayouts.build2x4Layout(
           bio: bio,
@@ -44,4 +39,3 @@ class SubstackWidget extends StatelessWidget {
     }
   }
 }
-

@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'link_layouts.dart';
 
 class LinkWidget extends StatelessWidget {
-  const LinkWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const LinkWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -56,4 +52,3 @@ class LinkWidget extends StatelessWidget {
     }
   }
 }
-

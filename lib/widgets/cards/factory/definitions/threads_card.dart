@@ -14,30 +14,31 @@ class ThreadsCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
-    final latestPost = data['latest_post'];
+    final data = cardAdapterMap(rawMetadata);
+    final latestPost = data['latest_post'] ?? data['latestPost'];
     return {
       'name': data['name'] ?? '',
       'handle': data['handle'] ?? '',
       'avatar': data['avatar'] ?? '',
-      'followerCount': data['follower_count'] ?? 0,
-      'latestPost': latestPost != null
+      'followerCount': data['follower_count'] ?? data['followerCount'] ?? 0,
+      'latestPost': latestPost is Map
           ? {
               'url': latestPost['url'] ?? '',
               'content': latestPost['content'] ?? '',
-              'coverImage': latestPost['cover_image'] ?? '',
+              'coverImage':
+                  latestPost['cover_image'] ?? latestPost['coverImage'] ?? '',
             }
           : null,
     };
@@ -45,38 +46,86 @@ class ThreadsCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    final name = params.card.data.metadata['name']?.toString() ?? '';
-    final handle = params.card.data.metadata['handle']?.toString() ?? '';
-    final followers = params.card.data.metadata['followerCount'] ?? 0;
-    final latestPost = params.card.data.metadata['latestPost'] as Map<String, dynamic>?;
+    final data = params.card.data.metadata;
+    final name = data['name']?.toString() ?? '';
+    final handle = data['handle']?.toString() ?? '';
+    final avatar = data['avatar']?.toString() ?? '';
+    final followers = data['followerCount'] ?? 0;
+    final latestPost = data['latestPost'] is Map
+        ? Map<String, dynamic>.from(data['latestPost'] as Map)
+        : null;
+    final coverImage = latestPost?['coverImage']?.toString() ?? '';
+    final content = latestPost?['content']?.toString() ?? '';
+
+    final size = params.size.toLowerCase();
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AssetIcon(asset: 'icons/social-icons/Threads.svg', size: 32),
-          const SizedBox(height: 12),
-          Text(
-            name.isNotEmpty ? name : (handle.isNotEmpty ? '@$handle' : 'Threads'),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Followers: $followers',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          if (latestPost?['coverImage'] != null) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                latestPost!['coverImage'],
-                width: double.infinity,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+          if (size == '4x4')
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const AssetIcon(
+                  asset: 'icons/social-icons/Threads.svg',
+                  size: 40,
+                ),
+                _Metric(label: 'Followers', value: followers, alignEnd: true),
+              ],
+            )
+          else
+            const AssetIcon(asset: 'icons/social-icons/Threads.svg', size: 40),
+          if (size == '4x4') ...[
+            const SizedBox(height: 14),
+            if (avatar.isNotEmpty || name.isNotEmpty || handle.isNotEmpty)
+              Row(
+                children: [
+                  _Avatar(avatar: avatar, fallbackSize: 48),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _Identity(name: name, handle: handle),
+                  ),
+                ],
               ),
-            ),
+            if (content.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                content,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
+              ),
+            ],
+            if (coverImage.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    coverImage,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ] else
+              const Spacer(),
+          ] else if (size == '4x2') ...[
+            const SizedBox(height: 10),
+            _Identity(name: name, handle: handle),
+            const Spacer(),
+            _Metric(label: 'Followers', value: followers),
+          ] else if (size == '2x4') ...[
+            const SizedBox(height: 12),
+            _Identity(name: name, handle: handle),
+            const Spacer(),
+            _Metric(label: 'Followers', value: followers),
+          ] else ...[
+            const Spacer(),
+            _Metric(label: 'Followers', value: followers),
           ],
         ],
       ),
@@ -84,3 +133,103 @@ class ThreadsCardDefinition extends CardDefinition {
   }
 }
 
+class _Identity extends StatelessWidget {
+  const _Identity({required this.name, required this.handle});
+
+  final String name;
+  final String handle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (name.isNotEmpty)
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF111827),
+            ),
+          ),
+        if (handle.isNotEmpty)
+          Text(
+            '@$handle',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          ),
+      ],
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.avatar, required this.fallbackSize});
+
+  final String avatar;
+  final double fallbackSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: avatar.isNotEmpty
+          ? Image.network(
+              avatar,
+              width: fallbackSize,
+              height: fallbackSize,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const AssetIcon(
+                asset: 'icons/social-icons/Threads.svg',
+                size: 40,
+              ),
+            )
+          : const AssetIcon(asset: 'icons/social-icons/Threads.svg', size: 40),
+    );
+  }
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({
+    required this.label,
+    required this.value,
+    this.alignEnd = false,
+  });
+
+  final String label;
+  final dynamic value;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$value',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF111827),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+        ),
+      ],
+    );
+  }
+}

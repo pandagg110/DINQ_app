@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'spotify_layouts.dart';
 
 class SpotifyWidget extends StatelessWidget {
-  const SpotifyWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const SpotifyWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -52,4 +48,3 @@ class SpotifyWidget extends StatelessWidget {
     }
   }
 }
-

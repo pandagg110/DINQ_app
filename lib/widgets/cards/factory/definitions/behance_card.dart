@@ -14,19 +14,19 @@ class BehanceCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
+    final data = cardAdapterMap(rawMetadata);
     return {
       'username': data['username'] ?? '',
       'name': data['name'] ?? data['display_name'] ?? '',
@@ -47,10 +47,6 @@ class BehanceCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return BehanceWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return BehanceWidget(card: params.card, size: params.size);
   }
 }
-

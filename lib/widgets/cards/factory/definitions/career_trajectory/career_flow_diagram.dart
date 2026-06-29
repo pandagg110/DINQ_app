@@ -132,11 +132,13 @@ class FlowDiagramPainter extends CustomPainter {
     for (int i = targets.length - 1; i >= 0; i--) {
       final target = targets[i];
       final source = sources[i];
-      
+
       final sourceYStart = (source['y'] as double) * scaleY;
-      final sourceYEnd = ((source['y'] as double) + (source['height'] as double)) * scaleY;
+      final sourceYEnd =
+          ((source['y'] as double) + (source['height'] as double)) * scaleY;
       final targetYStart = (target['y'] as double) * scaleY;
-      final targetYEnd = ((target['y'] as double) + (target['height'] as double)) * scaleY;
+      final targetYEnd =
+          ((target['y'] as double) + (target['height'] as double)) * scaleY;
 
       final sourceX = (source['x'] as double) * scaleX;
       final curveStartXPx = curveStartX * scaleX;
@@ -150,15 +152,21 @@ class FlowDiagramPainter extends CustomPainter {
         ..moveTo(sourceX, sourceYStart) // M rightX sourceYStart
         ..lineTo(curveStartXPx, sourceYStart) // L curveStartX sourceYStart
         ..cubicTo(
-          curveStartXPx - controlOffsetXPx, sourceYStart, // C curveStartX - controlOffset, sourceYStart
-          leftXPx + controlOffsetXPx, targetYStart, // leftX + controlOffset, targetYStart
-          leftXPx, targetYStart, // leftX, targetYStart
+          curveStartXPx - controlOffsetXPx,
+          sourceYStart, // C curveStartX - controlOffset, sourceYStart
+          leftXPx + controlOffsetXPx,
+          targetYStart, // leftX + controlOffset, targetYStart
+          leftXPx,
+          targetYStart, // leftX, targetYStart
         )
         ..lineTo(leftXPx, targetYEnd) // L leftX targetYEnd
         ..cubicTo(
-          leftXPx + controlOffsetXPx, targetYEnd, // C leftX + controlOffset, targetYEnd
-          curveStartXPx - controlOffsetXPx, sourceYEnd, // curveStartX - controlOffset, sourceYEnd
-          curveStartXPx, sourceYEnd, // curveStartX, sourceYEnd
+          leftXPx + controlOffsetXPx,
+          targetYEnd, // C leftX + controlOffset, targetYEnd
+          curveStartXPx - controlOffsetXPx,
+          sourceYEnd, // curveStartX - controlOffset, sourceYEnd
+          curveStartXPx,
+          sourceYEnd, // curveStartX, sourceYEnd
         )
         ..lineTo(sourceX, sourceYEnd) // L rightX sourceYEnd
         ..close(); // Z
@@ -185,12 +193,7 @@ class FlowDiagramPainter extends CustomPainter {
         ..color = _parseColor(source['color'] as String);
 
       canvas.drawRect(
-        Rect.fromLTWH(
-          sourceX - barWidth,
-          sourceY,
-          barWidth,
-          sourceHeight,
-        ),
+        Rect.fromLTWH(sourceX - barWidth, sourceY, barWidth, sourceHeight),
         barPaint,
       );
     }

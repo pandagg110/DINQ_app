@@ -51,7 +51,10 @@ class NetworkHoverCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(999),
@@ -90,7 +93,10 @@ class NetworkHoverCard extends StatelessWidget {
                   height: 58,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+                    border: Border.all(
+                      color: const Color(0xFFE5E7EB),
+                      width: 1,
+                    ),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
@@ -179,4 +185,3 @@ class NetworkHoverCard extends StatelessWidget {
     );
   }
 }
-

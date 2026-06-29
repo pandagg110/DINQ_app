@@ -15,7 +15,7 @@ class LinkedInLayouts {
         children: [
           // Top Section: Icon
           const AssetIcon(asset: 'icons/logo/LinkedIn.png', size: 40),
-          
+
           // Bottom Section: Organization Logos
           Align(
             alignment: Alignment.bottomLeft,
@@ -91,9 +91,9 @@ class LinkedInLayouts {
         children: [
           // Top Section: Icon
           const AssetIcon(asset: 'icons/logo/LinkedIn.png', size: 40),
-          
+
           const SizedBox(height: 16),
-          
+
           // Chart Section
           Expanded(
             child: LinkedInComponents.buildCareerChart(
@@ -105,4 +105,3 @@ class LinkedInLayouts {
     );
   }
 }
-

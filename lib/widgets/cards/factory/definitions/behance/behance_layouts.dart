@@ -4,9 +4,7 @@ import '../../../../common/metric_display.dart';
 
 class BehanceLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int followers,
-  }) {
+  static Widget build2x2Layout({required int followers}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -174,4 +172,3 @@ class BehanceLayouts {
     );
   }
 }
-

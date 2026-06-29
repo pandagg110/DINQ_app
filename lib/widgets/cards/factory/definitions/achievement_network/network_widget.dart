@@ -8,11 +8,7 @@ import 'network_modal.dart';
 import 'network_layouts.dart';
 
 class NetworkWidget extends StatefulWidget {
-  const NetworkWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const NetworkWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -31,46 +27,47 @@ class _NetworkWidgetState extends State<NetworkWidget> {
 
     setState(() {
       _activeHoverKey = connectionKey;
-      
+
       // Calculate hover card position
       const hoverCardWidth = 380.0;
       const hoverCardHeight = 450.0;
       const defaultXOffset = 40.0;
       const defaultYOffset = -130.0;
-      
+
       final screenSize = MediaQuery.of(context).size;
       final globalPosition = localPosition;
-      
+
       // Calculate horizontal position
       double finalXOffset = defaultXOffset;
       final hoverCardLeft = globalPosition.dx + defaultXOffset;
       final hoverCardRight = hoverCardLeft + hoverCardWidth;
-      
+
       if (hoverCardRight > screenSize.width) {
         finalXOffset = -hoverCardWidth - 40;
       }
       if (hoverCardLeft < 0) {
         finalXOffset = 40;
       }
-      
+
       // Calculate vertical position
       double finalYOffset = defaultYOffset;
       final hoverCardTop = globalPosition.dy + defaultYOffset;
       final hoverCardBottom = hoverCardTop + hoverCardHeight;
-      
+
       if (hoverCardBottom > screenSize.height) {
         final alternativeTop = globalPosition.dy + 30;
         final alternativeBottom = alternativeTop + hoverCardHeight;
         if (alternativeBottom <= screenSize.height) {
           finalYOffset = 30;
         } else {
-          finalYOffset = screenSize.height - globalPosition.dy - hoverCardHeight - 10;
+          finalYOffset =
+              screenSize.height - globalPosition.dy - hoverCardHeight - 10;
         }
       }
       if (hoverCardTop < 0) {
         finalYOffset = 30;
       }
-      
+
       _hoverCardOffset = Offset(
         globalPosition.dx + finalXOffset,
         globalPosition.dy + finalYOffset,
@@ -94,7 +91,7 @@ class _NetworkWidgetState extends State<NetworkWidget> {
 
   void _showModal() {
     if (_activeModal == null) return;
-    
+
     showDialog(
       context: context,
       barrierColor: Colors.black54,
@@ -112,12 +109,13 @@ class _NetworkWidgetState extends State<NetworkWidget> {
 
   Map<String, dynamic>? _getActiveConnection() {
     if (_activeHoverKey == null) return null;
-    
-    final connections = (widget.card.data.metadata['connections'] as List<dynamic>?) ?? [];
+
+    final connections =
+        (widget.card.data.metadata['connections'] as List<dynamic>?) ?? [];
     for (int i = 0; i < connections.length; i++) {
       final connection = connections[i] as Map<String, dynamic>;
       final connectionKey = '${connection['name']}-$i';
-      if (connectionKey == _activeHoverKey || 
+      if (connectionKey == _activeHoverKey ||
           _activeHoverKey!.startsWith('top-${connection['name']}') ||
           _activeHoverKey!.startsWith('bottom-${connection['name']}')) {
         return connection;
@@ -128,14 +126,15 @@ class _NetworkWidgetState extends State<NetworkWidget> {
 
   bool _isTopRow(String? connectionKey) {
     if (connectionKey == null) return true;
-    return connectionKey.startsWith('top-') || 
-           (!connectionKey.startsWith('bottom-') && _activeHoverKey != null);
+    return connectionKey.startsWith('top-') ||
+        (!connectionKey.startsWith('bottom-') && _activeHoverKey != null);
   }
 
   @override
   Widget build(BuildContext context) {
-    final connections = (widget.card.data.metadata['connections'] as List<dynamic>?) ?? [];
-    
+    final connections =
+        (widget.card.data.metadata['connections'] as List<dynamic>?) ?? [];
+
     if (connections.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
@@ -155,7 +154,8 @@ class _NetworkWidgetState extends State<NetworkWidget> {
     // Get owner info from user store
     final userStore = context.watch<UserStore>();
     final ownerName = userStore.cardOwner?.name ?? 'User';
-    final ownerAvatar = userStore.cardOwner?.avatarUrl ?? '/images/default-avatar.svg';
+    final ownerAvatar =
+        userStore.cardOwner?.avatarUrl ?? '/images/default-avatar.svg';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -163,14 +163,12 @@ class _NetworkWidgetState extends State<NetworkWidget> {
           clipBehavior: Clip.none,
           children: [
             // Main content based on size
-            _buildContent(
-              connectionList,
-              ownerName,
-              ownerAvatar,
-            ),
-            
+            _buildContent(connectionList, ownerName, ownerAvatar),
+
             // Hover popup (desktop only)
-            if (kIsWeb && activeConnection != null && (_hoverCardOffset.dx != 0 || _hoverCardOffset.dy != 0))
+            if (kIsWeb &&
+                activeConnection != null &&
+                (_hoverCardOffset.dx != 0 || _hoverCardOffset.dy != 0))
               Positioned(
                 left: _hoverCardOffset.dx,
                 top: _hoverCardOffset.dy,
@@ -248,4 +246,3 @@ class _NetworkWidgetState extends State<NetworkWidget> {
     }
   }
 }
-

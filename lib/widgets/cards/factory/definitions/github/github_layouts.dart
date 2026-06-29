@@ -51,7 +51,7 @@ class GitHubLayouts {
         children: [
           // Top Section: Icon
           const AssetIcon(asset: 'icons/logo/Github.png', size: 40),
-          
+
           // Middle Section: Contribution Chart
           if (username.isNotEmpty)
             SizedBox(
@@ -68,7 +68,7 @@ class GitHubLayouts {
                 clipBehavior: Clip.antiAlias,
               ),
             ),
-          
+
           // Bottom Section: Metrics
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,7 +87,10 @@ class GitHubLayouts {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: GitHubConstants.getLanguageColor(lang),
                           borderRadius: BorderRadius.circular(999),
@@ -131,7 +134,7 @@ class GitHubLayouts {
               children: [
                 // Top: Icon
                 const AssetIcon(asset: 'icons/logo/Github.png', size: 40),
-                
+
                 // Bottom: Stars/Username + Language Tags
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -150,7 +153,10 @@ class GitHubLayouts {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: GitHubConstants.getLanguageColor(lang),
                                 borderRadius: BorderRadius.circular(999),
@@ -172,7 +178,7 @@ class GitHubLayouts {
               ],
             ),
           ),
-          
+
           // Right: Contribution Chart - bottom aligned
           if (username.isNotEmpty)
             SizedBox(
@@ -203,9 +209,12 @@ class GitHubLayouts {
     dynamic representativeProject,
     required bool showActivity,
   }) {
-    final hasRepresentative = representativeProject != null &&
+    final hasRepresentative =
+        representativeProject != null &&
         (representativeProject['name'] as String?)?.isNotEmpty == true;
-    final summaryText = summary.trim().isNotEmpty ? summary : 'No summary available.';
+    final summaryText = summary.trim().isNotEmpty
+        ? summary
+        : 'No summary available.';
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -225,9 +234,9 @@ class GitHubLayouts {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +249,10 @@ class GitHubLayouts {
                     runSpacing: 8,
                     children: topLanguages.map((lang) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: GitHubConstants.getLanguageColor(lang),
                           borderRadius: BorderRadius.circular(999),
@@ -258,10 +270,12 @@ class GitHubLayouts {
                   ),
                   const SizedBox(height: 16),
                 ],
-                
+
                 // Show representative project OR contribution chart
                 if (hasRepresentative && !showActivity)
-                  GitHubComponents.buildRepresentativeProjectCard(representativeProject)
+                  GitHubComponents.buildRepresentativeProjectCard(
+                    representativeProject,
+                  )
                 else if (username.isNotEmpty)
                   SizedBox(
                     height: 101,
@@ -276,9 +290,9 @@ class GitHubLayouts {
                       clipBehavior: Clip.antiAlias,
                     ),
                   ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Summary Section - adaptive height, no maxLines restriction
                 Flexible(
                   child: Container(
@@ -305,4 +319,3 @@ class GitHubLayouts {
     );
   }
 }
-

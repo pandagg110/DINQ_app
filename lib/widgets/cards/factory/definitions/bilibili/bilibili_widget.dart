@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'bilibili_layouts.dart';
 
 class BilibiliWidget extends StatelessWidget {
-  const BilibiliWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const BilibiliWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -19,13 +15,13 @@ class BilibiliWidget extends StatelessWidget {
     final archiveView = (metadata['archiveView'] as num?)?.toInt() ?? 0;
     final bio = (metadata['bio'] as String?) ?? '';
     final works = (metadata['works'] as List<dynamic>?) ?? [];
-    final firstWork = works.isNotEmpty ? works[0] as Map<String, dynamic>? : null;
+    final firstWork = works.isNotEmpty
+        ? works[0] as Map<String, dynamic>?
+        : null;
 
     switch (size) {
       case '2x2':
-        return BilibiliLayouts.build2x2Layout(
-          followers: followers,
-        );
+        return BilibiliLayouts.build2x2Layout(followers: followers);
       case '2x4':
         return BilibiliLayouts.build2x4Layout(
           followers: followers,
@@ -50,4 +46,3 @@ class BilibiliWidget extends StatelessWidget {
     }
   }
 }
-

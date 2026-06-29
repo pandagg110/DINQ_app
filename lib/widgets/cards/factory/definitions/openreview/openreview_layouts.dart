@@ -4,9 +4,7 @@ import '../../../../common/metric_display.dart';
 
 class OpenReviewLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int totalPapers,
-  }) {
+  static Widget build2x2Layout({required int totalPapers}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -124,7 +122,8 @@ class OpenReviewLayouts {
   }) {
     final title = (representativeWork['title'] as String?) ?? '';
     final authors = (representativeWork['authors'] as List<dynamic>?) ?? [];
-    final publicationDate = (representativeWork['publicationDate'] as String?) ?? '';
+    final publicationDate =
+        (representativeWork['publicationDate'] as String?) ?? '';
     final venue = (representativeWork['venue'] as String?) ?? '';
 
     return Padding(
@@ -255,4 +254,3 @@ class OpenReviewLayouts {
     );
   }
 }
-

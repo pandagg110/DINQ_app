@@ -4,9 +4,7 @@ import '../../../../common/metric_display.dart';
 
 class FacebookLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int followers,
-  }) {
+  static Widget build2x2Layout({required int followers}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -56,10 +54,7 @@ class FacebookLayouts {
               const SizedBox(height: 4),
               Text(
                 '@$pageName',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF6B7280),
-                ),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
               ),
             ],
             const Spacer(),
@@ -103,7 +98,10 @@ class FacebookLayouts {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AssetIcon(asset: 'icons/social-icons/Facebook.svg', size: 40),
+              const AssetIcon(
+                asset: 'icons/social-icons/Facebook.svg',
+                size: 40,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -182,7 +180,10 @@ class FacebookLayouts {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const AssetIcon(asset: 'icons/social-icons/Facebook.svg', size: 40),
+                  const AssetIcon(
+                    asset: 'icons/social-icons/Facebook.svg',
+                    size: 40,
+                  ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,10 +260,7 @@ class FacebookLayouts {
             ),
             child: Text(
               latestPost?['text']?.toString() ?? intro,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF171717),
-              ),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF171717)),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -272,4 +270,3 @@ class FacebookLayouts {
     );
   }
 }
-

@@ -52,10 +52,7 @@ class HuggingFaceComponents {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            icon,
-            SizedBox(width: compact ? 4 : 6),
-          ],
+          if (icon != null) ...[icon, SizedBox(width: compact ? 4 : 6)],
           Text(
             formatCount(value),
             style: TextStyle(
@@ -85,10 +82,7 @@ class HuggingFaceComponents {
         child: const Center(
           child: Text(
             'No representative work on HuggingFace',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF6B7280),
-            ),
+            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
           ),
         ),
       );
@@ -250,7 +244,10 @@ class HuggingFaceComponents {
                       const SizedBox(width: 4),
                       Text(
                         formatCount(downloads),
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF374151),
+                        ),
                       ),
                     ],
                     if (likes > 0) ...[
@@ -259,7 +256,10 @@ class HuggingFaceComponents {
                       const SizedBox(width: 4),
                       Text(
                         formatCount(likes),
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF374151),
+                        ),
                       ),
                     ],
                   ],
@@ -316,4 +316,3 @@ class HuggingFaceComponents {
     );
   }
 }
-

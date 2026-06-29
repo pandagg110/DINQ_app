@@ -10,12 +10,15 @@ class CareerTrajectoryLayouts {
     required String? activeSegmentKey,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
   }) {
     final largestSegment = sortedSegments.last;
-    final largestRepresentative = largestSegment['representative'] as Map<String, dynamic>?;
-    final hasLargestRepresentative = largestRepresentative != null && 
-                                     largestRepresentative['name'] != 'Unknown';
+    final largestRepresentative =
+        largestSegment['representative'] as Map<String, dynamic>?;
+    final hasLargestRepresentative =
+        largestRepresentative != null &&
+        largestRepresentative['name'] != 'Unknown';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
@@ -32,7 +35,7 @@ class CareerTrajectoryLayouts {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -45,14 +48,13 @@ class CareerTrajectoryLayouts {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          (largestSegment['category'] as String? ?? '')
-                              .isEmpty
+                          (largestSegment['category'] as String? ?? '').isEmpty
                               ? ''
                               : (largestSegment['category'] as String)
-                                  .substring(0, 1)
-                                  .toUpperCase() +
-                                  (largestSegment['category'] as String)
-                                      .substring(1),
+                                        .substring(0, 1)
+                                        .toUpperCase() +
+                                    (largestSegment['category'] as String)
+                                        .substring(1),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -63,23 +65,33 @@ class CareerTrajectoryLayouts {
                         CircleAvatar(
                           radius: 16,
                           backgroundColor: Colors.white,
-                          backgroundImage: (largestRepresentative['avatarUrl'] as String?) != null
-                              ? NetworkImage(largestRepresentative['avatarUrl'] as String)
+                          backgroundImage:
+                              (largestRepresentative['avatarUrl'] as String?) !=
+                                  null
+                              ? NetworkImage(
+                                  largestRepresentative['avatarUrl'] as String,
+                                )
                               : null,
-                          child: (largestRepresentative['avatarUrl'] as String?) == null
+                          child:
+                              (largestRepresentative['avatarUrl'] as String?) ==
+                                  null
                               ? const Icon(Icons.person, size: 16)
                               : null,
                         ),
                       ],
                     ),
                   ),
-                
+
                 // Horizontal Stacked Bar
                 SizedBox(
                   height: 40,
                   child: Row(
                     children: [
-                      for (int index = 0; index < sortedSegments.length; index++)
+                      for (
+                        int index = 0;
+                        index < sortedSegments.length;
+                        index++
+                      )
                         CareerTrajectorySegments.buildSegmentBar(
                           context: context,
                           segment: sortedSegments[index],
@@ -109,7 +121,8 @@ class CareerTrajectoryLayouts {
     required String? activeSegmentKey,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -126,7 +139,7 @@ class CareerTrajectoryLayouts {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,9 +149,14 @@ class CareerTrajectoryLayouts {
                   width: 80,
                   child: Column(
                     children: [
-                      for (int index = 0; index < sortedSegments.length; index++)
+                      for (
+                        int index = 0;
+                        index < sortedSegments.length;
+                        index++
+                      )
                         Expanded(
-                          flex: (sortedSegments[index]['percentage'] as num).toInt(),
+                          flex: (sortedSegments[index]['percentage'] as num)
+                              .toInt(),
                           child: CareerTrajectorySegments.buildSegmentBar(
                             context: context,
                             segment: sortedSegments[index],
@@ -157,14 +175,19 @@ class CareerTrajectoryLayouts {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Category Labels with Avatars
                 Expanded(
                   child: Column(
                     children: [
-                      for (int index = 0; index < sortedSegments.length; index++)
+                      for (
+                        int index = 0;
+                        index < sortedSegments.length;
+                        index++
+                      )
                         Expanded(
-                          flex: (sortedSegments[index]['percentage'] as num).toInt(),
+                          flex: (sortedSegments[index]['percentage'] as num)
+                              .toInt(),
                           child: CareerTrajectorySegments.buildSegmentLabel(
                             context: context,
                             segment: sortedSegments[index],
@@ -193,7 +216,8 @@ class CareerTrajectoryLayouts {
     required String? activeSegmentKey,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
   }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
@@ -210,7 +234,7 @@ class CareerTrajectoryLayouts {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -220,7 +244,11 @@ class CareerTrajectoryLayouts {
                   height: 32,
                   child: Stack(
                     children: [
-                      for (int index = 0; index < sortedSegments.length; index++)
+                      for (
+                        int index = 0;
+                        index < sortedSegments.length;
+                        index++
+                      )
                         CareerTrajectorySegments.buildAvatarPositioned(
                           context: context,
                           segment: sortedSegments[index],
@@ -231,13 +259,17 @@ class CareerTrajectoryLayouts {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Horizontal Stacked Bar with Percentages
                 SizedBox(
                   height: 56,
                   child: Row(
                     children: [
-                      for (int index = 0; index < sortedSegments.length; index++)
+                      for (
+                        int index = 0;
+                        index < sortedSegments.length;
+                        index++
+                      )
                         CareerTrajectorySegments.buildSegmentBar(
                           context: context,
                           segment: sortedSegments[index],
@@ -268,7 +300,8 @@ class CareerTrajectoryLayouts {
     required String? activeSegmentKey,
     required Function(String, Offset, Size) onHover,
     required VoidCallback onHoverEnd,
-    required Function(Map<String, dynamic>, Map<String, dynamic>, String) onOpenModal,
+    required Function(Map<String, dynamic>, Map<String, dynamic>, String)
+    onOpenModal,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -285,7 +318,7 @@ class CareerTrajectoryLayouts {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -295,9 +328,14 @@ class CareerTrajectoryLayouts {
                   width: 56,
                   child: Column(
                     children: [
-                      for (int index = 0; index < sortedSegments.length; index++)
+                      for (
+                        int index = 0;
+                        index < sortedSegments.length;
+                        index++
+                      )
                         Expanded(
-                          flex: (sortedSegments[index]['percentage'] as num).toInt(),
+                          flex: (sortedSegments[index]['percentage'] as num)
+                              .toInt(),
                           child: CareerTrajectorySegments.buildSegmentBar(
                             context: context,
                             segment: sortedSegments[index],
@@ -316,7 +354,7 @@ class CareerTrajectoryLayouts {
                   ),
                 ),
                 // const SizedBox(width: 24),
-                
+
                 // Right Column: Flow Diagram Background + Annotations
                 Expanded(
                   child: Stack(
@@ -324,33 +362,48 @@ class CareerTrajectoryLayouts {
                       // Flow Diagram Background
                       Positioned.fill(
                         child: CareerFlowDiagram(
-                          careerA: (sortedSegments[0]['percentage'] as num?)?.toDouble() ?? 0,
-                          careerB: (sortedSegments[1]['percentage'] as num?)?.toDouble() ?? 0,
-                          careerC: (sortedSegments[2]['percentage'] as num?)?.toDouble() ?? 0,
+                          careerA:
+                              (sortedSegments[0]['percentage'] as num?)
+                                  ?.toDouble() ??
+                              0,
+                          careerB:
+                              (sortedSegments[1]['percentage'] as num?)
+                                  ?.toDouble() ??
+                              0,
+                          careerC:
+                              (sortedSegments[2]['percentage'] as num?)
+                                  ?.toDouble() ??
+                              0,
                           colors: CareerTrajectoryConstants.colors,
                         ),
                       ),
-                      
+
                       // Annotations Overlay
                       Positioned.fill(
                         child: Padding(
                           padding: const EdgeInsets.only(left: 36, right: 8),
                           child: Column(
                             children: [
-                              for (int index = 0; index < sortedSegments.length; index++)
+                              for (
+                                int index = 0;
+                                index < sortedSegments.length;
+                                index++
+                              )
                                 Expanded(
                                   child: Align(
                                     alignment: Alignment.centerLeft,
-                                    child: CareerTrajectorySegments.buildSegmentAnnotation(
-                                      context: context,
-                                      segment: sortedSegments[index],
-                                      index: index,
-                                      color: CareerTrajectoryConstants.colors[index],
-                                      activeSegmentKey: activeSegmentKey,
-                                      onHover: onHover,
-                                      onHoverEnd: onHoverEnd,
-                                      onOpenModal: onOpenModal,
-                                    ),
+                                    child:
+                                        CareerTrajectorySegments.buildSegmentAnnotation(
+                                          context: context,
+                                          segment: sortedSegments[index],
+                                          index: index,
+                                          color: CareerTrajectoryConstants
+                                              .colors[index],
+                                          activeSegmentKey: activeSegmentKey,
+                                          onHover: onHover,
+                                          onHoverEnd: onHoverEnd,
+                                          onOpenModal: onOpenModal,
+                                        ),
                                   ),
                                 ),
                             ],
@@ -368,4 +421,3 @@ class CareerTrajectoryLayouts {
     );
   }
 }
-

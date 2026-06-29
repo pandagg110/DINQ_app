@@ -41,4 +41,3 @@ class GitHubConstants {
     return languageColors[language] ?? const Color(0xFFE5E7EB);
   }
 }
-

@@ -14,37 +14,34 @@ class ScholarCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
+    final data = cardAdapterMap(rawMetadata);
     return {
       'name': data['name'] ?? '',
-      'scholarId': data['scholar_id'] ?? '',
-      'topTierPapers': data['top_tier_papers'] ?? 0,
-      'totalPapers': data['total_papers'] ?? 0,
-      'totalCitations': data['total_citations'] ?? 0,
-      'firstAuthorCitations': data['first_author_citations'] ?? 0,
-      'hIndex': data['h_index'] ?? 0,
+      'scholarId': data['scholarId'] ?? data['scholar_id'] ?? '',
+      'topTierPapers': data['topTierPapers'] ?? data['top_tier_papers'] ?? 0,
+      'totalPapers': data['totalPapers'] ?? data['total_papers'] ?? 0,
+      'totalCitations': data['totalCitations'] ?? data['total_citations'] ?? 0,
+      'firstAuthorCitations':
+          data['firstAuthorCitations'] ?? data['first_author_citations'] ?? 0,
+      'hIndex': data['hIndex'] ?? data['h_index'] ?? 0,
       'summary': data['summary'] ?? '',
     };
   }
 
   @override
   Widget render(CardRenderParams params) {
-    return ScholarWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return ScholarWidget(card: params.card, size: params.size);
   }
 }
-

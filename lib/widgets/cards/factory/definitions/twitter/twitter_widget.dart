@@ -13,7 +13,8 @@ class TwitterWidget extends StatelessWidget {
     final username = (metadata['username'] as String?) ?? '';
     final fullName = (metadata['full_name'] as String?) ?? 'X user';
     final profileImage =
-        (metadata['profile_image'] as String?) ?? '/images/widgets/twitter/default-avatar.svg';
+        (metadata['profile_image'] as String?) ??
+        '/images/widgets/twitter/default-avatar.svg';
     final verified = (metadata['verified'] as bool?) ?? false;
     final followerCount = (metadata['followerCount'] as num?)?.toInt() ?? 0;
     final smartFollowerCount =

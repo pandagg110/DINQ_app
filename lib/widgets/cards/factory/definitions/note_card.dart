@@ -14,15 +14,15 @@ class NoteCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
@@ -38,22 +38,31 @@ class NoteCardDefinition extends CardDefinition {
   @override
   Widget render(CardRenderParams params) {
     final isSelected = params.isSelected;
-    final text = params.card.data.metadata['text']?.toString() ??
+    final text =
+        params.card.data.metadata['text']?.toString() ??
         params.card.data.metadata['content']?.toString() ??
         params.card.data.description;
     final fontSize = params.card.data.metadata['fontSize'] ?? 16;
-    final fontColorStr = params.card.data.metadata['fontColor']?.toString() ?? '#171717';
-    final bgColorStr = params.card.data.metadata['bgColor']?.toString() ?? '#FFFFFF';
-    final align = params.card.data.metadata['align'] as List<dynamic>? ?? ['left', 'center'];
+    final fontColorStr =
+        params.card.data.metadata['fontColor']?.toString() ?? '#171717';
+    final bgColorStr =
+        params.card.data.metadata['bgColor']?.toString() ?? '#FFFFFF';
+    final align =
+        params.card.data.metadata['align'] as List<dynamic>? ??
+        ['left', 'center'];
 
     // Parse colors
     Color fontColor = _parseColor(fontColorStr);
     Color bgColor = _parseColor(bgColorStr);
-    
+
     // Parse alignment: align is [horizontalAlign, verticalAlign]
-    final horizontalAlign = align.isNotEmpty ? align[0]?.toString() ?? 'left' : 'left';
-    final verticalAlign = align.length > 1 ? align[1]?.toString() ?? 'center' : 'center';
-    
+    final horizontalAlign = align.isNotEmpty
+        ? align[0]?.toString() ?? 'left'
+        : 'left';
+    final verticalAlign = align.length > 1
+        ? align[1]?.toString() ?? 'center'
+        : 'center';
+
     // Map horizontal alignment to TextAlign
     TextAlign textAlign = TextAlign.left;
     if (horizontalAlign == 'center') {
@@ -61,7 +70,7 @@ class NoteCardDefinition extends CardDefinition {
     } else if (horizontalAlign == 'right') {
       textAlign = TextAlign.right;
     }
-    
+
     // Map vertical alignment to MainAxisAlignment
     MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center;
     if (verticalAlign == 'top') {
@@ -73,7 +82,7 @@ class NoteCardDefinition extends CardDefinition {
     // 检测是否为 HTML 内容
     final bool isHtml = _isHtmlContent(text);
     final String displayText = text;
-    
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: Container(
@@ -116,8 +125,8 @@ class NoteCardDefinition extends CardDefinition {
                           textAlign: textAlign == TextAlign.center
                               ? TextAlign.center
                               : textAlign == TextAlign.right
-                                  ? TextAlign.right
-                                  : TextAlign.left,
+                              ? TextAlign.right
+                              : TextAlign.left,
                         ),
                       },
                     )
@@ -195,7 +204,7 @@ class _EditableNoteContentState extends State<_EditableNoteContent> {
     _controller = TextEditingController(text: textToEdit);
     _focusNode = FocusNode();
     _focusNode.addListener(_onFocusChange);
-    
+
     // 如果被选中，自动聚焦并移动光标到末尾
     if (widget.isSelected) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -214,7 +223,7 @@ class _EditableNoteContentState extends State<_EditableNoteContent> {
           : widget.initialText;
       _controller.text = textToEdit;
     }
-    
+
     // 如果从非选中变为选中，自动聚焦并移动光标到末尾
     if (!oldWidget.isSelected && widget.isSelected) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -222,7 +231,7 @@ class _EditableNoteContentState extends State<_EditableNoteContent> {
       });
     }
   }
-  
+
   void _requestFocusAndMoveToEnd() {
     if (!_focusNode.hasFocus) {
       _focusNode.requestFocus();
@@ -266,10 +275,7 @@ class _EditableNoteContentState extends State<_EditableNoteContent> {
       controller: _controller,
       maxLines: null,
       minLines: 1,
-      style: TextStyle(
-        fontSize: widget.fontSize,
-        color: widget.fontColor,
-      ),
+      style: TextStyle(fontSize: widget.fontSize, color: widget.fontColor),
       textAlign: widget.textAlign,
       decoration: InputDecoration(
         border: InputBorder.none,
@@ -279,9 +285,7 @@ class _EditableNoteContentState extends State<_EditableNoteContent> {
         errorBorder: InputBorder.none,
         focusedErrorBorder: InputBorder.none,
         hintText: 'Enter your note...',
-        hintStyle: TextStyle(
-          color: widget.fontColor.withOpacity(0.5),
-        ),
+        hintStyle: TextStyle(color: widget.fontColor.withOpacity(0.5)),
         contentPadding: EdgeInsets.zero,
         isDense: true,
       ),
@@ -296,4 +300,3 @@ class _EditableNoteContentState extends State<_EditableNoteContent> {
     );
   }
 }
-

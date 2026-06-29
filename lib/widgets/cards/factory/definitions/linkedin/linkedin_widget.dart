@@ -2,18 +2,15 @@ import 'package:flutter/material.dart';
 import 'linkedin_layouts.dart';
 
 class LinkedInWidget extends StatelessWidget {
-  const LinkedInWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const LinkedInWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
 
   @override
   Widget build(BuildContext context) {
-    final careerJourney = (card.data.metadata['careerJourney'] as List<dynamic>?) ?? [];
+    final careerJourney =
+        (card.data.metadata['careerJourney'] as List<dynamic>?) ?? [];
 
     switch (size) {
       case '2x2':
@@ -39,4 +36,3 @@ class LinkedInWidget extends StatelessWidget {
     }
   }
 }
-

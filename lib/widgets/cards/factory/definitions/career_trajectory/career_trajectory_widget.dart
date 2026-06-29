@@ -24,13 +24,19 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
   Offset _hoverCardOffset = Offset.zero;
   Map<String, dynamic>? _activeModal;
 
-  void _handleOpenModal(Map<String, dynamic> segment, Map<String, dynamic> representative, String segmentColor) {
+  void _handleOpenModal(
+    Map<String, dynamic> segment,
+    Map<String, dynamic> representative,
+    String segmentColor,
+  ) {
     setState(() {
       _activeModal = {
         'segment': segment,
         'representative': representative,
         'colorScheme': CareerTrajectoryConstants.getColorScheme(segmentColor),
-        'colorSchemeName': CareerTrajectoryConstants.getColorSchemeName(segmentColor),
+        'colorSchemeName': CareerTrajectoryConstants.getColorSchemeName(
+          segmentColor,
+        ),
       };
     });
     _showModal();
@@ -38,7 +44,7 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
 
   void _showModal() {
     if (_activeModal == null) return;
-    
+
     showDialog(
       context: context,
       barrierColor: Colors.black54,
@@ -59,49 +65,50 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
 
   void _handleHover(String segmentKey, Offset localPosition, Size cardSize) {
     if (!kIsWeb) return; // Only on desktop/web
-    
+
     setState(() {
       _activeSegmentKey = segmentKey;
-      
+
       // Calculate hover card position (similar to TSX logic)
       const hoverCardWidth = 380.0;
       const hoverCardHeight = 350.0;
       const defaultXOffset = 20.0;
       const defaultYOffset = -110.0;
-      
+
       final screenSize = MediaQuery.of(context).size;
       final globalPosition = localPosition;
-      
+
       // Calculate horizontal position
       double finalXOffset = defaultXOffset;
       final hoverCardLeft = globalPosition.dx + defaultXOffset;
       final hoverCardRight = hoverCardLeft + hoverCardWidth;
-      
+
       if (hoverCardRight > screenSize.width) {
         finalXOffset = -hoverCardWidth - 20;
       }
       if (hoverCardLeft < 0) {
         finalXOffset = 20;
       }
-      
+
       // Calculate vertical position
       double finalYOffset = defaultYOffset;
       final hoverCardTop = globalPosition.dy + defaultYOffset;
       final hoverCardBottom = hoverCardTop + hoverCardHeight;
-      
+
       if (hoverCardBottom > screenSize.height) {
         final alternativeTop = globalPosition.dy + 20;
         final alternativeBottom = alternativeTop + hoverCardHeight;
         if (alternativeBottom <= screenSize.height) {
           finalYOffset = 20;
         } else {
-          finalYOffset = screenSize.height - globalPosition.dy - hoverCardHeight - 10;
+          finalYOffset =
+              screenSize.height - globalPosition.dy - hoverCardHeight - 10;
         }
       }
       if (hoverCardTop < 0) {
         finalYOffset = 20;
       }
-      
+
       _hoverCardOffset = Offset(
         globalPosition.dx + finalXOffset,
         globalPosition.dy + finalYOffset,
@@ -118,7 +125,8 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final segments = (widget.card.data.metadata['segments'] as List<dynamic>?) ?? [];
+    final segments =
+        (widget.card.data.metadata['segments'] as List<dynamic>?) ?? [];
     if (segments.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
@@ -133,7 +141,11 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
 
     // Sort segments by percentage (ascending)
     final sortedSegments = List<Map<String, dynamic>>.from(segments)
-      ..sort((a, b) => ((a['percentage'] as num?) ?? 0).compareTo((b['percentage'] as num?) ?? 0));
+      ..sort(
+        (a, b) => ((a['percentage'] as num?) ?? 0).compareTo(
+          (b['percentage'] as num?) ?? 0,
+        ),
+      );
 
     // Find active segment for hover popup
     int activeSegmentIndex = -1;
@@ -143,7 +155,9 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
         break;
       }
     }
-    final activeSegment = activeSegmentIndex >= 0 ? sortedSegments[activeSegmentIndex] : null;
+    final activeSegment = activeSegmentIndex >= 0
+        ? sortedSegments[activeSegmentIndex]
+        : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -152,14 +166,15 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
           children: [
             // Main content based on size
             _buildContent(sortedSegments),
-            
+
             // Hover popup (desktop only)
             if (kIsWeb && activeSegment != null && activeSegmentIndex >= 0)
               Positioned(
                 left: _hoverCardOffset.dx,
                 top: _hoverCardOffset.dy,
                 child: CareerHoverCard(
-                  representative: activeSegment['representative'] as Map<String, dynamic>,
+                  representative:
+                      activeSegment['representative'] as Map<String, dynamic>,
                   segment: activeSegment,
                   colorScheme: CareerTrajectoryConstants.getColorScheme(
                     CareerTrajectoryConstants.colors[activeSegmentIndex],
@@ -225,4 +240,3 @@ class _CareerTrajectoryWidgetState extends State<CareerTrajectoryWidget> {
     }
   }
 }
-

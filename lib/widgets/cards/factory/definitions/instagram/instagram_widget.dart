@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'instagram_layouts.dart';
 
 class InstagramWidget extends StatelessWidget {
-  const InstagramWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const InstagramWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -16,11 +12,14 @@ class InstagramWidget extends StatelessWidget {
     final metadata = card.data.metadata;
     final username = (metadata['username'] as String?) ?? '';
     final fullName = (metadata['full_name'] as String?) ?? 'Instagram user';
-    final profileImage = (metadata['profile_image'] as String?) ?? '/images/default-avatar.svg';
+    final profileImage =
+        (metadata['profile_image'] as String?) ?? '/images/default-avatar.svg';
     final verified = (metadata['verified'] as bool?) ?? false;
     final followerCount = (metadata['followerCount'] as num?)?.toInt() ?? 0;
-    final smartFollowerCount = (metadata['smartFollowerCount'] as num?)?.toInt() ?? 0;
-    final topSmartFollowers = (metadata['topSmartFollowers'] as List<dynamic>?) ?? [];
+    final smartFollowerCount =
+        (metadata['smartFollowerCount'] as num?)?.toInt() ?? 0;
+    final topSmartFollowers =
+        (metadata['topSmartFollowers'] as List<dynamic>?) ?? [];
     final summary = (metadata['summary'] as String?) ?? '';
     final profileUrl =
         (metadata['url'] as String?) ?? 'https://www.instagram.com/$username';
@@ -28,9 +27,7 @@ class InstagramWidget extends StatelessWidget {
 
     switch (size) {
       case '2x2':
-        return InstagramLayouts.build2x2Layout(
-          followerCount: followerCount,
-        );
+        return InstagramLayouts.build2x2Layout(followerCount: followerCount);
       case '2x4':
         return InstagramLayouts.build2x4Layout(
           followerCount: followerCount,
@@ -61,4 +58,3 @@ class InstagramWidget extends StatelessWidget {
     }
   }
 }
-

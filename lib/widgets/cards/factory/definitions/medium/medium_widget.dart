@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'medium_layouts.dart';
 
 class MediumWidget extends StatelessWidget {
-  const MediumWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const MediumWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -23,9 +19,7 @@ class MediumWidget extends StatelessWidget {
 
     switch (size) {
       case '2x2':
-        return MediumLayouts.build2x2Layout(
-          followerCount: followerCount,
-        );
+        return MediumLayouts.build2x2Layout(followerCount: followerCount);
       case '2x4':
         return MediumLayouts.build2x4Layout(
           bio: bio,
@@ -51,4 +45,3 @@ class MediumWidget extends StatelessWidget {
     }
   }
 }
-

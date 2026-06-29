@@ -5,9 +5,7 @@ import '../../../../common/metric_display.dart';
 
 class SubstackLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required int subscriberCount,
-  }) {
+  static Widget build2x2Layout({required int subscriberCount}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -45,10 +43,7 @@ class SubstackLayouts {
             Expanded(
               child: Text(
                 bio,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF4B5563),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -166,7 +161,10 @@ class SubstackLayouts {
                   if (canonicalUrl != null && canonicalUrl.isNotEmpty) {
                     final uri = Uri.parse(canonicalUrl);
                     if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
                     }
                   }
                 },
@@ -209,4 +207,3 @@ class SubstackLayouts {
     );
   }
 }
-

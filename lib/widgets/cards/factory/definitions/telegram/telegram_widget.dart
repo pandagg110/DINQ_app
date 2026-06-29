@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'telegram_layouts.dart';
 
 class TelegramWidget extends StatelessWidget {
-  const TelegramWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const TelegramWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -19,9 +15,7 @@ class TelegramWidget extends StatelessWidget {
 
     switch (size) {
       case '2x2':
-        return TelegramLayouts.build2x2Layout(
-          username: username,
-        );
+        return TelegramLayouts.build2x2Layout(username: username);
       case '2x4':
         return TelegramLayouts.build2x4Layout(
           username: username,
@@ -42,4 +36,3 @@ class TelegramWidget extends StatelessWidget {
     }
   }
 }
-

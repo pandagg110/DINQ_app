@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'youtube_layouts.dart';
 
 class YouTubeWidget extends StatelessWidget {
-  const YouTubeWidget({
-    super.key,
-    required this.card,
-    required this.size,
-  });
+  const YouTubeWidget({super.key, required this.card, required this.size});
 
   final dynamic card;
   final String size;
@@ -21,9 +17,7 @@ class YouTubeWidget extends StatelessWidget {
 
     switch (size) {
       case '2x2':
-        return YouTubeLayouts.build2x2Layout(
-          subscriberCount: subscriberCount,
-        );
+        return YouTubeLayouts.build2x2Layout(subscriberCount: subscriberCount);
       case '2x4':
         return YouTubeLayouts.build2x4Layout(
           videoEmbedCode: videoEmbedCode,
@@ -47,4 +41,3 @@ class YouTubeWidget extends StatelessWidget {
     }
   }
 }
-

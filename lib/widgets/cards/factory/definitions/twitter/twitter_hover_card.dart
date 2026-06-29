@@ -114,7 +114,7 @@ class _ArrowPainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..close();
     canvas.drawPath(path, paint);
-    
+
     final borderPaint = Paint()
       ..color = const Color(0xFFE5E7EB)
       ..style = PaintingStyle.stroke
@@ -125,4 +125,3 @@ class _ArrowPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

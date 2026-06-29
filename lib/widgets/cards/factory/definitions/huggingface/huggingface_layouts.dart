@@ -4,9 +4,7 @@ import 'huggingface_components.dart';
 
 class HuggingFaceLayouts {
   // 2x2 Size - Compact
-  static Widget build2x2Layout({
-    required Map<String, dynamic> metrics,
-  }) {
+  static Widget build2x2Layout({required Map<String, dynamic> metrics}) {
     final models = (metrics['models'] as num?)?.toInt() ?? 0;
     final datasets = (metrics['datasets'] as num?)?.toInt() ?? 0;
     final spaces = (metrics['spaces'] as num?)?.toInt() ?? 0;
@@ -16,11 +14,23 @@ class HuggingFaceLayouts {
 
     final metricsArray = [
       {'type': 'models', 'value': models, 'bgColor': const Color(0xFFFDE277)},
-      {'type': 'datasets', 'value': datasets, 'bgColor': const Color(0xFFE2C6FF)},
+      {
+        'type': 'datasets',
+        'value': datasets,
+        'bgColor': const Color(0xFFE2C6FF),
+      },
       {'type': 'spaces', 'value': spaces, 'bgColor': const Color(0xFFDDFEBC)},
       {'type': 'papers', 'value': papers, 'bgColor': const Color(0xFFCCE5FF)},
-      {'type': 'followers', 'value': followers, 'bgColor': const Color(0xFFD9D9D9)},
-      {'type': 'following', 'value': following, 'bgColor': const Color(0xFFFED7D7)},
+      {
+        'type': 'followers',
+        'value': followers,
+        'bgColor': const Color(0xFFD9D9D9),
+      },
+      {
+        'type': 'following',
+        'value': following,
+        'bgColor': const Color(0xFFFED7D7),
+      },
     ];
 
     return Padding(
@@ -39,15 +49,17 @@ class HuggingFaceLayouts {
               Row(
                 children: metricsArray
                     .take(2)
-                    .map((metric) => Padding(
-                          padding: const EdgeInsets.only(right: 6, bottom: 4),
-                          child: HuggingFaceComponents.buildMetricBadge(
-                            type: metric['type'] as String,
-                            value: metric['value'] as int,
-                            bgColor: metric['bgColor'] as Color,
-                            compact: true,
-                          ),
-                        ))
+                    .map(
+                      (metric) => Padding(
+                        padding: const EdgeInsets.only(right: 6, bottom: 4),
+                        child: HuggingFaceComponents.buildMetricBadge(
+                          type: metric['type'] as String,
+                          value: metric['value'] as int,
+                          bgColor: metric['bgColor'] as Color,
+                          compact: true,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
               // Second row
@@ -55,15 +67,17 @@ class HuggingFaceLayouts {
                 children: metricsArray
                     .skip(2)
                     .take(2)
-                    .map((metric) => Padding(
-                          padding: const EdgeInsets.only(right: 6, bottom: 4),
-                          child: HuggingFaceComponents.buildMetricBadge(
-                            type: metric['type'] as String,
-                            value: metric['value'] as int,
-                            bgColor: metric['bgColor'] as Color,
-                            compact: true,
-                          ),
-                        ))
+                    .map(
+                      (metric) => Padding(
+                        padding: const EdgeInsets.only(right: 6, bottom: 4),
+                        child: HuggingFaceComponents.buildMetricBadge(
+                          type: metric['type'] as String,
+                          value: metric['value'] as int,
+                          bgColor: metric['bgColor'] as Color,
+                          compact: true,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
               // Third row
@@ -71,15 +85,17 @@ class HuggingFaceLayouts {
                 children: metricsArray
                     .skip(4)
                     .take(2)
-                    .map((metric) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: HuggingFaceComponents.buildMetricBadge(
-                            type: metric['type'] as String,
-                            value: metric['value'] as int,
-                            bgColor: metric['bgColor'] as Color,
-                            compact: true,
-                          ),
-                        ))
+                    .map(
+                      (metric) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: HuggingFaceComponents.buildMetricBadge(
+                          type: metric['type'] as String,
+                          value: metric['value'] as int,
+                          bgColor: metric['bgColor'] as Color,
+                          compact: true,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -90,9 +106,7 @@ class HuggingFaceLayouts {
   }
 
   // 2x4 Size - Vertical Layout
-  static Widget build2x4Layout({
-    Map<String, dynamic>? featuredRepo,
-  }) {
+  static Widget build2x4Layout({Map<String, dynamic>? featuredRepo}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -114,9 +128,7 @@ class HuggingFaceLayouts {
   }
 
   // 4x2 Size - Horizontal
-  static Widget build4x2Layout({
-    Map<String, dynamic>? featuredRepo,
-  }) {
+  static Widget build4x2Layout({Map<String, dynamic>? featuredRepo}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -154,11 +166,23 @@ class HuggingFaceLayouts {
 
     final metricsArray = [
       {'type': 'models', 'value': models, 'bgColor': const Color(0xFFFDE277)},
-      {'type': 'datasets', 'value': datasets, 'bgColor': const Color(0xFFE2C6FF)},
+      {
+        'type': 'datasets',
+        'value': datasets,
+        'bgColor': const Color(0xFFE2C6FF),
+      },
       {'type': 'spaces', 'value': spaces, 'bgColor': const Color(0xFFDDFEBC)},
       {'type': 'papers', 'value': papers, 'bgColor': const Color(0xFFCCE5FF)},
-      {'type': 'followers', 'value': followers, 'bgColor': const Color(0xFFD9D9D9)},
-      {'type': 'following', 'value': following, 'bgColor': const Color(0xFFFED7D7)},
+      {
+        'type': 'followers',
+        'value': followers,
+        'bgColor': const Color(0xFFD9D9D9),
+      },
+      {
+        'type': 'following',
+        'value': following,
+        'bgColor': const Color(0xFFFED7D7),
+      },
     ];
 
     return SingleChildScrollView(
@@ -179,14 +203,16 @@ class HuggingFaceLayouts {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: metricsArray
-                      .map((metric) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: HuggingFaceComponents.buildMetricBadge(
-                              type: metric['type'] as String,
-                              value: metric['value'] as int,
-                              bgColor: metric['bgColor'] as Color,
-                            ),
-                          ))
+                      .map(
+                        (metric) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: HuggingFaceComponents.buildMetricBadge(
+                            type: metric['type'] as String,
+                            value: metric['value'] as int,
+                            bgColor: metric['bgColor'] as Color,
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ),
@@ -225,29 +251,43 @@ class HuggingFaceLayouts {
                   children: [
                     // Avatar Group
                     Row(
-                      children: organizations.take(4).toList().asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final org = entry.value as Map<String, dynamic>;
-                        final avatarUrl = org['avatarUrl'] as String? ?? '';
-                        return Padding(
-                          padding: EdgeInsets.only(left: index > 0 ? -8.0 : 0.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: CircleAvatar(
-                              radius: 16,
-                              backgroundImage: avatarUrl.isNotEmpty
-                                  ? NetworkImage(avatarUrl)
-                                  : null,
-                              child: avatarUrl.isEmpty
-                                  ? Text('O${index + 1}', style: const TextStyle(fontSize: 10))
-                                  : null,
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                      children: organizations
+                          .take(4)
+                          .toList()
+                          .asMap()
+                          .entries
+                          .map((entry) {
+                            final index = entry.key;
+                            final org = entry.value as Map<String, dynamic>;
+                            final avatarUrl = org['avatarUrl'] as String? ?? '';
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                left: index > 0 ? -8.0 : 0.0,
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 16,
+                                  backgroundImage: avatarUrl.isNotEmpty
+                                      ? NetworkImage(avatarUrl)
+                                      : null,
+                                  child: avatarUrl.isEmpty
+                                      ? Text(
+                                          'O${index + 1}',
+                                          style: const TextStyle(fontSize: 10),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            );
+                          })
+                          .toList(),
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -262,9 +302,7 @@ class HuggingFaceLayouts {
               ),
               const SizedBox(height: 12),
               // Repo Card
-              HuggingFaceComponents.buildRepoCard(
-                featuredRepo: featuredRepo,
-              ),
+              HuggingFaceComponents.buildRepoCard(featuredRepo: featuredRepo),
             ],
           ),
         ],
@@ -272,4 +310,3 @@ class HuggingFaceLayouts {
     );
   }
 }
-

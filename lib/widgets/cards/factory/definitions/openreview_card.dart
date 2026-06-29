@@ -14,38 +14,37 @@ class OpenReviewCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-        desktop: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-        mobile: CardSizeConfig(
-          supported: ['2x2', '2x4', '4x2', '4x4'],
-          defaultSize: '4x4',
-        ),
-      );
+    desktop: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+    mobile: CardSizeConfig(
+      supported: ['2x2', '2x4', '4x2', '4x4'],
+      defaultSize: '4x4',
+    ),
+  );
 
   @override
   Map<String, dynamic>? adapt(dynamic rawMetadata) {
-    final data = rawMetadata['data'] ?? rawMetadata;
-    final work = data['representative_work'] ?? {};
+    final data = cardAdapterMap(rawMetadata);
+    final work =
+        data['representative_work'] ?? data['representativeWork'] ?? {};
     return {
-      'totalPapers': data['total_papers'] ?? 0,
-      'collaboratorCount': data['collaborator_count'] ?? 0,
+      'totalPapers': data['totalPapers'] ?? data['total_papers'] ?? 0,
+      'collaboratorCount':
+          data['collaboratorCount'] ?? data['collaborator_count'] ?? 0,
       'representativeWork': {
         'title': work['title'] ?? '',
         'venue': work['venue'] ?? '',
         'authors': work['authors'] ?? [],
-        'publicationDate': work['publication_date'] ?? '',
+        'publicationDate':
+            work['publicationDate'] ?? work['publication_date'] ?? '',
       },
     };
   }
 
   @override
   Widget render(CardRenderParams params) {
-    return OpenReviewWidget(
-      card: params.card,
-      size: params.size,
-    );
+    return OpenReviewWidget(card: params.card, size: params.size);
   }
 }
-
