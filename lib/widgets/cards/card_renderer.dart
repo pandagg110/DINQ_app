@@ -86,10 +86,9 @@ class _CardRendererState extends State<CardRenderer> {
     final cardState = cardStore.cardStates[widget.card.id];
     // Only show loading when cardState explicitly marks the card as loading.
     final isLoading = cardState?.loading ?? false;
-    // Datasource placeholder cards stay loading while the datasource is processing.
-    final isProcessing =
-        widget.card.data.status == 'PROCESSING' &&
-        widget.card.data.type.toLowerCase() == 'datasource';
+    // Cards created from placeholders can be PROCESSING before their metadata
+    // has been generated. Do not render concrete card layouts until ready.
+    final isProcessing = widget.card.data.status == 'PROCESSING';
     final showLoading = isLoading || isProcessing;
     final isFailed = !showLoading && widget.card.data.status == 'FAILED';
     final viewMode = cardStore.viewMode;
@@ -123,7 +122,7 @@ class _CardRendererState extends State<CardRenderer> {
       ),
       child: Stack(
         children: [
-          if (!isLoading)
+          if (!showLoading && !isFailed)
             Positioned.fill(
               child: _buildContent(context, viewMode, isSelected),
             ),
@@ -480,29 +479,66 @@ class _CardRendererState extends State<CardRenderer> {
     // Resolve the card definition from the registry.
     final definition = registry.getDefinition(type);
     if (definition != null) {
-      return definition.render(
-        CardRenderParams(
-          card: widget.card,
-          size: size,
-          editable: widget.editable,
-          isSelected: isSelected,
-          onUpdate: (data) {
-            // Update card data.
-            final updatedData = CardData(
-              id: widget.card.data.id,
-              type: widget.card.data.type,
-              title: widget.card.data.title,
-              description: widget.card.data.description,
-              metadata: data,
-              status: widget.card.data.status,
-            );
-            cardStore.updateCardData(widget.card.id, updatedData);
-          },
-        ),
-      );
+      try {
+        return definition.render(
+          CardRenderParams(
+            card: widget.card,
+            size: size,
+            editable: widget.editable,
+            isSelected: isSelected,
+            onUpdate: (data) {
+              // Update card data.
+              final updatedData = CardData(
+                id: widget.card.data.id,
+                type: widget.card.data.type,
+                title: widget.card.data.title,
+                description: widget.card.data.description,
+                metadata: data,
+                status: widget.card.data.status,
+              );
+              cardStore.updateCardData(widget.card.id, updatedData);
+            },
+          ),
+        );
+      } catch (error, stackTrace) {
+        debugPrint(
+          '[CardRenderer] render failed card=${widget.card.id} '
+          'type=$type status=${widget.card.data.status} '
+          'metadataKeys=${widget.card.data.metadata.keys.toList()} '
+          'error=$error\n$stackTrace',
+        );
+        return _buildRenderErrorCard();
+      }
     }
 
     return _buildDefaultCard();
+  }
+
+  Widget _buildRenderErrorCard() {
+    return Container(
+      color: Colors.white,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(16),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Oops!',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF171717),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'The card is missing data.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildLinkCard() {

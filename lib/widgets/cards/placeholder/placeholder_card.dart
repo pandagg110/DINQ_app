@@ -1,16 +1,10 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../common/asset_icon.dart';
-import '../factory/card_registry.dart';
 import 'placeholder_config.dart';
 
 class PlaceholderCard extends StatelessWidget {
-  const PlaceholderCard({
-    super.key,
-    required this.config,
-    required this.onTap,
-  });
+  const PlaceholderCard({super.key, required this.config, required this.onTap});
 
   final PlaceholderCardConfig config;
   final VoidCallback onTap;
@@ -20,6 +14,13 @@ class PlaceholderCard extends StatelessWidget {
     final config = this.config;
     final isImage = config.type.toUpperCase() == 'IMAGE';
     final label = isImage ? 'Image/Video' : 'Analysis';
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
+    final iconSize = isMobile ? 36.0 : 48.0;
+    final gap = isMobile ? 12.0 : 16.0;
+    final buttonHorizontalPadding = isMobile ? 16.0 : 24.0;
+    final buttonVerticalPadding = isMobile ? 8.0 : 12.0;
+    final buttonIconSize = isMobile ? 12.0 : 16.0;
+    final buttonFontSize = isMobile ? 12.0 : 14.0;
 
     return Material(
       color: Colors.transparent,
@@ -43,35 +44,33 @@ class PlaceholderCard extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildIcon(context),
-                const SizedBox(height: 16),
+                _buildIcon(context, iconSize),
+                SizedBox(height: gap),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: buttonHorizontalPadding,
+                    vertical: buttonVerticalPadding,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFFD8D8D8),
-                    ),
+                    border: Border.all(color: const Color(0xFFD8D8D8)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.add,
-                        size: 16,
-                        color: Colors.grey[600],
+                        size: buttonIconSize,
+                        color: const Color(0xFF666666),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         label,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: buttonFontSize,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey[700],
+                          color: const Color(0xFF666666),
                         ),
                       ),
                     ],
@@ -85,36 +84,27 @@ class PlaceholderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon(BuildContext context) {
+  Widget _buildIcon(BuildContext context, double size) {
     final config = this.config;
-    final definition = CardRegistry().getDefinition(config.type);
-    if (definition != null) {
-      final icon = definition.icon;
-      if (icon.startsWith('i-lucide-') || icon.startsWith('i-mdi:')) {
-        final iconData = _iconDataFor(icon);
-        return Icon(iconData, size: 48, color: Colors.grey[700]);
-      }
-      final asset = icon.startsWith('/') ? icon.substring(1) : icon;
-      return AssetIcon(asset: asset, size: 48);
-    }
-    if (config.iconAsset != null) {
-      final path = config.iconAsset!;
-      if (path.endsWith('.svg')) {
-        return SvgPicture.asset(
-          path,
-          width: 48,
-          height: 48,
-          fit: BoxFit.contain,
-        );
-      }
-      return Image.asset(
-        path,
-        width: 48,
-        height: 48,
-        fit: BoxFit.contain,
+    final icon = config.icon;
+    if (icon.startsWith('i-')) {
+      return Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          _iconDataFor(icon),
+          size: size / 2,
+          color: const Color(0xFF171717),
+        ),
       );
     }
-    return Icon(Icons.add_circle_outline, size: 48, color: Colors.grey[600]);
+
+    return AssetIcon(asset: icon, size: size);
   }
 
   static IconData _iconDataFor(String iconClass) {
@@ -122,23 +112,12 @@ class PlaceholderCard extends StatelessWidget {
       final name = iconClass.replaceFirst('i-lucide-', '');
       return _lucideMap[name] ?? Icons.extension;
     }
-    if (iconClass.startsWith('i-mdi:')) {
-      final name = iconClass.replaceFirst('i-mdi:', '').replaceAll('-', '_');
-      return _mdiMap[name] ?? Icons.extension;
-    }
     return Icons.extension;
   }
 
   static const _lucideMap = <String, IconData>{
     'network': Icons.account_tree_outlined,
     'trending-up': Icons.trending_up,
-    'heading': Icons.title,
-    'sticky-note': Icons.note_outlined,
     'link': Icons.link,
-    'image': Icons.image_outlined,
-  };
-  static const _mdiMap = <String, IconData>{
-    'file_text_outline': Icons.summarize_outlined,
-    'iframe_brackets_outline': Icons.code,
   };
 }

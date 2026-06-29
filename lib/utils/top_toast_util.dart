@@ -1,17 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 
-/// Toast 工具类
-/// 提供统一的 Toast 提示功能
 class TopToastUtil {
-  /// 显示自定义 Toast
-  ///
-  /// [context] BuildContext
-  /// [icon] 图标
-  /// [iconColor] 图标颜色
-  /// [title] 标题
-  /// [description] 描述
-  /// [duration] 自动关闭时长，默认 3 秒
   static void showCustom({
     required BuildContext context,
     required IconData icon,
@@ -24,53 +14,63 @@ class TopToastUtil {
       context: context,
       alignment: Alignment.topCenter,
       autoCloseDuration: duration,
-      builder: (context, cancel) {
+      builder: (context, item) {
         return Center(
           child: Container(
             margin: const EdgeInsets.only(top: 8, left: 20, right: 20),
             constraints: const BoxConstraints(maxWidth: 400),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF2D2D2D), // 深灰色背景
+              color: const Color(0xCC171717),
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle),
-                  child: Icon(icon, color: Colors.white, size: 16),
-                ),
+                Icon(icon, color: iconColor, size: 20),
                 const SizedBox(width: 12),
                 Flexible(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Visibility(
-                        visible: title.isNotEmpty,
-                        child: Text(
+                      if (title.isNotEmpty)
+                        Text(
                           title,
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                      Visibility(
-                        visible: description.isNotEmpty,
-                        child: Text(
+                      if (description.isNotEmpty)
+                        Text(
                           description,
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                InkWell(
+                  onTap: () => toastification.dismiss(item),
+                  borderRadius: BorderRadius.circular(12),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.close,
+                      color: Color(0xFFBDBDBD),
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
@@ -81,7 +81,6 @@ class TopToastUtil {
     );
   }
 
-  /// 显示成功 Toast
   static void showSuccess({
     required BuildContext context,
     required String title,
@@ -90,15 +89,14 @@ class TopToastUtil {
   }) {
     showCustom(
       context: context,
-      icon: Icons.check,
-      iconColor: Colors.green,
+      icon: Icons.check_circle_rounded,
+      iconColor: const Color(0xFF22C55E),
       title: title,
       description: description,
       duration: duration,
     );
   }
 
-  /// 显示错误 Toast
   static void showError({
     required BuildContext context,
     required String title,
@@ -107,15 +105,14 @@ class TopToastUtil {
   }) {
     showCustom(
       context: context,
-      icon: Icons.close,
-      iconColor: Colors.red,
+      icon: Icons.error_rounded,
+      iconColor: const Color(0xFFEF4444),
       title: title,
       description: description,
       duration: duration,
     );
   }
 
-  /// 显示信息 Toast
   static void showInfo({
     required BuildContext context,
     required String title,
@@ -124,25 +121,24 @@ class TopToastUtil {
   }) {
     showCustom(
       context: context,
-      icon: Icons.info,
-      iconColor: Colors.blue,
+      icon: Icons.info_rounded,
+      iconColor: const Color(0xFF0EA5E9),
       title: title,
       description: description,
       duration: duration,
     );
   }
 
-  /// 显示警告 Toast
   static void showWarning({
     required BuildContext context,
     required String title,
-    required String description,
+    String description = '',
     Duration duration = const Duration(seconds: 3),
   }) {
     showCustom(
       context: context,
-      icon: Icons.warning,
-      iconColor: Colors.orange,
+      icon: Icons.warning_rounded,
+      iconColor: const Color(0xFFFACC15),
       title: title,
       description: description,
       duration: duration,

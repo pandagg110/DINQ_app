@@ -53,7 +53,7 @@ class _GenerationPageState extends State<GenerationPage> {
   String _profileAvatarUrl = '';
   String _profileEducationLevel = '';
   String _profileTimezone = '';
-  
+
   // 第三步：社交链接相关
   final List<SocialLink> _socialLinks = [];
   List<String> _profileTags = [];
@@ -61,7 +61,7 @@ class _GenerationPageState extends State<GenerationPage> {
   final TextEditingController _newUrlController = TextEditingController();
   bool _isGenerating = false;
   bool _isSkipping = false;
-  
+
   bool _isUploading = false;
   int _uploadProgress = 0;
   int? _resumeFileSize; // 保存文件大小（字节）
@@ -83,7 +83,7 @@ class _GenerationPageState extends State<GenerationPage> {
   String? _uploadError; // 文件上传错误信息
   String? _startUrlError; // Start 页 URL 校验错误
   OnboardingOrgContext? _orgContext;
-  
+
   static const int MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   String _formatFileSize(int bytes) {
@@ -93,6 +93,7 @@ class _GenerationPageState extends State<GenerationPage> {
       return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
     }
   }
+
   bool _isCheckingDomain = false;
   bool _isClaimingDomain = false;
   bool _isReservingHandle = false;
@@ -110,14 +111,14 @@ class _GenerationPageState extends State<GenerationPage> {
   final UploadService _uploadService = UploadService();
   final FlowService _flowService = FlowService();
   final OnboardingService _onboardingService = OnboardingService();
-  
+
   // Success 步骤倒计时
   int _redirectCountdown = 3;
   Timer? _redirectTimer;
   String? _onboardingReturnPath;
   bool _isStandaloneSocialsEntry = false;
   bool _queryStepApplied = false;
-  
+
   // Confetti 控制器
   late ConfettiController _confettiController;
 
@@ -125,8 +126,9 @@ class _GenerationPageState extends State<GenerationPage> {
   void initState() {
     super.initState();
     _domainController.addListener(_onDomainChanged);
-    _confettiController = ConfettiController(duration: const Duration(milliseconds: 50
-    ));
+    _confettiController = ConfettiController(
+      duration: const Duration(milliseconds: 50),
+    );
   }
 
   void _onDomainChanged() {
@@ -193,7 +195,10 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   /// flow 仍为 `init` 时，允许 Start 内的本地导航，不被 flow 同步覆盖。
-  bool _shouldSyncStepFromFlow(GenerationStep current, GenerationStep fromFlow) {
+  bool _shouldSyncStepFromFlow(
+    GenerationStep current,
+    GenerationStep fromFlow,
+  ) {
     if (current == GenerationStep.error) return false;
     if (current == GenerationStep.social && fromFlow == GenerationStep.resume) {
       return false;
@@ -224,11 +229,11 @@ class _GenerationPageState extends State<GenerationPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     // 从 UserStore 获取 flow 状态
     final userStore = context.read<UserStore>();
     final myFlow = userStore.myFlow;
-    
+
     // 根据 flow.status 设置当前步骤
     if (myFlow != null) {
       final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
@@ -237,24 +242,24 @@ class _GenerationPageState extends State<GenerationPage> {
           _currentStep = stepFromFlow;
         });
       }
-      
+
       // 填充已保存的数据
       if (myFlow.domain.isNotEmpty && _domainController.text.isEmpty) {
         _domainController.text = myFlow.domain;
       }
-      
+
       // 加载社交链接（第三步）
       if (_currentStep == GenerationStep.social && _socialLinks.isEmpty) {
         _loadSocialLinksFromFlow(myFlow);
       }
-      
+
       // 启动倒计时（成功步骤）
       if (_currentStep == GenerationStep.success) {
         _redirectTimer?.cancel();
         _startRedirectCountdown();
       }
     }
-    
+
     // 从 URL query 参数获取 domain / handle（优先级更高）
     final query = GoRouterState.of(context).uri.queryParameters;
     if (!_queryStepApplied) {
@@ -262,7 +267,7 @@ class _GenerationPageState extends State<GenerationPage> {
       final step = query['step']?.trim().toLowerCase();
       if (step == 'socials' || step == 'social-links' || step == 'social') {
         _isStandaloneSocialsEntry = true;
-        _onboardingReturnPath ?? '/me';
+        _onboardingReturnPath ??= '/me';
         setState(() => _currentStep = GenerationStep.onboardingSocials);
       }
     }
@@ -274,8 +279,9 @@ class _GenerationPageState extends State<GenerationPage> {
     if (domain != null && _domainController.text.isEmpty) {
       final sanitized = domain.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
       if (sanitized.isNotEmpty) {
-        _domainController.text =
-            sanitized.length > 100 ? sanitized.substring(0, 100) : sanitized;
+        _domainController.text = sanitized.length > 100
+            ? sanitized.substring(0, 100)
+            : sanitized;
       }
     }
     final orgName = query['orgName'];
@@ -341,8 +347,7 @@ class _GenerationPageState extends State<GenerationPage> {
       final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
       if (_shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted &&
-              _shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
+          if (mounted && _shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
             final wasSuccess = _currentStep == GenerationStep.success;
             setState(() {
               _currentStep = stepFromFlow;
@@ -355,8 +360,10 @@ class _GenerationPageState extends State<GenerationPage> {
         });
       }
     }
-    
-    final isResult = _currentStep == GenerationStep.success || _currentStep == GenerationStep.error;
+
+    final isResult =
+        _currentStep == GenerationStep.success ||
+        _currentStep == GenerationStep.error;
     final isStart = _currentStep == GenerationStep.start;
     final isUpload = _currentStep == GenerationStep.upload;
     final isAnalyze = _currentStep == GenerationStep.analyze;
@@ -423,8 +430,8 @@ class _GenerationPageState extends State<GenerationPage> {
             mode: _analyzeMode ?? 'resume',
             sourceLabel: _analyzeMode == 'resume'
                 ? (_resumeController.text.isNotEmpty
-                    ? _resumeController.text
-                    : 'Resume')
+                      ? _resumeController.text
+                      : 'Resume')
                 : _linkedinController.text.trim(),
             activeStep: _analyzeActiveStep,
             error: _analyzeError,
@@ -443,7 +450,8 @@ class _GenerationPageState extends State<GenerationPage> {
             fileSizeBytes: _resumeFileSize,
             isUploading: _isUploading,
             uploadProgress: _uploadProgress,
-            canContinue: _hasResume && _resumeUrl != null && _resumeFileKey != null,
+            canContinue:
+                _hasResume && _resumeUrl != null && _resumeFileKey != null,
             onPickFile: _pickResume,
             onBack: _handleUploadBack,
             onContinue: _handleUploadContinue,
@@ -452,18 +460,19 @@ class _GenerationPageState extends State<GenerationPage> {
       );
     }
 
-    final isOnboardingHandle = _currentStep == GenerationStep.domain &&
+    final isOnboardingHandle =
+        _currentStep == GenerationStep.domain &&
         (_useOnboardingHandle || _profileDraftReady);
     if (isOnboardingHandle) {
       final domain = _domainController.text.trim();
       final isTooShort = domain.isNotEmpty && domain.length < 3;
-      final isTaken = _domainCheckResult != null &&
+      final isTaken =
+          _domainCheckResult != null &&
           _domainCheckResult!['available'] == false;
       final isAvailable = _isDomainValid();
       final suggestions = _domainCheckResult?['suggestions'] as List<dynamic>?;
-      final suggestionStrings = suggestions
-              ?.map((e) => e is String ? e : e.toString())
-              .toList() ??
+      final suggestionStrings =
+          suggestions?.map((e) => e is String ? e : e.toString()).toList() ??
           <String>[];
 
       return Scaffold(
@@ -680,14 +689,13 @@ class _GenerationPageState extends State<GenerationPage> {
   Widget _buildDomainStep(BuildContext context) {
     final domain = _domainController.text.trim();
     final isTooShort = domain.isNotEmpty && domain.length < 3;
-    final isTaken = _domainCheckResult != null &&
-        _domainCheckResult!['available'] != true;
+    final isTaken =
+        _domainCheckResult != null && _domainCheckResult!['available'] != true;
     final isAvailable = _isDomainValid();
     final hasError = isTooShort || isTaken;
     final suggestions = _domainCheckResult?['suggestions'] as List<dynamic>?;
-    final suggestionStrings = suggestions
-            ?.map((e) => e is String ? e : e.toString())
-            .toList() ??
+    final suggestionStrings =
+        suggestions?.map((e) => e is String ? e : e.toString()).toList() ??
         <String>[];
 
     Color borderColor = const Color(0xFF171717);
@@ -769,7 +777,10 @@ class _GenerationPageState extends State<GenerationPage> {
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
                     isDense: true,
                   ),
                 ),
@@ -786,7 +797,11 @@ class _GenerationPageState extends State<GenerationPage> {
               if (isAvailable && !_isCheckingDomain)
                 const Padding(
                   padding: EdgeInsets.only(right: 16),
-                  child: Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 20),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF22C55E),
+                    size: 20,
+                  ),
                 ),
             ],
           ),
@@ -815,7 +830,11 @@ class _GenerationPageState extends State<GenerationPage> {
                 const SizedBox(width: 4),
                 const Text(
                   'Sorry, this username is taken',
-                  style: TextStyle(fontSize: 14, color: Colors.red, fontFamily: 'Tomato Grotesk'),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.red,
+                    fontFamily: 'Tomato Grotesk',
+                  ),
                 ),
               ],
             ),
@@ -840,13 +859,18 @@ class _GenerationPageState extends State<GenerationPage> {
                 return OutlinedButton(
                   onPressed: () {
                     _domainController.text = s;
-                    _domainController.selection = TextSelection.collapsed(offset: s.length);
+                    _domainController.selection = TextSelection.collapsed(
+                      offset: s.length,
+                    );
                   },
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF171717),
                     side: const BorderSide(color: Color(0xFF171717)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -961,7 +985,7 @@ class _GenerationPageState extends State<GenerationPage> {
                       ],
                     )
                   : _isUploading && _resumeController.text.isNotEmpty
-                      ? Column(
+                  ? Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(
@@ -1032,7 +1056,11 @@ class _GenerationPageState extends State<GenerationPage> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close, size: 20, color: Color(0xFF6B7280)),
+                              icon: const Icon(
+                                Icons.close,
+                                size: 20,
+                                color: Color(0xFF6B7280),
+                              ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                               onPressed: () {
@@ -1060,7 +1088,10 @@ class _GenerationPageState extends State<GenerationPage> {
                                   value: _uploadProgress / 100,
                                   minHeight: 6,
                                   backgroundColor: const Color(0xFFE5E5E5),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF3B82F6),
+                                      ),
                                 ),
                               ),
                             ),
@@ -1077,133 +1108,133 @@ class _GenerationPageState extends State<GenerationPage> {
                       ],
                     )
                   : _hasResume && _resumeController.text.isNotEmpty
-                      ? Container(
-                          child: Row(
-                            children: [
-                              Image.asset(
-                                'assets/images/generation/pdf.png',
-                                width: 32,
-                                height: 32,
-                                fit: BoxFit.contain,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _resumeController.text,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF171717),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    
-                                    Row(
-                                      children: [
-                                        if (_resumeFileSize != null) ...[
-                                          Text(
-                                            _formatFileSize(_resumeFileSize!),
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Color(0xFF6B7280),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Text(
-                                            '·',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Color(0xFF6B7280),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        const Icon(
-                                          Icons.check_circle,
-                                          size: 12,
-                                          color: Color(0xFF22C55E),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        const Text(
-                                          'validated successfully',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF22C55E),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: (_isAnalyzing || _isUploading)
-                                    ? null
-                                    : () {
-                                        setState(() {
-                                          _hasResume = false;
-                                          _resumeController.text = '';
-                                          _uploadProgress = 0;
-                                          _resumeUrl = null;
-                                          _resumeFileSize = null;
-                                          _uploadError = null;
-                                        });
-                                      },
-                                child: Image.asset(
-                                  'assets/images/generation/remove.png',
-                                  width: 20,
-                                  height: 20,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ],
+                  ? Container(
+                      child: Row(
+                        children: [
+                          Image.asset(
+                            'assets/images/generation/pdf.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
                           ),
-                        )
-                      : Column(
-                          children: [
-                            Row(
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF171717),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.cloud_upload_outlined,
-                                    size: 20,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Upload your resume',
-                                  style: TextStyle(
+                                Text(
+                                  _resumeController.text,
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF171717),
                                   ),
                                 ),
+                                const SizedBox(height: 8),
+
+                                Row(
+                                  children: [
+                                    if (_resumeFileSize != null) ...[
+                                      Text(
+                                        _formatFileSize(_resumeFileSize!),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        '·',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
+                                    const Icon(
+                                      Icons.check_circle,
+                                      size: 12,
+                                      color: Color(0xFF22C55E),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'validated successfully',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF22C55E),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: (_isAnalyzing || _isUploading)
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _hasResume = false;
+                                      _resumeController.text = '';
+                                      _uploadProgress = 0;
+                                      _resumeUrl = null;
+                                      _resumeFileSize = null;
+                                      _uploadError = null;
+                                    });
+                                  },
+                            child: Image.asset(
+                              'assets/images/generation/remove.png',
+                              width: 20,
+                              height: 20,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF171717),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cloud_upload_outlined,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             const Text(
-                              'Upload a PDF resume (max 10MB) to create your DINQ Card.',
-                              textAlign: TextAlign.center,
+                              'Upload your resume',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6B7280),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF171717),
                               ),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Upload a PDF resume (max 10MB) to create your DINQ Card.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -1216,10 +1247,7 @@ class _GenerationPageState extends State<GenerationPage> {
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'or',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B7280),
-                ),
+                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               ),
             ),
             Expanded(child: Divider(color: Color(0xFFD4D4D4))),
@@ -1263,8 +1291,8 @@ class _GenerationPageState extends State<GenerationPage> {
                     color: _profileUrlError != null
                         ? Colors.red
                         : _profileUrlWarning != null
-                            ? Colors.amber
-                            : const Color(0xFFD8D8D8),
+                        ? Colors.amber
+                        : const Color(0xFFD8D8D8),
                   ),
                   borderRadius: const BorderRadius.all(Radius.circular(8)),
                 ),
@@ -1288,7 +1316,10 @@ class _GenerationPageState extends State<GenerationPage> {
                       ),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 0,
+                      ),
                       isDense: true,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -1319,7 +1350,11 @@ class _GenerationPageState extends State<GenerationPage> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, size: 20, color: Colors.amber),
+              const Icon(
+                Icons.warning_amber_rounded,
+                size: 20,
+                color: Colors.amber,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -1381,14 +1416,21 @@ class _GenerationPageState extends State<GenerationPage> {
                         controller: _newUrlController,
                         enabled: !_isGenerating && !_isSkipping,
                         onSubmitted: (_) => _handleAddUrl(),
-                        style: const TextStyle(fontSize: 14, color: Color(0xFF171717)),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF171717),
+                        ),
                         decoration: InputDecoration(
-                          hintText: 'Paste social profile URL (e.g., https://linkedin.com/in/yourname)',
+                          hintText:
+                              'Paste social profile URL (e.g., https://linkedin.com/in/yourname)',
                           hintStyle: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF6B7280),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
@@ -1398,11 +1440,16 @@ class _GenerationPageState extends State<GenerationPage> {
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
-                    onPressed: (_isGenerating || _isSkipping) ? null : _handleAddUrl,
+                    onPressed: (_isGenerating || _isSkipping)
+                        ? null
+                        : _handleAddUrl,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF171717),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1417,10 +1464,12 @@ class _GenerationPageState extends State<GenerationPage> {
               ..._socialLinks.asMap().entries.map((entry) {
                 final index = entry.key;
                 final link = entry.value;
-                final config = PLATFORM_CONFIG[link.type] ?? {
-                  'icon': 'assets/icons/logo/LinkedIn.png',
-                  'placeholder': 'Enter URL',
-                };
+                final config =
+                    PLATFORM_CONFIG[link.type] ??
+                    {
+                      'icon': 'assets/icons/logo/LinkedIn.png',
+                      'placeholder': 'Enter URL',
+                    };
                 final hasUrl = link.url.trim().isNotEmpty;
 
                 return Padding(
@@ -1436,7 +1485,9 @@ class _GenerationPageState extends State<GenerationPage> {
                           config['icon']!,
                           width: 40,
                           height: 40,
-                          opacity: hasUrl ? const AlwaysStoppedAnimation(1.0) : const AlwaysStoppedAnimation(0.5),
+                          opacity: hasUrl
+                              ? const AlwaysStoppedAnimation(1.0)
+                              : const AlwaysStoppedAnimation(0.5),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1465,10 +1516,13 @@ class _GenerationPageState extends State<GenerationPage> {
                               });
                             },
                             onSubmitted: (_) {
-                              final error = _validateSocialUrl(_socialLinks[index]);
+                              final error = _validateSocialUrl(
+                                _socialLinks[index],
+                              );
                               if (error != null) {
                                 setState(() {
-                                  _socialLinks[index] = _socialLinks[index].copyWith(error: error);
+                                  _socialLinks[index] = _socialLinks[index]
+                                      .copyWith(error: error);
                                 });
                                 TopToastUtil.showError(
                                   context: context,
@@ -1478,10 +1532,14 @@ class _GenerationPageState extends State<GenerationPage> {
                               }
                             },
                             controller: TextEditingController(text: link.url)
-                              ..selection = TextSelection.collapsed(offset: link.url.length),
+                              ..selection = TextSelection.collapsed(
+                                offset: link.url.length,
+                              ),
                             style: TextStyle(
                               fontSize: 14,
-                              color: hasUrl ? const Color(0xFF171717) : const Color(0xFF6B7280).withOpacity(0.4),
+                              color: hasUrl
+                                  ? const Color(0xFF171717)
+                                  : const Color(0xFF6B7280).withOpacity(0.4),
                             ),
                             decoration: InputDecoration(
                               hintText: config['placeholder'],
@@ -1489,7 +1547,10 @@ class _GenerationPageState extends State<GenerationPage> {
                                 fontSize: 14,
                                 color: Color(0xFF6B7280),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
@@ -1520,7 +1581,7 @@ class _GenerationPageState extends State<GenerationPage> {
         _confettiController.play();
       }
     });
-    
+
     return Stack(
       children: [
         // Confetti 动画 - 参考 tsx 配置，合并为一个一次性爆炸效果
@@ -1537,7 +1598,7 @@ class _GenerationPageState extends State<GenerationPage> {
         // tsx 中有5个 fire 调用，总共 200 个粒子 (50+40+70+20+20)
         // Confetti 动画 - 参考 goliath 示例，向上半部分发射
         Positioned(
-          bottom: 350+150, // 发射位置
+          bottom: 350 + 150, // 发射位置
           left: 0,
           right: 0,
           child: Center(
@@ -1545,66 +1606,67 @@ class _GenerationPageState extends State<GenerationPage> {
               children: [
                 // 向上发射（正上方）- 参考 goliath，但方向改为向上
                 ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirection: -pi / 2, // 从底部向上发射（参考 goliath: pi/2 向下，这里用 -pi/2 向上）
-                maxBlastForce: 5, // 参考 goliath
-                minBlastForce: 2, // 参考 goliath
-                emissionFrequency: 0.05, // 参考 goliath
-                numberOfParticles: 50, // 参考 goliath
-                gravity: 0.1, // 向上发射时重力较小，让粒子能飞得更高
-                shouldLoop: false,
-                minimumSize: const Size(4, 4), // 最小粒子大小
-                maximumSize: const Size(8, 8), // 最大粒子大小
-                colors: const [
-                  Color(0xFFFFD700), // #FFD700 黄色
-                  Color(0xFFFF6B6B), // #FF6B6B 红色
-                  Color(0xFF4ECDC4), // #4ECDC4 青色
-                  Color(0xFF45B7D1), // #45B7D1 蓝色
-                  Color(0xFF96CEB4), // #96CEB4 绿色
-                  Color(0xFFFFEAA7), // #FFEAA7 浅黄色
-                ],
+                  confettiController: _confettiController,
+                  blastDirection:
+                      -pi / 2, // 从底部向上发射（参考 goliath: pi/2 向下，这里用 -pi/2 向上）
+                  maxBlastForce: 5, // 参考 goliath
+                  minBlastForce: 2, // 参考 goliath
+                  emissionFrequency: 0.05, // 参考 goliath
+                  numberOfParticles: 50, // 参考 goliath
+                  gravity: 0.1, // 向上发射时重力较小，让粒子能飞得更高
+                  shouldLoop: false,
+                  minimumSize: const Size(4, 4), // 最小粒子大小
+                  maximumSize: const Size(8, 8), // 最大粒子大小
+                  colors: const [
+                    Color(0xFFFFD700), // #FFD700 黄色
+                    Color(0xFFFF6B6B), // #FF6B6B 红色
+                    Color(0xFF4ECDC4), // #4ECDC4 青色
+                    Color(0xFF45B7D1), // #45B7D1 蓝色
+                    Color(0xFF96CEB4), // #96CEB4 绿色
+                    Color(0xFFFFEAA7), // #FFEAA7 浅黄色
+                  ],
                 ),
                 // 向左上方发射
                 ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirection: -pi / 4, // 左上方（-45度）
-                maxBlastForce: 5,
-                minBlastForce: 2,
-                emissionFrequency: 0.05,
-                numberOfParticles: 40,
-                gravity: 0.1,
-                shouldLoop: false,
-                minimumSize: const Size(8, 8), // 最小粒子大小
-                maximumSize: const Size(12, 12), // 最大粒子大小
-                colors: const [
-                  Color(0xFFFFD700),
-                  Color(0xFFFF6B6B),
-                  Color(0xFF4ECDC4),
-                  Color(0xFF45B7D1),
-                  Color(0xFF96CEB4),
-                  Color(0xFFFFEAA7),
-                ],
+                  confettiController: _confettiController,
+                  blastDirection: -pi / 4, // 左上方（-45度）
+                  maxBlastForce: 5,
+                  minBlastForce: 2,
+                  emissionFrequency: 0.05,
+                  numberOfParticles: 40,
+                  gravity: 0.1,
+                  shouldLoop: false,
+                  minimumSize: const Size(8, 8), // 最小粒子大小
+                  maximumSize: const Size(12, 12), // 最大粒子大小
+                  colors: const [
+                    Color(0xFFFFD700),
+                    Color(0xFFFF6B6B),
+                    Color(0xFF4ECDC4),
+                    Color(0xFF45B7D1),
+                    Color(0xFF96CEB4),
+                    Color(0xFFFFEAA7),
+                  ],
                 ),
                 // 向右上方发射
                 ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirection: -3 * pi / 4, // 右上方（-135度）
-                maxBlastForce: 5,
-                minBlastForce: 2,
-                emissionFrequency: 0.05,
-                numberOfParticles: 40,
-                gravity: 0.1,
-                shouldLoop: false,
-                minimumSize: const Size(4, 4), // 最小粒子大小
-                maximumSize: const Size(8, 8), // 最大粒子大小
-                colors: const [
-                  Color(0xFFFFD700),
-                  Color(0xFFFF6B6B),
-                  Color(0xFF4ECDC4),
-                  Color(0xFF45B7D1),
-                  Color(0xFF96CEB4),
-                  Color(0xFFFFEAA7),
-                ],
+                  confettiController: _confettiController,
+                  blastDirection: -3 * pi / 4, // 右上方（-135度）
+                  maxBlastForce: 5,
+                  minBlastForce: 2,
+                  emissionFrequency: 0.05,
+                  numberOfParticles: 40,
+                  gravity: 0.1,
+                  shouldLoop: false,
+                  minimumSize: const Size(4, 4), // 最小粒子大小
+                  maximumSize: const Size(8, 8), // 最大粒子大小
+                  colors: const [
+                    Color(0xFFFFD700),
+                    Color(0xFFFF6B6B),
+                    Color(0xFF4ECDC4),
+                    Color(0xFF45B7D1),
+                    Color(0xFF96CEB4),
+                    Color(0xFFFFEAA7),
+                  ],
                 ),
               ],
             ),
@@ -1634,26 +1696,26 @@ class _GenerationPageState extends State<GenerationPage> {
               const SizedBox(height: 32),
               // 主标题
               const Text(
-              'Your DINQ Card has been\ngenerated successfully',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF171717),
-                height: 1.2,
-              ),
+                'Your DINQ Card has been\ngenerated successfully',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF171717),
+                  height: 1.2,
+                ),
               ),
               const SizedBox(height: 16),
               // 副标题
               const Text(
-              'Your personalized DINQ Card is ready!\nYou can now view and share your professional profile.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF6B7280),
-                height: 1.4,
-              ),
+                'Your personalized DINQ Card is ready!\nYou can now view and share your professional profile.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF6B7280),
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 16),
               // 倒计时提示
@@ -1740,11 +1802,13 @@ class _GenerationPageState extends State<GenerationPage> {
           ),
         );
       case GenerationStep.resume:
-        final canContinue = !_isAnalyzing && 
-            !_isUploading && 
-            (_resumeUrl != null || _linkedinController.text.trim().isNotEmpty) &&
+        final canContinue =
+            !_isAnalyzing &&
+            !_isUploading &&
+            (_resumeUrl != null ||
+                _linkedinController.text.trim().isNotEmpty) &&
             _getUrlError(_linkedinController.text.trim()) == null;
-        
+
         return Padding(
           padding: bottomPadding,
           child: Column(
@@ -1754,12 +1818,16 @@ class _GenerationPageState extends State<GenerationPage> {
                 child: ElevatedButton(
                   onPressed: canContinue ? _nextFromResume : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isAnalyzing 
+                    backgroundColor: _isAnalyzing
                         ? const Color(0xFFE5E5E5)
-                        : (canContinue ? const Color(0xFF171717) : const Color(0xFFE5E5E5)),
+                        : (canContinue
+                              ? const Color(0xFF171717)
+                              : const Color(0xFFE5E5E5)),
                     foregroundColor: _isAnalyzing
                         ? const Color(0xFF6B7280)
-                        : (canContinue ? Colors.white : const Color(0xFF6B7280).withOpacity(0.4)),
+                        : (canContinue
+                              ? Colors.white
+                              : const Color(0xFF6B7280).withOpacity(0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -1804,9 +1872,12 @@ class _GenerationPageState extends State<GenerationPage> {
           ),
         );
       case GenerationStep.social:
-        final filledLinksCount = _socialLinks.where((l) => l.url.trim().isNotEmpty).length;
-        final canContinue = !_isGenerating && !_isSkipping && filledLinksCount > 0;
-        
+        final filledLinksCount = _socialLinks
+            .where((l) => l.url.trim().isNotEmpty)
+            .length;
+        final canContinue =
+            !_isGenerating && !_isSkipping && filledLinksCount > 0;
+
         return Padding(
           padding: bottomPadding,
           child: Column(
@@ -1818,10 +1889,14 @@ class _GenerationPageState extends State<GenerationPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isGenerating || _isSkipping
                         ? const Color(0xFFE5E5E5)
-                        : (canContinue ? const Color(0xFF171717) : const Color(0xFFE5E5E5)),
+                        : (canContinue
+                              ? const Color(0xFF171717)
+                              : const Color(0xFFE5E5E5)),
                     foregroundColor: _isGenerating || _isSkipping
                         ? const Color(0xFF6B7280)
-                        : (canContinue ? Colors.white : const Color(0xFF6B7280).withOpacity(0.4)),
+                        : (canContinue
+                              ? Colors.white
+                              : const Color(0xFF6B7280).withOpacity(0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -1886,10 +1961,7 @@ class _GenerationPageState extends State<GenerationPage> {
               ),
               child: const Text(
                 'My DINQ',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
           ),
@@ -1900,7 +1972,8 @@ class _GenerationPageState extends State<GenerationPage> {
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => setState(() => _currentStep = GenerationStep.start),
+              onPressed: () =>
+                  setState(() => _currentStep = GenerationStep.start),
               child: const Text('Try again'),
             ),
           ),
@@ -1966,8 +2039,9 @@ class _GenerationPageState extends State<GenerationPage> {
       if (!mounted) return;
       context.read<UserStore>().setMyFlow(flow);
       setState(() {
-        _currentStep =
-            _profileDraftReady ? GenerationStep.social : GenerationStep.resume;
+        _currentStep = _profileDraftReady
+            ? GenerationStep.social
+            : GenerationStep.resume;
         _isClaimingDomain = false;
       });
     } catch (e) {
@@ -1985,25 +2059,31 @@ class _GenerationPageState extends State<GenerationPage> {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
-    print('[_pickResume] File picker result: ${result != null ? 'not null' : 'null'}');
-    
+    print(
+      '[_pickResume] File picker result: ${result != null ? 'not null' : 'null'}',
+    );
+
     if (result != null) {
       final file = result.files.single;
       print('[_pickResume] File selected:');
       print('  - name: ${file.name}');
       print('  - path: ${file.path ?? 'N/A'}');
-      print('  - bytes: ${file.bytes != null ? '${file.bytes!.length} bytes' : 'null'}');
+      print(
+        '  - bytes: ${file.bytes != null ? '${file.bytes!.length} bytes' : 'null'}',
+      );
       print('  - size: ${file.size}');
-      
+
       Uint8List? fileBytes = file.bytes;
-      
+
       // 如果 bytes 为 null，尝试从 path 读取文件
       if (fileBytes == null && file.path != null) {
         print('[_pickResume] bytes is null, reading from path: ${file.path}');
         try {
           final fileData = await File(file.path!).readAsBytes();
           fileBytes = fileData;
-          print('[_pickResume] Successfully read file from path: ${fileData.length} bytes');
+          print(
+            '[_pickResume] Successfully read file from path: ${fileData.length} bytes',
+          );
         } catch (e) {
           print('[_pickResume] Error reading file from path: $e');
           setState(() {
@@ -2012,7 +2092,7 @@ class _GenerationPageState extends State<GenerationPage> {
           return;
         }
       }
-      
+
       if (fileBytes == null) {
         print('[_pickResume] ERROR: Cannot get file bytes');
         setState(() {
@@ -2020,17 +2100,19 @@ class _GenerationPageState extends State<GenerationPage> {
         });
         return;
       }
-      
+
       // 此时 fileBytes 已确保不为 null
       final fileSize = fileBytes.length;
-      
+
       // 打印文件信息
       print('=== PDF File Info ===');
       print('File name: ${file.name}');
-      print('File size: $fileSize bytes (${(fileSize / 1024).toStringAsFixed(2)} KB)');
+      print(
+        'File size: $fileSize bytes (${(fileSize / 1024).toStringAsFixed(2)} KB)',
+      );
       print('File path: ${file.path ?? 'N/A'}');
       print('===================');
-      
+
       // 验证文件扩展名是否为 PDF
       final fileName = file.name.toLowerCase();
       if (!fileName.endsWith('.pdf')) {
@@ -2041,7 +2123,7 @@ class _GenerationPageState extends State<GenerationPage> {
         );
         return;
       }
-      
+
       // 验证文件大小（10MB）
       if (fileSize > MAX_FILE_SIZE) {
         TopToastUtil.showError(
@@ -2051,7 +2133,7 @@ class _GenerationPageState extends State<GenerationPage> {
         );
         return;
       }
-      
+
       // 先设置文件名和文件大小，这样 UI 可以立即显示
       setState(() {
         _resumeController.text = file.name;
@@ -2060,7 +2142,7 @@ class _GenerationPageState extends State<GenerationPage> {
         _uploadProgress = 0;
         _uploadError = null;
       });
-      
+
       try {
         if (_currentStep == GenerationStep.upload) {
           final credentials = await _onboardingService.uploadResumeFile(
@@ -2127,7 +2209,9 @@ class _GenerationPageState extends State<GenerationPage> {
         if (mounted) {
           final message = error.toString().replaceAll('Exception: ', '');
           setState(() {
-            _uploadError = message.isEmpty ? 'Failed to upload resume' : message;
+            _uploadError = message.isEmpty
+                ? 'Failed to upload resume'
+                : message;
             _uploadProgress = 0;
             _isUploading = false;
             _hasResume = false;
@@ -2150,9 +2234,9 @@ class _GenerationPageState extends State<GenerationPage> {
   // 提取 URL（处理 iframe、协议等）
   String _extractUrlFromInput(String input) {
     if (input.isEmpty) return '';
-    
+
     String url = input.trim();
-    
+
     // Step 1: 从 iframe 代码或 data-url 属性中提取 URL
     if (input.contains('<iframe')) {
       // 匹配 src="..." 或 src='...'
@@ -2187,17 +2271,17 @@ class _GenerationPageState extends State<GenerationPage> {
         }
       }
     }
-    
+
     // Step 2: 修复协议相对 URL (// -> https://)
     if (url.startsWith('//')) {
       url = 'https:$url';
     }
-    
+
     // Step 3: 如果没有协议，添加 https://
     if (!url.startsWith(RegExp(r'^https?://', caseSensitive: false))) {
       url = 'https://$url';
     }
-    
+
     return url;
   }
 
@@ -2205,46 +2289,48 @@ class _GenerationPageState extends State<GenerationPage> {
   bool _isValidUrl(String urlString) {
     try {
       final uri = Uri.parse(urlString);
-      
+
       // 检查协议
       if (uri.scheme != 'http' && uri.scheme != 'https') {
         return false;
       }
-      
+
       // 检查 hostname 不为空
       final hostname = uri.host;
       if (hostname.isEmpty) {
         return false;
       }
-      
+
       // 只允许 ASCII 字符（字母、数字、点、连字符）
       if (!RegExp(r'^[a-zA-Z0-9.-]+$').hasMatch(hostname)) {
         return false;
       }
-      
+
       // 检查 hostname 各部分有效（点之间不为空）
       final parts = hostname.split('.');
       if (parts.any((part) => part.isEmpty)) {
         return false;
       }
-      
+
       // 拒绝纯数字 hostname
-      final hasNonNumericPart = parts.any((part) => !RegExp(r'^\d+$').hasMatch(part));
+      final hasNonNumericPart = parts.any(
+        (part) => !RegExp(r'^\d+$').hasMatch(part),
+      );
       if (!hasNonNumericPart) {
         return false;
       }
-      
+
       // 必须至少有 2 部分（例如 example.com）
       if (parts.length < 2) {
         return false;
       }
-      
+
       // TLD（最后一部分）不能全是数字
       final tld = parts.last;
       if (RegExp(r'^\d+$').hasMatch(tld)) {
         return false;
       }
-      
+
       return true;
     } catch (_) {
       return false;
@@ -2264,22 +2350,24 @@ class _GenerationPageState extends State<GenerationPage> {
   // 检测社交平台类型（用于生成流程）
   String? _detectSocialTypeForGeneration(String urlString) {
     try {
-      final url = urlString.startsWith(RegExp(r'^https?://', caseSensitive: false))
+      final url =
+          urlString.startsWith(RegExp(r'^https?://', caseSensitive: false))
           ? urlString
           : 'https://$urlString';
       final uri = Uri.parse(url);
       final hostname = uri.host.toLowerCase();
-      
+
       // LinkedIn 特殊处理
       if (hostname.contains('linkedin.com')) return 'LINKEDIN';
-      
+
       // 其他平台检测
       if (hostname.contains('github.com')) return 'GITHUB';
       if (hostname.contains('huggingface.co')) return 'HUGGINGFACE';
       if (hostname.contains('scholar.google')) return 'SCHOLAR';
       if (hostname.contains('openreview.net')) return 'OPENREVIEW';
-      if (hostname.contains('twitter.com') || hostname.contains('x.com')) return 'TWITTER';
-      
+      if (hostname.contains('twitter.com') || hostname.contains('x.com'))
+        return 'TWITTER';
+
       return null;
     } catch (_) {
       return null;
@@ -2323,12 +2411,14 @@ class _GenerationPageState extends State<GenerationPage> {
       _socialLinks.clear();
       for (final type in RECOMMENDED_PLATFORMS) {
         final platformName = type;
-        _socialLinks.add(SocialLink(
-          platform: platformName,
-          type: type,
-          url: '',
-          isValidated: false,
-        ));
+        _socialLinks.add(
+          SocialLink(
+            platform: platformName,
+            type: type,
+            url: '',
+            isValidated: false,
+          ),
+        );
       }
       return;
     }
@@ -2337,18 +2427,20 @@ class _GenerationPageState extends State<GenerationPage> {
     // 注意：当前 UserFlow 模型可能没有 social_links 字段，这里先初始化推荐平台
     _socialLinks.clear();
     final flowLinksMap = <String, String>{};
-    
+
     // 如果有 social_links 数据，可以在这里处理
     // 暂时先初始化推荐平台列表
     for (final type in RECOMMENDED_PLATFORMS) {
       final platformName = type;
       final urlFromFlow = flowLinksMap[type] ?? '';
-      _socialLinks.add(SocialLink(
-        platform: platformName,
-        type: type,
-        url: urlFromFlow,
-        isValidated: urlFromFlow.isNotEmpty,
-      ));
+      _socialLinks.add(
+        SocialLink(
+          platform: platformName,
+          type: type,
+          url: urlFromFlow,
+          isValidated: urlFromFlow.isNotEmpty,
+        ),
+      );
     }
   }
 
@@ -2373,19 +2465,23 @@ class _GenerationPageState extends State<GenerationPage> {
       TopToastUtil.showError(
         context: context,
         title: 'Invalid LinkedIn URL',
-        description: 'Please use LinkedIn profile URL (linkedin.com/in/username)',
+        description:
+            'Please use LinkedIn profile URL (linkedin.com/in/username)',
       );
       return;
     }
 
     // 检查是否已存在该类型的链接
-    final existingIndex = _socialLinks.indexWhere((l) => l.type == detectedType);
+    final existingIndex = _socialLinks.indexWhere(
+      (l) => l.type == detectedType,
+    );
     if (existingIndex != -1) {
       if (_socialLinks[existingIndex].url.isNotEmpty) {
         TopToastUtil.showWarning(
           context: context,
           title: 'Notice',
-          description: 'You already have a ${_socialLinks[existingIndex].platform} link',
+          description:
+              'You already have a ${_socialLinks[existingIndex].platform} link',
         );
         return;
       }
@@ -2403,12 +2499,14 @@ class _GenerationPageState extends State<GenerationPage> {
           ? detectedType
           : 'Website';
       setState(() {
-        _socialLinks.add(SocialLink(
-          platform: platformName,
-          type: detectedType,
-          url: url,
-          isValidated: true,
-        ));
+        _socialLinks.add(
+          SocialLink(
+            platform: platformName,
+            type: detectedType,
+            url: url,
+            isValidated: true,
+          ),
+        );
       });
     }
 
@@ -2420,7 +2518,7 @@ class _GenerationPageState extends State<GenerationPage> {
     if (url == null || url.trim().isEmpty) return null;
     final processedUrl = _extractUrlFromInput(url);
     if (!_isValidUrl(processedUrl)) return null;
-    
+
     try {
       final uri = Uri.parse(processedUrl);
       if (uri.host.toLowerCase().contains('linkedin')) {
@@ -2434,7 +2532,7 @@ class _GenerationPageState extends State<GenerationPage> {
         }
       }
     } catch (_) {}
-    
+
     return null;
   }
 
@@ -2466,7 +2564,7 @@ class _GenerationPageState extends State<GenerationPage> {
 
     try {
       final requestData = <String, dynamic>{};
-      
+
       if (_resumeUrl != null) {
         requestData['file_url'] = _resumeUrl;
         requestData['file_name'] = _resumeController.text;
@@ -2475,7 +2573,7 @@ class _GenerationPageState extends State<GenerationPage> {
           requestData['file_size'] = _resumeFileSize;
         }
       }
-      
+
       final profileUrl = _linkedinController.text.trim();
       if (profileUrl.isNotEmpty) {
         requestData['profile_url'] = _extractUrlFromInput(profileUrl);
@@ -2483,12 +2581,12 @@ class _GenerationPageState extends State<GenerationPage> {
 
       print('=== Analyze Resume Request ===');
       print('Request data: $requestData');
-      
+
       final result = await _flowService.analyzeResume(requestData);
-      
+
       print('=== Analyze Resume Response ===');
       print('Result: $result');
-      
+
       // 如果返回了 social_links，打印日志（与 TypeScript 一致）
       final userData = result['user_data'] as Map<String, dynamic>?;
       if (userData != null && userData['social_links'] != null) {
@@ -2496,7 +2594,7 @@ class _GenerationPageState extends State<GenerationPage> {
         // 注意：social_links 会在后续步骤中使用，这里只记录日志
         // TypeScript 中也是通过 setMyFlow({ social_links: ... }) 更新，但 UserFlow 模型简化了
       }
-      
+
       // 更新 flow 状态为 resume（分析完成后进入 social 步骤）
       final userStore = context.read<UserStore>();
       final currentFlow = userStore.myFlow;
@@ -2521,7 +2619,7 @@ class _GenerationPageState extends State<GenerationPage> {
         setState(() {
           _isAnalyzing = false;
         });
-        
+
         // 提取错误消息（与 TypeScript 一致）
         String errorMessage = 'Failed to analyze your resume.';
         if (error is Exception) {
@@ -2535,7 +2633,7 @@ class _GenerationPageState extends State<GenerationPage> {
             errorMessage = errorStr;
           }
         }
-        
+
         TopToastUtil.showError(
           context: context,
           title: 'Analysis Failed',
@@ -2547,7 +2645,9 @@ class _GenerationPageState extends State<GenerationPage> {
 
   // 第三步：处理下一步（生成）
   Future<void> _handleNextSocial() async {
-    final filledLinks = _socialLinks.where((l) => l.url.trim().isNotEmpty).toList();
+    final filledLinks = _socialLinks
+        .where((l) => l.url.trim().isNotEmpty)
+        .toList();
 
     if (filledLinks.isEmpty) {
       return;
@@ -2584,7 +2684,9 @@ class _GenerationPageState extends State<GenerationPage> {
         };
       }).toList();
 
-      final result = await _flowService.generate({'social_links': socialLinksData});
+      final result = await _flowService.generate({
+        'social_links': socialLinksData,
+      });
 
       final userStore = context.read<UserStore>();
       final flowData = result['flow'] as Map<String, dynamic>?;
@@ -2670,7 +2772,9 @@ class _GenerationPageState extends State<GenerationPage> {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
     try {
-      final uri = Uri.parse(trimmed.startsWith('http') ? trimmed : 'https://$trimmed');
+      final uri = Uri.parse(
+        trimmed.startsWith('http') ? trimmed : 'https://$trimmed',
+      );
       if (uri.scheme != 'http' && uri.scheme != 'https') return null;
       return uri.toString();
     } catch (_) {
@@ -2682,7 +2786,8 @@ class _GenerationPageState extends State<GenerationPage> {
     final normalized = _normalizeImportUrl(_linkedinController.text);
     if (normalized == null) {
       setState(() {
-        _startUrlError = 'Please enter a valid LinkedIn or personal website URL.';
+        _startUrlError =
+            'Please enter a valid LinkedIn or personal website URL.';
       });
       return;
     }
@@ -2716,7 +2821,8 @@ class _GenerationPageState extends State<GenerationPage> {
       TopToastUtil.showError(
         context: context,
         title: 'Upload expired',
-        description: 'Your resume upload session expired. Please upload the resume again.',
+        description:
+            'Your resume upload session expired. Please upload the resume again.',
       );
       return;
     }
@@ -2771,7 +2877,9 @@ class _GenerationPageState extends State<GenerationPage> {
       } else {
         final url = _extractUrlFromInput(_linkedinController.text.trim());
         if (url.isEmpty) {
-          throw Exception('Please enter a valid LinkedIn or personal website URL.');
+          throw Exception(
+            'Please enter a valid LinkedIn or personal website URL.',
+          );
         }
         result = await _onboardingService.createProfileDraft(
           sourceType: 'url',
@@ -2794,8 +2902,9 @@ class _GenerationPageState extends State<GenerationPage> {
       final message = error.toString().replaceAll('Exception: ', '');
       setState(() {
         _isAnalyzing = false;
-        _analyzeError =
-            message.isEmpty ? 'Failed to generate your profile draft' : message;
+        _analyzeError = message.isEmpty
+            ? 'Failed to generate your profile draft'
+            : message;
       });
       TopToastUtil.showError(
         context: context,
@@ -2874,26 +2983,26 @@ class _GenerationPageState extends State<GenerationPage> {
     final draftDegree = splitFullDegree(data?['full_degree']?.toString());
 
     if (_profileNameController.text.isEmpty) {
-      _profileNameController.text = data?['name']?.toString() ??
+      _profileNameController.text =
+          data?['name']?.toString() ??
           user?.userData.name ??
           user?.user.name ??
           '';
     }
     if (_profilePositionController.text.isEmpty) {
-      _profilePositionController.text = data?['position']?.toString() ??
+      _profilePositionController.text =
+          data?['position']?.toString() ??
           draftPosition.position ??
           user?.userData.fullPosition ??
           '';
     }
     if (_profileCompanyController.text.isEmpty) {
-      _profileCompanyController.text = data?['company']?.toString() ??
-          draftPosition.company ??
-          '';
+      _profileCompanyController.text =
+          data?['company']?.toString() ?? draftPosition.company ?? '';
     }
     if (_profileSchoolController.text.isEmpty) {
-      _profileSchoolController.text = data?['school']?.toString() ??
-          draftDegree.school ??
-          '';
+      _profileSchoolController.text =
+          data?['school']?.toString() ?? draftDegree.school ?? '';
     }
     if (_profileLocationController.text.isEmpty) {
       _profileLocationController.text =
@@ -2910,9 +3019,8 @@ class _GenerationPageState extends State<GenerationPage> {
       );
     }
     if (_profileAvatarUrl.isEmpty) {
-      _profileAvatarUrl = data?['avatar_url']?.toString() ??
-          user?.userData.avatarUrl ??
-          '';
+      _profileAvatarUrl =
+          data?['avatar_url']?.toString() ?? user?.userData.avatarUrl ?? '';
     }
     if (_profileBio.isEmpty) {
       _profileBio = data?['bio']?.toString() ?? user?.userData.bio ?? '';
@@ -2920,7 +3028,9 @@ class _GenerationPageState extends State<GenerationPage> {
     if (_profileTags.isEmpty && data?['tags'] != null) {
       final raw = data!['tags'];
       if (raw is List) {
-        _profileTags = normalizeProfileTags(raw.map((e) => e.toString()).toList());
+        _profileTags = normalizeProfileTags(
+          raw.map((e) => e.toString()).toList(),
+        );
       } else if (raw is String && raw.isNotEmpty) {
         _profileTags = splitTags(raw);
       }
@@ -2961,12 +3071,11 @@ class _GenerationPageState extends State<GenerationPage> {
 
   String _cleanHandleCandidate(String? raw) {
     if (raw == null || raw.isEmpty) return '';
-    final cleaned = raw
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9_-]'), '');
-    final clipped =
-        cleaned.length > 100 ? cleaned.substring(0, 100) : cleaned;
+    final cleaned = raw.trim().toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9_-]'),
+      '',
+    );
+    final clipped = cleaned.length > 100 ? cleaned.substring(0, 100) : cleaned;
     return clipped.length >= 3 ? clipped : '';
   }
 
@@ -2979,7 +3088,8 @@ class _GenerationPageState extends State<GenerationPage> {
   void _maybePrefillHandle() {
     if (_hasEditedHandle || _domainController.text.trim().isNotEmpty) return;
     final user = context.read<UserStore>().user;
-    final candidate = _getEmailHandleCandidate(user?.user.email) ??
+    final candidate =
+        _getEmailHandleCandidate(user?.user.email) ??
         _cleanHandleCandidate(_profileNameController.text.trim()) ??
         _cleanHandleCandidate(_draftUserData?['name'] as String?);
     if (candidate.isEmpty) return;
@@ -2990,8 +3100,9 @@ class _GenerationPageState extends State<GenerationPage> {
   void _onOnboardingHandleChanged(String nextValue) {
     _hasEditedHandle = true;
     final sanitized = nextValue.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
-    final clipped =
-        sanitized.length > 100 ? sanitized.substring(0, 100) : sanitized;
+    final clipped = sanitized.length > 100
+        ? sanitized.substring(0, 100)
+        : sanitized;
     setState(() {
       _handleCharWarning = clipped != nextValue
           ? 'Only letters, numbers, _ and - are allowed'
@@ -3015,7 +3126,9 @@ class _GenerationPageState extends State<GenerationPage> {
       _isReservingHandle = true;
     });
     try {
-      final reservation = await _onboardingService.reserveHandle(handle: handle);
+      final reservation = await _onboardingService.reserveHandle(
+        handle: handle,
+      );
       if (!mounted) return;
       final token = reservation['reservation_token']?.toString();
       final expiresAt = reservation['expires_at']?.toString();
@@ -3043,7 +3156,9 @@ class _GenerationPageState extends State<GenerationPage> {
       TopToastUtil.showError(
         context: context,
         title: 'Failed to reserve handle',
-        description: message.isEmpty ? 'Failed to reserve this handle' : message,
+        description: message.isEmpty
+            ? 'Failed to reserve this handle'
+            : message,
       );
     }
   }
@@ -3056,9 +3171,9 @@ class _GenerationPageState extends State<GenerationPage> {
     final name = _profileNameController.text.trim().isNotEmpty
         ? _profileNameController.text.trim()
         : (data['name']?.toString() ??
-            user?.userData.name ??
-            user?.user.name ??
-            '');
+              user?.userData.name ??
+              user?.user.name ??
+              '');
     final position = _profilePositionController.text.trim().isNotEmpty
         ? _profilePositionController.text.trim()
         : (data['position']?.toString() ?? user?.userData.fullPosition ?? '');
@@ -3091,7 +3206,10 @@ class _GenerationPageState extends State<GenerationPage> {
     if (position.isNotEmpty) patch['position'] = position;
     if (company.isNotEmpty) patch['company'] = company;
     if (position.isNotEmpty || company.isNotEmpty) {
-      patch['full_position'] = [position, company].where((e) => e.isNotEmpty).join(', ');
+      patch['full_position'] = [
+        position,
+        company,
+      ].where((e) => e.isNotEmpty).join(', ');
     }
     if (bio.isNotEmpty) {
       patch['bio'] = bio.length > profileBioLimit
@@ -3104,7 +3222,10 @@ class _GenerationPageState extends State<GenerationPage> {
     if (school.isNotEmpty) patch['school'] = school;
     if (degree.isNotEmpty) patch['degree'] = degree;
     if (school.isNotEmpty || degree.isNotEmpty) {
-      patch['full_degree'] = [degree, school].where((e) => e.isNotEmpty).join(', ');
+      patch['full_degree'] = [
+        degree,
+        school,
+      ].where((e) => e.isNotEmpty).join(', ');
     }
     if (avatarUrl.isNotEmpty) patch['avatar_url'] = avatarUrl;
     if (_resumeUrl != null && _resumeUrl!.isNotEmpty) {
@@ -3116,7 +3237,9 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   Map<String, dynamic> _buildOnboardingSource() {
-    if (_analyzeMode == 'resume' && _resumeUrl != null && _resumeFileKey != null) {
+    if (_analyzeMode == 'resume' &&
+        _resumeUrl != null &&
+        _resumeFileKey != null) {
       return {
         'type': 'resume',
         'file_url': _resumeUrl,
@@ -3277,25 +3400,47 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   Future<void> _finishOnboardingSocials(List<OnboardingAddedLink> links) async {
-    final domain = context.read<UserStore>().myFlow?.domain ??
+    final domain =
+        context.read<UserStore>().myFlow?.domain ??
         _domainController.text.trim();
-    if (links.isNotEmpty) {
-      if (domain.isEmpty) {
-        throw Exception('DINQ Page is not ready yet');
+    debugPrint(
+      '[OnboardingSocials] submit start links=${links.length} domain=$domain '
+      'returnPath=$_onboardingReturnPath standalone=$_isStandaloneSocialsEntry',
+    );
+    try {
+      if (links.isNotEmpty) {
+        if (domain.isEmpty) {
+          debugPrint('[OnboardingSocials] blocked: empty domain');
+          throw Exception('DINQ Page is not ready yet');
+        }
+        final cardStore = context.read<CardStore>();
+        debugPrint('[OnboardingSocials] loadCards start domain=$domain');
+        await cardStore.loadCards(domain);
+        debugPrint('[OnboardingSocials] loadCards done domain=$domain');
+        for (final link in links) {
+          debugPrint(
+            '[OnboardingSocials] addCard start type=${link.type} url=${link.url}',
+          );
+          await cardStore.addCard(type: link.type, metadata: {'url': link.url});
+          debugPrint('[OnboardingSocials] addCard done type=${link.type}');
+        }
       }
-      final cardStore = context.read<CardStore>();
-      await cardStore.loadCards(domain);
-      for (final link in links) {
-        await cardStore.addCard(
-          type: link.type,
-          metadata: {'url': link.url},
-        );
-      }
-    }
-    if (!mounted) return;
-    _goToMydinq();
-  }
 
+      if (!mounted) return;
+      debugPrint(
+        '[OnboardingSocials] submit success, navigating to '
+        '${_onboardingReturnPath ?? '/admin/mydinq'}',
+      );
+      TopToastUtil.showSuccess(
+        context: context,
+        title: links.isEmpty ? 'Skipped social links' : 'Social links added',
+      );
+      _goToMydinq();
+    } catch (error, stackTrace) {
+      debugPrint('[OnboardingSocials] submit failed error=$error\n$stackTrace');
+      rethrow;
+    }
+  }
 }
 
 enum GenerationStep {

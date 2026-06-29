@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../utils/card_url_validation.dart';
 import '../../../utils/onboarding_social_icons.dart';
+import '../../../utils/top_toast_util.dart';
 import '../../common/asset_icon.dart';
 import 'onboarding_top_bar.dart';
 
@@ -71,12 +72,9 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
       final result = await validateCardUrlInput(raw);
       if (_added.any((a) => a.type == result.type)) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'You already added a ${platformNameForType(result.type)} link',
-            ),
-          ),
+        TopToastUtil.showError(
+          context: context,
+          title: 'You already added a ${platformNameForType(result.type)} link',
         );
         return;
       }
@@ -94,8 +92,9 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
     } catch (error) {
       if (!mounted) return;
       final msg = error.toString().replaceAll('Exception: ', '');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg.isEmpty ? 'Invalid URL' : msg)),
+      TopToastUtil.showWarning(
+        context: context,
+        title: msg.isEmpty ? 'Invalid URL' : msg,
       );
     } finally {
       if (mounted) setState(() => _isValidating = false);
@@ -157,8 +156,9 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
     } catch (error) {
       if (!mounted) return;
       final msg = error.toString().replaceAll('Exception: ', '');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg.isEmpty ? 'Invalid URL' : msg)),
+      TopToastUtil.showWarning(
+        context: context,
+        title: msg.isEmpty ? 'Invalid URL' : msg,
       );
     } finally {
       if (mounted) setState(() => _isCommittingEdit = false);
@@ -172,6 +172,13 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
     });
     try {
       await widget.onFinish(links);
+    } catch (error) {
+      if (!mounted) return;
+      final msg = error.toString().replaceAll('Exception: ', '');
+      TopToastUtil.showError(
+        context: context,
+        title: msg.isEmpty ? 'Failed to submit social links' : msg,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -355,18 +362,18 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
           ),
           const SizedBox(height: 8),
           ..._added.asMap().entries.map(
-                (entry) => _AddedRow(
-                  link: entry.value,
-                  iconAsset: OnboardingSocialIcons.iconForType(entry.value.type),
-                  isEditing: _editingIndex == entry.key,
-                  editingController: _editingController,
-                  isCommittingEdit: _isCommittingEdit,
-                  onStartEdit: () => _startEdit(entry.key),
-                  onDelete: () => _handleDelete(entry.key),
-                  onCommitEdit: _commitEdit,
-                  onCancelEdit: _cancelEdit,
-                ),
-              ),
+            (entry) => _AddedRow(
+              link: entry.value,
+              iconAsset: OnboardingSocialIcons.iconForType(entry.value.type),
+              isEditing: _editingIndex == entry.key,
+              editingController: _editingController,
+              isCommittingEdit: _isCommittingEdit,
+              onStartEdit: () => _startEdit(entry.key),
+              onDelete: () => _handleDelete(entry.key),
+              onCommitEdit: _commitEdit,
+              onCancelEdit: _cancelEdit,
+            ),
+          ),
         ],
       ),
     );
@@ -454,11 +461,7 @@ class _OnboardingSocialsViewState extends State<OnboardingSocialsView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: _buildBodyContent(),
-            ),
-          ),
+          Expanded(child: SingleChildScrollView(child: _buildBodyContent())),
           _buildFooter(),
         ],
       );
@@ -583,11 +586,15 @@ class _AddedRow extends StatelessWidget {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFEEEDE9),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF171717)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF171717),
+                          ),
                         ),
                       ),
                       style: const TextStyle(fontFamily: 'Geist', fontSize: 13),
@@ -616,12 +623,20 @@ class _AddedRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.check, size: 18, color: Color(0xFF171717)),
+                  icon: const Icon(
+                    Icons.check,
+                    size: 18,
+                    color: Color(0xFF171717),
+                  ),
                   onPressed: isCommittingEdit ? null : onCommitEdit,
                   visualDensity: VisualDensity.compact,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 18, color: Color(0xFF9E9B93)),
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: Color(0xFF9E9B93),
+                  ),
                   onPressed: isCommittingEdit ? null : onCancelEdit,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -629,7 +644,11 @@ class _AddedRow extends StatelessWidget {
             )
           else
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF6B6862)),
+              icon: const Icon(
+                Icons.more_horiz,
+                size: 20,
+                color: Color(0xFF6B6862),
+              ),
               padding: EdgeInsets.zero,
               onSelected: (action) {
                 if (action == 'edit') onStartEdit();
@@ -638,7 +657,10 @@ class _AddedRow extends StatelessWidget {
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: 'edit',
-                  child: Text('Edit link', style: TextStyle(fontFamily: 'Geist')),
+                  child: Text(
+                    'Edit link',
+                    style: TextStyle(fontFamily: 'Geist'),
+                  ),
                 ),
                 PopupMenuItem(
                   value: 'delete',
