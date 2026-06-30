@@ -150,7 +150,7 @@ class _TabText extends StatelessWidget {
                           fontWeight: segment.color == '#171717' ? FontWeight.w600 : FontWeight.w500,
                           fontSize: 14,
                           height: 1.5,
-                          fontFamily: 'Poppins',
+                          fontFamily: 'Geist',
                         ),
                       ),
                     )
