@@ -128,7 +128,7 @@ class _MePageState extends State<MePage> {
                       'dinq.me/${user?.userData.domain ?? ''}',
                       style: TextStyle(
                         fontSize: 14,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Geist',
                         color: ColorUtil.sub1TextColor,
                       ),
                     ),

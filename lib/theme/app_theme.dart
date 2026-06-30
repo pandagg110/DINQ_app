@@ -30,7 +30,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
-          fontFamily: 'Poppins',
+          fontFamily: 'Geist',
           fontWeight: FontWeight.w600,
           fontSize: 18,
           color: brandBlack,
@@ -41,7 +41,7 @@ class AppTheme {
           backgroundColor: brandBlack,
           foregroundColor: brandWhite,
           textStyle: const TextStyle(
-            fontFamily: 'Poppins',
+            fontFamily: 'Geist',
             fontWeight: FontWeight.w600,
             fontSize: 14,
           ),
@@ -72,20 +72,20 @@ class AppTheme {
 
   static TextTheme _textTheme(TextTheme base) {
     return base.copyWith(
-      displayLarge: base.displayLarge?.copyWith(fontFamily: 'Poppins'),
-      displayMedium: base.displayMedium?.copyWith(fontFamily: 'Poppins'),
-      displaySmall: base.displaySmall?.copyWith(fontFamily: 'Poppins'),
-      headlineMedium: base.headlineMedium?.copyWith(fontFamily: 'Poppins'),
-      headlineSmall: base.headlineSmall?.copyWith(fontFamily: 'Poppins'),
-      titleLarge: base.titleLarge?.copyWith(fontFamily: 'Poppins'),
-      titleMedium: base.titleMedium?.copyWith(fontFamily: 'Poppins'),
-      titleSmall: base.titleSmall?.copyWith(fontFamily: 'Poppins'),
-      bodyLarge: base.bodyLarge?.copyWith(fontFamily: 'Poppins'),
-      bodyMedium: base.bodyMedium?.copyWith(fontFamily: 'Poppins'),
-      bodySmall: base.bodySmall?.copyWith(fontFamily: 'Poppins'),
-      labelLarge: base.labelLarge?.copyWith(fontFamily: 'Poppins'),
-      labelMedium: base.labelMedium?.copyWith(fontFamily: 'Poppins'),
-      labelSmall: base.labelSmall?.copyWith(fontFamily: 'Poppins'),
+      displayLarge: base.displayLarge?.copyWith(fontFamily: 'Geist'),
+      displayMedium: base.displayMedium?.copyWith(fontFamily: 'Geist'),
+      displaySmall: base.displaySmall?.copyWith(fontFamily: 'Geist'),
+      headlineMedium: base.headlineMedium?.copyWith(fontFamily: 'Geist'),
+      headlineSmall: base.headlineSmall?.copyWith(fontFamily: 'Geist'),
+      titleLarge: base.titleLarge?.copyWith(fontFamily: 'Geist'),
+      titleMedium: base.titleMedium?.copyWith(fontFamily: 'Geist'),
+      titleSmall: base.titleSmall?.copyWith(fontFamily: 'Geist'),
+      bodyLarge: base.bodyLarge?.copyWith(fontFamily: 'Geist'),
+      bodyMedium: base.bodyMedium?.copyWith(fontFamily: 'Geist'),
+      bodySmall: base.bodySmall?.copyWith(fontFamily: 'Geist'),
+      labelLarge: base.labelLarge?.copyWith(fontFamily: 'Geist'),
+      labelMedium: base.labelMedium?.copyWith(fontFamily: 'Geist'),
+      labelSmall: base.labelSmall?.copyWith(fontFamily: 'Geist'),
     );
   }
 }
