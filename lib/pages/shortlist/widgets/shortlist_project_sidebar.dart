@@ -448,53 +448,82 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar> {
 }
 
 /// 对齐 Web `MobileFoldersDrawer`。
+/// 文件夹抽屉：从左侧划出（对齐 `my_first_app` `_ShortlistFolderDrawer`）。
 Future<void> showShortlistFoldersDrawer(BuildContext context) {
-  return showModalBottomSheet<void>(
+  final double drawerWidth =
+      (MediaQuery.sizeOf(context).width * 0.82).clamp(0.0, 324.0).toDouble();
+  return showGeneralDialog<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (ctx) {
-      return SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(ctx).height * 0.75,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        ShortlistStrings.foldersTitle,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF171717),
+    barrierDismissible: true,
+    barrierLabel: ShortlistStrings.foldersTitle,
+    barrierColor: Colors.black.withValues(alpha: 0.28),
+    transitionDuration: const Duration(milliseconds: 220),
+    pageBuilder: (ctx, _, _) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: drawerWidth,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(28),
+                bottomRight: Radius.circular(28),
+              ),
+              border: Border(right: BorderSide(color: Color(0xFFEAE8E3))),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SafeArea(
+              right: false,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            ShortlistStrings.foldersTitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF171717),
+                            ),
+                          ),
                         ),
-                      ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close,
+                              size: 16, color: Color(0xFF6B6962)),
+                          tooltip: ShortlistStrings.foldersClose,
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      icon: const Icon(Icons.close, size: 16, color: Color(0xFF6B6962)),
-                      tooltip: ShortlistStrings.foldersClose,
+                  ),
+                  const Divider(height: 1, color: Color(0xFFEAE8E3)),
+                  Expanded(
+                    child: ShortlistProjectSidebar(
+                      variant: ShortlistProjectSidebarVariant.mobile,
+                      onSelectProject: (_) => Navigator.pop(ctx),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const Divider(height: 1, color: Color(0xFFEAE8E3)),
-              Expanded(
-                child: ShortlistProjectSidebar(
-                  variant: ShortlistProjectSidebarVariant.mobile,
-                  onSelectProject: (_) => Navigator.pop(ctx),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       );
+    },
+    transitionBuilder: (ctx, animation, _, child) {
+      final Animation<Offset> slide = Tween<Offset>(
+        begin: const Offset(-1, 0),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+      );
+      return SlideTransition(position: slide, child: child);
     },
   );
 }
