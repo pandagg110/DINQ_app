@@ -61,19 +61,25 @@ class AdminGridTileData {
 
   /// 占格模式：横向占格数
   final int? crossAxisCellCount;
+
   /// 占格模式：纵向占格数
   final int? mainAxisCellCount;
+
   /// 绝对像素：左边距
   final double? x;
   final double? y;
   final double? w;
   final double? h;
+
   /// 格点模式：列索引（格点）
   final int? cellX;
+
   /// 格点模式：行索引（格点）
   final int? cellY;
+
   /// 格点模式：占列数
   final int? cellW;
+
   /// 格点模式：占行数
   final int? cellH;
 
@@ -81,8 +87,7 @@ class AdminGridTileData {
   final String? label;
   final String? id;
 
-  bool get isAbsolute =>
-      x != null && y != null && w != null && h != null;
+  bool get isAbsolute => x != null && y != null && w != null && h != null;
   bool get isCellBased =>
       cellX != null && cellY != null && cellW != null && cellH != null;
 }
@@ -130,8 +135,7 @@ class _StaggeredGridTile {
   final String label;
   final String? id;
 
-  bool get isAbsolute =>
-      x != null && y != null && w != null && h != null;
+  bool get isAbsolute => x != null && y != null && w != null && h != null;
   bool get isCellBased =>
       cellX != null && cellY != null && cellW != null && cellH != null;
 }
@@ -174,7 +178,8 @@ class _AnimatedPositionedTile extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_AnimatedPositionedTile> createState() => _AnimatedPositionedTileState();
+  State<_AnimatedPositionedTile> createState() =>
+      _AnimatedPositionedTileState();
 }
 
 class _AnimatedPositionedTileState extends State<_AnimatedPositionedTile>
@@ -195,9 +200,10 @@ class _AnimatedPositionedTileState extends State<_AnimatedPositionedTile>
     super.didUpdateWidget(oldWidget);
     final to = widget.targetRect;
     if (to != _currentRect) {
-      _animation = RectTween(begin: _currentRect, end: to).animate(
-        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-      );
+      _animation = RectTween(
+        begin: _currentRect,
+        end: to,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
       _controller.reset();
       void onStatus(AnimationStatus status) {
         if (status == AnimationStatus.completed) {
@@ -208,6 +214,7 @@ class _AnimatedPositionedTileState extends State<_AnimatedPositionedTile>
           _controller.removeStatusListener(onStatus);
         }
       }
+
       _controller.addStatusListener(onStatus);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -261,10 +268,7 @@ class _GridCellMarker extends StatelessWidget {
       child: Center(
         child: Text(
           '$cellX,$cellY',
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade500,
-          ),
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
         ),
       ),
     );
@@ -283,10 +287,13 @@ class _StaggeredGridBody extends StatelessWidget {
 
   final AdminGridConfig config;
   final List<_StaggeredGridTile> tiles;
+
   /// 拖拽放下时回调 (index, newCellX, newCellY)，用于更新格子位置
   final void Function(int index, int cellX, int cellY)? onTileDrop;
+
   /// 拖拽移动过程中回调，用于实时更新格子位置（与 onTileDrop 可共用同一方法）
   final void Function(int index, int cellX, int cellY)? onTileDragMove;
+
   /// 按 tile id 的 GlobalKey，用于强制复用 _AnimatedPositionedTile 的 State，保证 didUpdateWidget 触发动画
   final Map<String, GlobalKey>? tileKeys;
 
@@ -307,7 +314,10 @@ class _StaggeredGridBody extends StatelessWidget {
     return Draggable<_TileDragData>(
       data: dragData,
       // feedback 中心跟随指针，格点按「指针 - size/2」当瓦片左上角计算
-      feedbackOffset: Offset(-placementSize.width / 2, -placementSize.height / 2),
+      feedbackOffset: Offset(
+        -placementSize.width / 2,
+        -placementSize.height / 2,
+      ),
       feedback: IgnorePointer(
         child: Material(
           color: Colors.transparent,
@@ -318,10 +328,7 @@ class _StaggeredGridBody extends StatelessWidget {
           ),
         ),
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.5,
-        child: content,
-      ),
+      childWhenDragging: Opacity(opacity: 0.5, child: content),
       child: content,
     );
   }
@@ -331,8 +338,7 @@ class _StaggeredGridBody extends StatelessWidget {
     final double mainSpacing = config.mainAxisSpacing;
     final double crossSpacing = config.crossAxisSpacing;
 
-    final double cellWidth =
-        (contentWidth - (cols - 1) * crossSpacing) / cols;
+    final double cellWidth = (contentWidth - (cols - 1) * crossSpacing) / cols;
     final double cellHeight = cellWidth;
 
     // 使用与 RGL 一致的纯布局参数，格点↔像素统一公式
@@ -354,7 +360,10 @@ class _StaggeredGridBody extends StatelessWidget {
     for (int i = 0; i < tiles.length; i++) {
       if (!tiles[i].isCellBased) continue;
       final tile = tiles[i];
-      final int cx = tile.cellX!, cy = tile.cellY!, cw = tile.cellW!, ch = tile.cellH!;
+      final int cx = tile.cellX!,
+          cy = tile.cellY!,
+          cw = tile.cellW!,
+          ch = tile.cellH!;
       final rect = calcGridItemPosition(params, cx, cy, cw, ch);
       cellBasedPlacements[i] = _StaggeredPlacement(
         offset: Offset(rect.left, rect.top),
@@ -369,11 +378,13 @@ class _StaggeredGridBody extends StatelessWidget {
     for (int i = 0; i < tiles.length; i++) {
       final tile = tiles[i];
       if (tile.isAbsolute) {
-        placements.add(_StaggeredPlacement(
-          offset: Offset(tile.x!, tile.y!),
-          size: Size(tile.w!, tile.h!),
-          id: tile.id,
-        ));
+        placements.add(
+          _StaggeredPlacement(
+            offset: Offset(tile.x!, tile.y!),
+            size: Size(tile.w!, tile.h!),
+            id: tile.id,
+          ),
+        );
         continue;
       }
       if (tile.isCellBased) {
@@ -396,16 +407,19 @@ class _StaggeredGridBody extends StatelessWidget {
       }
 
       final double w = span * cellWidth + (span - 1) * crossSpacing;
-      final double h = tile.mainAxisCellCount! * cellHeight +
+      final double h =
+          tile.mainAxisCellCount! * cellHeight +
           (tile.mainAxisCellCount! - 1) * mainSpacing;
       final double x = bestCol * (cellWidth + crossSpacing);
       final double y = bestTop;
 
-      placements.add(_StaggeredPlacement(
-        offset: Offset(x, y),
-        size: Size(w, h),
-        id: tile.id,
-      ));
+      placements.add(
+        _StaggeredPlacement(
+          offset: Offset(x, y),
+          size: Size(w, h),
+          id: tile.id,
+        ),
+      );
 
       final double newTop = y + h + mainSpacing;
       for (int c = bestCol; c < bestCol + span; c++) {
@@ -428,13 +442,14 @@ class _StaggeredGridBody extends StatelessWidget {
             (contentWidth - (cols - 1) * crossSpacing) / cols;
         final double cellHeight = cellWidth;
 
-        final List<_StaggeredPlacement> placements =
-            _computeLayout(contentWidth);
+        final List<_StaggeredPlacement> placements = _computeLayout(
+          contentWidth,
+        );
         final double totalHeight = placements.isEmpty
             ? 0.0
             : placements
-                .map((p) => p.offset.dy + p.size.height)
-                .reduce((a, b) => a > b ? a : b);
+                  .map((p) => p.offset.dy + p.size.height)
+                  .reduce((a, b) => a > b ? a : b);
 
         // 下层：1x1 格子铺满，横纵都带间距，并标记 xy
         final double rowStep = cellHeight + mainSpacing;
@@ -457,13 +472,15 @@ class _StaggeredGridBody extends StatelessWidget {
             );
           }
         }
-       
+
         // 上层：显式动画 _AnimatedPositionedTile，用 tileKeys 强制复用 State，松手后 didUpdateWidget 触发动画
         const _kTileAnimDuration = Duration(milliseconds: 280);
         final List<Widget> dataLayer = [
           for (int i = 0; i < tiles.length && i < placements.length; i++) ...[
             _AnimatedPositionedTile(
-              key: tileKeys?[placements[i].id ?? 'grid_tile_$i'] ?? ValueKey(placements[i].id ?? 'grid_tile_$i'),
+              key:
+                  tileKeys?[placements[i].id ?? 'grid_tile_$i'] ??
+                  ValueKey(placements[i].id ?? 'grid_tile_$i'),
               duration: _kTileAnimDuration,
               targetRect: Rect.fromLTWH(
                 placements[i].offset.dx,
@@ -482,10 +499,7 @@ class _StaggeredGridBody extends StatelessWidget {
         final stackContent = Stack(
           key: const ValueKey('grid_stack'),
           clipBehavior: Clip.none,
-          children: [
-            ...backgroundCells,
-            ...dataLayer,
-          ],
+          children: [...backgroundCells, ...dataLayer],
         );
 
         if (onTileDrop == null) {
@@ -493,6 +507,7 @@ class _StaggeredGridBody extends StatelessWidget {
         }
 
         final stackKey = GlobalKey();
+
         /// 与 _computeLayout 同一套参数，保证格点↔像素互算一致
         final gridParams = GridLayoutParams(
           containerWidth: contentWidth,
@@ -503,10 +518,15 @@ class _StaggeredGridBody extends StatelessWidget {
           containerPaddingX: 0,
           containerPaddingY: 0,
         );
+
         /// 容错：仅松手时用，落点稍微越过格线即算进入该格
         const double _cellToleranceDrop = 8.0;
+
         /// onMove：用「指针所在格」作为落点（中心格点），与视觉一致；内部会转成左上角再放置
-        void reportCellPosition(DragTargetDetails<_TileDragData> details, Offset globalPointer) {
+        void reportCellPosition(
+          DragTargetDetails<_TileDragData> details,
+          Offset globalPointer,
+        ) {
           final box = stackKey.currentContext?.findRenderObject() as RenderBox?;
           if (box == null) return;
           final localPointer = box.globalToLocal(globalPointer);
@@ -525,10 +545,11 @@ class _StaggeredGridBody extends StatelessWidget {
         return DragTarget<_TileDragData>(
           onMove: onTileDragMove != null
               ? (DragTargetDetails<_TileDragData> details) =>
-                  reportCellPosition(details, details.offset)
+                    reportCellPosition(details, details.offset)
               : null,
           onAcceptWithDetails: (DragTargetDetails<_TileDragData> details) {
-            final box = stackKey.currentContext?.findRenderObject() as RenderBox?;
+            final box =
+                stackKey.currentContext?.findRenderObject() as RenderBox?;
             if (box == null) return;
             final localPointer = box.globalToLocal(details.offset);
             final (int cellX, int cellY) = calcXY(
@@ -540,14 +561,10 @@ class _StaggeredGridBody extends StatelessWidget {
               toleranceX: _cellToleranceDrop,
               toleranceY: _cellToleranceDrop,
             );
-            debugPrint('松手落点 - 中心格点: ($cellX, $cellY)');
             onTileDrop!(details.data.index, cellX, cellY);
           },
-          builder: (context, candidateData, rejectedData) => SizedBox(
-            key: stackKey,
-            height: totalHeight,
-            child: stackContent,
-          ),
+          builder: (context, candidateData, rejectedData) =>
+              SizedBox(key: stackKey, height: totalHeight, child: stackContent),
         );
       },
     );
@@ -570,17 +587,51 @@ class _AdminTextPageState extends State<AdminTextPage> {
 
   /// 按 JSON 结构：id，size "WxH"，position { x, y }（格点单位）
   static List<AdminGridTileData> _buildInitialTiles() => _buildTilesFromJson([
-    {'id': '1', 'size': '4x4', 'position': {'x': 0, 'y': 12}},
-    {'id': '2', 'size': '4x4', 'position': {'x': 0, 'y': 22}},
-    {'id': '3', 'size': '2x4', 'position': {'x': 0, 'y': 0}},
-    {'id': '4', 'size': '4x2', 'position': {'x': 0, 'y': 6}},
-    {'id': '5', 'size': '2x2', 'position': {'x': 0, 'y': 4}},
-    {'id': '6', 'size': '2x2', 'position': {'x': 2, 'y': 0}},
-    {'id': '7', 'size': '4x4', 'position': {'x': 0, 'y': 8}},
-    {'id': '8', 'size': '4x4', 'position': {'x': 0, 'y': 16}},
+    {
+      'id': '1',
+      'size': '4x4',
+      'position': {'x': 0, 'y': 12},
+    },
+    {
+      'id': '2',
+      'size': '4x4',
+      'position': {'x': 0, 'y': 22},
+    },
+    {
+      'id': '3',
+      'size': '2x4',
+      'position': {'x': 0, 'y': 0},
+    },
+    {
+      'id': '4',
+      'size': '4x2',
+      'position': {'x': 0, 'y': 6},
+    },
+    {
+      'id': '5',
+      'size': '2x2',
+      'position': {'x': 0, 'y': 4},
+    },
+    {
+      'id': '6',
+      'size': '2x2',
+      'position': {'x': 2, 'y': 0},
+    },
+    {
+      'id': '7',
+      'size': '4x4',
+      'position': {'x': 0, 'y': 8},
+    },
+    {
+      'id': '8',
+      'size': '4x4',
+      'position': {'x': 0, 'y': 16},
+    },
   ]);
 
-  static List<AdminGridTileData> _buildTilesFromJson(List<Map<String, dynamic>> list) {
+  static List<AdminGridTileData> _buildTilesFromJson(
+    List<Map<String, dynamic>> list,
+  ) {
     final colors = [
       Colors.blue.shade100,
       Colors.green.shade100,
@@ -598,15 +649,17 @@ class _AdminTextPageState extends State<AdminTextPage> {
       final (cw, ch) = _parseSize(sizeStr);
       final cellX = (pos['x'] as num?)?.toInt() ?? 0;
       final cellY = (pos['y'] as num?)?.toInt() ?? 0;
-      out.add(AdminGridTileData(
-        cellX: cellX,
-        cellY: cellY,
-        cellW: cw,
-        cellH: ch,
-        color: colors[i % colors.length],
-        label: '${i + 1}',
-        id: m['id'] as String?,
-      ));
+      out.add(
+        AdminGridTileData(
+          cellX: cellX,
+          cellY: cellY,
+          cellW: cw,
+          cellH: ch,
+          color: colors[i % colors.length],
+          label: '${i + 1}',
+          id: m['id'] as String?,
+        ),
+      );
     }
     return out;
   }
@@ -618,7 +671,10 @@ class _AdminTextPageState extends State<AdminTextPage> {
 
   static Map<String, GlobalKey> _initTileKeys() {
     final tiles = _buildInitialTiles();
-    return { for (int i = 0; i < tiles.length; i++) (tiles[i].id ?? 'grid_tile_$i'): GlobalKey() };
+    return {
+      for (int i = 0; i < tiles.length; i++)
+        (tiles[i].id ?? 'grid_tile_$i'): GlobalKey(),
+    };
   }
 
   /// AnimatedPositioned 示例：点击切换位置，用于测试过渡动画是否生效
@@ -649,7 +705,11 @@ class _AdminTextPageState extends State<AdminTextPage> {
                 onTap: () => setState(() => _demoRight = !_demoRight),
                 borderRadius: BorderRadius.circular(8),
                 child: const Center(
-                  child: Text('点我\n移动', textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
+                  child: Text(
+                    '点我\n移动',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14),
+                  ),
                 ),
               ),
             ),
@@ -664,21 +724,37 @@ class _AdminTextPageState extends State<AdminTextPage> {
   /// 将 cellX/cellY 限制在网格内，避免块越界或与背景格错位
   int _clampCellX(int cellX, int cellW) =>
       cellX.clamp(0, _gridConfig.crossAxisCount - cellW);
-  int _clampCellY(int cellY, int cellH) =>
-      cellY.clamp(0, _maxCellY);
+  int _clampCellY(int cellY, int cellH) => cellY.clamp(0, _maxCellY);
 
   /// 两矩形在格点上是否重叠 [x, x+w) x [y, y+h)
-  bool _rectsOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2) {
+  bool _rectsOverlap(
+    int x1,
+    int y1,
+    int w1,
+    int h1,
+    int x2,
+    int y2,
+    int w2,
+    int h2,
+  ) {
     return x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1;
   }
 
   /// 找到与矩形 (x,y,w,h) 重叠的格点块索引（排除 excludeIndex），若无则 null
-  int? _findTileOverlapping(List<AdminGridTileData> tiles, int excludeIndex, int x, int y, int w, int h) {
+  int? _findTileOverlapping(
+    List<AdminGridTileData> tiles,
+    int excludeIndex,
+    int x,
+    int y,
+    int w,
+    int h,
+  ) {
     for (int i = 0; i < tiles.length; i++) {
       if (i == excludeIndex) continue;
       final o = tiles[i];
       if (!o.isCellBased) continue;
-      if (_rectsOverlap(x, y, w, h, o.cellX!, o.cellY!, o.cellW!, o.cellH!)) return i;
+      if (_rectsOverlap(x, y, w, h, o.cellX!, o.cellY!, o.cellW!, o.cellH!))
+        return i;
     }
     return null;
   }
@@ -698,7 +774,14 @@ class _AdminTextPageState extends State<AdminTextPage> {
     final safeX = _clampCellX(topLeftX, cw);
     final safeY = _clampCellY(topLeftY, ch);
 
-    final targetIndex = _findTileOverlapping(_tiles, index, safeX, safeY, cw, ch);
+    final targetIndex = _findTileOverlapping(
+      _tiles,
+      index,
+      safeX,
+      safeY,
+      cw,
+      ch,
+    );
 
     setState(() {
       _tiles = List.from(_tiles);
@@ -782,7 +865,7 @@ class _AdminTextPageState extends State<AdminTextPage> {
       // 对整表做垂直紧凑重排（与 card_layout_utils 同一套 RGL 逻辑）
       final cellIndices = [
         for (int i = 0; i < _tiles.length; i++)
-          if (_tiles[i].isCellBased) i
+          if (_tiles[i].isCellBased) i,
       ];
       if (cellIndices.isEmpty) return;
       final items = [
@@ -793,7 +876,7 @@ class _AdminTextPageState extends State<AdminTextPage> {
             y: _tiles[cellIndices[i]].cellY!,
             w: _tiles[cellIndices[i]].cellW!,
             h: _tiles[cellIndices[i]].cellH!,
-          )
+          ),
       ];
       final compacted = CardLayoutUtils.compactGridLayout(
         items,
@@ -824,9 +907,7 @@ class _AdminTextPageState extends State<AdminTextPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Grid Demo'),
-      ),
+      appBar: AppBar(title: const Text('Grid Demo')),
       body: SingleChildScrollView(
         padding: _gridConfig.padding,
         child: Column(

@@ -17,6 +17,7 @@ class EditImagePage extends StatefulWidget {
   });
 
   final CardItem card;
+
   /// 是否显示底部 SizedBox（安全区/占位），默认 true
   final bool showBottomSizedBox;
 
@@ -36,13 +37,11 @@ class _EditImagePageState extends State<EditImagePage> {
   @override
   void initState() {
     super.initState();
-    debugPrint('[EditImagePage] 进入页面 cardId=${widget.card.id}');
     final m = widget.card.data.metadata;
     _offsetX = (m['offsetX'] as num?)?.toDouble() ?? 0.0;
     _offsetY = (m['offsetY'] as num?)?.toDouble() ?? 0.0;
     _scale = (m['scale'] as num?)?.toDouble() ?? 1.0;
   }
-
 
   void _onScaleStart(ScaleStartDetails details) {
     _scaleStart = _scale;
@@ -57,9 +56,6 @@ class _EditImagePageState extends State<EditImagePage> {
   }
 
   void _saveAndPop() {
-    debugPrint(
-      '[EditImagePage] Done: scale=$_scale, offsetX=$_offsetX, offsetY=$_offsetY',
-    );
     if (mounted) {
       Navigator.of(context).pop(<String, dynamic>{
         'scale': _scale,
@@ -136,8 +132,10 @@ class _EditImagePageState extends State<EditImagePage> {
                     ],
                   ),
                   child: ImageEditPreview(
-                    imageUrl: widget.card.data.metadata['url']?.toString() ?? '',
-                    caption: widget.card.data.metadata['caption']?.toString() ?? '',
+                    imageUrl:
+                        widget.card.data.metadata['url']?.toString() ?? '',
+                    caption:
+                        widget.card.data.metadata['caption']?.toString() ?? '',
                     offsetX: _offsetX,
                     offsetY: _offsetY,
                     scale: _scale,

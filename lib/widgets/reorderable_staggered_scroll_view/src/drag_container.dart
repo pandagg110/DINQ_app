@@ -34,7 +34,11 @@ class DragContainer<T extends ReorderableStaggeredScrollViewListItem>
   final void Function(Velocity velocity, Offset offset, T data)?
   onDraggableCanceled;
   final void Function(
-      DraggableDetails details, T data, List<T> orderedDataList)? onDragEnd;
+    DraggableDetails details,
+    T data,
+    List<T> orderedDataList,
+  )?
+  onDragEnd;
   final void Function(T data)? onDragCompleted;
   final ScrollController? scrollController;
   final bool isDragNotification;
@@ -110,7 +114,6 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
       final dataStr = _formatData(item.data);
       buf.writeln('  [$i] key=$keyVal size=$sizeStr$dataStr');
     }
-    debugPrint(buf.toString());
   }
 
   static String _formatData(Object? d) {
@@ -170,9 +173,7 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
     if (widget.scrollController == null) {
       try {
         _scrollable = Scrollable.of(context);
-      } catch (e, s) {
-        debugPrint('No scrollController found!, $e \n $s');
-      }
+      } catch (e, s) {}
     }
   }
 
@@ -184,8 +185,7 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
     if (isFront) {
       widget.dataList.insert(index, moveData);
     } else {
-      final insertIdx =
-          index + 1 < widget.dataList.length ? index + 1 : index;
+      final insertIdx = index + 1 < widget.dataList.length ? index + 1 : index;
       widget.dataList.insert(insertIdx, moveData);
     }
   }
@@ -416,7 +416,6 @@ class _DragContainerState<T extends ReorderableStaggeredScrollViewListItem>
       return;
     }
     if (_scrollable == null && widget.scrollController == null) {
-      debugPrint("_scrollable == null && widget.scrollController == null");
       return;
     }
     final RenderBox scrollRenderBox;

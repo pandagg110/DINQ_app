@@ -2,12 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 
-import '../utils/logger_tool.dart';
 import './base_interceptor/token_interceptor.dart';
 import 'base_interceptor/header_interceptor.dart';
-import 'base_interceptor/logs_interceptor.dart';
 import 'http_code.dart';
 import 'models/http_error_bean.dart';
 import 'util/bean_factory.dart';
@@ -42,10 +39,8 @@ class NetworkTool {
 
     _dio.interceptors.add(TokenInterceptor(tokenDio: _tokenDio));
     _dio.interceptors.add(HeaderInterceptor());
-    _dio.interceptors.add(LogsInterceptor());
 
     _tokenDio.interceptors.add(HeaderInterceptor());
-    _tokenDio.interceptors.add(LogsInterceptor());
   }
 
   void setProxy(String proxy) {
@@ -130,7 +125,10 @@ class NetworkTool {
             result.add(obj);
           }
         } else {
-          errorBean = _dealBusinessErrorEntity(response.data, response.statusCode);
+          errorBean = _dealBusinessErrorEntity(
+            response.data,
+            response.statusCode,
+          );
         }
       } else {
         errorBean = HttpErrorBean(
@@ -140,15 +138,9 @@ class NetworkTool {
         );
       }
     } on DioException catch (e) {
-      if (kDebugMode) {
-        LoggerTool.e("DioException: url: $url, ${e.toString()}");
-      }
       isSuccess = false;
       errorBean = _dealHttpErrorEntity(e);
     } catch (exception) {
-      if (kDebugMode) {
-        LoggerTool.e("Request Exception: url: $url, ${exception.toString()}");
-      }
       isSuccess = false;
       errorBean = HttpErrorBean(
         status: HttpCode.other,
@@ -214,7 +206,10 @@ class NetworkTool {
             result = response.data["data"];
           }
         } else {
-          errorBean = _dealBusinessErrorEntity(response.data, response.statusCode);
+          errorBean = _dealBusinessErrorEntity(
+            response.data,
+            response.statusCode,
+          );
         }
       } else {
         errorBean = HttpErrorBean(
@@ -224,15 +219,9 @@ class NetworkTool {
         );
       }
     } on DioException catch (e) {
-      if (kDebugMode) {
-        LoggerTool.e("DioException: url: $url, ${e.toString()}");
-      }
       isSuccess = false;
       errorBean = _dealHttpErrorEntity(e);
     } catch (exception) {
-      if (kDebugMode) {
-        LoggerTool.e("Request Exception: url: $url, ${exception.toString()}");
-      }
       isSuccess = false;
       errorBean = HttpErrorBean(
         status: HttpCode.other,
@@ -283,9 +272,17 @@ class NetworkTool {
     final Dio dio = tokenDio ? _tokenDio : _dio;
     Response response;
     if (options?.method == NetworkTool.methodGet) {
-      response = await dio.get(url, queryParameters: parameters, options: options);
+      response = await dio.get(
+        url,
+        queryParameters: parameters,
+        options: options,
+      );
     } else {
-      response = await dio.request(url, data: data ?? parameters, options: options);
+      response = await dio.request(
+        url,
+        data: data ?? parameters,
+        options: options,
+      );
     }
     return response;
   }
@@ -321,9 +318,6 @@ class NetworkTool {
 
   /// 取消所有请求
   void cancelAll() {
-    if (kDebugMode) {
-      LoggerTool.i('cancelAll:${_cancelTokenList.length}');
-    }
     for (var cancelToken in _cancelTokenList) {
       cancel(cancelToken);
     }
@@ -339,18 +333,22 @@ class NetworkTool {
 
   /// 取消指定的请求
   void cancelList(List<CancelToken> cancelTokenList) {
-    if (kDebugMode) {
-      LoggerTool.i('cancelList:${cancelTokenList.length}');
-    }
     for (var cancelToken in cancelTokenList) {
       cancel(cancelToken);
     }
   }
 
   /// 请求后端返回失败
-  HttpErrorBean _dealBusinessErrorEntity(Map<String, dynamic> error, int? responseCode) {
+  HttpErrorBean _dealBusinessErrorEntity(
+    Map<String, dynamic> error,
+    int? responseCode,
+  ) {
     if (error["code"] == 200) {
-      return HttpErrorBean(status: HttpCode.success, statusCode: responseCode, message: '');
+      return HttpErrorBean(
+        status: HttpCode.success,
+        statusCode: responseCode,
+        message: '',
+      );
     } else {
       return HttpErrorBean(
         status: HttpCode.paramError,
@@ -398,7 +396,8 @@ class NetworkTool {
             return HttpErrorBean(
               status: HttpCode.paramError,
               statusCode: null,
-              message: error["message"] ?? (error["message"] ?? "Unknown Error"),
+              message:
+                  error["message"] ?? (error["message"] ?? "Unknown Error"),
               errorCode: error["code"].toString(),
               errData: error,
             );
@@ -421,8 +420,16 @@ class NetworkTool {
       case DioExceptionType.unknown:
         break;
       case DioExceptionType.cancel:
-        return HttpErrorBean(status: HttpCode.cancel, statusCode: null, message: error.toString());
+        return HttpErrorBean(
+          status: HttpCode.cancel,
+          statusCode: null,
+          message: error.toString(),
+        );
     }
-    return HttpErrorBean(status: HttpCode.other, statusCode: null, message: error.toString());
+    return HttpErrorBean(
+      status: HttpCode.other,
+      statusCode: null,
+      message: error.toString(),
+    );
   }
 }

@@ -74,7 +74,6 @@ class _CardRendererState extends State<CardRenderer> {
     try {
       final jsonMap = widget.card.toJson();
       final jsonString = const JsonEncoder.withIndent('  ').convert(jsonMap);
-      debugPrint('[CardRenderer] card json:\n$jsonString');
     } catch (e) {
       // Debug logging must not break card rendering.
     }
@@ -438,7 +437,6 @@ class _CardRendererState extends State<CardRenderer> {
   ) {
     final type = widget.card.data.type.toUpperCase();
     final size = widget.card.layout.mobile.size;
-    // debugPrint('typetypetype: $type');
     return _buildCardByType(
       type,
       size,
@@ -459,11 +457,6 @@ class _CardRendererState extends State<CardRenderer> {
     final cardStore = context.read<CardStore>();
 
     if (type == 'DATASOURCE' || type == 'datasource') {
-      debugPrint(
-        '[CardRenderer] rendering datasource placeholder card=${widget.card.id} '
-        'datasource=${widget.card.data.id} status=${widget.card.data.status} '
-        'metadataKeys=${widget.card.data.metadata.keys.toList()}',
-      );
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -501,12 +494,6 @@ class _CardRendererState extends State<CardRenderer> {
           ),
         );
       } catch (error, stackTrace) {
-        debugPrint(
-          '[CardRenderer] render failed card=${widget.card.id} '
-          'type=$type status=${widget.card.data.status} '
-          'metadataKeys=${widget.card.data.metadata.keys.toList()} '
-          'error=$error\n$stackTrace',
-        );
         return _buildRenderErrorCard();
       }
     }

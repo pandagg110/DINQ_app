@@ -42,8 +42,6 @@ class CardStore extends ChangeNotifier {
     _currentUsername = username;
     cards.clear();
     notifyListeners();
-    debugPrint('CardStore: loadCards: ${cards.length}');
-
     // If we have cached cards, mark as initialized immediately (no blocking)
     if (cards.isNotEmpty) {
       isInitialized = true;
@@ -68,7 +66,6 @@ class CardStore extends ChangeNotifier {
       notifyListeners();
       _startPolling();
     } catch (e) {
-      debugPrint('CardStore: Error loading cards: $e');
       isInitialized = true;
       notifyListeners();
     }
@@ -221,7 +218,6 @@ class CardStore extends ChangeNotifier {
       notifyListeners();
       return adaptedCard;
     } catch (e) {
-      debugPrint('CardStore: Error adding card: $e');
       if (pendingCard != null) {
         final failedIndex = cards.indexWhere((c) => c.id == pendingCard!.id);
         if (failedIndex >= 0) {
@@ -471,7 +467,6 @@ class CardStore extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      debugPrint('CardStore: Failed to regenerate card: $e');
       rethrow;
     }
   }
@@ -517,7 +512,6 @@ class CardStore extends ChangeNotifier {
       await _cardService.updateCardBoard(cardsToSave);
       dirtyCardIds.clear();
     } catch (e) {
-      debugPrint('CardStore: Failed to save cards: $e');
     } finally {
       isSaving = false;
       notifyListeners();
@@ -528,7 +522,6 @@ class CardStore extends ChangeNotifier {
   Future<bool> _analyzeDatasource() async {
     if (_currentUsername == null) return false;
     // Collect data_source_ids from existing cards
-    debugPrint('CardStore: _analyzeDatasource: ${cards.length}');
     final dataSourceIds = cards
         .where(
           (card) =>
@@ -538,11 +531,6 @@ class CardStore extends ChangeNotifier {
         )
         .map((card) => card.data.id)
         .toList();
-    debugPrint('[CardStore] pending datasource ids=$dataSourceIds');
-    debugPrint(
-      '[CardStore] current cards=${cards.map((c) => '${c.id}:${c.data.id}:${c.data.type}:${c.data.status}').join(', ')}',
-    );
-
     // if (dataSourceIds.isEmpty) return false;
 
     bool hasPending = false;
@@ -563,9 +551,6 @@ class CardStore extends ChangeNotifier {
             (card) => card.data.id == datasourceId,
           );
           if (cardIndex < 0) {
-            debugPrint(
-              '[CardStore] datasource id=$datasourceId returned but no matching card.data.id',
-            );
             continue;
           }
 
@@ -646,16 +631,7 @@ class CardStore extends ChangeNotifier {
           }
 
           cards[cardIndex] = updatedCard;
-          debugPrint(
-            '[CardStore] updated card=${updatedCard.id} datasource=${updatedCard.data.id} '
-            'type=${updatedCard.data.type} status=${updatedCard.data.status} '
-            'metadataKeys=${updatedCard.data.metadata.keys.toList()}',
-          );
-        } catch (e) {
-          debugPrint(
-            '[CardStore] failed to apply datasource id=$datasourceId type=$datasourceType error=$e',
-          );
-        }
+        } catch (e) {}
       }
 
       // Filter out datasource type cards
@@ -664,7 +640,6 @@ class CardStore extends ChangeNotifier {
       updateCount++;
       notifyListeners();
     } catch (e) {
-      debugPrint('CardStore: Error analyzing datasource: $e');
       hasPending = dataSourceIds.isNotEmpty;
     }
 
@@ -692,7 +667,6 @@ class CardStore extends ChangeNotifier {
           _pollingTimer = Timer(_pollingInterval, _startPolling);
         }
       } catch (e) {
-        debugPrint('CardStore: Polling failed: $e');
         if (_currentUsername == username) {
           _pollingTimer = Timer(_pollingInterval, _startPolling);
         }

@@ -8,7 +8,6 @@ class CardService {
 
   /// 获取 Card Board
   Future<List<CardItem>> getCardBoard(String username) async {
-    debugPrint('[CardAPI] GET /card-board username=$username -> start');
     final response = await _dio.get(
       '/card-board',
       queryParameters: {'username': username},
@@ -20,20 +19,12 @@ class CardService {
           (item) => CardItem.fromJson(Map<String, dynamic>.from(item as Map)),
         )
         .toList();
-    debugPrint(
-      '[CardAPI] GET /card-board username=$username <- ${cards.length} cards '
-      '${cards.map((c) => '${c.id}:${c.data.id}:${c.data.type}:${c.data.status}').join(', ')}',
-    );
     return cards;
   }
 
   /// 更新 Card Board（与 TS cardApi.updateCardBoard 一致：仅提交 dirty 卡片，AI 卡 type 转为 datasource）
   /// 服务端可能返回空或无 board 字段，需空安全解析避免 type 'Null' is not a subtype of type 'Map'
   Future<List<CardItem>> updateCardBoard(List<CardItem> board) async {
-    debugPrint(
-      '[CardAPI] POST /card-board -> ${board.length} dirty cards '
-      '${board.map((c) => '${c.id}:${c.data.id}:${c.data.type}:${c.data.status}').join(', ')}',
-    );
     final response = await _dio.post(
       '/card-board',
       data: {'board': board.map((card) => card.toJson()).toList()},
@@ -84,9 +75,6 @@ class CardService {
     String? description,
     Map<String, dynamic>? metadata,
   }) async {
-    debugPrint(
-      '[CardAPI] POST /card-board/add -> type=$type metadata=$metadata',
-    );
     final response = await _dio.post(
       '/card-board/add',
       data: {
@@ -102,10 +90,6 @@ class CardService {
     final data = Map<String, dynamic>.from(response.data as Map);
     final card = CardItem.fromJson(
       Map<String, dynamic>.from(data['board'] as Map),
-    );
-    debugPrint(
-      '[CardAPI] POST /card-board/add <- card=${card.id} datasource=${card.data.id} '
-      'type=${card.data.type} status=${card.data.status} metadata=${card.data.metadata}',
     );
     return card;
   }
@@ -124,10 +108,8 @@ class CardService {
 
   /// 校验社交链接 URL（对齐 Web cardApi.validateUrl）
   Future<Map<String, dynamic>> validateUrl({required String url}) async {
-    debugPrint('[CardAPI] POST /card/validate-url -> url=$url');
     final response = await _dio.post('/card/validate-url', data: {'url': url});
     final data = Map<String, dynamic>.from(response.data as Map);
-    debugPrint('[CardAPI] POST /card/validate-url <- $data');
     return data;
   }
 
@@ -148,10 +130,8 @@ class CardService {
       if (url != null) 'url': url,
       if (extraMetadata != null) ...extraMetadata,
     };
-    debugPrint('[CardAPI] POST /card/generate -> $data');
     final response = await _dio.post('/card/generate', data: data);
     final result = Map<String, dynamic>.from(response.data as Map);
-    debugPrint('[CardAPI] POST /card/generate <- $result');
     return result;
   }
 }

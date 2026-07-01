@@ -6,7 +6,11 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 // import 'package:fluttertoast/fluttertoast.dart';
 
 class ToastUtil {
-  static Future<void> show(String content, {double duration = 2, bool dismissOnTap = false}) async {
+  static Future<void> show(
+    String content, {
+    double duration = 2,
+    bool dismissOnTap = false,
+  }) async {
     await dismiss();
     ToastUtil._config();
     EasyLoading.instance.contentPadding = const EdgeInsets.symmetric(
@@ -50,7 +54,10 @@ class ToastUtil {
     EasyLoading.instance.backgroundColor = Colors.black.withValues(alpha: 0.8);
     EasyLoading.instance.boxShadow = [];
     EasyLoading.instance.textColor = Colors.white;
-    EasyLoading.instance.textStyle = const TextStyle(fontSize: 17, color: Colors.white);
+    EasyLoading.instance.textStyle = const TextStyle(
+      fontSize: 17,
+      color: Colors.white,
+    );
     EasyLoading.instance.indicatorColor = ColorUtil.mainColor;
     EasyLoading.instance.indicatorWidget = _buildLoadingChild(content: content);
     EasyLoading.instance.loadingStyle = EasyLoadingStyle.custom;
@@ -63,7 +70,12 @@ class ToastUtil {
         borderRadius: BorderRadiusDirectional.all(Radius.circular(10)),
         color: Colors.transparent,
       ),
-      constraints: const BoxConstraints(minWidth: 60, minHeight: 60, maxWidth: 250, maxHeight: 200),
+      constraints: const BoxConstraints(
+        minWidth: 60,
+        minHeight: 60,
+        maxWidth: 250,
+        maxHeight: 200,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -104,7 +116,10 @@ class ToastUtil {
   }
 
   /// 按钮上的转圈 loading
-  static Widget loadingInButtonView({double size = 16, Color color = Colors.white}) {
+  static Widget loadingInButtonView({
+    double size = 16,
+    Color color = Colors.white,
+  }) {
     return Center(
       child: Container(width: size, height: size, color: color),
     );
@@ -124,7 +139,6 @@ class ToastUtil {
 //       );
 //     } catch (err) {
 //       if (kDebugMode) {
-//         print(err);
 //       }
 //     }
 //   }

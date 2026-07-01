@@ -57,10 +57,7 @@ class PushService {
       FirebaseMessaging.instance.onTokenRefresh.listen(_uploadToken);
 
       _ready = true;
-    } catch (e) {
-      debugPrint('[PushService] init skipped: $e '
-          '(需配置 Firebase：google-services.json / APNs，见 FCM_SETUP.md)');
-    }
+    } catch (e) {}
   }
 
   Future<void> _initLocalNotifications() async {
@@ -80,7 +77,9 @@ class PushService {
       importance: Importance.high,
     );
     await _local
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
   }
 
@@ -112,7 +111,6 @@ class PushService {
     try {
       final settings = await FirebaseMessaging.instance.requestPermission();
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        debugPrint('[PushService] 通知权限被拒绝');
         return;
       }
       if (_isIOS) {
@@ -121,9 +119,7 @@ class PushService {
       }
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) await _uploadToken(token);
-    } catch (e) {
-      debugPrint('[PushService] registerToken failed: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _uploadToken(String token) async {
@@ -131,13 +127,11 @@ class PushService {
     _lastToken = token;
     try {
       // TODO(pandagg110): 确认后端实际路径与字段。对应 Notion「设备 Token：注册/更新」。
-      await ApiClient.instance.dio.post('/devices', data: {
-        'token': token,
-        'platform': _isIOS ? 'ios' : 'android',
-      });
-    } catch (e) {
-      debugPrint('[PushService] upload device token failed: $e');
-    }
+      await ApiClient.instance.dio.post(
+        '/devices',
+        data: {'token': token, 'platform': _isIOS ? 'ios' : 'android'},
+      );
+    } catch (e) {}
   }
 
   /// 登出时解绑设备 Token，避免给已登出用户继续推送。
@@ -150,9 +144,7 @@ class PushService {
       // TODO(pandagg110): 确认后端解绑接口。对应 Notion「设备 Token：登出解绑」。
       await ApiClient.instance.dio.delete('/devices/$token');
       await FirebaseMessaging.instance.deleteToken();
-    } catch (e) {
-      debugPrint('[PushService] unbind device token failed: $e');
-    }
+    } catch (e) {}
   }
 
   /// 从推送 data 解析跳转路由。
@@ -165,7 +157,8 @@ class PushService {
     final route = data['route'];
     if (route is String && route.isNotEmpty) return route;
 
-    final conv = (data['conversation_id'] ?? data['conversationId'])?.toString();
+    final conv = (data['conversation_id'] ?? data['conversationId'])
+        ?.toString();
     final type = (data['type'] ?? '').toString();
     switch (type) {
       case 'message':

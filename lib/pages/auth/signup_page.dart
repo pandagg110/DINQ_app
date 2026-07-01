@@ -112,11 +112,17 @@ class _SignUpPageState extends State<SignUpPage> {
                           controller: _emailController,
                           decoration: InputDecoration(
                             border: OutlineInputBorder(
-                              borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
+                              borderSide: BorderSide(
+                                color: ColorUtil.textColor,
+                                width: 1,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             hintText: 'name@example.com',
-                            hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: Color(0x66303030),
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -140,14 +146,26 @@ class _SignUpPageState extends State<SignUpPage> {
                           obscureText: !_showPassword,
                           decoration: InputDecoration(
                             hintText: 'At least 8 characters',
-                            hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: Color(0x66303030),
+                              fontSize: 14,
+                            ),
                             border: OutlineInputBorder(
-                              borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
+                              borderSide: BorderSide(
+                                color: ColorUtil.textColor,
+                                width: 1,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             suffixIcon: IconButton(
-                              icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _showPassword = !_showPassword),
+                              icon: Icon(
+                                _showPassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed: () => setState(
+                                () => _showPassword = !_showPassword,
+                              ),
                             ),
                           ),
                         ),
@@ -172,17 +190,27 @@ class _SignUpPageState extends State<SignUpPage> {
                           obscureText: !_showConfirmPassword,
                           decoration: InputDecoration(
                             hintText: 'At least 8 characters',
-                            hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: Color(0x66303030),
+                              fontSize: 14,
+                            ),
                             border: OutlineInputBorder(
-                              borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
+                              borderSide: BorderSide(
+                                color: ColorUtil.textColor,
+                                width: 1,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _showConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                _showConfirmPassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
                               ),
-                              onPressed: () =>
-                                  setState(() => _showConfirmPassword = !_showConfirmPassword),
+                              onPressed: () => setState(
+                                () => _showConfirmPassword =
+                                    !_showConfirmPassword,
+                              ),
                             ),
                           ),
                         ),
@@ -191,7 +219,11 @@ class _SignUpPageState extends State<SignUpPage> {
                       if (_error != null)
                         Row(
                           children: [
-                            AssetImageView('signin_error_tip', width: 24, height: 24),
+                            AssetImageView(
+                              'signin_error_tip',
+                              width: 24,
+                              height: 24,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               _error ?? '',
@@ -209,7 +241,9 @@ class _SignUpPageState extends State<SignUpPage> {
                         onTap: () => _handleSignUp(context),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: _isButtonEnabled ? ColorUtil.textColor : .new(0xFF1A343434),
+                            color: _isButtonEnabled
+                                ? ColorUtil.textColor
+                                : .new(0xFF1A343434),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           width: double.infinity,
@@ -218,7 +252,9 @@ class _SignUpPageState extends State<SignUpPage> {
                             child: Text(
                               'Continue',
                               style: TextStyle(
-                                color: _isButtonEnabled ? Colors.white : ColorUtil.sub2TextColor,
+                                color: _isButtonEnabled
+                                    ? Colors.white
+                                    : ColorUtil.sub2TextColor,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 16,
                                 fontFamily: 'Tomato Grotesk',
@@ -254,7 +290,8 @@ class _SignUpPageState extends State<SignUpPage> {
                             onTap: () {
                               // 获取路由参数，判断是否从登录页进入
                               final extra =
-                                  GoRouterState.of(context).extra as Map<String, dynamic>?;
+                                  GoRouterState.of(context).extra
+                                      as Map<String, dynamic>?;
                               final fromSignIn = extra?['fromSignIn'] == true;
 
                               if (fromSignIn) {
@@ -262,7 +299,10 @@ class _SignUpPageState extends State<SignUpPage> {
                                 context.pop();
                               } else {
                                 // 从其他页面进入，跳转到登录页，并传递来源参数
-                                context.push('/signin', extra: {'fromSignUp': true});
+                                context.push(
+                                  '/signin',
+                                  extra: {'fromSignUp': true},
+                                );
                               }
                             },
                           ),
@@ -296,7 +336,10 @@ class _SignUpPageState extends State<SignUpPage> {
                           ..onTap = () {
                             context.push(
                               '/webview',
-                              extra: {'url': termsUrl, 'navTitle': 'Terms of Service'},
+                              extra: {
+                                'url': termsUrl,
+                                'navTitle': 'Terms of Service',
+                              },
                             );
                           },
                       ),
@@ -320,7 +363,10 @@ class _SignUpPageState extends State<SignUpPage> {
                           ..onTap = () {
                             context.push(
                               '/webview',
-                              extra: {'url': privacyUrl, 'navTitle': 'Privacy Policy'},
+                              extra: {
+                                'url': privacyUrl,
+                                'navTitle': 'Privacy Policy',
+                              },
                             );
                           },
                       ),
@@ -375,7 +421,6 @@ class _SignUpPageState extends State<SignUpPage> {
       if (!mounted) return;
       context.push('/verify', extra: {'email': email, 'password': password});
     } catch (error) {
-      debugPrint('error9999: $error, $email');
       await ToastUtil.dismiss();
       // setState(() => _error = error.toString());
       await ToastUtil.show(apiErrorMessage(error));

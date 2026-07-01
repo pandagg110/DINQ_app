@@ -629,9 +629,6 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                           width: double.infinity,
                           height: double.infinity,
                           errorBuilder: (context, error, stackTrace) {
-                            print('MarkdownCard - 图片加载失败');
-                            print('MarkdownCard - 失败的URL: $_mediaUrl');
-                            print('MarkdownCard - 错误信息: $error');
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (mounted) {
                                 setState(() => _mediaError = true);

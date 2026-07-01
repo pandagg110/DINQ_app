@@ -2055,38 +2055,20 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   Future<void> _pickResume() async {
-    print('[_pickResume] Starting file picker...');
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
-    print(
-      '[_pickResume] File picker result: ${result != null ? 'not null' : 'null'}',
-    );
-
     if (result != null) {
       final file = result.files.single;
-      print('[_pickResume] File selected:');
-      print('  - name: ${file.name}');
-      print('  - path: ${file.path ?? 'N/A'}');
-      print(
-        '  - bytes: ${file.bytes != null ? '${file.bytes!.length} bytes' : 'null'}',
-      );
-      print('  - size: ${file.size}');
-
       Uint8List? fileBytes = file.bytes;
 
       // 如果 bytes 为 null，尝试从 path 读取文件
       if (fileBytes == null && file.path != null) {
-        print('[_pickResume] bytes is null, reading from path: ${file.path}');
         try {
           final fileData = await File(file.path!).readAsBytes();
           fileBytes = fileData;
-          print(
-            '[_pickResume] Successfully read file from path: ${fileData.length} bytes',
-          );
         } catch (e) {
-          print('[_pickResume] Error reading file from path: $e');
           setState(() {
             _error = 'Failed to read file: $e';
           });
@@ -2095,7 +2077,6 @@ class _GenerationPageState extends State<GenerationPage> {
       }
 
       if (fileBytes == null) {
-        print('[_pickResume] ERROR: Cannot get file bytes');
         setState(() {
           _error = 'Failed to read file data';
         });
@@ -2106,14 +2087,6 @@ class _GenerationPageState extends State<GenerationPage> {
       final fileSize = fileBytes.length;
 
       // 打印文件信息
-      print('=== PDF File Info ===');
-      print('File name: ${file.name}');
-      print(
-        'File size: $fileSize bytes (${(fileSize / 1024).toStringAsFixed(2)} KB)',
-      );
-      print('File path: ${file.path ?? 'N/A'}');
-      print('===================');
-
       // 验证文件扩展名是否为 PDF
       final fileName = file.name.toLowerCase();
       if (!fileName.endsWith('.pdf')) {
@@ -2182,7 +2155,6 @@ class _GenerationPageState extends State<GenerationPage> {
             contentType: 'application/pdf',
             onSendProgress: (sent, total) {
               final progress = total > 0 ? ((sent / total) * 100).round() : 0;
-              print('Upload progress: $sent / $total = $progress%');
               if (mounted) {
                 setState(() {
                   _uploadProgress = progress;
@@ -2190,9 +2162,6 @@ class _GenerationPageState extends State<GenerationPage> {
               }
             },
           );
-          print('=== Upload Success ===');
-          print('File URL: $fileUrl');
-          print('=====================');
           if (mounted) {
             setState(() {
               _uploadProgress = 100;
@@ -2580,18 +2549,11 @@ class _GenerationPageState extends State<GenerationPage> {
         requestData['profile_url'] = _extractUrlFromInput(profileUrl);
       }
 
-      print('=== Analyze Resume Request ===');
-      print('Request data: $requestData');
-
       final result = await _flowService.analyzeResume(requestData);
-
-      print('=== Analyze Resume Response ===');
-      print('Result: $result');
 
       // 如果返回了 social_links，打印日志（与 TypeScript 一致）
       final userData = result['user_data'] as Map<String, dynamic>?;
       if (userData != null && userData['social_links'] != null) {
-        print('Social links from analysis: ${userData['social_links']}');
         // 注意：social_links 会在后续步骤中使用，这里只记录日志
         // TypeScript 中也是通过 setMyFlow({ social_links: ... }) 更新，但 UserFlow 模型简化了
       }
@@ -2614,8 +2576,6 @@ class _GenerationPageState extends State<GenerationPage> {
         });
       }
     } catch (error) {
-      print('=== Analyze Resume Error ===');
-      print('Error: $error');
       if (mounted) {
         setState(() {
           _isAnalyzing = false;
@@ -3404,41 +3364,25 @@ class _GenerationPageState extends State<GenerationPage> {
     final domain =
         context.read<UserStore>().myFlow?.domain ??
         _domainController.text.trim();
-    debugPrint(
-      '[OnboardingSocials] submit start links=${links.length} domain=$domain '
-      'returnPath=$_onboardingReturnPath standalone=$_isStandaloneSocialsEntry',
-    );
     try {
       if (links.isNotEmpty) {
         if (domain.isEmpty) {
-          debugPrint('[OnboardingSocials] blocked: empty domain');
           throw Exception('DINQ Page is not ready yet');
         }
         final cardStore = context.read<CardStore>();
-        debugPrint('[OnboardingSocials] loadCards start domain=$domain');
         await cardStore.loadCards(domain);
-        debugPrint('[OnboardingSocials] loadCards done domain=$domain');
         for (final link in links) {
-          debugPrint(
-            '[OnboardingSocials] addCard start type=${link.type} url=${link.url}',
-          );
           await cardStore.addCard(type: link.type, metadata: {'url': link.url});
-          debugPrint('[OnboardingSocials] addCard done type=${link.type}');
         }
       }
 
       if (!mounted) return;
-      debugPrint(
-        '[OnboardingSocials] submit success, navigating to '
-        '${_onboardingReturnPath ?? '/admin/mydinq'}',
-      );
       TopToastUtil.showSuccess(
         context: context,
         title: links.isEmpty ? 'Skipped social links' : 'Social links added',
       );
       _goToMydinq();
     } catch (error, stackTrace) {
-      debugPrint('[OnboardingSocials] submit failed error=$error\n$stackTrace');
       rethrow;
     }
   }

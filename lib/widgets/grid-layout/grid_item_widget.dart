@@ -109,7 +109,6 @@ class _GridItemWidgetState extends State<GridItemWidget> {
     //     final (x, y) = calcXY(params, leftPx, topPx, item.w, item.h);
     //     _lastDragX = x;
     //     _lastDragY = y;
-    //     // debugPrint('onDragUpdate: $x, $y');
     //     widget.onDragUpdate?.call(x, y);
     //   },
     //   onDragEnd: (_) {
@@ -121,7 +120,7 @@ class _GridItemWidgetState extends State<GridItemWidget> {
     //   childWhenDragging: Opacity(opacity: 0.5, child: content),
     //   child: content,
     // );
-    
+
     return AnimatedPositioned(
       duration: widget.animationDuration,
       curve: widget.animationCurve,

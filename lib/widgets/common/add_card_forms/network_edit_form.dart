@@ -321,8 +321,6 @@ class _NetworkEditFormState extends State<NetworkEditForm> {
     try {
       // 1. Convert to API format (AchievementNetworkPerson)
       final rawData = _connections.map((c) => c.toApiJson()).toList();
-      print('rawData: $rawData');
-      print('datasource_id: ${widget.card.data.id}');
       await DatasourceService().updateAchievementNetwork({
         'datasource_id': widget.card.data.id,
         'data': rawData,

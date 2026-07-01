@@ -77,7 +77,10 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<UserProfile?> login({required String email, required String password}) async {
+  Future<UserProfile?> login({
+    required String email,
+    required String password,
+  }) async {
     isLoading = true;
     notifyListeners();
     try {
@@ -90,18 +93,23 @@ class UserStore extends ChangeNotifier {
       notifyListeners();
       return user;
     } catch (error) {
-      debugPrint('login error: $error');
       isLoading = false;
       notifyListeners();
       rethrow;
     }
   }
 
-  Future<UserProfile?> thirdPartyLogin({required String provider, required String idToken}) async {
+  Future<UserProfile?> thirdPartyLogin({
+    required String provider,
+    required String idToken,
+  }) async {
     isLoading = true;
     notifyListeners();
     try {
-      final result = await _authService.thirdPartyLogin(provider: provider, idToken: idToken);
+      final result = await _authService.thirdPartyLogin(
+        provider: provider,
+        idToken: idToken,
+      );
       authToken = result['token']?.toString();
       ApiClient.instance.setAuthToken(authToken);
       await _persistToken();
@@ -110,7 +118,6 @@ class UserStore extends ChangeNotifier {
       notifyListeners();
       return user;
     } catch (error) {
-      debugPrint('login error: $error');
       isLoading = false;
       notifyListeners();
       rethrow;

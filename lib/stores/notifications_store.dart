@@ -45,12 +45,13 @@ class NotificationsStore extends ChangeNotifier {
         limit: limit ?? ApiConfig.notificationsPageSize,
       );
       final notifList = response['notifications'] as List<dynamic>? ?? [];
-      notifications = notifList.map((n) => AppNotification.fromJson(n as Map<String, dynamic>)).toList();
+      notifications = notifList
+          .map((n) => AppNotification.fromJson(n as Map<String, dynamic>))
+          .toList();
       unreadCount = response['unread_count'] is int
           ? response['unread_count'] as int
           : int.tryParse(response['unread_count']?.toString() ?? '0') ?? 0;
     } catch (e) {
-      debugPrint('Failed to load notifications: $e');
     } finally {
       isLoading = false;
       notifyListeners();
@@ -87,15 +88,17 @@ class NotificationsStore extends ChangeNotifier {
   Future<void> markAllRead() async {
     try {
       await _messageService.markAllNotificationsRead();
-      notifications = notifications.map((n) => n.copyWith(
-        isRead: true,
-        readAt: n.readAt ?? DateTime.now().toIso8601String(),
-      )).toList();
+      notifications = notifications
+          .map(
+            (n) => n.copyWith(
+              isRead: true,
+              readAt: n.readAt ?? DateTime.now().toIso8601String(),
+            ),
+          )
+          .toList();
       unreadCount = 0;
       notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to mark all read: $e');
-    }
+    } catch (e) {}
   }
 
   /// 获取通知详情（会自动标记后端已读）

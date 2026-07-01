@@ -30,7 +30,9 @@ class _SignInPageState extends State<SignInPage> {
   bool _showPassword = false;
   String? _error;
   bool _isButtonEnabled = false;
-  late final GoogleSignIn _googleSignInClient = GoogleSignIn(scopes: ['email', 'profile']);
+  late final GoogleSignIn _googleSignInClient = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   @override
   void initState() {
@@ -41,7 +43,8 @@ class _SignInPageState extends State<SignInPage> {
 
   void _updateButtonState() {
     final isEnabled =
-        _emailController.text.trim().isNotEmpty && _passwordController.text.length >= 8;
+        _emailController.text.trim().isNotEmpty &&
+        _passwordController.text.length >= 8;
     if (isEnabled != _isButtonEnabled && mounted) {
       setState(() => _isButtonEnabled = isEnabled);
     }
@@ -113,7 +116,10 @@ class _SignInPageState extends State<SignInPage> {
                           controller: _emailController,
                           decoration: InputDecoration(
                             hintText: 'Enter your email',
-                            hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: Color(0x66303030),
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -155,14 +161,26 @@ class _SignInPageState extends State<SignInPage> {
                           obscureText: !_showPassword,
                           decoration: InputDecoration(
                             hintText: 'Enter your password',
-                            hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: Color(0x66303030),
+                              fontSize: 14,
+                            ),
                             border: OutlineInputBorder(
-                              borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
+                              borderSide: BorderSide(
+                                color: ColorUtil.textColor,
+                                width: 1,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             suffixIcon: IconButton(
-                              icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _showPassword = !_showPassword),
+                              icon: Icon(
+                                _showPassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed: () => setState(
+                                () => _showPassword = !_showPassword,
+                              ),
                             ),
                           ),
                         ),
@@ -171,7 +189,11 @@ class _SignInPageState extends State<SignInPage> {
                       if (_error != null)
                         Row(
                           children: [
-                            AssetImageView('signin_error_tip', width: 24, height: 24),
+                            AssetImageView(
+                              'signin_error_tip',
+                              width: 24,
+                              height: 24,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               _error ?? 'Username or password is incorrect.',
@@ -186,10 +208,14 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       const SizedBox(height: 15),
                       NormalButton(
-                        onTap: (isLoading || !_isButtonEnabled) ? () {} : () => _handleSignIn(),
+                        onTap: (isLoading || !_isButtonEnabled)
+                            ? () {}
+                            : () => _handleSignIn(),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: _isButtonEnabled ? ColorUtil.textColor : .new(0xFF1A343434),
+                            color: _isButtonEnabled
+                                ? ColorUtil.textColor
+                                : .new(0xFF1A343434),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           width: double.infinity,
@@ -198,7 +224,9 @@ class _SignInPageState extends State<SignInPage> {
                             child: Text(
                               'Sign in',
                               style: TextStyle(
-                                color: _isButtonEnabled ? Colors.white : ColorUtil.sub2TextColor,
+                                color: _isButtonEnabled
+                                    ? Colors.white
+                                    : ColorUtil.sub2TextColor,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 16,
                                 fontFamily: 'Tomato Grotesk',
@@ -234,7 +262,8 @@ class _SignInPageState extends State<SignInPage> {
                             onTap: () {
                               // 获取路由参数，判断是否从注册页进入
                               final extra =
-                                  GoRouterState.of(context).extra as Map<String, dynamic>?;
+                                  GoRouterState.of(context).extra
+                                      as Map<String, dynamic>?;
                               final fromSignUp = extra?['fromSignUp'] == true;
 
                               if (fromSignUp) {
@@ -242,7 +271,10 @@ class _SignInPageState extends State<SignInPage> {
                                 context.pop();
                               } else {
                                 // 从其他页面进入，跳转到注册页，并传递来源参数
-                                context.push('/signup', extra: {'fromSignIn': true});
+                                context.push(
+                                  '/signup',
+                                  extra: {'fromSignIn': true},
+                                );
                               }
                             },
                           ),
@@ -252,7 +284,12 @@ class _SignInPageState extends State<SignInPage> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Expanded(child: Divider(color: Color(0xFFD8D8D8), thickness: 0.5)),
+                          Expanded(
+                            child: Divider(
+                              color: Color(0xFFD8D8D8),
+                              thickness: 0.5,
+                            ),
+                          ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
@@ -266,7 +303,12 @@ class _SignInPageState extends State<SignInPage> {
                               ),
                             ),
                           ),
-                          Expanded(child: Divider(color: Color(0xFFD8D8D8), thickness: 0.5)),
+                          Expanded(
+                            child: Divider(
+                              color: Color(0xFFD8D8D8),
+                              thickness: 0.5,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 15),
@@ -276,14 +318,21 @@ class _SignInPageState extends State<SignInPage> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Color(0xFFECECEC), width: 1),
+                            border: Border.all(
+                              color: Color(0xFFECECEC),
+                              width: 1,
+                            ),
                           ),
                           width: double.infinity,
                           height: 48,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              AssetImageView('google_icon', width: 24, height: 24),
+                              AssetImageView(
+                                'google_icon',
+                                width: 24,
+                                height: 24,
+                              ),
                               const SizedBox(width: 16),
                               Text(
                                 'Continue with Google',
@@ -307,14 +356,21 @@ class _SignInPageState extends State<SignInPage> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Color(0xFFECECEC), width: 1),
+                            border: Border.all(
+                              color: Color(0xFFECECEC),
+                              width: 1,
+                            ),
                           ),
                           width: double.infinity,
                           height: 48,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              AssetImageView('github_icon', width: 24, height: 24),
+                              AssetImageView(
+                                'github_icon',
+                                width: 24,
+                                height: 24,
+                              ),
                               const SizedBox(width: 16),
                               Text(
                                 'Continue with Github',
@@ -357,7 +413,10 @@ class _SignInPageState extends State<SignInPage> {
                           ..onTap = () {
                             context.push(
                               '/webview',
-                              extra: {'url': '$appUrl/terms', 'navTitle': 'Terms of Service'},
+                              extra: {
+                                'url': '$appUrl/terms',
+                                'navTitle': 'Terms of Service',
+                              },
                             );
                           },
                       ),
@@ -381,7 +440,10 @@ class _SignInPageState extends State<SignInPage> {
                           ..onTap = () {
                             context.push(
                               '/webview',
-                              extra: {'url': privacyUrl, 'navTitle': 'Privacy Policy'},
+                              extra: {
+                                'url': privacyUrl,
+                                'navTitle': 'Privacy Policy',
+                              },
                             );
                           },
                       ),
@@ -423,7 +485,8 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Future<void> _googleSignIn() async {
-    GoogleSignInAccount? googleSignInAccount = await _googleSignInClient.signIn();
+    GoogleSignInAccount? googleSignInAccount = await _googleSignInClient
+        .signIn();
     if (googleSignInAccount != null) {
       GoogleSignInAuthentication googleSignInAuthentication =
           await googleSignInAccount.authentication;
@@ -459,16 +522,8 @@ class _SignInPageState extends State<SignInPage> {
     final result = await gitHubSignIn.signIn(context);
     switch (result.status) {
       case GitHubSignInResultStatus.ok:
-        // print('✅ Sign in successful!');
-        // print('🔑 Access Token: ${result.token}');
         if (result.userData != null) {
           final user = result.userData!;
-          // print('👤 User: ${user['name']} (@${user['login']})');
-          // print('📧 Email: ${user['email']}');
-          // print('🏢 Company: ${user['company']}');
-          // print('📍 Location: ${user['location']}');
-          // print('📊 Public Repos: ${user['public_repos']}');
-          // print('👥 Followers: ${user['followers']}');
         }
 
         try {
@@ -490,11 +545,9 @@ class _SignInPageState extends State<SignInPage> {
         break;
 
       case GitHubSignInResultStatus.cancelled:
-        print('❌ Sign in cancelled');
         break;
 
       case GitHubSignInResultStatus.failed:
-        print('❌ Sign in failed: ${result.errorMessage}');
         break;
     }
   }
@@ -543,7 +596,10 @@ class _SignInPageState extends State<SignInPage> {
       if (!mounted) return;
       // 注册后首次登录
       if (CacheManager.instance.signUpAccount != email) {
-        CommonDialog.showAlert(context: context, customAlert: InviteCodeDialog());
+        CommonDialog.showAlert(
+          context: context,
+          customAlert: InviteCodeDialog(),
+        );
         CacheManager.instance.signUpAccount = null;
       }
     });

@@ -14,17 +14,9 @@ class DatasourceService {
       'username': username,
       if (dataSourceIds != null) 'data_source_ids': dataSourceIds,
     };
-    debugPrint('[DatasourceAPI] POST /datasources/list -> $payload');
     final response = await _dio.post('/datasources/list', data: payload);
     final data = Map<String, dynamic>.from(response.data as Map);
     final datasources = (data['data_sources'] as List<dynamic>?) ?? [];
-    debugPrint(
-      '[DatasourceAPI] POST /datasources/list <- ${datasources.length} datasources '
-      '${datasources.map((d) {
-        final m = Map<String, dynamic>.from(d as Map);
-        return '${m['id']}:${m['type']}:${m['status']} raw=${m['raw_metadata'] != null}';
-      }).join(', ')}',
-    );
     return data;
   }
 

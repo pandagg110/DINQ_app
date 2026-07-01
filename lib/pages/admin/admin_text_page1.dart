@@ -85,7 +85,6 @@ class _AdminTextPageState extends State<AdminTextPage> {
                     marginX: _marginX,
                     marginY: _marginY,
                   );
-                  debugPrint('AdminTextPage: params: ${params.marginY}');
                   return ListenableBuilder(
                     listenable: _gridState,
                     builder: (context, _) {

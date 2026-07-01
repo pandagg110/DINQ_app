@@ -119,10 +119,10 @@ class ResumeListMobileSheet extends StatelessWidget {
             child: Text(
               'Resume versions',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _kTextPrimary,
-                  ),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _kTextPrimary,
+              ),
             ),
           ),
         ),
@@ -207,9 +207,7 @@ class _ResumeListBodyState extends State<ResumeListBody> {
     widget.onClose();
     try {
       await store.selectResume(id);
-    } catch (e) {
-      debugPrint('selectResume failed: $e');
-    }
+    } catch (e) {}
   }
 
   @override
@@ -242,9 +240,7 @@ class _ResumeListBodyState extends State<ResumeListBody> {
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
             child: Column(
-              children: [
-                for (final item in others) _otherRow(item),
-              ],
+              children: [for (final item in others) _otherRow(item)],
             ),
           ),
         ],
@@ -278,7 +274,11 @@ class _ResumeListBodyState extends State<ResumeListBody> {
               border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
             ),
             child: const Center(
-              child: ResumeSvgIcon(ResumeIcons.fileText, size: 20, color: Color(0xFF4B5563)),
+              child: ResumeSvgIcon(
+                ResumeIcons.fileText,
+                size: 20,
+                color: Color(0xFF4B5563),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -326,13 +326,19 @@ class _ResumeListBodyState extends State<ResumeListBody> {
                 ],
               ),
               child: const Center(
-                child: ResumeSvgIcon(ResumeIcons.check, size: 16, color: _kCheckIcon),
+                child: ResumeSvgIcon(
+                  ResumeIcons.check,
+                  size: 16,
+                  color: _kCheckIcon,
+                ),
               ),
             ),
             const SizedBox(width: 4),
             _ResumeActionsMenu(
               onRename: () => _startRename(
-                context.read<ResumeStore>().resumes.firstWhere((r) => r.id == activeId),
+                context.read<ResumeStore>().resumes.firstWhere(
+                  (r) => r.id == activeId,
+                ),
               ),
               onDelete: () => _deleteResume(activeId),
               hoverOnLight: true,
@@ -428,7 +434,10 @@ class _ResumeListBodyState extends State<ResumeListBody> {
         ),
         decoration: InputDecoration(
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 6,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
@@ -516,22 +525,22 @@ class _ResumeActionsMenu extends StatefulWidget {
 
 class _ResumeActionsMenuState extends State<_ResumeActionsMenu> {
   ButtonStyle get _menuItemStyle => ButtonStyle(
-        minimumSize: const WidgetStatePropertyAll(Size(144, 44)),
-        maximumSize: const WidgetStatePropertyAll(Size(144, 44)),
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        overlayColor: const WidgetStatePropertyAll(_kHoverBg),
-        backgroundColor: const WidgetStatePropertyAll(Colors.white),
-        foregroundColor: const WidgetStatePropertyAll(_kTextRename),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        ),
-        textStyle: const WidgetStatePropertyAll(
-          TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.2),
-        ),
-      );
+    minimumSize: const WidgetStatePropertyAll(Size(144, 44)),
+    maximumSize: const WidgetStatePropertyAll(Size(144, 44)),
+    padding: const WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    ),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    overlayColor: const WidgetStatePropertyAll(_kHoverBg),
+    backgroundColor: const WidgetStatePropertyAll(Colors.white),
+    foregroundColor: const WidgetStatePropertyAll(_kTextRename),
+    shape: WidgetStatePropertyAll(
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+    ),
+    textStyle: const WidgetStatePropertyAll(
+      TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.2),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -540,9 +549,13 @@ class _ResumeActionsMenuState extends State<_ResumeActionsMenu> {
       style: MenuStyle(
         backgroundColor: const WidgetStatePropertyAll(Colors.white),
         elevation: const WidgetStatePropertyAll(8),
-        shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.12)),
+        shadowColor: WidgetStatePropertyAll(
+          Colors.black.withValues(alpha: 0.12),
+        ),
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-        padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 4)),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(vertical: 4),
+        ),
         minimumSize: const WidgetStatePropertyAll(Size(144, 0)),
         maximumSize: const WidgetStatePropertyAll(Size(144, double.infinity)),
         shape: WidgetStatePropertyAll(
@@ -557,7 +570,10 @@ class _ResumeActionsMenuState extends State<_ResumeActionsMenu> {
             children: [
               ResumeSvgIcon(ResumeIcons.pencil, size: 16, color: _kTextRename),
               SizedBox(width: 10),
-              Text('Rename', style: TextStyle(fontSize: 14, color: _kTextRename)),
+              Text(
+                'Rename',
+                style: TextStyle(fontSize: 14, color: _kTextRename),
+              ),
             ],
           ),
         ),
@@ -570,7 +586,10 @@ class _ResumeActionsMenuState extends State<_ResumeActionsMenu> {
             children: [
               ResumeSvgIcon(ResumeIcons.trash2, size: 16, color: _kTextDelete),
               SizedBox(width: 10),
-              Text('Delete', style: TextStyle(fontSize: 14, color: _kTextDelete)),
+              Text(
+                'Delete',
+                style: TextStyle(fontSize: 14, color: _kTextDelete),
+              ),
             ],
           ),
         ),

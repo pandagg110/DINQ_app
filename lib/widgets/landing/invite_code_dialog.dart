@@ -104,11 +104,17 @@ class _InviteCodeDialogState extends State<InviteCodeDialog> {
                       controller: _codeController,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFFD8D8D8), width: 1),
+                          borderSide: BorderSide(
+                            color: Color(0xFFD8D8D8),
+                            width: 1,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         hintText: 'Enter invite code to claim your bonus',
-                        hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
+                        hintStyle: TextStyle(
+                          color: Color(0x66303030),
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -160,7 +166,10 @@ class _InviteCodeDialogState extends State<InviteCodeDialog> {
                       child: Center(
                         child: Text(
                           "Later",
-                          style: TextStyle(fontSize: 14, color: Color(0x33303030)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0x33303030),
+                          ),
                         ),
                       ),
                     ),
@@ -188,7 +197,6 @@ class _InviteCodeDialogState extends State<InviteCodeDialog> {
       await ToastUtil.dismiss();
       ToastUtil.show("Congratulations! You've received 5 bonus Credits! 🎉");
     } catch (error) {
-      debugPrint('error9999: $error');
       await ToastUtil.dismiss();
       ToastUtil.show(error.toString());
     }

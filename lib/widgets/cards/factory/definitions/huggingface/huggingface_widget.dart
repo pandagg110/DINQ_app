@@ -17,7 +17,6 @@ class HuggingFaceWidget extends StatelessWidget {
     final organizationCount =
         (metadata['organizationCount'] as num?)?.toInt() ?? 0;
     final featuredRepo = metadata['featuredRepo'] as Map<String, dynamic>?;
-    debugPrint('bioContentbioContentbioContent: $bioContent');
     switch (size) {
       case '2x2':
         return HuggingFaceLayouts.build2x2Layout(metrics: metrics);

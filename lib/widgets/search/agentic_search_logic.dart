@@ -12,30 +12,24 @@ import 'search_box_widget.dart';
 
 /// 与 TSX SearchPanel / useDeepSearch isInsufficientCredits 一致
 bool isInsufficientCredits(String message) {
-  return RegExp(r'insufficient\s+credits', caseSensitive: false).hasMatch(message);
+  return RegExp(
+    r'insufficient\s+credits',
+    caseSensitive: false,
+  ).hasMatch(message);
 }
 
 /// error bar 单行纯文本展示：去掉 leading emoji 与 markdown 标记（与 TSX span 一致）
 String normalizeRoundErrorMessage(String message) {
   var text = message.trim();
   text = text
-      .replaceFirst(
-        RegExp(r'^[\s\u26A0\uFE0F?\u2757\u203C]+'),
-        '',
-      )
+      .replaceFirst(RegExp(r'^[\s\u26A0\uFE0F?\u2757\u203C]+'), '')
       .trimLeft();
   text = text.replaceAllMapped(
     RegExp(r'\*\*([^*]+)\*\*'),
     (m) => m.group(1) ?? '',
   );
-  text = text.replaceAllMapped(
-    RegExp(r'\*([^*]+)\*'),
-    (m) => m.group(1) ?? '',
-  );
-  text = text.replaceAllMapped(
-    RegExp(r'__([^_]+)__'),
-    (m) => m.group(1) ?? '',
-  );
+  text = text.replaceAllMapped(RegExp(r'\*([^*]+)\*'), (m) => m.group(1) ?? '');
+  text = text.replaceAllMapped(RegExp(r'__([^_]+)__'), (m) => m.group(1) ?? '');
   return text.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
@@ -207,6 +201,7 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   final SearchService searchService;
   final SearchStore searchStore;
+
   /// 与 TSX `deepSearchStream` 内 `user?.user?.id` 对齐。
   final String? Function()? resolveUserId;
   final void Function(List<Map<String, dynamic>> candidates, String query)?
@@ -442,7 +437,9 @@ class AgenticSearchLogic extends ChangeNotifier {
           if (!_shouldIgnoreLlmMessage(message) &&
               message != null &&
               message.isNotEmpty) {
-            g.assistantText = g.assistantText.isEmpty ? message : g.assistantText;
+            g.assistantText = g.assistantText.isEmpty
+                ? message
+                : g.assistantText;
             g.thinkingSteps.add({
               'id': _generateStepId(),
               'type': 'thinking',
@@ -602,7 +599,9 @@ class AgenticSearchLogic extends ChangeNotifier {
       contentBlocks: g.contentBlocks,
       onCandidatesChanged: (candidates) {
         g.candidates = candidates;
-        final tabCandidates = candidates.map(candidateRowToTabCandidate).toList();
+        final tabCandidates = candidates
+            .map(candidateRowToTabCandidate)
+            .toList();
         if (searchStore.openTabs.isEmpty) {
           searchStore.setTabsFromCandidates(tabCandidates);
         } else {
@@ -677,7 +676,10 @@ class AgenticSearchLogic extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _replayDeepSearchEvents(AgenticMessageGroup group, List<dynamic> sseEvents) {
+  void _replayDeepSearchEvents(
+    AgenticMessageGroup group,
+    List<dynamic> sseEvents,
+  ) {
     final dispatcher = DeepSearchEventDispatcher(
       subAgents: group.subAgents,
       contentBlocks: group.contentBlocks,
@@ -734,7 +736,13 @@ class AgenticSearchLogic extends ChangeNotifier {
   }
 
   /// 与 TSX restoreDiscover SSE 回放一致
-  ({String assistantText, List<Map<String, dynamic>> candidates, bool isDeepSearch, int toolCount, int? durationMs})
+  ({
+    String assistantText,
+    List<Map<String, dynamic>> candidates,
+    bool isDeepSearch,
+    int toolCount,
+    int? durationMs,
+  })
   _replaySseEvents(List<dynamic> sseEvents) {
     var text = '';
     var isDeep = false;
@@ -773,7 +781,8 @@ class AgenticSearchLogic extends ChangeNotifier {
         case 'tool_call':
           {
             final toolName = ev['tool_name']?.toString() ?? '';
-            if (toolName.contains('mcp__') || toolName.contains('talent_search')) {
+            if (toolName.contains('mcp__') ||
+                toolName.contains('talent_search')) {
               isDeep = true;
               toolCount += 1;
             }
@@ -828,7 +837,6 @@ class AgenticSearchLogic extends ChangeNotifier {
     List<dynamic>? sseEvents,
     int groupId,
   ) {
-    debugPrint('sseEvents7777: $sseEvents');
     if (sseEvents == null || sseEvents.isEmpty) return [];
     const exactMatch = ['done', 'ok', 'success'];
     const partialMatch = ['llm response received', 'processing...'];
@@ -867,12 +875,10 @@ class AgenticSearchLogic extends ChangeNotifier {
             final input = data['input']?.toString();
             if (input == null || input.isEmpty) break;
             final toolName = ev['tool_name'] as String?;
-            
+
             final inputType = _getInputType(input, toolName);
             final inputValue = _getInputValue(input, inputType);
             final lastStep = steps.isNotEmpty ? steps.last : null;
-            debugPrint('input6666: $input');
-            debugPrint('inputValue6666: $inputValue');
             if (lastStep != null &&
                 lastStep['type'] == 'tool_call' &&
                 lastStep['inputType'] == inputType) {
@@ -926,7 +932,9 @@ class AgenticSearchLogic extends ChangeNotifier {
     if (records is! List) return;
 
     final convType =
-        (conversation['type'] as String?) ?? searchStore.extraType ?? 'discover';
+        (conversation['type'] as String?) ??
+        searchStore.extraType ??
+        'discover';
 
     final convId = conversation['session_id'] ?? conversation['id'];
     if (convId != null) {
@@ -1060,7 +1068,9 @@ class AgenticSearchLogic extends ChangeNotifier {
       }
 
       final attachment = r['attachment'];
-      if (pdfAttachment == null && attachment is String && attachment.isNotEmpty) {
+      if (pdfAttachment == null &&
+          attachment is String &&
+          attachment.isNotEmpty) {
         pdfAttachment = attachmentFromUrl(attachment);
       }
 
@@ -1089,10 +1099,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         final cards = <String, dynamic>{};
         for (final entry in result.entries) {
           final key = entry.key.toString().replaceAll(RegExp(r'_card$'), '');
-          cards[key] = {
-            'status': 'completed',
-            'data': entry.value,
-          };
+          cards[key] = {'status': 'completed', 'data': entry.value};
         }
         group.toolResult = {
           'platform': r['source']?.toString() ?? 'scholar',
@@ -1116,7 +1123,8 @@ class AgenticSearchLogic extends ChangeNotifier {
             {
               'phase': null,
               'phaseSources': {},
-              'advisorCount': result['total_advisors'] ?? advisorResults?.length ?? 0,
+              'advisorCount':
+                  result['total_advisors'] ?? advisorResults?.length ?? 0,
             },
           ],
         };
@@ -1214,7 +1222,8 @@ class AgenticSearchLogic extends ChangeNotifier {
   }) {
     final trimmedQuery = query.trim();
     final attachment = attachmentUrl?.trim();
-    if (trimmedQuery.isEmpty && (attachment == null || attachment.isEmpty)) return;
+    if (trimmedQuery.isEmpty && (attachment == null || attachment.isEmpty))
+      return;
 
     if (_activeSessionId == null) {
       final existing = searchStore.deepSearchSessionId;
@@ -1239,7 +1248,8 @@ class AgenticSearchLogic extends ChangeNotifier {
       pdfAttachment: attachment != null && attachment.isNotEmpty
           ? {
               'url': attachment,
-              'name': attachmentName ??
+              'name':
+                  attachmentName ??
                   attachmentFromUrl(attachment)?['name'] ??
                   'Attachment',
             }
@@ -1373,7 +1383,9 @@ class AgenticSearchLogic extends ChangeNotifier {
             g.searchCompleted = true;
           }
         }
-        final finalQuery = idx >= 0 ? messageGroups[idx].userQuery : trimmedQuery;
+        final finalQuery = idx >= 0
+            ? messageGroups[idx].userQuery
+            : trimmedQuery;
         onSearchComplete?.call(finalCandidates, finalQuery);
         searchStore.setIsSearching(false);
         notifyListeners();
@@ -1416,8 +1428,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     final idx = groupId != null
         ? messageGroups.indexWhere((g) => g.id == groupId)
         : messageGroups.isNotEmpty
-            ? messageGroups.length - 1
-            : -1;
+        ? messageGroups.length - 1
+        : -1;
     if (idx < 0) return;
     messageGroups[idx].usedQuickReplyBlockIds.add(blockId);
     notifyListeners();
@@ -1444,8 +1456,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   bool _groupHasConfirmBlock(AgenticMessageGroup group) {
     bool visit(List<MessagePart> blocks) {
       for (final part in blocks) {
-        if (part is ReasoningPart &&
-            part.block.text.startsWith('[confirm]')) {
+        if (part is ReasoningPart && part.block.text.startsWith('[confirm]')) {
           return true;
         }
       }
@@ -1644,7 +1655,10 @@ class AgenticSearchLogic extends ChangeNotifier {
       case 'tool_result':
         final rawSources = event['sources'];
         final urls = rawSources is List
-            ? rawSources.map((s) => s.toString()).where((s) => s.isNotEmpty).toList()
+            ? rawSources
+                  .map((s) => s.toString())
+                  .where((s) => s.isNotEmpty)
+                  .toList()
             : <String>[];
         if (urls.isNotEmpty) {
           _updateAdvisorToolResult(groupId, (result) {
@@ -1664,9 +1678,9 @@ class AgenticSearchLogic extends ChangeNotifier {
                 : <String, dynamic>{};
             final existing = phaseSources[currentPhase] is List
                 ? (phaseSources[currentPhase] as List)
-                    .whereType<Map>()
-                    .map((e) => Map<String, dynamic>.from(e))
-                    .toList()
+                      .whereType<Map>()
+                      .map((e) => Map<String, dynamic>.from(e))
+                      .toList()
                 : <Map<String, dynamic>>[];
             final seen = existing.map((s) => s['url']?.toString()).toSet();
             final newSources = urls
@@ -1684,16 +1698,16 @@ class AgenticSearchLogic extends ChangeNotifier {
         final payload = event['data'];
         final newAdvisors = payload is Map && payload['advisors'] is List
             ? (payload['advisors'] as List)
-                .whereType<Map>()
-                .map((e) => Map<String, dynamic>.from(e))
-                .toList()
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList()
             : <Map<String, dynamic>>[];
         _updateAdvisorToolResult(groupId, (result) {
           final existing = result['advisors'] is List
               ? (result['advisors'] as List)
-                  .whereType<Map>()
-                  .map((e) => Map<String, dynamic>.from(e))
-                  .toList()
+                    .whereType<Map>()
+                    .map((e) => Map<String, dynamic>.from(e))
+                    .toList()
               : <Map<String, dynamic>>[];
           result['advisors'] = [...newAdvisors, ...existing];
           final rounds = result['rounds'] is List
@@ -1722,7 +1736,8 @@ class AgenticSearchLogic extends ChangeNotifier {
         notifyListeners();
         break;
       case 'error':
-        final message = event['message']?.toString().trim() ??
+        final message =
+            event['message']?.toString().trim() ??
             (event['data'] is Map
                 ? (event['data'] as Map)['error']?.toString()
                 : null);
@@ -1731,8 +1746,7 @@ class AgenticSearchLogic extends ChangeNotifier {
           messageGroups[idx].loading = false;
           messageGroups[idx].searchCompleted = true;
           messageGroups[idx].roundStatus = DeepSearchRoundStatus.error;
-          messageGroups[idx].errorMessage =
-              message ?? 'Advisor search failed';
+          messageGroups[idx].errorMessage = message ?? 'Advisor search failed';
         }
         notifyListeners();
         break;
@@ -1754,7 +1768,8 @@ class AgenticSearchLogic extends ChangeNotifier {
         if (idx >= 0) {
           messageGroups[idx].loading = false;
           messageGroups[idx].searchCompleted = true;
-          if (messageGroups[idx].roundStatus == DeepSearchRoundStatus.searching) {
+          if (messageGroups[idx].roundStatus ==
+              DeepSearchRoundStatus.searching) {
             messageGroups[idx].roundStatus = DeepSearchRoundStatus.done;
           }
         }
@@ -1963,7 +1978,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     analysisCandidates = null;
 
     final lastGroup = messageGroups.isNotEmpty ? messageGroups.last : null;
-    final isResuming = lastGroup != null &&
+    final isResuming =
+        lastGroup != null &&
         lastGroup.toolType == 'analysis' &&
         lastGroup.roundStatus != DeepSearchRoundStatus.done &&
         lastGroup.roundStatus != DeepSearchRoundStatus.interrupted;
@@ -1983,9 +1999,7 @@ class AgenticSearchLogic extends ChangeNotifier {
               ),
             )
           : <Map<String, dynamic>>[
-              {
-                'phase': needsResolving ? 'analyzing' : 'analyzing',
-              },
+              {'phase': needsResolving ? 'analyzing' : 'analyzing'},
             ];
       lastGroup.loading = true;
       lastGroup.searchCompleted = false;
@@ -2018,9 +2032,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         'cards': <String, dynamic>{},
         'progress': 0,
         'rounds': [
-          {
-            'phase': needsResolving ? 'resolving' : 'analyzing',
-          },
+          {'phase': needsResolving ? 'resolving' : 'analyzing'},
         ],
       };
       messageGroups = [...messageGroups, group];
@@ -2031,7 +2043,9 @@ class AgenticSearchLogic extends ChangeNotifier {
 
     var firstCardSeen = false;
 
-    void updateGroup(void Function(AgenticMessageGroup group, Map<String, dynamic> result) fn) {
+    void updateGroup(
+      void Function(AgenticMessageGroup group, Map<String, dynamic> result) fn,
+    ) {
       final idx = messageGroups.indexWhere((g) => g.id == groupId);
       if (idx < 0) return;
       final result = Map<String, dynamic>.from(
@@ -2050,7 +2064,9 @@ class AgenticSearchLogic extends ChangeNotifier {
                   (e) => Map<String, dynamic>.from(e as Map),
                 ),
               )
-            : <Map<String, dynamic>>[{'phase': phase}];
+            : <Map<String, dynamic>>[
+                {'phase': phase},
+              ];
         if (rounds.isEmpty) {
           rounds.add({'phase': phase});
         } else {
@@ -2087,7 +2103,8 @@ class AgenticSearchLogic extends ChangeNotifier {
                   'name': c['name']?.toString() ?? '',
                   'content': c['content']?.toString() ?? '',
                   'subtext': c['scholar_id']?.toString() ?? '',
-                  'url': c['url']?.toString() ?? c['scholar_id']?.toString() ?? '',
+                  'url':
+                      c['url']?.toString() ?? c['scholar_id']?.toString() ?? '',
                   'scholar_id': c['scholar_id']?.toString(),
                 };
               })
@@ -2146,7 +2163,9 @@ class AgenticSearchLogic extends ChangeNotifier {
                         (e) => Map<String, dynamic>.from(e as Map),
                       ),
                     )
-                  : <Map<String, dynamic>>[{'phase': 'analyzing'}];
+                  : <Map<String, dynamic>>[
+                      {'phase': 'analyzing'},
+                    ];
               if (rounds.isNotEmpty) {
                 rounds[rounds.length - 1] = {
                   ...rounds.last,
@@ -2160,8 +2179,10 @@ class AgenticSearchLogic extends ChangeNotifier {
           for (final entry in eventCards.entries) {
             final cardInfo = entry.value;
             if (cardInfo is! Map) continue;
-            final normalizedName =
-                entry.key.toString().replaceAll(RegExp(r'_card$'), '');
+            final normalizedName = entry.key.toString().replaceAll(
+              RegExp(r'_card$'),
+              '',
+            );
             cards[normalizedName] = {
               'status': _normalizeAnalysisCardStatus(cardInfo['status']),
               'data': cardInfo['data'],
@@ -2173,17 +2194,15 @@ class AgenticSearchLogic extends ChangeNotifier {
         final profileData = event['result'];
         if (profileData is Map && profileData['profile_data'] is Map) {
           final existingProfile = cards['profile'];
-          final existingData = existingProfile is Map &&
-                  existingProfile['data'] is Map
+          final existingData =
+              existingProfile is Map && existingProfile['data'] is Map
               ? Map<String, dynamic>.from(existingProfile['data'] as Map)
               : <String, dynamic>{};
           cards['profile'] = {
             'status': 'completed',
             'data': {
               ...existingData,
-              ...Map<String, dynamic>.from(
-                profileData['profile_data'] as Map,
-              ),
+              ...Map<String, dynamic>.from(profileData['profile_data'] as Map),
             },
           };
         }

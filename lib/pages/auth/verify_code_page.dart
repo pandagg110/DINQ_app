@@ -21,7 +21,11 @@ class VerifyCodePage extends StatefulWidget {
   final String email;
   final String password;
 
-  const VerifyCodePage({super.key, required this.email, required this.password});
+  const VerifyCodePage({
+    super.key,
+    required this.email,
+    required this.password,
+  });
 
   @override
   State<VerifyCodePage> createState() => _VerifyCodePageState();
@@ -100,7 +104,10 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                   children: [
                     TextSpan(
                       text: "We've emailed a code to ",
-                      style: TextStyle(fontSize: 14, color: ColorUtil.sub1TextColor),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: ColorUtil.sub1TextColor,
+                      ),
                     ),
                     TextSpan(
                       text: widget.email,
@@ -146,7 +153,9 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                 },
                 child: Container(
                   decoration: BoxDecoration(
-                    color: _isFormValid ? ColorUtil.textColor : Color(0x1A343434),
+                    color: _isFormValid
+                        ? ColorUtil.textColor
+                        : Color(0x1A343434),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   width: double.infinity,
@@ -155,7 +164,9 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                     child: Text(
                       'Verify',
                       style: TextStyle(
-                        color: _isFormValid ? Colors.white : ColorUtil.sub2TextColor,
+                        color: _isFormValid
+                            ? Colors.white
+                            : ColorUtil.sub2TextColor,
                         fontWeight: FontWeight.w500,
                         fontSize: 16,
                         fontFamily: 'Tomato Grotesk',
@@ -184,7 +195,9 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                             ? ColorUtil.sub1TextColor
                             : ColorUtil.textColor,
                         fontSize: 14,
-                        fontWeight: _millisUntilFinished > 0 ? FontWeight.w400 : FontWeight.w500,
+                        fontWeight: _millisUntilFinished > 0
+                            ? FontWeight.w400
+                            : FontWeight.w500,
                         fontFamily: 'Tomato Grotesk',
                         decoration: _millisUntilFinished > 0
                             ? TextDecoration.none
@@ -224,7 +237,6 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
         setState(() {});
       }
     } catch (error) {
-      debugPrint('error9999: $error, $email');
       await ToastUtil.dismiss();
       await ToastUtil.show(apiErrorMessage(error));
     } finally {
@@ -254,7 +266,10 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
       context.go('/');
       Future.delayed(Duration(milliseconds: 800), () {
         if (!mounted) return;
-        CommonDialog.showAlert(context: context, customAlert: InviteCodeDialog());
+        CommonDialog.showAlert(
+          context: context,
+          customAlert: InviteCodeDialog(),
+        );
         CacheManager.instance.signUpAccount = null;
       });
     } catch (error) {

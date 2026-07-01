@@ -64,18 +64,20 @@ List<InlineSpan> _renderBold(
     }
     final boldText = text.substring(i + pattern.length, end);
     if (withBackground) {
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: const Color(0x2088C0D0),
-            borderRadius: BorderRadius.circular(2),
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              color: const Color(0x2088C0D0),
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: Text(boldText, style: b),
           ),
-          child: Text(boldText, style: b),
         ),
-      ));
+      );
     } else {
       spans.add(TextSpan(text: boldText, style: b));
     }
@@ -125,20 +127,27 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
   }
 
   /// 仅刷新 Network 数据（不关闭弹层，弹层通过 watch Store 自动更新）
-  Future<void> _refreshNetworkOnly(BuildContext context, int candidateId) async {
+  Future<void> _refreshNetworkOnly(
+    BuildContext context,
+    int candidateId,
+  ) async {
     final searchStore = context.read<SearchStore>();
     searchStore.setTabNetworkLoading(candidateId, true);
     try {
-      final tab = searchStore.openTabs.where((t) => t.id == candidateId).firstOrNull;
+      final tab = searchStore.openTabs
+          .where((t) => t.id == candidateId)
+          .firstOrNull;
       if (tab == null) return;
       final result = await _searchService.getNetwork({'person': tab.candidate});
-      final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
+      final network = (result['network'] as List<dynamic>? ?? [])
+          .take(6)
+          .toList();
       searchStore.updateTabNetwork(candidateId, network);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('刷新 Network 失败：$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('刷新 Network 失败：$e')));
       }
     } finally {
       searchStore.setTabNetworkLoading(candidateId, false);
@@ -167,13 +176,20 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
     // 加载 network 数据
     searchStore.setTabNetworkLoading(candidateId, true);
     try {
-      final result = await _searchService.getNetwork({'person': widget.tabData.candidate});
-      final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
+      final result = await _searchService.getNetwork({
+        'person': widget.tabData.candidate,
+      });
+      final network = (result['network'] as List<dynamic>? ?? [])
+          .take(6)
+          .toList();
       searchStore.updateTabNetwork(candidateId, network);
 
       // 仅在当前标签仍然是该用户时弹出
       if (searchStore.activeTabId == candidateId && network.isNotEmpty) {
-        searchStore.setTabNetworkLoading(candidateId, false); // 先关 loading 再开弹层，避免弹层打开时仍显示 loading
+        searchStore.setTabNetworkLoading(
+          candidateId,
+          false,
+        ); // 先关 loading 再开弹层，避免弹层打开时仍显示 loading
         await showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
@@ -185,9 +201,9 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('加载 Network 失败：$e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载 Network 失败：$e')));
     } finally {
       searchStore.setTabNetworkLoading(candidateId, false);
     }
@@ -206,15 +222,17 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
 
     searchStore.setTabEnrichLoading(candidateId, true);
     try {
-      final result = await _searchService.getProfile({'person': widget.tabData.candidate});
+      final result = await _searchService.getProfile({
+        'person': widget.tabData.candidate,
+      });
       searchStore.updateTabProfile(candidateId, result);
       if (mounted && searchStore.activeTabId == candidateId) {
         setState(() => _showProfile = true);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('加载 Profile 失败：$e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载 Profile 失败：$e')));
     } finally {
       searchStore.setTabEnrichLoading(candidateId, false);
     }
@@ -231,7 +249,8 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
     final oneLiner = candidate['one_liner']?.toString() ?? '';
     final researchAreas = (candidate['research_areas'] as List<dynamic>?) ?? [];
     final matchReason = candidate['match_reason']?.toString() ?? '';
-    final keyPublications = (candidate['key_publications'] as List<dynamic>?) ?? [];
+    final keyPublications =
+        (candidate['key_publications'] as List<dynamic>?) ?? [];
 
     return Scrollbar(
       controller: _scrollController,
@@ -241,291 +260,333 @@ class _UserInfoWidgetState extends State<UserInfoWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 32,
-                  backgroundColor: const Color(0xFFE5E5E5),
-                  backgroundImage: _isValidHttpUrl(imageUrl) ? NetworkImage(imageUrl!) : null,
-                  child: !_isValidHttpUrl(imageUrl)
-                      ? const Icon(Icons.person, size: 32, color: Color(0xFF9CA3AF))
-                      : null,
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: const Color(0xFFE5E5E5),
+                    backgroundImage: _isValidHttpUrl(imageUrl)
+                        ? NetworkImage(imageUrl!)
+                        : null,
+                    child: !_isValidHttpUrl(imageUrl)
+                        ? const Icon(
+                            Icons.person,
+                            size: 32,
+                            color: Color(0xFF9CA3AF),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF171717),
+                          ),
+                        ),
+                        if (company != null || position != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.business,
+                                size: 14,
+                                color: Color(0xFF6B7280),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  [
+                                    company,
+                                    position,
+                                  ].where((e) => e != null).join(' · '),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (university != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.school,
+                                size: 14,
+                                color: Color(0xFF6B7280),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  university,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Why this candidate
+            if (matchReason.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF88C0D0).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF171717),
+                      const Text(
+                        'Why this candidate?',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF5E81AC),
                         ),
                       ),
-                      if (company != null || position != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.business, size: 14, color: Color(0xFF6B7280)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                [company, position].where((e) => e != null).join(' · '),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF6B7280),
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 4),
+                      RichText(
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                            height: 1.5,
+                          ),
+                          children: _renderBold(
+                            matchReason,
+                            withBackground: false,
+                          ),
                         ),
-                      ],
-                      if (university != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.school, size: 14, color: Color(0xFF6B7280)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                university,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF6B7280),
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Why this candidate
-          if (matchReason.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF88C0D0).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+            // Research Areas
+            if (researchAreas.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
                 ),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: researchAreas.take(3).map((area) {
+                    final index = researchAreas.indexOf(area);
+                    final colors = [
+                      const Color(0xFFF5D97A).withOpacity(0.5),
+                      const Color(0xFFF5C4C4).withOpacity(0.5),
+                      const Color(0xFFC8E6A0).withOpacity(0.5),
+                    ];
+                    final textColors = [
+                      const Color(0xFF5E4A1E),
+                      const Color(0xFF7A4A4A),
+                      const Color(0xFF3D5E3D),
+                    ];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors[index % colors.length],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        area.toString(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: textColors[index % textColors.length],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+            // Bio
+            if (oneLiner.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6B7280),
+                      height: 1.5,
+                    ),
+                    children: _renderBold(oneLiner),
+                  ),
+                ),
+              ),
+
+            // Divider
+            const Divider(height: 32),
+
+            // Action buttons (Network / Contact / Analyze)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ActionButton(
+                      iconAsset: 'icons/search/network.svg',
+                      label: 'Network',
+                      loading: widget.tabData.networkLoading,
+                      active: false,
+                      done:
+                          (widget.tabData.network != null &&
+                          widget.tabData.network!.isNotEmpty),
+                      onTap: () => _handleNetworkTap(context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ActionButton(
+                      iconAsset: 'icons/search/enrich.svg',
+                      label: 'Contact',
+                      loading: widget.tabData.enrichLoading,
+                      active: _showProfile,
+                      done: widget.tabData.profile != null,
+                      onTap: () => _handleProfileTap(context),
+                      showArrow: true,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _AnalyzeButtonCardDropdown(candidate: candidate),
+                ],
+              ),
+            ),
+
+            // Profile data（与 TSX 858-871 一致：内联展开/收起，非弹框）
+            if (widget.tabData.profile != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 0,
+                ),
+                child: AnimatedOpacity(
+                  opacity: _showProfile ? 1 : 0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: _showProfile
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: _ProfileContent(
+                                profile: widget.tabData.profile!,
+                              ),
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity, height: 0),
+                  ),
+                ),
+              ),
+
+            // Publications
+            if (keyPublications.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Why this candidate?',
+                      'Publications',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF5E81AC),
+                        color: Color(0xFF171717),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    RichText(
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF6B7280),
-                          height: 1.5,
+                    const SizedBox(height: 12),
+                    ...keyPublications.take(3).map((pub) {
+                      final title = pub['title']?.toString() ?? '';
+                      final venue = pub['venue']?.toString();
+                      final year = pub['year']?.toString();
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFF5F5F5)),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        children: _renderBold(matchReason, withBackground: false),
-                      ),
-                    ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF171717),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (venue != null || year != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  [
+                                    venue,
+                                    year,
+                                  ].where((e) => e != null).join(' · '),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ],
                 ),
               ),
-            ),
-
-          // Research Areas
-          if (researchAreas.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: researchAreas.take(3).map((area) {
-                  final index = researchAreas.indexOf(area);
-                  final colors = [
-                    const Color(0xFFF5D97A).withOpacity(0.5),
-                    const Color(0xFFF5C4C4).withOpacity(0.5),
-                    const Color(0xFFC8E6A0).withOpacity(0.5),
-                  ];
-                  final textColors = [
-                    const Color(0xFF5E4A1E),
-                    const Color(0xFF7A4A4A),
-                    const Color(0xFF3D5E3D),
-                  ];
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: colors[index % colors.length],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      area.toString(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: textColors[index % textColors.length],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-          // Bio
-          if (oneLiner.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: RichText(
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
-                    height: 1.5,
-                  ),
-                  children: _renderBold(oneLiner),
-                ),
-              ),
-            ),
-
-          // Divider
-          const Divider(height: 32),
-
-          // Action buttons (Network / Contact / Analyze)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _ActionButton(
-                    iconAsset: 'icons/search/network.svg',
-                    label: 'Network',
-                    loading: widget.tabData.networkLoading,
-                    active: false,
-                    done: (widget.tabData.network != null && widget.tabData.network!.isNotEmpty),
-                    onTap: () => _handleNetworkTap(context),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _ActionButton(
-                    iconAsset: 'icons/search/enrich.svg',
-                    label: 'Contact',
-                    loading: widget.tabData.enrichLoading,
-                    active: _showProfile,
-                    done: widget.tabData.profile != null,
-                    onTap: () => _handleProfileTap(context),
-                    showArrow: true,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _AnalyzeButtonCardDropdown(candidate: candidate),
-              ],
-            ),
-          ),
-
-          // Profile data（与 TSX 858-871 一致：内联展开/收起，非弹框）
-          if (widget.tabData.profile != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-              child: AnimatedOpacity(
-                opacity: _showProfile ? 1 : 0,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-                child: AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                  alignment: Alignment.topCenter,
-                  child: _showProfile
-                      ? Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: _ProfileContent(profile: widget.tabData.profile!),
-                          ),
-                        )
-                      : const SizedBox(width: double.infinity, height: 0),
-                ),
-              ),
-            ),
-
-          // Publications
-          if (keyPublications.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Publications',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF171717),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...keyPublications.take(3).map((pub) {
-                    final title = pub['title']?.toString() ?? '';
-                    final venue = pub['venue']?.toString();
-                    final year = pub['year']?.toString();
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFF5F5F5)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF171717),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (venue != null || year != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                [venue, year].where((e) => e != null).join(' · '),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF9CA3AF),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ],
-              ),
-            ),
-        ],
+          ],
         ),
       ),
     );
@@ -542,7 +603,10 @@ class _ActionButton extends StatelessWidget {
     required this.done,
     required this.onTap,
     this.showArrow = false,
-  }) : assert(icon != null || iconAsset != null, 'Either icon or iconAsset must be provided');
+  }) : assert(
+         icon != null || iconAsset != null,
+         'Either icon or iconAsset must be provided',
+       );
 
   final Widget? icon;
   final String? iconAsset;
@@ -597,17 +661,9 @@ class _ActionButton extends StatelessWidget {
                   ),
                 )
               else if (done && !active)
-                const Icon(
-                  Icons.check,
-                  size: 16,
-                  color: Color(0xFF16A34A),
-                )
+                const Icon(Icons.check, size: 16, color: Color(0xFF16A34A))
               else if (iconAsset != null)
-                AssetIcon(
-                  asset: iconAsset!,
-                  size: 16,
-                  color: textColor,
-                )
+                AssetIcon(asset: iconAsset!, size: 16, color: textColor)
               else
                 icon!,
               const SizedBox(width: 6),
@@ -624,11 +680,7 @@ class _ActionButton extends StatelessWidget {
               ),
               if (showArrow && done) ...[
                 const SizedBox(width: 4),
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: textColor,
-                ),
+                Icon(Icons.keyboard_arrow_down, size: 16, color: textColor),
               ],
             ],
           ),
@@ -681,14 +733,12 @@ class _NetworkLoadingTipsState extends State<_NetworkLoadingTips>
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
-            final index = (_controller.value * tips.length).floor() % tips.length;
+            final index =
+                (_controller.value * tips.length).floor() % tips.length;
             return Center(
               child: Text(
                 tips[index],
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF9CA3AF),
-                ),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -723,10 +773,7 @@ class _NetworkSheetScope extends InheritedWidget {
 
 /// 与 TSX NetworkModal 一致：径向图布局（中心节点 + 周围 6 节点 + 连线），上一版（无移动端 70dvh/阴影/Expanded）
 class _NetworkSheet extends StatefulWidget {
-  const _NetworkSheet({
-    required this.candidateId,
-    this.onRefresh,
-  });
+  const _NetworkSheet({required this.candidateId, this.onRefresh});
 
   final int candidateId;
   final VoidCallback? onRefresh;
@@ -779,8 +826,16 @@ String? _getSocialLinkUrl(Map<String, dynamic> candidate, String optionId) {
 /// Analyze 下拉选项（与 TSX AnalyzeButton options 一致）
 const List<({String id, String label, String icon})> _kAnalyzeOptions = [
   (id: 'github', label: 'GitHub', icon: 'icons/search/lineicons/github.svg'),
-  (id: 'scholar', label: 'Google Scholar', icon: 'icons/search/lineicons/scholar.svg'),
-  (id: 'linkedin', label: 'LinkedIn', icon: 'icons/search/lineicons/linkedin.svg'),
+  (
+    id: 'scholar',
+    label: 'Google Scholar',
+    icon: 'icons/search/lineicons/scholar.svg',
+  ),
+  (
+    id: 'linkedin',
+    label: 'LinkedIn',
+    icon: 'icons/search/lineicons/linkedin.svg',
+  ),
 ];
 
 /// 主卡片 Analyze 按钮+下拉（与 TSX AnalyzeButton 一致）
@@ -790,10 +845,12 @@ class _AnalyzeButtonCardDropdown extends StatefulWidget {
   final Map<String, dynamic> candidate;
 
   @override
-  State<_AnalyzeButtonCardDropdown> createState() => _AnalyzeButtonCardDropdownState();
+  State<_AnalyzeButtonCardDropdown> createState() =>
+      _AnalyzeButtonCardDropdownState();
 }
 
-class _AnalyzeButtonCardDropdownState extends State<_AnalyzeButtonCardDropdown> {
+class _AnalyzeButtonCardDropdownState
+    extends State<_AnalyzeButtonCardDropdown> {
   bool _open = false;
 
   static const Duration _duration = Duration(milliseconds: 200);
@@ -827,24 +884,29 @@ class _AnalyzeButtonCardDropdownState extends State<_AnalyzeButtonCardDropdown> 
             final targetUrl = _buildAnalysisUrl(option.id, userId);
             if (!_isValidHttpUrl(targetUrl)) return;
             try {
-              launchUrl(Uri.parse(targetUrl), mode: LaunchMode.externalApplication);
-            } catch (e) {
-              debugPrint('launchUrl failed: $e');
-            }
+              launchUrl(
+                Uri.parse(targetUrl),
+                mode: LaunchMode.externalApplication,
+              );
+            } catch (e) {}
           },
           child: Row(
             children: [
               AssetIcon(
                 asset: option.icon,
                 size: 16,
-                color: hasUrl ? const Color(0xFF374151) : const Color(0xFFD1D5DB),
+                color: hasUrl
+                    ? const Color(0xFF374151)
+                    : const Color(0xFFD1D5DB),
               ),
               const SizedBox(width: 10),
               Text(
                 option.label,
                 style: TextStyle(
                   fontSize: 13,
-                  color: hasUrl ? const Color(0xFF374151) : const Color(0xFFD1D5DB),
+                  color: hasUrl
+                      ? const Color(0xFF374151)
+                      : const Color(0xFFD1D5DB),
                 ),
               ),
             ],
@@ -891,7 +953,11 @@ class _AnalyzeButtonCardDropdownState extends State<_AnalyzeButtonCardDropdown> 
                       turns: _open ? 0.5 : 0,
                       duration: _duration,
                       curve: Curves.easeOut,
-                      child: const Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF4B5563)),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: Color(0xFF4B5563),
+                      ),
                     ),
                   ],
                 ),
@@ -909,6 +975,7 @@ class _NetworkSheetState extends State<_NetworkSheet> {
   Map<String, dynamic>? _tooltipUser;
 
   static int _networkTabCounter = 0;
+
   /// 正在 enrich 的用户名集合（与 TSX enrichingUsers 一致）
   final Set<String> _enrichingUsers = {};
 
@@ -922,13 +989,17 @@ class _NetworkSheetState extends State<_NetworkSheet> {
   Map<String, dynamic> _personDataForNetwork(Map<String, dynamic> person) {
     final socialLinks = <Map<String, String>>[];
     final linkedin = person['linkedin_url']?.toString();
-    if (linkedin != null && linkedin.isNotEmpty) socialLinks.add({'type': 'linkedin', 'url': linkedin});
+    if (linkedin != null && linkedin.isNotEmpty)
+      socialLinks.add({'type': 'linkedin', 'url': linkedin});
     final scholar = person['scholar_url']?.toString();
-    if (scholar != null && scholar.isNotEmpty) socialLinks.add({'type': 'google_scholar', 'url': scholar});
+    if (scholar != null && scholar.isNotEmpty)
+      socialLinks.add({'type': 'google_scholar', 'url': scholar});
     final github = person['github_url']?.toString();
-    if (github != null && github.isNotEmpty) socialLinks.add({'type': 'github', 'url': github});
+    if (github != null && github.isNotEmpty)
+      socialLinks.add({'type': 'github', 'url': github});
     final openreview = person['openreview_url']?.toString();
-    if (openreview != null && openreview.isNotEmpty) socialLinks.add({'type': 'openreview', 'url': openreview});
+    if (openreview != null && openreview.isNotEmpty)
+      socialLinks.add({'type': 'openreview', 'url': openreview});
     return <String, dynamic>{
       'name': person['name']?.toString() ?? 'Unknown',
       'match_reason': '',
@@ -948,39 +1019,50 @@ class _NetworkSheetState extends State<_NetworkSheet> {
       _sheetNetwork = null;
       _sheetNetworkLoading = true;
     });
-    SearchService().getNetwork({'person': candidate}).then((result) {
-      if (!mounted) return;
-      final network = (result['network'] as List<dynamic>? ?? []).take(6).toList();
-      setState(() {
-        _sheetNetwork = network;
-        _sheetNetworkLoading = false;
-      });
-    }).catchError((e) {
-      debugPrint('NetworkNodeTap getNetwork error: $e');
-      if (mounted) {
-        setState(() => _sheetNetworkLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载 Network 失败：$e')),
-        );
-      }
-    });
+    SearchService()
+        .getNetwork({'person': candidate})
+        .then((result) {
+          if (!mounted) return;
+          final network = (result['network'] as List<dynamic>? ?? [])
+              .take(6)
+              .toList();
+          setState(() {
+            _sheetNetwork = network;
+            _sheetNetworkLoading = false;
+          });
+        })
+        .catchError((e) {
+          if (mounted) {
+            setState(() => _sheetNetworkLoading = false);
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('加载 Network 失败：$e')));
+          }
+        });
   }
 
   /// 将 network 用户转为 openTab 用的 candidate（与 TSX localUserToCandidate 一致）
-  Map<String, dynamic> _localUserToCandidate(Map<String, dynamic> user, String centerUserName) {
+  Map<String, dynamic> _localUserToCandidate(
+    Map<String, dynamic> user,
+    String centerUserName,
+  ) {
     final reason = user['reason']?.toString() ?? '';
     final matchReason = reason.isNotEmpty
         ? '$reason (from $centerUserName\'s network)'
         : 'From $centerUserName\'s network';
     final socialLinks = <Map<String, String>>[];
     final linkedin = user['linkedin_url']?.toString();
-    if (linkedin != null && linkedin.isNotEmpty) socialLinks.add({'type': 'linkedin', 'url': linkedin});
+    if (linkedin != null && linkedin.isNotEmpty)
+      socialLinks.add({'type': 'linkedin', 'url': linkedin});
     final scholar = user['scholar_url']?.toString();
-    if (scholar != null && scholar.isNotEmpty) socialLinks.add({'type': 'google_scholar', 'url': scholar});
+    if (scholar != null && scholar.isNotEmpty)
+      socialLinks.add({'type': 'google_scholar', 'url': scholar});
     final github = user['github_url']?.toString();
-    if (github != null && github.isNotEmpty) socialLinks.add({'type': 'github', 'url': github});
+    if (github != null && github.isNotEmpty)
+      socialLinks.add({'type': 'github', 'url': github});
     final openreview = user['openreview_url']?.toString();
-    if (openreview != null && openreview.isNotEmpty) socialLinks.add({'type': 'openreview', 'url': openreview});
+    if (openreview != null && openreview.isNotEmpty)
+      socialLinks.add({'type': 'openreview', 'url': openreview});
     return {
       'name': user['name']?.toString() ?? 'Unknown',
       'match_reason': matchReason,
@@ -999,17 +1081,26 @@ class _NetworkSheetState extends State<_NetworkSheet> {
       user['company']?.toString(),
       user['affiliation']?.toString(),
     ];
-    final infoParts = raw.whereType<String>().where((s) => s.trim().isNotEmpty).toList();
-    final usefulInfo = infoParts.isEmpty ? (user['name']?.toString() ?? '') : infoParts.join(', ');
+    final infoParts = raw
+        .whereType<String>()
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
+    final usefulInfo = infoParts.isEmpty
+        ? (user['name']?.toString() ?? '')
+        : infoParts.join(', ');
     final sources = <Map<String, String>>[];
     final scholar = user['scholar_url']?.toString();
-    if (scholar != null && scholar.isNotEmpty) sources.add({'url': scholar, 'description': 'Google Scholar'});
+    if (scholar != null && scholar.isNotEmpty)
+      sources.add({'url': scholar, 'description': 'Google Scholar'});
     final linkedin = user['linkedin_url']?.toString();
-    if (linkedin != null && linkedin.isNotEmpty) sources.add({'url': linkedin, 'description': 'LinkedIn'});
+    if (linkedin != null && linkedin.isNotEmpty)
+      sources.add({'url': linkedin, 'description': 'LinkedIn'});
     final github = user['github_url']?.toString();
-    if (github != null && github.isNotEmpty) sources.add({'url': github, 'description': 'GitHub'});
+    if (github != null && github.isNotEmpty)
+      sources.add({'url': github, 'description': 'GitHub'});
     final openreview = user['openreview_url']?.toString();
-    if (openreview != null && openreview.isNotEmpty) sources.add({'url': openreview, 'description': 'OpenReview'});
+    if (openreview != null && openreview.isNotEmpty)
+      sources.add({'url': openreview, 'description': 'OpenReview'});
     return {
       'name': user['name']?.toString() ?? 'Unknown',
       'match_reason': user['reason']?.toString() ?? '',
@@ -1019,14 +1110,21 @@ class _NetworkSheetState extends State<_NetworkSheet> {
   }
 
   /// 将 enrich 接口返回转为 candidate（与 TSX 一致）
-  Map<String, dynamic> _enrichResultToCandidate(Map<String, dynamic> enrichResult, String centerUserName) {
+  Map<String, dynamic> _enrichResultToCandidate(
+    Map<String, dynamic> enrichResult,
+    String centerUserName,
+  ) {
     final networkSource = '(from $centerUserName\'s network)';
     final mr = enrichResult['match_reason']?.toString() ?? '';
     final matchReason = mr.isNotEmpty ? '$mr $networkSource' : networkSource;
     final pos = enrichResult['position']?.toString();
     final company = enrichResult['company']?.toString();
     final uni = enrichResult['university']?.toString();
-    final usefulInfo = [pos, company, uni].whereType<String>().where((s) => s.isNotEmpty).join(', ');
+    final usefulInfo = [
+      pos,
+      company,
+      uni,
+    ].whereType<String>().where((s) => s.isNotEmpty).join(', ');
     return {
       'name': enrichResult['name'],
       'match_reason': matchReason,
@@ -1045,28 +1143,35 @@ class _NetworkSheetState extends State<_NetworkSheet> {
     };
   }
 
-  Future<void> _executeProfileEnrich(Map<String, dynamic> user, int tabId, String centerUserName) async {
+  Future<void> _executeProfileEnrich(
+    Map<String, dynamic> user,
+    int tabId,
+    String centerUserName,
+  ) async {
     final name = user['name']?.toString() ?? 'Unknown';
     if (!mounted) return;
     setState(() => _enrichingUsers.add(name));
-    
+
     final searchStore = context.read<SearchStore>();
     searchStore.setTabLoading(tabId, true);
     try {
       final request = _localUserToEnrichRequest(user);
       final result = await SearchService().enrich(request);
-      final candidate = _enrichResultToCandidate(Map<String, dynamic>.from(result), centerUserName);
+      final candidate = _enrichResultToCandidate(
+        Map<String, dynamic>.from(result),
+        centerUserName,
+      );
       searchStore.updateTabCandidate(tabId, candidate);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已加载 $name 的 Profile')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('已加载 $name 的 Profile')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Profile 加载失败：$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Profile 加载失败：$e')));
         searchStore.setTabError(tabId, e.toString());
       }
     } finally {
@@ -1080,30 +1185,40 @@ class _NetworkSheetState extends State<_NetworkSheet> {
   void _handleProfileClick(Map<String, dynamic> user, String centerUserName) {
     final name = user['name']?.toString() ?? 'Unknown';
     if (mounted) {
-      TopToastUtil.showInfo(context: context, title: "Enriching $name's profile...");
+      TopToastUtil.showInfo(
+        context: context,
+        title: "Enriching $name's profile...",
+      );
     }
     if (_enrichingUsers.contains(name)) return;
     final searchStore = context.read<SearchStore>();
     // 已存在同名且来自 Network 的 tab 则不再添加，只提示
-    final existing = searchStore.openTabs.where((t) =>
-        t.candidate['groupId'] == -1 && (t.candidate['name']?.toString() ?? '') == name).firstOrNull;
+    final existing = searchStore.openTabs
+        .where(
+          (t) =>
+              t.candidate['groupId'] == -1 &&
+              (t.candidate['name']?.toString() ?? '') == name,
+        )
+        .firstOrNull;
     if (existing != null) {
-      
       return;
     }
     final candidate = _localUserToCandidate(user, centerUserName);
     final uniqueIndex = ++_networkTabCounter;
-    final tabId = searchStore.openTab(candidate, index: uniqueIndex, groupId: -1, matchByName: true, switchTab: false);
+    final tabId = searchStore.openTab(
+      candidate,
+      index: uniqueIndex,
+      groupId: -1,
+      matchByName: true,
+      switchTab: false,
+    );
     if (tabId == null) {
-      
       return;
     }
     final tab = searchStore.openTabs.where((t) => t.id == tabId).firstOrNull;
     if (tab != null && tab.profile == null && !tab.isLoading) {
       _executeProfileEnrich(user, tabId, centerUserName);
-    } else if (mounted) {
-      
-    }
+    } else if (mounted) {}
   }
 
   /// 刷新：不请求接口，只重置弹层并直接渲染外层角色 card 的 network
@@ -1118,10 +1233,15 @@ class _NetworkSheetState extends State<_NetworkSheet> {
   @override
   Widget build(BuildContext context) {
     final searchStore = context.watch<SearchStore>();
-    final tab = searchStore.openTabs.where((t) => t.id == widget.candidateId).firstOrNull;
+    final tab = searchStore.openTabs
+        .where((t) => t.id == widget.candidateId)
+        .firstOrNull;
     // 与 TSX 一致：点击 Network 只改弹层内中心，不写 tab。有 sheet 本地中心时用本地，否则用 tab
-    final centerUser = _sheetCenterUser ?? tab?.candidate ?? <String, dynamic>{};
-    final tabOwnerName = tab?.candidate['name']?.toString() ?? ''; // Profile match_reason 用 tab 主人，与 TSX currentUser 一致
+    final centerUser =
+        _sheetCenterUser ?? tab?.candidate ?? <String, dynamic>{};
+    final tabOwnerName =
+        tab?.candidate['name']?.toString() ??
+        ''; // Profile match_reason 用 tab 主人，与 TSX currentUser 一致
     final items = _sheetCenterUser != null
         ? (_sheetNetwork ?? const [])
         : (tab?.network ?? const []);
@@ -1199,7 +1319,10 @@ class _NetworkSheetState extends State<_NetworkSheet> {
                       padding: EdgeInsets.symmetric(vertical: 48),
                       child: Text(
                         'No connections found.',
-                        style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF9CA3AF),
+                        ),
                       ),
                     )
                   else
@@ -1259,34 +1382,39 @@ class _NetworkSheetState extends State<_NetworkSheet> {
                     color: Colors.black26,
                     alignment: Alignment.center,
                     child: _NetworkTooltipCard(
-                        user: _tooltipUser!,
-                        centerUser: centerUser,
-                        defaultAvatarUrl: _defaultAvatarUrlForTooltip,
-                        isEnriching: _tooltipUser!['name'] != null && _enrichingUsers.contains(_tooltipUser!['name']?.toString()),
-                        onClose: () => setState(() => _tooltipUser = null),
-                        onNetwork: () {
-                          _moveToCenter(_tooltipUser!);
-                          setState(() => _tooltipUser = null);
-                        },
-                        onProfile: () {
-                          _handleProfileClick(_tooltipUser!, tabOwnerName);
-                          // 两秒后自动关闭点击头像打开的 tooltip 弹框
-                          Future.delayed(const Duration(seconds: 2), () {
-                            if (mounted) setState(() => _tooltipUser = null);
-                          });
-                        },
-                        onAnalyzeOption: (type, url) {
-                          final userId = _extractUserId(type, url);
-                          if (userId == null || !mounted) return;
-                          final targetUrl = _buildAnalysisUrl(type, userId);
-                          if (!_isValidHttpUrl(targetUrl)) return;
-                          try {
-                            launchUrl(Uri.parse(targetUrl), mode: LaunchMode.externalApplication);
-                          } catch (e) {
-                            debugPrint('launchUrl failed: $e');
-                          }
-                        },
-                      ),
+                      user: _tooltipUser!,
+                      centerUser: centerUser,
+                      defaultAvatarUrl: _defaultAvatarUrlForTooltip,
+                      isEnriching:
+                          _tooltipUser!['name'] != null &&
+                          _enrichingUsers.contains(
+                            _tooltipUser!['name']?.toString(),
+                          ),
+                      onClose: () => setState(() => _tooltipUser = null),
+                      onNetwork: () {
+                        _moveToCenter(_tooltipUser!);
+                        setState(() => _tooltipUser = null);
+                      },
+                      onProfile: () {
+                        _handleProfileClick(_tooltipUser!, tabOwnerName);
+                        // 两秒后自动关闭点击头像打开的 tooltip 弹框
+                        Future.delayed(const Duration(seconds: 2), () {
+                          if (mounted) setState(() => _tooltipUser = null);
+                        });
+                      },
+                      onAnalyzeOption: (type, url) {
+                        final userId = _extractUserId(type, url);
+                        if (userId == null || !mounted) return;
+                        final targetUrl = _buildAnalysisUrl(type, userId);
+                        if (!_isValidHttpUrl(targetUrl)) return;
+                        try {
+                          launchUrl(
+                            Uri.parse(targetUrl),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } catch (e) {}
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -1341,16 +1469,21 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
     final centerName = centerUser['name']?.toString() ?? '';
     final isCenterUser = name == centerName;
 
-    final avatarUrl = user['image_url']?.toString() ?? user['avatar_url']?.toString();
+    final avatarUrl =
+        user['image_url']?.toString() ?? user['avatar_url']?.toString();
     final avatarSrc = (avatarUrl != null && avatarUrl.isNotEmpty)
         ? avatarUrl
         : widget.defaultAvatarUrl(name);
     final position = user['position']?.toString();
-    final company = user['company']?.toString() ?? user['affiliation']?.toString();
+    final company =
+        user['company']?.toString() ?? user['affiliation']?.toString();
     final descField = user['description']?.toString();
     final description = (descField != null && descField.trim().isNotEmpty)
         ? descField.trim()
-        : [position, company].whereType<String>().where((s) => s.trim().isNotEmpty).join(' · ');
+        : [
+            position,
+            company,
+          ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' · ');
     final institutionLogoUrl = user['institution_logo_url']?.toString();
 
     return Material(
@@ -1392,11 +1525,18 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
                           child: CircleAvatar(
                             radius: 28,
                             backgroundColor: const Color(0xFFE5E7EB),
-                            backgroundImage: _isValidHttpUrl(avatarSrc) ? NetworkImage(avatarSrc) : null,
+                            backgroundImage: _isValidHttpUrl(avatarSrc)
+                                ? NetworkImage(avatarSrc)
+                                : null,
                             child: !_isValidHttpUrl(avatarSrc)
                                 ? Text(
-                                    name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-                                    style: const TextStyle(fontSize: 20, color: Color(0xFF6B7280)),
+                                    name.isNotEmpty
+                                        ? name.substring(0, 1).toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      color: Color(0xFF6B7280),
+                                    ),
                                   )
                                 : null,
                           ),
@@ -1410,7 +1550,9 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
                               height: 20,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                border: Border.all(color: const Color(0xFFE5E7EB)),
+                                border: Border.all(
+                                  color: const Color(0xFFE5E7EB),
+                                ),
                                 shape: BoxShape.circle,
                               ),
                               child: ClipOval(
@@ -1419,7 +1561,8 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
                                   fit: BoxFit.contain,
                                   width: 14,
                                   height: 14,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.business, size: 14),
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.business, size: 14),
                                 ),
                               ),
                             ),
@@ -1487,7 +1630,9 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
                       child: _tooltipButton(
                         label: 'Profile',
                         icon: 'icons/search/enrich.svg',
-                        bgColor: widget.isEnriching ? const Color(0xFF333333) : Colors.black,
+                        bgColor: widget.isEnriching
+                            ? const Color(0xFF333333)
+                            : Colors.black,
                         fgColor: Colors.white,
                         border: const BorderSide(color: Colors.black, width: 2),
                         onPressed: widget.isEnriching ? null : widget.onProfile,
@@ -1502,7 +1647,9 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
                   user: user,
                   isOpen: _analyzeDropdownOpen,
                   options: _kAnalyzeOptions,
-                  onToggle: () => setState(() => _analyzeDropdownOpen = !_analyzeDropdownOpen),
+                  onToggle: () => setState(
+                    () => _analyzeDropdownOpen = !_analyzeDropdownOpen,
+                  ),
                   onSelect: (id, url) {
                     widget.onAnalyzeOption(id, url);
                     setState(() => _analyzeDropdownOpen = false);
@@ -1546,14 +1693,21 @@ class _NetworkTooltipCardState extends State<_NetworkTooltipCard> {
                 const SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               else
                 AssetIcon(asset: icon, size: 14, color: fgColor),
               const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: fgColor),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: fgColor,
+                ),
               ),
             ],
           ),
@@ -1616,11 +1770,19 @@ class _AnalyzeDropdownSection extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const AssetIcon(asset: 'icons/search/analyze.svg', size: 14, color: Color(0xFF171717)),
+                  const AssetIcon(
+                    asset: 'icons/search/analyze.svg',
+                    size: 14,
+                    color: Color(0xFF171717),
+                  ),
                   const SizedBox(width: 8),
                   const Text(
                     'Analyze',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF171717)),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF171717),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   AnimatedRotation(
@@ -1651,11 +1813,22 @@ class _AnalyzeDropdownSection extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
-                        left: const BorderSide(color: Color(0xFF171717), width: 1.5),
-                        right: const BorderSide(color: Color(0xFF171717), width: 1.5),
-                        bottom: const BorderSide(color: Color(0xFF171717), width: 1.5),
+                        left: const BorderSide(
+                          color: Color(0xFF171717),
+                          width: 1.5,
+                        ),
+                        right: const BorderSide(
+                          color: Color(0xFF171717),
+                          width: 1.5,
+                        ),
+                        bottom: const BorderSide(
+                          color: Color(0xFF171717),
+                          width: 1.5,
+                        ),
                       ),
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(10),
+                      ),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1664,26 +1837,36 @@ class _AnalyzeDropdownSection extends StatelessWidget {
                           Builder(
                             builder: (context) {
                               final url = _getSocialLinkUrl(user, option.id);
-                              final hasUrl = extractUserId(option.id, url) != null;
+                              final hasUrl =
+                                  extractUserId(option.id, url) != null;
                               return Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                  onTap: hasUrl ? () => onSelect(option.id, url) : null,
+                                  onTap: hasUrl
+                                      ? () => onSelect(option.id, url)
+                                      : null,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
                                     child: Row(
                                       children: [
                                         AssetIcon(
                                           asset: option.icon,
                                           size: 16,
-                                          color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
+                                          color: hasUrl
+                                              ? const Color(0xFF171717)
+                                              : const Color(0xFFD1D5DB),
                                         ),
                                         const SizedBox(width: 10),
                                         Text(
                                           option.label,
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: hasUrl ? const Color(0xFF171717) : const Color(0xFFD1D5DB),
+                                            color: hasUrl
+                                                ? const Color(0xFF171717)
+                                                : const Color(0xFFD1D5DB),
                                           ),
                                         ),
                                       ],
@@ -1731,12 +1914,12 @@ class _NetworkSheetRefreshButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
           ),
           child: const Center(
-                  child: AssetIcon(
-                    asset: 'icons/search/refresh.svg',
-                    size: 20,
-                    color: Color(0xFF9CA3AF),
-                  ),
-                ),
+            child: AssetIcon(
+              asset: 'icons/search/refresh.svg',
+              size: 20,
+              color: Color(0xFF9CA3AF),
+            ),
+          ),
         ),
       ),
     );
@@ -1745,16 +1928,13 @@ class _NetworkSheetRefreshButton extends StatelessWidget {
 
 /// 径向图：中心 + 6 个周围节点 + 连线
 class _NetworkRadialGraph extends StatelessWidget {
-  const _NetworkRadialGraph({
-    required this.centerUser,
-    required this.items,
-  });
+  const _NetworkRadialGraph({required this.centerUser, required this.items});
 
   final Map<String, dynamic> centerUser;
   final List<dynamic> items;
 
-  static const double _centerRadius = 42;  // 中心圆 84px
-  static const double _nodeRadius = 28;   // 周围小圆 56px
+  static const double _centerRadius = 42; // 中心圆 84px
+  static const double _nodeRadius = 28; // 周围小圆 56px
   static const double _orbitRadius = 130;
 
   @override
@@ -1771,10 +1951,12 @@ class _NetworkRadialGraph extends StatelessWidget {
     final n = math.min(6, items.length);
     for (var i = 0; i < n; i++) {
       final angle = 2 * math.pi * i / n - math.pi / 2 + math.pi / 4;
-      nodePositions.add(Offset(
-        centerX + _orbitRadius * math.cos(angle),
-        centerY + _orbitRadius * math.sin(angle),
-      ));
+      nodePositions.add(
+        Offset(
+          centerX + _orbitRadius * math.cos(angle),
+          centerY + _orbitRadius * math.sin(angle),
+        ),
+      );
     }
 
     final centerOffset = Offset(centerX, centerY);
@@ -1783,8 +1965,8 @@ class _NetworkRadialGraph extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Positioned(
-          left: centerX - 200+100,
-          top: centerY - 200+100,
+          left: centerX - 200 + 100,
+          top: centerY - 200 + 100,
           width: 200,
           height: 200,
           child: IgnorePointer(
@@ -1814,14 +1996,18 @@ class _NetworkRadialGraph extends StatelessWidget {
             onTap: onCenterTap != null ? () => onCenterTap(centerUser) : null,
             child: _CenterNode(
               name: centerUser['name']?.toString() ?? 'Unknown',
-              avatarUrl: centerUser['image_url']?.toString() ?? centerUser['avatar_url']?.toString(),
+              avatarUrl:
+                  centerUser['image_url']?.toString() ??
+                  centerUser['avatar_url']?.toString(),
             ),
           ),
         ),
         for (var i = 0; i < n; i++) ...[
           () {
             final index = i;
-            final item = items[index] is Map<String, dynamic> ? items[index] as Map<String, dynamic> : <String, dynamic>{};
+            final item = items[index] is Map<String, dynamic>
+                ? items[index] as Map<String, dynamic>
+                : <String, dynamic>{};
             return Positioned(
               left: nodePositions[index].dx - _nodeRadius,
               top: nodePositions[index].dy - _nodeRadius,
@@ -1829,15 +2015,11 @@ class _NetworkRadialGraph extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 onTap: onNodeTap != null
                     ? () {
-                        debugPrint('NetworkNode onTap: index=$index, name=${item['name']}');
                         try {
                           onNodeTap(item);
-                          debugPrint('NetworkNode onTap: onNodeTap returned');
-                        } catch (e, st) {
-                          debugPrint('NetworkNode onTap: onNodeTap threw $e\n$st');
-                        }
+                        } catch (e, st) {}
                       }
-                    : () => debugPrint('NetworkNode onTap: onNodeTap is null'),
+                    : null,
                 child: _NetworkNode(item: item),
               ),
             );
@@ -1883,11 +2065,17 @@ const _avatarGradient = LinearGradient(
 
 /// 与 TSX truncateNameToTwoLines 一致：按空格分词，首词一行、其余第二行，每行最多 maxCharsPerLine 字
 List<String> _truncateNameToTwoLines(String name, [int maxCharsPerLine = 12]) {
-  final words = name.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+  final words = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((e) => e.isNotEmpty)
+      .toList();
   if (words.isEmpty) return [''];
   if (words.length == 1) {
     final w = words[0];
-    return [w.length > maxCharsPerLine ? '${w.substring(0, maxCharsPerLine)}...' : w];
+    return [
+      w.length > maxCharsPerLine ? '${w.substring(0, maxCharsPerLine)}...' : w,
+    ];
   }
   final line1 = words[0].length > maxCharsPerLine
       ? '${words[0].substring(0, maxCharsPerLine)}...'
@@ -1918,13 +2106,19 @@ class _CenterNode extends StatelessWidget {
           CircleAvatar(
             radius: _NetworkRadialGraph._centerRadius,
             backgroundColor: const Color(0xFF6B7280),
-            backgroundImage: _isValidHttpUrl(avatarUrl) ? NetworkImage(avatarUrl!) : null,
-            child: !_isValidHttpUrl(avatarUrl) ? Icon(Icons.school, size: 28, color: Colors.grey[400]) : null,
+            backgroundImage: _isValidHttpUrl(avatarUrl)
+                ? NetworkImage(avatarUrl!)
+                : null,
+            child: !_isValidHttpUrl(avatarUrl)
+                ? Icon(Icons.school, size: 28, color: Colors.grey[400])
+                : null,
           ),
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(_NetworkRadialGraph._centerRadius),
+                borderRadius: BorderRadius.circular(
+                  _NetworkRadialGraph._centerRadius,
+                ),
                 gradient: _avatarGradient,
               ),
             ),
@@ -1951,7 +2145,13 @@ class _CenterNode extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
                 height: 1.2,
-                shadows: [Shadow(color: Color(0xCC000000), blurRadius: 2, offset: Offset(1, 1))],
+                shadows: [
+                  Shadow(
+                    color: Color(0xCC000000),
+                    blurRadius: 2,
+                    offset: Offset(1, 1),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1969,7 +2169,9 @@ class _NetworkNode extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = item['name']?.toString() ?? 'Unknown';
     final avatarUrl = item['avatar_url']?.toString();
-    final avatarSrc = (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : _defaultAvatarUrlForTooltip(name);
+    final avatarSrc = (avatarUrl != null && avatarUrl.isNotEmpty)
+        ? avatarUrl
+        : _defaultAvatarUrlForTooltip(name);
     const size = _NetworkRadialGraph._nodeRadius * 2;
 
     return SizedBox(
@@ -1982,17 +2184,26 @@ class _NetworkNode extends StatelessWidget {
           CircleAvatar(
             radius: _NetworkRadialGraph._nodeRadius,
             backgroundColor: const Color(0xFFE5E7EB),
-            backgroundImage: _isValidHttpUrl(avatarSrc) ? NetworkImage(avatarSrc) : null,
+            backgroundImage: _isValidHttpUrl(avatarSrc)
+                ? NetworkImage(avatarSrc)
+                : null,
             child: !_isValidHttpUrl(avatarSrc)
                 ? Text(
                     _initials(name),
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280),
+                    ),
                   )
                 : null,
           ),
           Positioned.fill(
             child: DecoratedBox(
-              decoration: const BoxDecoration(shape: BoxShape.circle, gradient: _avatarGradient),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: _avatarGradient,
+              ),
             ),
           ),
           Positioned.fill(
@@ -2017,7 +2228,13 @@ class _NetworkNode extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
                 height: 1.2,
-                shadows: [Shadow(color: Color(0xCC000000), blurRadius: 2, offset: Offset(1, 1))],
+                shadows: [
+                  Shadow(
+                    color: Color(0xCC000000),
+                    blurRadius: 2,
+                    offset: Offset(1, 1),
+                  ),
+                ],
               ),
             ),
           ),
@@ -2029,8 +2246,10 @@ class _NetworkNode extends StatelessWidget {
   static String _initials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts[0].isEmpty ? '?' : parts[0].substring(0, 1).toUpperCase();
-    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'.toUpperCase();
+    if (parts.length == 1)
+      return parts[0].isEmpty ? '?' : parts[0].substring(0, 1).toUpperCase();
+    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'
+        .toUpperCase();
   }
 }
 
@@ -2044,7 +2263,6 @@ class _ProfileContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final emails = profile['emails'] as List<dynamic>?;
     final news = profile['news'] as List<dynamic>?;
-    debugPrint('news: $news');
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -2118,7 +2336,9 @@ class _ProfileContent extends StatelessWidget {
             // 段落：renderBold(description 截断 100) + [i] 链接（与 TSX p.mb-2 last:mb-0 一致）
             ...List.generate(news.length, (i) {
               final fullDesc = _newsDescriptionRaw(news[i]);
-              final desc = fullDesc.length > 100 ? '${fullDesc.substring(0, 100)}...' : fullDesc;
+              final desc = fullDesc.length > 100
+                  ? '${fullDesc.substring(0, 100)}...'
+                  : fullDesc;
               final url = _newsUrl(news[i]);
               return Padding(
                 padding: EdgeInsets.only(bottom: i < news.length - 1 ? 8 : 0),
@@ -2140,10 +2360,11 @@ class _ProfileContent extends StatelessWidget {
                             child: GestureDetector(
                               onTap: () {
                                 try {
-                                  launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                                } catch (e) {
-                                  debugPrint('launchUrl failed: $e');
-                                }
+                                  launchUrl(
+                                    Uri.parse(url),
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                } catch (e) {}
                               },
                               child: Text(
                                 '[${i + 1}]',
@@ -2267,7 +2488,10 @@ class _EmailRowState extends State<_EmailRow> {
                 const SizedBox(width: 6),
                 Text(
                   _copied ? 'Copied!' : 'Copy',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6B7280),
+                  ),
                 ),
               ],
             ),
@@ -2279,7 +2503,11 @@ class _EmailRowState extends State<_EmailRow> {
 }
 
 class _NewsCard extends StatelessWidget {
-  const _NewsCard({required this.description, required this.url, required this.index});
+  const _NewsCard({
+    required this.description,
+    required this.url,
+    required this.index,
+  });
 
   final String description;
   final String url;
@@ -2305,10 +2533,11 @@ class _NewsCard extends StatelessWidget {
         onTap: _isValidHttpUrl(url)
             ? () {
                 try {
-                  launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                } catch (e) {
-                  debugPrint('launchUrl failed: $e');
-                }
+                  launchUrl(
+                    Uri.parse(url),
+                    mode: LaunchMode.externalApplication,
+                  );
+                } catch (e) {}
               }
             : null,
         borderRadius: BorderRadius.circular(8),

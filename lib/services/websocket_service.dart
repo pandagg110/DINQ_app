@@ -44,7 +44,8 @@ class WebSocketManager {
 
   /// 连接 WebSocket
   Future<void> connect() async {
-    if (_state == WsConnectionState.connected || _state == WsConnectionState.connecting) {
+    if (_state == WsConnectionState.connected ||
+        _state == WsConnectionState.connecting) {
       return;
     }
 
@@ -56,7 +57,6 @@ class WebSocketManager {
       final wsUrl = tokenData['ws_url']?.toString() ?? '';
 
       if (wsToken.isEmpty || wsUrl.isEmpty) {
-        debugPrint('WebSocket: token or url is empty');
         _setState(WsConnectionState.disconnected);
         return;
       }
@@ -77,21 +77,16 @@ class WebSocketManager {
           try {
             final message = jsonDecode(data.toString()) as Map<String, dynamic>;
             _messageController.add(message);
-          } catch (e) {
-            debugPrint('WebSocket: Failed to parse message: $e');
-          }
+          } catch (e) {}
         },
         onError: (error) {
-          debugPrint('WebSocket error: $error');
           _handleDisconnect();
         },
         onDone: () {
-          debugPrint('WebSocket closed');
           _handleDisconnect();
         },
       );
     } catch (e) {
-      debugPrint('WebSocket connect failed: $e');
       _setState(WsConnectionState.disconnected);
       _scheduleReconnect();
     }
@@ -110,14 +105,11 @@ class WebSocketManager {
   /// 发送消息
   void sendMessage(Map<String, dynamic> message) {
     if (_channel == null || !isConnected) {
-      debugPrint('WebSocket: Cannot send message - not connected');
       return;
     }
     try {
       _channel!.sink.add(jsonEncode(message));
-    } catch (e) {
-      debugPrint('WebSocket: Failed to send message: $e');
-    }
+    } catch (e) {}
   }
 
   void _handleDisconnect() {
@@ -129,7 +121,6 @@ class WebSocketManager {
 
   void _scheduleReconnect() {
     if (_reconnectAttempts >= WsConfig.maxReconnectAttempts) {
-      debugPrint('WebSocket: Max reconnect attempts reached');
       _reconnectAttempts = 0;
       return;
     }

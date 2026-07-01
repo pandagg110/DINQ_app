@@ -414,7 +414,11 @@ class _ImageEditFormWithSaveState extends State<ImageEditFormWithSave> {
     }
 
     // 使用 CardRenderer 显示 ImageCard
-    return CardRenderer(card: _getCurrentPreviewCard(), editable: false, showBottomSizedBox: false);
+    return CardRenderer(
+      card: _getCurrentPreviewCard(),
+      editable: false,
+      showBottomSizedBox: false,
+    );
   }
 
   /// 当前表单状态对应的 CardItem（用于预览和传给 EditImage 页）
@@ -463,10 +467,6 @@ class _ImageEditFormWithSaveState extends State<ImageEditFormWithSave> {
       if (scale != null) _scale = scale.toDouble();
       if (offsetX != null) _offsetX = offsetX.toDouble();
       if (offsetY != null) _offsetY = offsetY.toDouble();
-      debugPrint(
-        '[ImageEditForm] 编辑页返回: scale=$_scale, '
-        'offsetX=$_offsetX, offsetY=$_offsetY',
-      );
     }
     setState(() {}); // 从编辑页返回后刷新预览
   }

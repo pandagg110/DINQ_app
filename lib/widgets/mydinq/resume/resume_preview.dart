@@ -146,7 +146,6 @@ class _ResumePreviewState extends State<ResumePreview>
       });
     } catch (e) {
       if (cancel.isCancelled) return;
-      debugPrint('PDF download failed: $e');
       if (!mounted) return;
       setState(() {
         _pdfData = null;
@@ -172,14 +171,17 @@ class _ResumePreviewState extends State<ResumePreview>
     final isUploading = widget.upload != null;
     final showThumbSidebarControls = _pdfData != null && _pdfPageCount > 1;
     final showHeader =
-        (widget.resume != null || hasAnyResume) && !(widget.isLoading && widget.resume == null);
+        (widget.resume != null || hasAnyResume) &&
+        !(widget.isLoading && widget.resume == null);
 
-    final canDownload = widget.resume?.sourceUrl != null &&
+    final canDownload =
+        widget.resume?.sourceUrl != null &&
         widget.resume!.sourceUrl!.isNotEmpty &&
         widget.resume!.status == ResumeStatus.ready &&
         !isUploading;
 
-    final showPdfSkeleton = widget.resume?.status == ResumeStatus.ready &&
+    final showPdfSkeleton =
+        widget.resume?.status == ResumeStatus.ready &&
         widget.resume?.sourceUrl != null &&
         _pdfData == null &&
         !_pdfLoadFailed;
@@ -187,13 +189,18 @@ class _ResumePreviewState extends State<ResumePreview>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showHeader) _buildHeader(showThumbSidebarControls, isUploading, canDownload),
+        if (showHeader)
+          _buildHeader(showThumbSidebarControls, isUploading, canDownload),
         Expanded(child: _buildBody(showPdfSkeleton, isUploading)),
       ],
     );
   }
 
-  Widget _buildHeader(bool showThumbSidebarControls, bool isUploading, bool canDownload) {
+  Widget _buildHeader(
+    bool showThumbSidebarControls,
+    bool isUploading,
+    bool canDownload,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Stack(
@@ -206,7 +213,8 @@ class _ResumePreviewState extends State<ResumePreview>
                 child: showThumbSidebarControls && !isUploading
                     ? Center(
                         child: _iconBorderButton(
-                          onTap: () => setState(() => _isSidebarOpen = !_isSidebarOpen),
+                          onTap: () =>
+                              setState(() => _isSidebarOpen = !_isSidebarOpen),
                           child: ResumeSvgIcon(
                             _isSidebarOpen
                                 ? ResumeIcons.panelLeftClose
@@ -320,12 +328,13 @@ class _ResumePreviewState extends State<ResumePreview>
     );
   }
 
-  Widget _iconBorderButton({required VoidCallback onTap, required Widget child}) {
+  Widget _iconBorderButton({
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
     return Material(
       color: Colors.white,
-      shape: const CircleBorder(
-        side: BorderSide(color: Color(0xFFEBEAE5)),
-      ),
+      shape: const CircleBorder(side: BorderSide(color: Color(0xFFEBEAE5))),
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
@@ -392,7 +401,8 @@ class _ResumePreviewState extends State<ResumePreview>
                     zoom: _zoom,
                     isSidebarOpen: _isSidebarOpen,
                     onNumPagesKnown: (n) => setState(() => _pdfPageCount = n),
-                    onNativeFailed: () => setState(() => _useWebFallback = true),
+                    onNativeFailed: () =>
+                        setState(() => _useWebFallback = true),
                   ),
           ),
           Positioned(
@@ -444,7 +454,10 @@ class _ResumePreviewState extends State<ResumePreview>
               style: TextButton.styleFrom(
                 backgroundColor: const Color(0xFFF5F4F0),
                 foregroundColor: const Color(0xFF2C2B2A),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

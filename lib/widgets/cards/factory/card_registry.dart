@@ -27,7 +27,6 @@ class CardRegistry {
     final definition = getDefinition(type);
 
     if (definition == null) {
-      debugPrint('Warning: Card type "$type" is not registered.');
       return card;
     }
 
@@ -145,7 +144,8 @@ class CardRegistry {
       throw Exception('Params Validation Failed: $validationResult');
     }
 
-    final id = 'mock-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecondsSinceEpoch}';
+    final id =
+        'mock-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecondsSinceEpoch}';
 
     // 获取默认尺寸
     final desktopSize = def.sizes.desktop.defaultSize;
@@ -166,14 +166,8 @@ class CardRegistry {
         status: 'PROCESSING',
       ),
       layout: CardLayout(
-        desktop: CardLayoutState(
-          size: desktopSize,
-          position: desktopPosition,
-        ),
-        mobile: CardLayoutState(
-          size: mobileSize,
-          position: mobilePosition,
-        ),
+        desktop: CardLayoutState(size: desktopSize, position: desktopPosition),
+        mobile: CardLayoutState(size: mobileSize, position: mobilePosition),
       ),
     );
   }

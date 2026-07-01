@@ -48,7 +48,9 @@ class MessagesStore extends ChangeNotifier {
   void _listenWebSocket() {
     _wsSubscription = _wsManager.messageStream.listen(_handleWsMessage);
     // 监听连接状态变化
-    _wsStateSubscription = _wsManager.stateStream.listen((_) => notifyListeners());
+    _wsStateSubscription = _wsManager.stateStream.listen(
+      (_) => notifyListeners(),
+    );
   }
 
   /// 处理 WebSocket 消息
@@ -81,7 +83,8 @@ class MessagesStore extends ChangeNotifier {
           final conversationId = data['conversation_id']?.toString() ?? '';
           final messageId = data['message_id']?.toString() ?? '';
           // 更新对方已读消息的 last_read_message_id
-          if (currentConversation != null && currentConversation!.id == conversationId) {
+          if (currentConversation != null &&
+              currentConversation!.id == conversationId) {
             final updatedMembers = currentConversation!.members.map((m) {
               // 只更新非当前用户的成员
               if (currentUserId != null && m.userId == currentUserId) {
@@ -89,7 +92,9 @@ class MessagesStore extends ChangeNotifier {
               }
               return m.copyWith(lastReadMessageId: messageId);
             }).toList();
-            currentConversation = currentConversation!.copyWith(members: updatedMembers);
+            currentConversation = currentConversation!.copyWith(
+              members: updatedMembers,
+            );
             notifyListeners();
           }
         }
@@ -113,8 +118,8 @@ class MessagesStore extends ChangeNotifier {
           final status = statusStr == 'read'
               ? MessageStatus.read
               : statusStr == 'delivered'
-                  ? MessageStatus.delivered
-                  : MessageStatus.sent;
+              ? MessageStatus.delivered
+              : MessageStatus.sent;
           updateMessageStatus(conversationId, messageId, status);
         }
         break;
@@ -158,12 +163,16 @@ class MessagesStore extends ChangeNotifier {
     try {
       final response = await _messageService.getConversations(search: search);
       final convList = response['conversations'] as List<dynamic>? ?? [];
-      conversations = convList.map((c) => Conversation.fromJson(c as Map<String, dynamic>)).toList();
+      conversations = convList
+          .map((c) => Conversation.fromJson(c as Map<String, dynamic>))
+          .toList();
 
       // 计算总未读数
-      totalUnreadCount = conversations.fold(0, (sum, conv) => sum + conv.unreadCount);
+      totalUnreadCount = conversations.fold(
+        0,
+        (sum, conv) => sum + conv.unreadCount,
+      );
     } catch (e) {
-      debugPrint('Failed to load conversations: $e');
     } finally {
       isLoadingConversations = false;
       notifyListeners();
@@ -175,7 +184,9 @@ class MessagesStore extends ChangeNotifier {
     try {
       final response = await _messageService.getConversations(search: query);
       final convList = response['conversations'] as List<dynamic>? ?? [];
-      return convList.map((c) => Conversation.fromJson(c as Map<String, dynamic>)).toList();
+      return convList
+          .map((c) => Conversation.fromJson(c as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       return [];
     }
@@ -191,24 +202,30 @@ class MessagesStore extends ChangeNotifier {
         limit: ApiConfig.messagesPageSize,
       );
       final msgList = response['messages'] as List<dynamic>? ?? [];
-      messages = msgList.map((m) => Message.fromJson(m as Map<String, dynamic>)).toList();
+      messages = msgList
+          .map((m) => Message.fromJson(m as Map<String, dynamic>))
+          .toList();
 
       // 计算未读消息起始位置
       int? actualUnreadCount = unreadCount;
       if (actualUnreadCount == null) {
-        final conv = conversations.where((c) => c.id == conversationId).firstOrNull;
+        final conv = conversations
+            .where((c) => c.id == conversationId)
+            .firstOrNull;
         actualUnreadCount = conv?.unreadCount ?? 0;
       }
 
       if (actualUnreadCount > 0 && messages.isNotEmpty) {
-        unreadMessageStartIndex = (messages.length - actualUnreadCount).clamp(0, messages.length);
+        unreadMessageStartIndex = (messages.length - actualUnreadCount).clamp(
+          0,
+          messages.length,
+        );
       } else {
         unreadMessageStartIndex = null;
       }
 
       hasMoreMessages = messages.length >= ApiConfig.messagesPageSize;
     } catch (e) {
-      debugPrint('Failed to load messages: $e');
     } finally {
       isLoadingMessages = false;
       notifyListeners();
@@ -217,7 +234,10 @@ class MessagesStore extends ChangeNotifier {
 
   /// 加载更多消息（分页）
   Future<void> loadMoreMessages() async {
-    if (isLoadingMoreMessages || !hasMoreMessages || currentConversation == null) return;
+    if (isLoadingMoreMessages ||
+        !hasMoreMessages ||
+        currentConversation == null)
+      return;
 
     isLoadingMoreMessages = true;
     notifyListeners();
@@ -229,18 +249,20 @@ class MessagesStore extends ChangeNotifier {
         offset: messages.length,
       );
       final olderMsgList = response['messages'] as List<dynamic>? ?? [];
-      final olderMessages = olderMsgList.map((m) => Message.fromJson(m as Map<String, dynamic>)).toList();
+      final olderMessages = olderMsgList
+          .map((m) => Message.fromJson(m as Map<String, dynamic>))
+          .toList();
 
       // 旧消息放在前面
       messages = [...olderMessages, ...messages];
 
       if (unreadMessageStartIndex != null) {
-        unreadMessageStartIndex = unreadMessageStartIndex! + olderMessages.length;
+        unreadMessageStartIndex =
+            unreadMessageStartIndex! + olderMessages.length;
       }
 
       hasMoreMessages = olderMessages.length >= ApiConfig.messagesPageSize;
     } catch (e) {
-      debugPrint('Failed to load more messages: $e');
     } finally {
       isLoadingMoreMessages = false;
       notifyListeners();
@@ -270,7 +292,8 @@ class MessagesStore extends ChangeNotifier {
   /// 添加新消息
   void addMessage(Message message) {
     // 只在当前对话时添加
-    if (currentConversation != null && message.conversationId == currentConversation!.id) {
+    if (currentConversation != null &&
+        message.conversationId == currentConversation!.id) {
       final exists = messages.any((m) => m.id == message.id);
       if (!exists) {
         messages = [...messages, message];
@@ -286,16 +309,26 @@ class MessagesStore extends ChangeNotifier {
   }
 
   /// 更新消息状态
-  void updateMessageStatus(String conversationId, String messageId, MessageStatus status) {
-    if (currentConversation != null && conversationId == currentConversation!.id) {
-      messages = messages.map((msg) => msg.id == messageId ? msg.copyWith(status: status) : msg).toList();
+  void updateMessageStatus(
+    String conversationId,
+    String messageId,
+    MessageStatus status,
+  ) {
+    if (currentConversation != null &&
+        conversationId == currentConversation!.id) {
+      messages = messages
+          .map(
+            (msg) => msg.id == messageId ? msg.copyWith(status: status) : msg,
+          )
+          .toList();
       notifyListeners();
     }
   }
 
   /// 用服务端返回的最新消息整条替换（Team Recruit 加入/退出/关闭后刷新卡片）
   void replaceMessage(Message updated) {
-    if (currentConversation != null && updated.conversationId == currentConversation!.id) {
+    if (currentConversation != null &&
+        updated.conversationId == currentConversation!.id) {
       messages = messages.map((m) => m.id == updated.id ? updated : m).toList();
       notifyListeners();
     }
@@ -306,12 +339,15 @@ class MessagesStore extends ChangeNotifier {
     conversations = conversations.map((conv) {
       if (conv.id != conversationId) return conv;
       return conv.copyWith(
-        lastMessageTime: updates['last_message_time']?.toString() ?? conv.lastMessageTime,
-        lastMessageText: updates['last_message_text']?.toString() ?? conv.lastMessageText,
+        lastMessageTime:
+            updates['last_message_time']?.toString() ?? conv.lastMessageTime,
+        lastMessageText:
+            updates['last_message_text']?.toString() ?? conv.lastMessageText,
         unreadCount: updates.containsKey('unread_count')
             ? (updates['unread_count'] is int
-                ? updates['unread_count'] as int
-                : int.tryParse(updates['unread_count']?.toString() ?? '') ?? conv.unreadCount)
+                  ? updates['unread_count'] as int
+                  : int.tryParse(updates['unread_count']?.toString() ?? '') ??
+                        conv.unreadCount)
             : conv.unreadCount,
       );
     }).toList();
@@ -324,10 +360,15 @@ class MessagesStore extends ChangeNotifier {
     }
 
     if (currentConversation?.id == conversationId) {
-      currentConversation = conversations.where((c) => c.id == conversationId).firstOrNull ?? currentConversation;
+      currentConversation =
+          conversations.where((c) => c.id == conversationId).firstOrNull ??
+          currentConversation;
     }
 
-    totalUnreadCount = conversations.fold(0, (sum, conv) => sum + conv.unreadCount);
+    totalUnreadCount = conversations.fold(
+      0,
+      (sum, conv) => sum + conv.unreadCount,
+    );
     notifyListeners();
   }
 
@@ -337,7 +378,10 @@ class MessagesStore extends ChangeNotifier {
       if (conv.id != conversationId) return conv;
       return conv.copyWith(unreadCount: count);
     }).toList();
-    totalUnreadCount = conversations.fold(0, (sum, conv) => sum + conv.unreadCount);
+    totalUnreadCount = conversations.fold(
+      0,
+      (sum, conv) => sum + conv.unreadCount,
+    );
     notifyListeners();
   }
 
@@ -347,7 +391,10 @@ class MessagesStore extends ChangeNotifier {
       if (conv.id != conversationId) return conv;
       return conv.copyWith(unreadCount: 0);
     }).toList();
-    totalUnreadCount = conversations.fold(0, (sum, conv) => sum + conv.unreadCount);
+    totalUnreadCount = conversations.fold(
+      0,
+      (sum, conv) => sum + conv.unreadCount,
+    );
     unreadMessageStartIndex = null;
     notifyListeners();
   }
@@ -356,10 +403,7 @@ class MessagesStore extends ChangeNotifier {
   void sendReadReceipt(String conversationId, String messageId) {
     _wsManager.sendMessage({
       'type': WsMessageType.read,
-      'data': {
-        'conversation_id': conversationId,
-        'message_id': messageId,
-      },
+      'data': {'conversation_id': conversationId, 'message_id': messageId},
     });
   }
 

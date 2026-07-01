@@ -87,5 +87,4 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler) as httpd:
-        print(f"dev proxy on http://127.0.0.1:{PORT} -> {UPSTREAM}")
         httpd.serve_forever()

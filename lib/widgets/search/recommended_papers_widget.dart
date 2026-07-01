@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/recommendation_models.dart' as rec;
-import '../../pages/search/paper_filters_page.dart'
-    show getSelectedFilterItems;
+import '../../pages/search/paper_filters_page.dart' show getSelectedFilterItems;
 import '../../services/recommendation_service.dart';
 
 // ---------- RecommendedPapers 主组件 ----------
@@ -115,7 +114,6 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
         _mode = 'recommend';
       });
     } catch (e, st) {
-      debugPrint('RecommendPapers load error: $e $st');
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -134,18 +132,14 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
     if (userId == null || userId.isEmpty) return;
     _recommendationService
         .updateInterest(userId: userId, paperUid: paper.paperUid)
-        .catchError((e) {
-          debugPrint('updateInterest error: $e');
-        });
+        .catchError((e) {});
   }
 
   void _handleSearchAuthor(rec.RecommendedPaper paper) {
     final query = 'Find all authors from "${paper.data.title}"';
     if (widget.onSearchAuthorAndBack != null) {
       widget.onSearchAuthorAndBack!(query);
-    } else {
-      debugPrint('Search author: $query');
-    }
+    } else {}
   }
 
   Widget _buildPlaceholder() {
@@ -174,11 +168,10 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
 
   Future<void> _handleSearchSimilar(rec.RecommendedPaper paper) async {
     _similarSourcePaper = paper;
-    debugPrint('Similar source card title: ${paper.data.title}');
     setState(() {
-        _loading = true;
-        _mode = 'similar';
-      });
+      _loading = true;
+      _mode = 'similar';
+    });
     try {
       final list = await _recommendationService.matchPapers(
         paperUid: paper.paperUid,
@@ -191,7 +184,6 @@ class _RecommendedPapersWidgetState extends State<RecommendedPapersWidget> {
         _papers = list;
       });
     } catch (e, st) {
-      debugPrint('MatchPapers error: $e $st');
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -547,6 +539,7 @@ class _PaperCard extends StatefulWidget {
   });
 
   final rec.RecommendedPaper paper;
+
   /// 当前「Similar」来源论文，匹配到的卡片边框高亮 #1487FA 2px
   final rec.RecommendedPaper? sourcePaper;
   final ValueChanged<rec.RecommendedPaper> onOpenPaper;
@@ -584,7 +577,8 @@ class _PaperCardState extends State<_PaperCard> {
               ? widget.paper.data.links.link!.first
               : null);
 
-    final isSourcePaper = widget.sourcePaper != null &&
+    final isSourcePaper =
+        widget.sourcePaper != null &&
         widget.paper.paperUid == widget.sourcePaper!.paperUid;
 
     // 移动端：无 hover，固定阴影；匹配 sourcePaper 时边框高亮 #1487FA 2px
@@ -594,7 +588,9 @@ class _PaperCardState extends State<_PaperCard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSourcePaper ? const Color(0xFF1487FA) : const Color(0xFFF3F4F6),
+          color: isSourcePaper
+              ? const Color(0xFF1487FA)
+              : const Color(0xFFF3F4F6),
           width: 2, // 统一 2px 避免高亮时布局偏移
         ),
         boxShadow: const [

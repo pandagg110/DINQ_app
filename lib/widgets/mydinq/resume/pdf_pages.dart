@@ -98,7 +98,6 @@ class _PdfPagesState extends State<PdfPages> {
       });
       widget.onNumPagesKnown?.call(doc.pagesCount);
     } catch (e) {
-      debugPrint('PdfDocument.openFile failed: $e');
       if (mounted) {
         setState(() {
           _numPages = 0;
@@ -158,8 +157,7 @@ class _PdfPagesState extends State<PdfPages> {
     );
   }
 
-  bool get _showSidebar =>
-      _numPages > 1 && widget.isSidebarOpen && !_isMobile;
+  bool get _showSidebar => _numPages > 1 && widget.isSidebarOpen && !_isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +188,9 @@ class _PdfPagesState extends State<PdfPages> {
               minScale: 0.5,
               maxScale: 6,
               scrollDirection: Axis.vertical,
-              backgroundDecoration: const BoxDecoration(color: Colors.transparent),
+              backgroundDecoration: const BoxDecoration(
+                color: Colors.transparent,
+              ),
               onPageChanged: (page) {
                 if (_activePage != page) {
                   setState(() => _activePage = page);
@@ -207,7 +207,6 @@ class _PdfPagesState extends State<PdfPages> {
                 }
               },
               onDocumentError: (error) {
-                debugPrint('PdfViewPinch error: $error');
                 if (isPdfxChannelError(error)) {
                   widget.onNativeFailed?.call();
                 } else if (mounted) {
@@ -240,7 +239,9 @@ class _PdfPagesState extends State<PdfPages> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isActive ? const Color(0xFFF5F5F4) : Colors.transparent,
+                      color: isActive
+                          ? const Color(0xFFF5F5F4)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       border: isActive
                           ? Border.all(color: const Color(0x99D6D3D1), width: 2)
@@ -278,7 +279,11 @@ class _PdfPagesState extends State<PdfPages> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: const [
-            ResumeSvgIcon(ResumeIcons.fileText, size: 28, color: Color(0xFF6B7280)),
+            ResumeSvgIcon(
+              ResumeIcons.fileText,
+              size: 28,
+              color: Color(0xFF6B7280),
+            ),
             SizedBox(height: 12),
             Text(
               'Failed to open PDF',
@@ -296,10 +301,7 @@ class _PdfPagesState extends State<PdfPages> {
 }
 
 class _PdfThumbImage extends StatefulWidget {
-  const _PdfThumbImage({
-    required this.document,
-    required this.pageNumber,
-  });
+  const _PdfThumbImage({required this.document, required this.pageNumber});
 
   final PdfDocument document;
   final int pageNumber;
@@ -343,7 +345,6 @@ class _PdfThumbImageState extends State<_PdfThumbImage> {
           _failed = image == null;
         });
       } catch (e) {
-        debugPrint('Thumb page ${widget.pageNumber} render failed: $e');
         if (mounted) setState(() => _failed = true);
       }
     });
@@ -366,7 +367,12 @@ class _PdfThumbImageState extends State<_PdfThumbImage> {
             : const ColoredBox(color: Color(0xFFEEEDE9)),
       );
     }
-    return Image.memory(_bytes!, width: 90, fit: BoxFit.fitWidth, gaplessPlayback: true);
+    return Image.memory(
+      _bytes!,
+      width: 90,
+      fit: BoxFit.fitWidth,
+      gaplessPlayback: true,
+    );
   }
 }
 
