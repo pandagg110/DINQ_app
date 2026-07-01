@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../utils/asset_path.dart';
 
-/// Google Scholar 卡片，对应 Web ShareCard/cards/ScholarCard.tsx（简化版）
+/// Google Scholar card, aligned with Web ShareCard/cards/ScholarCard.tsx.
 class ScholarCard extends StatelessWidget {
   const ScholarCard({
     super.key,
@@ -20,16 +20,17 @@ class ScholarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasContent = topTierPapers != null && totalPapers != null && hIndex != null;
+    final hasContent =
+        topTierPapers != null && totalPapers != null && hIndex != null;
+    final hasSummary = summary != null && summary!.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
+        color: Colors.white.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           SvgPicture.asset(
             assetPath('icons/social-icons/Scholar.svg'),
@@ -37,40 +38,80 @@ class ScholarCard extends StatelessWidget {
             height: 48,
           ),
           const SizedBox(height: 18),
-          if (hasContent) ...[
-            Row(
-              children: [
-                _MetricBlock(
-                  label: 'Top Tier/Papers',
-                  value: '$topTierPapers/$totalPapers',
-                ),
-                const SizedBox(width: 48),
-                _MetricBlock(label: 'h-index', value: '$hIndex'),
-              ],
-            ),
-            if (summary != null && summary!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                summary!,
-                style: const TextStyle(
-                  fontFamily: 'Geist',
-                  fontSize: 20,
-                  color: Color(0xFF171717),
-                  height: 1.4,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+          if (hasContent)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _MetricBlock(
+                        label: 'Top Tier/Papers',
+                        value: '$topTierPapers/$totalPapers',
+                      ),
+                      const SizedBox(width: 48),
+                      _MetricBlock(label: 'H-index', value: '$hIndex'),
+                    ],
+                  ),
+                  if (hasSummary) ...[
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F6F6),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          summary!,
+                          style: const TextStyle(
+                            fontFamily: 'Geist',
+                            fontSize: 20,
+                            color: Color(0xFF374151),
+                            height: 1.6,
+                          ),
+                          overflow: TextOverflow.clip,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ] else
-            const Expanded(
+            )
+          else
+            Expanded(
               child: Center(
-                child: Text(
-                  'No content yet.',
-                  style: TextStyle(
-                    fontFamily: 'Geist',
-                    fontSize: 24,
-                    color: Color(0xFF000000),
+                child: Transform.translate(
+                  offset: const Offset(0, -20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        alignment: Alignment.center,
+                        child: SvgPicture.asset(
+                          assetPath('icons/error.svg'),
+                          width: 48,
+                          height: 48,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No content yet.',
+                        style: TextStyle(
+                          fontFamily: 'Geist',
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -108,7 +149,7 @@ class _MetricBlock extends StatelessWidget {
             fontFamily: 'Geist',
             fontSize: 32,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF000000),
+            color: Colors.black,
           ),
         ),
       ],
