@@ -9,6 +9,8 @@ class GithubCard extends StatelessWidget {
   const GithubCard({super.key, this.username = ''});
 
   final String username;
+  static const _chartHeight = 179.0;
+  static const _chartAspectRatio = 663 / 104;
 
   @override
   Widget build(BuildContext context) {
@@ -35,15 +37,16 @@ class GithubCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 179,
+                  height: _chartHeight,
                   child: OverflowBox(
                     alignment: Alignment.centerRight,
-                    maxWidth: 660,
-                    child: Image.network(
+                    maxWidth: _chartHeight * _chartAspectRatio,
+                    child: SvgPicture.network(
                       'https://ghchart.rshah.org/$username',
-                      height: 179,
-                      fit: BoxFit.fitHeight,
-                      errorBuilder: (context, error, stackTrace) =>
+                      width: _chartHeight * _chartAspectRatio,
+                      height: _chartHeight,
+                      fit: BoxFit.fill,
+                      placeholderBuilder: (context) =>
                           Container(color: const Color(0xFFF3F4F6)),
                     ),
                   ),
