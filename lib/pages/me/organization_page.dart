@@ -5,6 +5,7 @@ import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../widgets/common/default_app_bar.dart';
+import '../../widgets/common/dinq_nav_buttons.dart';
 import 'organization_create_page.dart';
 import 'organization_discover_page.dart';
 
@@ -69,21 +70,19 @@ class _OrganizationPageState extends State<OrganizationPage> {
         context,
         titleString: 'Organization',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Color(0xFF171717)),
-            tooltip: 'Discover',
-            onPressed: _openDiscover,
+          Center(
+            child: DinqCircleActionButton(
+              icon: Icons.search,
+              onTap: _openDiscover,
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _openCreate,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(color: Color(0xFF171717), shape: BoxShape.circle),
-                child: const Icon(Icons.add, size: 20, color: Colors.white),
+            padding: const EdgeInsets.only(left: 8, right: 12),
+            child: Center(
+              child: DinqCircleActionButton(
+                icon: Icons.add,
+                primary: true,
+                onTap: _openCreate,
               ),
             ),
           ),
