@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../common/asset_icon.dart';
 import '../../../utils/asset_path.dart';
 
 /// LinkedIn timeline card, aligned with Web ShareCard/cards/LinkedInCard.tsx.
@@ -28,11 +29,7 @@ class LinkedInCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SvgPicture.asset(
-            assetPath('icons/social-icons/LinkedIn.svg'),
-            width: 48,
-            height: 48,
-          ),
+          const AssetIcon(asset: 'icons/social-icons/LinkedIn.svg', size: 48),
           const SizedBox(height: 30),
           if (!hasData)
             const Expanded(child: _EmptyState())

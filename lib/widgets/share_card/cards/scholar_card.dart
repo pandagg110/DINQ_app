@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../common/asset_icon.dart';
 import '../../../utils/asset_path.dart';
 
 /// Google Scholar card, aligned with Web ShareCard/cards/ScholarCard.tsx.
@@ -32,11 +33,7 @@ class ScholarCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SvgPicture.asset(
-            assetPath('icons/social-icons/Scholar.svg'),
-            width: 48,
-            height: 48,
-          ),
+          const AssetIcon(asset: 'icons/social-icons/Scholar.svg', size: 48),
           const SizedBox(height: 18),
           if (hasContent)
             Expanded(

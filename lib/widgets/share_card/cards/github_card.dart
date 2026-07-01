@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../common/asset_icon.dart';
 import '../../../utils/asset_path.dart';
 
 /// GitHub card, aligned with Web ShareCard/cards/GithubCard.tsx.
@@ -24,11 +25,7 @@ class GithubCard extends StatelessWidget {
             ? MainAxisAlignment.spaceBetween
             : MainAxisAlignment.start,
         children: [
-          SvgPicture.asset(
-            assetPath('icons/social-icons/Github.svg'),
-            width: 48,
-            height: 48,
-          ),
+          const AssetIcon(asset: 'icons/social-icons/Github.svg', size: 48),
           if (!hasData)
             const Expanded(child: _EmptyState(iconSize: 32, boxSize: 64))
           else
