@@ -1,4 +1,4 @@
-/**
+/*
  * ExportCard - Flutter 迁移自 Web example/src/app/[username]/components/shareCard/ExportCard.tsx
  * 使用 ShareCard 渲染卡片，支持编辑模式（Logo 上传、leftCard/rightCard 下拉、主题切换）
  */
@@ -42,8 +42,10 @@ class ExportCard extends StatefulWidget {
   final UserData userInfo;
   final List<CardItem>? cards;
   final int verifiedCount;
+
   /// 是否显示编辑 UI（对应 pathUsername === "admin"）
   final bool isEditable;
+
   /// 主题变更回调，用于持久化到 updateUserData
   final void Function(Map<String, dynamic> theme)? onThemeChange;
   final double height;
@@ -101,8 +103,10 @@ class _ExportCardState extends State<ExportCard> {
   @override
   Widget build(BuildContext context) {
     final theme = _theme;
-    final scale = widget.scale;
-    final displayHeight = widget.height * scale;
+    final baseScale = widget.height / 630;
+    final scale = baseScale * widget.scale;
+    final displayHeight = 630 * scale;
+    final displayWidth = 1200 * scale;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -110,36 +114,32 @@ class _ExportCardState extends State<ExportCard> {
       children: [
         SizedBox(
           height: displayHeight,
+          width: displayWidth,
           child: Transform(
             alignment: Alignment.topCenter,
-            transform: Matrix4.identity()..scale(scale),
+            transform: Matrix4.diagonal3Values(scale, scale, 1),
             child: SizedBox(
-              height: widget.height,
+              width: 1200,
+              height: 630,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   // ShareCard 主体 (600x315 可视，对应 1200x630 scale 0.5)
-                  Center(
-                    child: SizedBox(
-                      width: 600,
-                      height: 315,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: ShareCard(
-                          userInfo: widget.userInfo,
-                          cardsMap: _cardsMap,
-                          themeMode: theme.mode,
-                          themeColor: theme.color,
-                          leftCardType: theme.leftCard,
-                          rightCardType: theme.rightCard,
-                          logoUrl: theme.logo,
-                          verifiedCount: widget.verifiedCount,
-                        ),
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: ShareCard(
+                      userInfo: widget.userInfo,
+                      cardsMap: _cardsMap,
+                      themeMode: theme.mode,
+                      themeColor: theme.color,
+                      leftCardType: theme.leftCard,
+                      rightCardType: theme.rightCard,
+                      logoUrl: theme.logo,
+                      verifiedCount: widget.verifiedCount,
                     ),
                   ),
                   // 编辑 UI（仅 isEditable）
-                  if (widget.isEditable) _buildEditOverlays(),
+                  if (widget.isEditable) _buildEditOverlays(scale),
                 ],
               ),
             ),
@@ -153,7 +153,7 @@ class _ExportCardState extends State<ExportCard> {
     );
   }
 
-  Widget _buildEditOverlays() {
+  Widget _buildEditOverlays(double scale) {
     final theme = _theme;
     return IgnorePointer(
       ignoring: false,
@@ -162,39 +162,51 @@ class _ExportCardState extends State<ExportCard> {
         children: [
           // Logo 编辑区域 - 对应 TSX top-[20px] right-[320px]，600x315 下约 left: 219
           Positioned(
-            top: 10,
-            left: 219,
-            child: _LogoEditOverlay(
-              logoUrl: theme.logo,
-              uploading: _uploading,
-              onFileSelected: _handleLogoUpload,
-              onRemove: () => _handleThemeChange('logo', ''),
+            top: 20 / scale,
+            right: 320 / scale,
+            child: _UnscaledOverlay(
+              width: 61,
+              scale: scale,
+              child: _LogoEditOverlay(
+                logoUrl: theme.logo,
+                uploading: _uploading,
+                onFileSelected: _handleLogoUpload,
+                onRemove: () => _handleThemeChange('logo', ''),
+              ),
             ),
           ),
           // leftCard 下拉 - 对应 TSX top-[106px] left-[505px]，600x315 下约 left: 252
           if (theme.mode == 'card') ...[
             Positioned(
-              top: 53,
-              left: 252,
-              child: _CardTypeDropdown(
-                value: theme.leftCard ?? '',
-                options: _firstCards
-                    .where((ct) => _cardsMap.containsKey(ct) || ct == 'BIO')
-                    .toList(),
-                labels: _cardLabels,
-                onChanged: (v) => _handleThemeChange('leftCard', v),
+              top: 106 / scale,
+              left: 505 / scale,
+              child: _UnscaledOverlay(
+                width: 90,
+                scale: scale,
+                child: _CardTypeDropdown(
+                  value: theme.leftCard ?? '',
+                  options: _firstCards
+                      .where((ct) => _cardsMap.containsKey(ct) || ct == 'BIO')
+                      .toList(),
+                  labels: _cardLabels,
+                  onChanged: (v) => _handleThemeChange('leftCard', v),
+                ),
               ),
             ),
             Positioned(
-              top: 53,
-              right: 120,
-              child: _CardTypeDropdown(
-                value: theme.rightCard ?? '',
-                options: _secondCards
-                    .where((ct) => _cardsMap.containsKey(ct))
-                    .toList(),
-                labels: _cardLabels,
-                onChanged: (v) => _handleThemeChange('rightCard', v),
+              top: 106 / scale,
+              right: 330 / scale,
+              child: _UnscaledOverlay(
+                width: 90,
+                scale: scale,
+                child: _CardTypeDropdown(
+                  value: theme.rightCard ?? '',
+                  options: _secondCards
+                      .where((ct) => _cardsMap.containsKey(ct))
+                      .toList(),
+                  labels: _cardLabels,
+                  onChanged: (v) => _handleThemeChange('rightCard', v),
+                ),
               ),
             ),
           ],
@@ -240,6 +252,30 @@ class _ExportCardState extends State<ExportCard> {
   }
 }
 
+class _UnscaledOverlay extends StatelessWidget {
+  const _UnscaledOverlay({
+    required this.width,
+    required this.scale,
+    required this.child,
+  });
+
+  final double width;
+  final double scale;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width / scale,
+      child: Transform.scale(
+        scale: 1 / scale,
+        alignment: Alignment.topLeft,
+        child: SizedBox(width: width, child: child),
+      ),
+    );
+  }
+}
+
 class _LogoEditOverlay extends StatelessWidget {
   const _LogoEditOverlay({
     this.logoUrl,
@@ -254,7 +290,8 @@ class _LogoEditOverlay extends StatelessWidget {
     required Uint8List bytes,
     required String filename,
     required String contentType,
-  }) onFileSelected;
+  })
+  onFileSelected;
   final VoidCallback onRemove;
 
   @override
@@ -275,12 +312,12 @@ class _LogoEditOverlay extends StatelessWidget {
                 final contentType = ext == 'png'
                     ? 'image/png'
                     : ext == 'jpg' || ext == 'jpeg'
-                        ? 'image/jpeg'
-                        : ext == 'gif'
-                            ? 'image/gif'
-                            : ext == 'webp'
-                                ? 'image/webp'
-                                : 'image/jpeg';
+                    ? 'image/jpeg'
+                    : ext == 'gif'
+                    ? 'image/gif'
+                    : ext == 'webp'
+                    ? 'image/webp'
+                    : 'image/jpeg';
                 onFileSelected(
                   bytes: file.bytes!,
                   filename: file.name,
@@ -293,7 +330,10 @@ class _LogoEditOverlay extends StatelessWidget {
         height: 62,
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFD8D8D8), style: BorderStyle.solid),
+          border: Border.all(
+            color: const Color(0xFFD8D8D8),
+            style: BorderStyle.solid,
+          ),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Stack(
@@ -302,10 +342,19 @@ class _LogoEditOverlay extends StatelessWidget {
             if (logoUrl != null && logoUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: Image.network(logoUrl!, fit: BoxFit.cover, width: 61, height: 62),
+                child: Image.network(
+                  logoUrl!,
+                  fit: BoxFit.cover,
+                  width: 61,
+                  height: 62,
+                ),
               ),
             if (logoUrl == null || logoUrl!.isEmpty)
-              Icon(Icons.add_photo_alternate_outlined, color: Colors.grey[600], size: 24),
+              Icon(
+                Icons.add_photo_alternate_outlined,
+                color: Colors.grey[600],
+                size: 24,
+              ),
             if (uploading)
               Container(
                 color: Colors.black54,
@@ -313,7 +362,10 @@ class _LogoEditOverlay extends StatelessWidget {
                   child: SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -329,7 +381,11 @@ class _LogoEditOverlay extends StatelessWidget {
                       color: Color(0xFFDC2626),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close, size: 16, color: Colors.white),
+                    child: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -338,7 +394,6 @@ class _LogoEditOverlay extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _CardTypeDropdown extends StatelessWidget {
@@ -366,17 +421,18 @@ class _CardTypeDropdown extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: (value.isEmpty || !options.contains(value)) && options.isNotEmpty
+          value:
+              (value.isEmpty || !options.contains(value)) && options.isNotEmpty
               ? options.first
               : (options.contains(value) ? value : null),
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down, size: 20),
           style: const TextStyle(fontSize: 12, color: Color(0xFF171717)),
           items: options
-              .map((ct) => DropdownMenuItem(
-                    value: ct,
-                    child: Text(labels[ct] ?? ct),
-                  ))
+              .map(
+                (ct) =>
+                    DropdownMenuItem(value: ct, child: Text(labels[ct] ?? ct)),
+              )
               .toList(),
           onChanged: (v) {
             if (v != null) onChanged(v);
@@ -413,7 +469,9 @@ class _ColorButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: isSelected ? const Color(0xFF000000) : const Color(0xFFC0C0C0),
+              color: isSelected
+                  ? const Color(0xFF000000)
+                  : const Color(0xFFC0C0C0),
               width: isSelected ? 1.63 : 1,
             ),
           ),
@@ -440,10 +498,7 @@ class _ColorButton extends StatelessWidget {
 }
 
 class _ClassicCustomToggle extends StatelessWidget {
-  const _ClassicCustomToggle({
-    required this.isCustom,
-    required this.onTap,
-  });
+  const _ClassicCustomToggle({required this.isCustom, required this.onTap});
 
   final bool isCustom;
   final VoidCallback onTap;
@@ -476,7 +531,7 @@ class _ClassicCustomToggle extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -494,7 +549,9 @@ class _ClassicCustomToggle extends StatelessWidget {
                         fontFamily: 'Geist',
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: !isCustom ? const Color(0xFF171717) : const Color(0xFF9CA3AF),
+                        color: !isCustom
+                            ? const Color(0xFF171717)
+                            : const Color(0xFF9CA3AF),
                       ),
                     ),
                   ),
@@ -507,7 +564,9 @@ class _ClassicCustomToggle extends StatelessWidget {
                         fontFamily: 'Geist',
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: isCustom ? const Color(0xFF171717) : const Color(0xFF9CA3AF),
+                        color: isCustom
+                            ? const Color(0xFF171717)
+                            : const Color(0xFF9CA3AF),
                       ),
                     ),
                   ),

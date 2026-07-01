@@ -8,8 +8,8 @@ class TagsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tags.isEmpty) return const SizedBox.shrink();
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.8),
@@ -26,14 +26,20 @@ class TagsCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             constraints: const BoxConstraints(minHeight: 54),
-            alignment: Alignment.center,
-            child: Text(
-              tag,
-              style: const TextStyle(
-                fontFamily: 'Geist',
-                fontSize: 24,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF171717),
+            child: Center(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Text(
+                tag,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.clip,
+                style: const TextStyle(
+                  fontFamily: 'Geist',
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF171717),
+                ),
               ),
             ),
           );

@@ -33,19 +33,31 @@ class ShareCard extends StatelessWidget {
 
   final UserData userInfo;
   final Map<String, dynamic> cardsMap;
+
   /// classic | card
   final String themeMode;
+
   /// default | colorful
   final String themeColor;
+
   /// LINKEDIN | GITHUB | SCHOLAR | BIO
   final String? leftCardType;
+
   /// ACHIEVEMENT_NETWORK | CAREER_TRAJECTORY
   final String? rightCardType;
   final String? logoUrl;
   final int verifiedCount;
 
-  static const List<String> _firstCards = ['LINKEDIN', 'GITHUB', 'SCHOLAR', 'BIO'];
-  static const List<String> _secondCards = ['ACHIEVEMENT_NETWORK', 'CAREER_TRAJECTORY'];
+  static const List<String> _firstCards = [
+    'LINKEDIN',
+    'GITHUB',
+    'SCHOLAR',
+    'BIO',
+  ];
+  static const List<String> _secondCards = [
+    'ACHIEVEMENT_NETWORK',
+    'CAREER_TRAJECTORY',
+  ];
 
   static const List<Color> _tagColors = [
     Color(0xFFCDE3FF),
@@ -73,7 +85,9 @@ class ShareCard extends StatelessWidget {
   }
 
   String get _secondCardType {
-    if (rightCardType != null && rightCardType!.isNotEmpty) return rightCardType!;
+    if (rightCardType != null && rightCardType!.isNotEmpty) {
+      return rightCardType!;
+    }
     for (final ct in _secondCards) {
       if (cardsMap.containsKey(ct)) return ct;
     }
@@ -127,10 +141,7 @@ class ShareCard extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-              Container(
-                color: const Color(0xFFF6F6F6),
-                child: content,
-              ),
+              Container(color: const Color(0xFFF6F6F6), child: content),
             ],
           ),
         ),
@@ -186,7 +197,10 @@ class ShareCard extends StatelessWidget {
                   if (verifiedCount > 0) ...[
                     const SizedBox(width: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF8B5CF6),
                         borderRadius: BorderRadius.circular(9999),
@@ -283,10 +297,15 @@ class ShareCard extends StatelessWidget {
                     padding: EdgeInsets.only(left: i == 0 ? 0 : 12),
                     child: Container(
                       height: 54,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: themeColor == 'default'
-                            ? _tagColors[i % _tagColors.length].withValues(alpha: 0.73)
+                            ? _tagColors[i % _tagColors.length].withValues(
+                                alpha: 0.73,
+                              )
                             : const Color(0xFF888888).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -315,8 +334,8 @@ class ShareCard extends StatelessWidget {
   }
 
   Widget _buildCardModeMiddle() {
-    final first = _buildCardByType(_firstCardType, true);
-    final second = _buildCardByType(_secondCardType, false);
+    final first = _buildCardByType(_firstCardType);
+    final second = _buildCardByType(_secondCardType);
     return Expanded(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -325,11 +344,12 @@ class ShareCard extends StatelessWidget {
           const SizedBox(width: 24),
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Expanded(child: second),
                 const SizedBox(height: 20),
-                TagsCard(tags: _tags),
+                Expanded(child: TagsCard(tags: _tags)),
               ],
             ),
           ),
@@ -338,7 +358,7 @@ class ShareCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCardByType(String type, bool isFirst) {
+  Widget _buildCardByType(String type) {
     final data = Map<String, dynamic>.from(cardsMap[type] ?? {});
     if (type == 'ACHIEVEMENT_NETWORK') {
       data['currentUserAvatar'] = userInfo.avatarUrl;
@@ -350,15 +370,17 @@ class ShareCard extends StatelessWidget {
     switch (type) {
       case 'LINKEDIN':
         return LinkedInCard(
-          careerJourney: (data['career_journey'] ?? data['careerJourney'] ?? []) as List<dynamic>,
+          careerJourney:
+              (data['career_journey'] ?? data['careerJourney'] ?? [])
+                  as List<dynamic>,
         );
       case 'GITHUB':
-        return GithubCard(
-          username: (data['username'] ?? '').toString(),
-        );
+        return GithubCard(username: (data['username'] ?? '').toString());
       case 'SCHOLAR':
         return ScholarCard(
-          topTierPapers: _toInt(data['top_tier_papers'] ?? data['topTierPapers']),
+          topTierPapers: _toInt(
+            data['top_tier_papers'] ?? data['topTierPapers'],
+          ),
           totalPapers: _toInt(data['total_papers'] ?? data['totalPapers']),
           hIndex: _toInt(data['h_index'] ?? data['hIndex']),
           summary: (data['summary'] ?? '').toString(),
@@ -368,12 +390,11 @@ class ShareCard extends StatelessWidget {
       case 'ACHIEVEMENT_NETWORK':
         return NetworkCard(
           connections: (data['connections'] ?? []).cast<dynamic>(),
-          currentUserAvatar: (data['currentUserAvatar'] ?? userInfo.avatarUrl) as String?,
+          currentUserAvatar:
+              (data['currentUserAvatar'] ?? userInfo.avatarUrl) as String?,
         );
       case 'CAREER_TRAJECTORY':
-        return CareerCard(
-          segments: (data['segments'] ?? []).cast<dynamic>(),
-        );
+        return CareerCard(segments: (data['segments'] ?? []).cast<dynamic>());
       default:
         return BioCard(bio: userInfo.bio);
     }
@@ -387,7 +408,11 @@ class ShareCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.location_on_outlined, size: 28, color: const Color(0xFF9CA3AF)),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 28,
+                  color: const Color(0xFF9CA3AF),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -419,7 +444,10 @@ class ShareCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            const Text('-', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 24)),
+            const Text(
+              '-',
+              style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 24),
+            ),
             const SizedBox(width: 12),
             SvgPicture.asset(
               assetPath('logo/dinq-black.svg'),

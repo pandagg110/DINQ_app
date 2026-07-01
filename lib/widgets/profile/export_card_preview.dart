@@ -64,20 +64,23 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
   @override
   void initState() {
     super.initState();
-    _themeMode = widget.theme?['mode'] ?? 'classic';
-    _themeColor = widget.theme?['color'] ?? 'default';
-    _leftCard = widget.theme?['leftCard'];
-    _rightCard = widget.theme?['rightCard'];
+    final userTheme = widget.userData.theme;
+    _themeMode = widget.theme?['mode'] ?? userTheme?.mode ?? 'classic';
+    _themeColor = widget.theme?['color'] ?? userTheme?.color ?? 'default';
+    _leftCard = widget.theme?['leftCard'] ?? userTheme?.leftCard;
+    _rightCard = widget.theme?['rightCard'] ?? userTheme?.rightCard;
   }
 
   @override
   void didUpdateWidget(ExportCardPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.theme != oldWidget.theme) {
-      _themeMode = widget.theme?['mode'] ?? 'classic';
-      _themeColor = widget.theme?['color'] ?? 'default';
-      _leftCard = widget.theme?['leftCard'];
-      _rightCard = widget.theme?['rightCard'];
+    if (widget.theme != oldWidget.theme ||
+        widget.userData.theme != oldWidget.userData.theme) {
+      final userTheme = widget.userData.theme;
+      _themeMode = widget.theme?['mode'] ?? userTheme?.mode ?? 'classic';
+      _themeColor = widget.theme?['color'] ?? userTheme?.color ?? 'default';
+      _leftCard = widget.theme?['leftCard'] ?? userTheme?.leftCard;
+      _rightCard = widget.theme?['rightCard'] ?? userTheme?.rightCard;
     }
   }
 
@@ -136,39 +139,108 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // 与 ExportCard.tsx 一致：固定尺寸 ShareCard 再缩放适配（TSX: 1200x630 scale 0.5 -> 600x315）
-          Expanded(
-            child: AspectRatio(
-              aspectRatio: 1200 / 630, // 宽度填满，高度按比例自适应
-              child: FittedBox(
-                fit: BoxFit.contain,
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: 1200,
-                  height: 630,
-                  child: ShareCard(
-                  userInfo: widget.userData,
-                  cardsMap: _cardsMap,
-                  themeMode: _themeMode,
-                  themeColor: _themeColor,
-                  leftCardType: _leftCard,
-                  rightCardType: _rightCard,
-                  logoUrl: widget.theme?['logo']?.isNotEmpty == true
-                      ? widget.theme!['logo']
-                      : null,
-                  verifiedCount: widget.verifiedCount,
-                ),
-              ),
-            ),
-          ),
-          ),  // Expanded
+          Expanded(child: _buildPreviewCard()),
           // Edit Background Color and Mode（与 ExportCard.tsx 一致）
           if (widget.isEditable) ...[
             const SizedBox(height: 16),
             _buildControlsRow(),
-            if (_themeMode == 'card') _buildCardDropdowns(),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildPreviewCard() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = (constraints.maxWidth / 600).clamp(
+          0.0,
+          constraints.maxHeight / 315,
+        );
+
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: 600 * scale,
+            height: 315 * scale,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: 1200,
+                      height: 630,
+                      child: ShareCard(
+                        userInfo: widget.userData,
+                        cardsMap: _cardsMap,
+                        themeMode: _themeMode,
+                        themeColor: _themeColor,
+                        leftCardType: _leftCard,
+                        rightCardType: _rightCard,
+                        logoUrl: widget.theme?['logo']?.isNotEmpty == true
+                            ? widget.theme!['logo']
+                            : widget.userData.theme?.logo,
+                        verifiedCount: widget.verifiedCount,
+                      ),
+                    ),
+                  ),
+                ),
+                if (widget.isEditable && _themeMode == 'card')
+                  _buildCardDropdownOverlays(scale),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCardDropdownOverlays(double scale) {
+    final firstOptions = _firstCardOptions;
+    final secondOptions = _secondCardOptions;
+    final leftValue = _leftCard ?? firstOptions.firstOrNull ?? 'BIO';
+    final rightValue =
+        _rightCard ?? secondOptions.firstOrNull ?? 'ACHIEVEMENT_NETWORK';
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if (firstOptions.isNotEmpty)
+          Positioned(
+            top: 106 * scale,
+            left: 505 * scale,
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.topLeft,
+              child: _buildDropdownField(
+                value: firstOptions.contains(leftValue)
+                    ? leftValue
+                    : firstOptions.first,
+                options: firstOptions,
+                onChanged: (v) => _handleThemeChange('leftCard', v),
+              ),
+            ),
+          ),
+        if (secondOptions.isNotEmpty)
+          Positioned(
+            top: 106 * scale,
+            right: 330 * scale,
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.topLeft,
+              child: _buildDropdownField(
+                value: secondOptions.contains(rightValue)
+                    ? rightValue
+                    : secondOptions.first,
+                options: secondOptions,
+                onChanged: (v) => _handleThemeChange('rightCard', v),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -323,97 +395,43 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
     );
   }
 
-  /// Card 模式下 LeftCard / RightCard 下拉（与 TSX admin 时一致）
-  Widget _buildCardDropdowns() {
-    final firstOptions = _firstCardOptions;
-    final secondOptions = _secondCardOptions;
-    final leftValue = _leftCard ?? firstOptions.firstOrNull ?? 'BIO';
-    final rightValue =
-        _rightCard ?? secondOptions.firstOrNull ?? 'ACHIEVEMENT_NETWORK';
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (firstOptions.isNotEmpty)
-            SizedBox(
-              width: 90,
-              height: 32,
-              child: DropdownButtonFormField<String>(
-                initialValue: firstOptions.contains(leftValue)
-                    ? leftValue
-                    : firstOptions.first,
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFD8D8D8)),
-                  ),
-                  isDense: true,
+  Widget _buildDropdownField({
+    required String value,
+    required List<String> options,
+    required void Function(String) onChanged,
+  }) {
+    return SizedBox(
+      width: 90,
+      height: 32,
+      child: DropdownButtonFormField<String>(
+        initialValue: value,
+        decoration: const InputDecoration(
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          border: OutlineInputBorder(
+            borderSide: BorderSide(color: Color(0xFFD8D8D8)),
+          ),
+          fillColor: Colors.white,
+          filled: true,
+          isDense: true,
+        ),
+        isExpanded: true,
+        icon: const Icon(Icons.keyboard_arrow_down, size: 15),
+        items: options
+            .map(
+              (ct) => DropdownMenuItem(
+                value: ct,
+                child: Text(
+                  _cardLabels[ct] ?? ct,
+                  style: const TextStyle(fontSize: 12),
                 ),
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 15),
-                items: firstOptions
-                    .map(
-                      (ct) => DropdownMenuItem(
-                        value: ct,
-                        child: Text(
-                          _cardLabels[ct] ?? ct,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: widget.isEditable
-                    ? (v) {
-                        if (v != null) _handleThemeChange('leftCard', v);
-                      }
-                    : null,
               ),
-            ),
-          const SizedBox(width: 16),
-          if (secondOptions.isNotEmpty)
-            SizedBox(
-              width: 90,
-              height: 32,
-              child: DropdownButtonFormField<String>(
-                initialValue: secondOptions.contains(rightValue)
-                    ? rightValue
-                    : secondOptions.first,
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFD8D8D8)),
-                  ),
-                  isDense: true,
-                ),
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 15),
-                items: secondOptions
-                    .map(
-                      (ct) => DropdownMenuItem(
-                        value: ct,
-                        child: Text(
-                          _cardLabels[ct] ?? ct,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: widget.isEditable
-                    ? (v) {
-                        if (v != null) _handleThemeChange('rightCard', v);
-                      }
-                    : null,
-              ),
-            ),
-        ],
+            )
+            .toList(),
+        onChanged: widget.isEditable
+            ? (v) {
+                if (v != null) onChanged(v);
+              }
+            : null,
       ),
     );
   }
