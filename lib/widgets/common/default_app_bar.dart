@@ -1,5 +1,5 @@
 import 'package:dinq_app/utils/color_util.dart';
-import 'package:dinq_app/widgets/common/base_page.dart';
+import 'package:dinq_app/widgets/common/dinq_nav_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +20,7 @@ class DefaultAppBar extends AppBar {
     bool isShowBack = true,
     VoidCallback? backCallback,
     Widget? leading,
-    super.leadingWidth,
+    double? leadingWidth,
     super.actions,
   }) : super(
          backgroundColor: backgroundColor ?? Colors.white,
@@ -38,28 +38,23 @@ class DefaultAppBar extends AppBar {
                      fontFamily: 'Geist',
                    ),
              ),
+         leadingWidth: leadingWidth ?? 60,
          leading:
              leading ??
              (isShowBack
-                 ? IconButton(
-                     highlightColor: Colors.transparent,
-                     splashColor: Colors.transparent,
-                     icon: Padding(
-                       padding: EdgeInsets.all(4),
-                       child: AssetImageView("nav_back", width: 20, height: 20),
+                 ? Padding(
+                     padding: const EdgeInsets.only(left: 12),
+                     child: Center(
+                       child: DinqCircleBackButton(
+                         onTap: () {
+                           if (backCallback != null) {
+                             backCallback();
+                           } else if (context.canPop()) {
+                             context.pop();
+                           }
+                         },
+                       ),
                      ),
-                     onPressed: () {
-                       if (backCallback != null) {
-                         backCallback();
-                       } else {
-                         // Navigator.of(context).pop();
-                         if (context.canPop()) {
-                           context.pop();
-                         } else {
-                           // context.go("/");
-                         }
-                       }
-                     },
                    )
                  : Container()),
        );
