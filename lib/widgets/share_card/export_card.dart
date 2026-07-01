@@ -175,13 +175,14 @@ class _ExportCardState extends State<ExportCard> {
               ),
             ),
           ),
-          // leftCard 下拉 - 对应 TSX top-[106px] left-[505px]，600x315 下约 left: 252
+          // Card mode dropdowns are pinned to each card's top-right corner
+          // in the 600x315 preview coordinate space.
           if (theme.mode == 'card') ...[
             Positioned(
               top: 106 / scale,
-              left: 505 / scale,
+              left: 170 / scale,
               child: _UnscaledOverlay(
-                width: 90,
+                width: 112,
                 scale: scale,
                 child: _CardTypeDropdown(
                   value: theme.leftCard ?? '',
@@ -195,9 +196,9 @@ class _ExportCardState extends State<ExportCard> {
             ),
             Positioned(
               top: 106 / scale,
-              right: 330 / scale,
+              left: 456 / scale,
               child: _UnscaledOverlay(
-                width: 90,
+                width: 112,
                 scale: scale,
                 child: _CardTypeDropdown(
                   value: theme.rightCard ?? '',
@@ -412,7 +413,7 @@ class _CardTypeDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 90,
+      width: 112,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -425,6 +426,7 @@ class _CardTypeDropdown extends StatelessWidget {
               (value.isEmpty || !options.contains(value)) && options.isNotEmpty
               ? options.first
               : (options.contains(value) ? value : null),
+          dropdownColor: Colors.white,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down, size: 20),
           style: const TextStyle(fontSize: 12, color: Color(0xFF171717)),

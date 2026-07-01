@@ -347,9 +347,9 @@ class ShareCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(child: second),
+                Expanded(flex: 3, child: second),
                 const SizedBox(height: 20),
-                Expanded(child: TagsCard(tags: _tags)),
+                Expanded(flex: 2, child: TagsCard(tags: _tags)),
               ],
             ),
           ),

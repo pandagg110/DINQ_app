@@ -211,32 +211,38 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
         if (firstOptions.isNotEmpty)
           Positioned(
             top: 106 * scale,
-            left: 505 * scale,
-            child: Transform.scale(
-              scale: scale,
-              alignment: Alignment.topLeft,
-              child: _buildDropdownField(
-                value: firstOptions.contains(leftValue)
-                    ? leftValue
-                    : firstOptions.first,
-                options: firstOptions,
-                onChanged: (v) => _handleThemeChange('leftCard', v),
+            left: 170 * scale,
+            child: SizedBox(
+              width: 112 * scale,
+              height: 32 * scale,
+              child: FittedBox(
+                fit: BoxFit.fill,
+                child: _buildDropdownField(
+                  value: firstOptions.contains(leftValue)
+                      ? leftValue
+                      : firstOptions.first,
+                  options: firstOptions,
+                  onChanged: (v) => _handleThemeChange('leftCard', v),
+                ),
               ),
             ),
           ),
         if (secondOptions.isNotEmpty)
           Positioned(
             top: 106 * scale,
-            right: 330 * scale,
-            child: Transform.scale(
-              scale: scale,
-              alignment: Alignment.topLeft,
-              child: _buildDropdownField(
-                value: secondOptions.contains(rightValue)
-                    ? rightValue
-                    : secondOptions.first,
-                options: secondOptions,
-                onChanged: (v) => _handleThemeChange('rightCard', v),
+            left: 456 * scale,
+            child: SizedBox(
+              width: 112 * scale,
+              height: 32 * scale,
+              child: FittedBox(
+                fit: BoxFit.fill,
+                child: _buildDropdownField(
+                  value: secondOptions.contains(rightValue)
+                      ? rightValue
+                      : secondOptions.first,
+                  options: secondOptions,
+                  onChanged: (v) => _handleThemeChange('rightCard', v),
+                ),
               ),
             ),
           ),
@@ -401,37 +407,44 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
     required void Function(String) onChanged,
   }) {
     return SizedBox(
-      width: 90,
+      width: 112,
       height: 32,
-      child: DropdownButtonFormField<String>(
-        initialValue: value,
-        decoration: const InputDecoration(
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          border: OutlineInputBorder(
-            borderSide: BorderSide(color: Color(0xFFD8D8D8)),
-          ),
-          fillColor: Colors.white,
-          filled: true,
-          isDense: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
         ),
-        isExpanded: true,
-        icon: const Icon(Icons.keyboard_arrow_down, size: 15),
-        items: options
-            .map(
-              (ct) => DropdownMenuItem(
-                value: ct,
-                child: Text(
-                  _cardLabels[ct] ?? ct,
-                  style: const TextStyle(fontSize: 12),
+        child: DropdownButtonFormField<String>(
+          initialValue: value,
+          dropdownColor: Colors.white,
+          decoration: const InputDecoration(
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            border: OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFFD8D8D8)),
+            ),
+            fillColor: Colors.white,
+            filled: true,
+            isDense: true,
+          ),
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down, size: 15),
+          items: options
+              .map(
+                (ct) => DropdownMenuItem(
+                  value: ct,
+                  child: Text(
+                    _cardLabels[ct] ?? ct,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
-              ),
-            )
-            .toList(),
-        onChanged: widget.isEditable
-            ? (v) {
-                if (v != null) onChanged(v);
-              }
-            : null,
+              )
+              .toList(),
+          onChanged: widget.isEditable
+              ? (v) {
+                  if (v != null) onChanged(v);
+                }
+              : null,
+        ),
       ),
     );
   }
