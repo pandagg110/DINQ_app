@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -228,7 +227,8 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
     final hasLogs =
         entry.toolLogs.isNotEmpty || (entry.errorMessage?.isNotEmpty ?? false);
     final showFullLogs = !isFinished || _logsExpanded;
-    final canRefresh = widget.onRefresh != null &&
+    final canRefresh =
+        widget.onRefresh != null &&
         entry.requestParams != null &&
         !isStreamingStatus &&
         !_refreshing;
@@ -246,126 +246,137 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                if (isFinished && !_logsExpanded)
-                  InkWell(
-                    onTap: () => setState(() => _logsExpanded = true),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(8),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                  if (isFinished && !_logsExpanded)
+                    InkWell(
+                      onTap: () => setState(() => _logsExpanded = true),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(8),
                       ),
-                      child: Row(
-                        children: [
-                          EnrichSvgIcon(
-                            isError ? EnrichIcons.alertCircle : EnrichIcons.check,
-                            size: 14,
-                            color: isError
-                                ? const Color(0xFFEF4444)
-                                : const Color(0xFF22C55E),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            EnrichSvgIcon(
                               isError
-                                  ? (entry.errorMessage ?? 'Search failed')
-                                  : 'Search completed',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isError
-                                    ? const Color(0xFFDC2626)
-                                    : _C.textMuted,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 28,
-                              minHeight: 28,
-                            ),
-                            onPressed: canRefresh ? _handleRefresh : null,
-                            icon: _refreshing
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const EnrichSvgIcon(EnrichIcons.refresh, size: 14),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 28,
-                              minHeight: 28,
-                            ),
-                            onPressed: () =>
-                                setState(() => _logsExpanded = true),
-                            icon: const EnrichSvgIcon(
-                              EnrichIcons.chevronDown,
+                                  ? EnrichIcons.alertCircle
+                                  : EnrichIcons.check,
                               size: 14,
+                              color: isError
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF22C55E),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                isError
+                                    ? (entry.errorMessage ?? 'Search failed')
+                                    : 'Search completed',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isError
+                                      ? const Color(0xFFDC2626)
+                                      : _C.textMuted,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                              onPressed: canRefresh ? _handleRefresh : null,
+                              icon: _refreshing
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const EnrichSvgIcon(
+                                      EnrichIcons.refresh,
+                                      size: 14,
+                                    ),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _logsExpanded = true),
+                              icon: const EnrichSvgIcon(
+                                EnrichIcons.chevronDown,
+                                size: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (showFullLogs)
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            12,
+                            12,
+                            isFinished ? 40 : 12,
+                            12,
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            child: SingleChildScrollView(
+                              child: EnrichToolLogTimeline(
+                                toolLogs: entry.toolLogs,
+                                errorMessage: entry.errorMessage,
+                                hasMore: isDone,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (isFinished) ...[
+                          Positioned(
+                            top: 4,
+                            right: 32,
+                            child: IconButton(
+                              visualDensity: VisualDensity.compact,
+                              onPressed: canRefresh ? _handleRefresh : null,
+                              icon: const EnrichSvgIcon(
+                                EnrichIcons.refresh,
+                                size: 14,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: IconButton(
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () =>
+                                  setState(() => _logsExpanded = false),
+                              icon: const EnrichSvgIcon(
+                                EnrichIcons.chevronUp,
+                                size: 14,
+                              ),
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ),
-                if (showFullLogs)
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          12,
-                          12,
-                          isFinished ? 40 : 12,
-                          12,
-                        ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 200),
-                          child: SingleChildScrollView(
-                            child: EnrichToolLogTimeline(
-                              toolLogs: entry.toolLogs,
-                              errorMessage: entry.errorMessage,
-                              hasMore: isDone,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (isFinished) ...[
-                        Positioned(
-                          top: 4,
-                          right: 32,
-                          child: IconButton(
-                            visualDensity: VisualDensity.compact,
-                            onPressed: canRefresh ? _handleRefresh : null,
-                            icon: const EnrichSvgIcon(EnrichIcons.refresh, size: 14),
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: IconButton(
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () =>
-                                setState(() => _logsExpanded = false),
-                            icon: const EnrichSvgIcon(EnrichIcons.chevronUp, size: 14),
-                          ),
-                        ),
                       ],
-                    ],
-                  ),
-              ],
+                    ),
+                ],
+              ),
             ),
-          ),
-        )
+          )
         : const SizedBox.shrink();
 
     final profile = _ProfileSection(
@@ -460,8 +471,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
     final store = context.read<DeepSearchEnrichStore>();
     store.startEmailReveal(rowId);
     try {
-      final sessionId =
-          context.read<SearchStore>().deepSearchSessionId ?? '';
+      final sessionId = context.read<SearchStore>().deepSearchSessionId ?? '';
       final emails = await _searchService.profileEmail(
         name: stripBold(person.name),
         sessionId: sessionId,
@@ -525,7 +535,10 @@ class _ProfileSectionState extends State<_ProfileSection> {
                           side: const BorderSide(color: Color(0xFFE5E2DC)),
                         ),
                       ),
-                      child: const Text('Cancel', style: TextStyle(fontSize: 14)),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(fontSize: 14),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     FilledButton(
@@ -610,10 +623,11 @@ class _ProfileSectionState extends State<_ProfileSection> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (person?.name != null && person!.name.trim().isNotEmpty)
+                      if (person?.name != null &&
+                          person!.name.trim().isNotEmpty)
                         Text.rich(
                           _oneLinerSpan(
-                            person!.name,
+                            person.name,
                             base: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
@@ -759,13 +773,11 @@ class _ProfileSectionState extends State<_ProfileSection> {
                                     recipientEmail: revealedEmail!,
                                     recipientName: person.name,
                                     favoriteId: favoriteId,
-                                    recipientTitle: [
-                                      person.position,
-                                      person.location,
-                                    ]
-                                        .whereType<String>()
-                                        .map(stripBold)
-                                        .join(' • '),
+                                    recipientTitle:
+                                        [person.position, person.location]
+                                            .whereType<String>()
+                                            .map(stripBold)
+                                            .join(' • '),
                                   );
                                 } else {
                                   _showConnectPrompt();
@@ -905,9 +917,9 @@ class _ProfileSectionState extends State<_ProfileSection> {
       await _shortlistService.removeFavorite(favoriteId);
       setState(() => _favoriteMap.remove(rowId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Removed from shortlist')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Removed from shortlist')));
       }
       return;
     }
@@ -925,9 +937,9 @@ class _ProfileSectionState extends State<_ProfileSection> {
     );
     setState(() => _favoriteMap[rowId] = item.id);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Added to folder')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Added to folder')));
     }
   }
 }
@@ -973,10 +985,7 @@ class _EmailActionButton extends StatelessWidget {
                 SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: fg,
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -1043,10 +1052,7 @@ class _EmailActionButton extends StatelessWidget {
 }
 
 class _ShortlistButton extends StatelessWidget {
-  const _ShortlistButton({
-    required this.isFavorited,
-    required this.onPressed,
-  });
+  const _ShortlistButton({required this.isFavorited, required this.onPressed});
 
   final bool isFavorited;
   final VoidCallback onPressed;
@@ -1114,7 +1120,8 @@ class _Avatar extends StatelessWidget {
           width: 80,
           height: 80,
           fit: BoxFit.cover,
-          errorBuilder: (_, e, s) => _initialsAvatar(name, isAwaiting: isAwaiting),
+          errorBuilder: (_, e, s) =>
+              _initialsAvatar(name, isAwaiting: isAwaiting),
         ),
       );
     }
@@ -1330,9 +1337,7 @@ class _TimelineRow extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isFirst ? Colors.white : _C.dotFill,
-                      border: isFirst
-                          ? Border.all(color: _C.textMuted)
-                          : null,
+                      border: isFirst ? Border.all(color: _C.textMuted) : null,
                     ),
                   ),
                 ),
@@ -1362,9 +1367,7 @@ class _TimelineRow extends StatelessWidget {
                   height: _titleHeight,
                   child: DecoratedBox(
                     decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: _C.border),
-                      ),
+                      border: Border(bottom: BorderSide(color: _C.border)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1491,10 +1494,10 @@ class _EducationSection extends StatelessWidget {
               padding: EdgeInsets.only(bottom: i < items.length - 1 ? 8 : 0),
               child: _TimelineRow(
                 title: items[i].institution,
-                subtitle: [items[i].degree, items[i].field]
-                    .whereType<String>()
-                    .where((s) => s.isNotEmpty)
-                    .join(' · '),
+                subtitle: [
+                  items[i].degree,
+                  items[i].field,
+                ].whereType<String>().where((s) => s.isNotEmpty).join(' · '),
                 period: items[i].period,
                 isFirst: i == 0,
                 isLast: i == items.length - 1,
@@ -1575,6 +1578,7 @@ class _PublicationCardState extends State<_PublicationCard> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Container(
+        width: double.infinity,
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1630,7 +1634,10 @@ class _PublicationCardState extends State<_PublicationCard> {
                                 minHeight: 28,
                               ),
                               onPressed: _copy,
-                              icon: const EnrichSvgIcon(EnrichIcons.copy, size: 14),
+                              icon: const EnrichSvgIcon(
+                                EnrichIcons.copy,
+                                size: 14,
+                              ),
                               color: _C.textMuted,
                             ),
                           if (widget.publication.url != null)
@@ -1675,7 +1682,7 @@ class _PublicationsSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _SectionHeader(title: 'Publications'),
           for (final pub in publications)
@@ -1694,15 +1701,19 @@ class _PersonNewsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final activities = news
         .where(
-          (item) => !RegExp(_sourceLineRe, caseSensitive: false)
-              .hasMatch(item.description),
+          (item) => !RegExp(
+            _sourceLineRe,
+            caseSensitive: false,
+          ).hasMatch(item.description),
         )
         .toList();
     final sources = news
         .where(
           (item) =>
-              RegExp(_sourceLineRe, caseSensitive: false)
-                  .hasMatch(item.description) &&
+              RegExp(
+                _sourceLineRe,
+                caseSensitive: false,
+              ).hasMatch(item.description) &&
               (item.url?.isNotEmpty ?? false),
         )
         .toList();
@@ -1735,10 +1746,7 @@ class _PersonNewsSection extends StatelessWidget {
 }
 
 class _NewsActivityItem extends StatelessWidget {
-  const _NewsActivityItem({
-    required this.item,
-    required this.showConnector,
-  });
+  const _NewsActivityItem({required this.item, required this.showConnector});
 
   final EnrichNewsItem item;
   final bool showConnector;
@@ -1877,10 +1885,8 @@ class _DomainTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
-      ),
+      onTap: () =>
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
@@ -1920,10 +1926,8 @@ class _OthersSourceRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => launchUrl(
-          Uri.parse(url),
-          mode: LaunchMode.externalApplication,
-        ),
+        onTap: () =>
+            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -1962,7 +1966,7 @@ class _Favicon extends StatelessWidget {
         'https://icons.duckduckgo.com/ip3/$domain.ico',
         width: 14,
         height: 14,
-        errorBuilder: (_, __, ___) => const EnrichSvgIcon(
+        errorBuilder: (_, _, _) => const EnrichSvgIcon(
           EnrichIcons.globe,
           size: 14,
           color: _C.textMuted,
@@ -2013,7 +2017,8 @@ class _SkeletonLineState extends State<_SkeletonLine>
     return LayoutBuilder(
       builder: (context, constraints) {
         final factor = widget.widthFactor ?? 1;
-        final resolvedWidth = widget.width ??
+        final resolvedWidth =
+            widget.width ??
             (constraints.maxWidth.isFinite
                 ? constraints.maxWidth * factor
                 : 200 * factor);
@@ -2176,9 +2181,7 @@ class _RecentActivitySkeleton extends StatelessWidget {
                             shape: BoxShape.circle,
                           ),
                         ),
-                        Expanded(
-                          child: _SkeletonLine(widthFactor: w),
-                        ),
+                        Expanded(child: _SkeletonLine(widthFactor: w)),
                       ],
                     ),
                   ),
