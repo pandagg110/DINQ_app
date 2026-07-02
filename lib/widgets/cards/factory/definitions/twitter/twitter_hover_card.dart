@@ -28,6 +28,22 @@ class _TwitterHoverCardState extends State<TwitterHoverCard> {
     final fullName = widget.follower['full_name'] as String? ?? '';
     final username = widget.follower['username'] as String? ?? '';
     final displayName = fullName.isNotEmpty ? fullName : username;
+    final hasPortal = context.findAncestorWidgetOfExactType<Portal>() != null;
+    final child = MouseRegion(
+      onEnter: (_) {
+        if (mounted && hasPortal) {
+          setState(() => _isHovered = true);
+        }
+      },
+      onExit: (_) {
+        if (mounted && hasPortal) {
+          setState(() => _isHovered = false);
+        }
+      },
+      child: widget.child,
+    );
+
+    if (!hasPortal) return child;
 
     return PortalTarget(
       visible: _isHovered,
@@ -87,19 +103,7 @@ class _TwitterHoverCardState extends State<TwitterHoverCard> {
           ),
         ),
       ),
-      child: MouseRegion(
-        onEnter: (_) {
-          if (mounted) {
-            setState(() => _isHovered = true);
-          }
-        },
-        onExit: (_) {
-          if (mounted) {
-            setState(() => _isHovered = false);
-          }
-        },
-        child: widget.child,
-      ),
+      child: child,
     );
   }
 }
