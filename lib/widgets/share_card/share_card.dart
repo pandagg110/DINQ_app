@@ -136,12 +136,9 @@ class ShareCard extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(
-                child: SvgPicture.asset(
-                  assetPath('images/card/card-colorful.svg'),
-                  fit: BoxFit.cover,
-                ),
+                child: CustomPaint(painter: _ColorfulCardBackgroundPainter()),
               ),
-              Container(color: const Color(0xFFF6F6F6), child: content),
+              content,
             ],
           ),
         ),
@@ -152,7 +149,7 @@ class ShareCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF3F3F3),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: Colors.transparent, width: 2),
       ),
       clipBehavior: Clip.antiAlias,
       child: content,
@@ -473,4 +470,64 @@ class ShareCard extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ColorfulCardBackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final basePaint = Paint()..color = Colors.white;
+    canvas.drawRect(Offset.zero & size, basePaint);
+
+    final scaleX = size.width / 600;
+    final scaleY = size.height / 315;
+
+    final firstRect = Rect.fromCenter(
+      center: Offset(218.011 * scaleX, 132.737 * scaleY),
+      width: 435 * scaleX,
+      height: 274 * scaleY,
+    );
+    final firstPaint = Paint()
+      ..color = const Color(0x662088FF)
+      ..maskFilter = MaskFilter.blur(
+        BlurStyle.normal,
+        _sigmaForStdDeviation(57 * ((scaleX + scaleY) / 2)),
+      );
+    canvas.save();
+    canvas.translate(218.011 * scaleX, 132.737 * scaleY);
+    canvas.rotate(10.0151 * 3.141592653589793 / 180);
+    canvas.translate(-218.011 * scaleX, -132.737 * scaleY);
+    canvas.drawOval(firstRect, firstPaint);
+    canvas.restore();
+
+    final secondRect = Rect.fromCenter(
+      center: Offset(548.545 * scaleX, 146.237 * scaleY),
+      width: 213.992 * scaleX,
+      height: 151.5696 * scaleY,
+    );
+    final secondPaint = Paint()
+      ..color = const Color(0x663A20FF)
+      ..maskFilter = MaskFilter.blur(
+        BlurStyle.normal,
+        _sigmaForStdDeviation(57 * ((scaleX + scaleY) / 2)),
+      );
+    canvas.save();
+    canvas.translate(548.545 * scaleX, 146.237 * scaleY);
+    canvas.rotate(10.0151 * 3.141592653589793 / 180);
+    canvas.translate(-548.545 * scaleX, -146.237 * scaleY);
+    canvas.drawOval(secondRect, secondPaint);
+    canvas.restore();
+
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = Colors.white.withValues(alpha: 0.4),
+    );
+  }
+
+  static double _sigmaForStdDeviation(double stdDeviation) {
+    return stdDeviation * 0.57735 + 0.5;
+  }
+
+  @override
+  bool shouldRepaint(covariant _ColorfulCardBackgroundPainter oldDelegate) =>
+      false;
 }
