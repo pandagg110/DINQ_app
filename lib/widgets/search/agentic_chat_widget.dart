@@ -35,8 +35,10 @@ class AgenticChatWidget extends StatefulWidget {
   /// 与 TSX onSearchComplete 一致：搜索完成且有关注人时回调
   final void Function(List<Map<String, dynamic>> candidates, String query)?
   onSearchComplete;
+
   /// 在 MainTab 内时为 true，单独 /search/:id 页面为 false，不预留底栏高度。
   final bool embeddedInMainTab;
+
   /// 对齐 Web `onRowClick={enrich.openEnrich}`。
   final void Function(Map<String, dynamic> row)? onEnrichRowClick;
   final String? enrichSelectedRowId;
@@ -62,7 +64,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   bool _logicInitialized = false;
   int _lastResetVersion = 0;
   String? _lastSyncedToolKey;
-  List<ModelOption> _modelOptions = modelOptionsFromResponse(fallbackChannelsResponse);
+  List<ModelOption> _modelOptions = modelOptionsFromResponse(
+    fallbackChannelsResponse,
+  );
   bool _modelChannelsLoaded = false;
   bool _mobileResultsOpen = false;
   int? _activeResultsGroupId;
@@ -155,7 +159,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     final logic = _logic;
     if (logic == null) return;
 
-    final resolvedProvider = modelProvider ??
+    final resolvedProvider =
+        modelProvider ??
         searchStore.modelProvider ??
         ModelChannelsCache.instance.defaultProvider;
 
@@ -168,7 +173,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       simple: simple,
     );
 
-    final needsNavigate = _isMainTabHomeRoute(context) &&
+    final needsNavigate =
+        _isMainTabHomeRoute(context) &&
         searchStore.deepSearchSessionId == null &&
         searchStore.currentConversationId == null;
 
@@ -210,7 +216,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       displayQuery: pending.displayQuery,
       attachmentUrl: pending.attachmentUrl,
       attachmentName: pending.attachmentName,
-      modelProvider: pending.modelProvider ??
+      modelProvider:
+          pending.modelProvider ??
           searchStore.modelProvider ??
           ModelChannelsCache.instance.defaultProvider,
     );
@@ -227,10 +234,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   }
 
   void _handleCitationSearch(({String query}) params) {
-    _logic?.handleCitationSearch(
-      query: params.query,
-      mode: _citationMode,
-    );
+    _logic?.handleCitationSearch(query: params.query, mode: _citationMode);
   }
 
   void _handleAnalysisSearch(AnalysisSearchParams params) {
@@ -441,7 +445,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                 if (group.toolType == null &&
                     groupHasResultWorkspace(
                       group,
-                      isSearching: groupRoundStatus(group) ==
+                      isSearching:
+                          groupRoundStatus(group) ==
                           DeepSearchRoundStatus.searching,
                     )) {
                   return group;
@@ -451,7 +456,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
             }();
 
             final activeMobileResultsGroup = mobileResultsGroup;
-            final showMobileResultsWorkspace = canUseMobileResults &&
+            final showMobileResultsWorkspace =
+                canUseMobileResults &&
                 _mobileResultsOpen &&
                 activeMobileResultsGroup != null;
             final mobileResultsStatus = activeMobileResultsGroup == null
@@ -475,99 +481,103 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                 ),
                               )
                             : showChatContent
-                                ? Column(
-                                    children: [
-                                      Expanded(
-                                        child: SearchPanelWidget(
-                                          messageGroups: messageGroups,
-                                          scrollController: _scrollController,
-                                          activeTool: searchStore.activeTool,
-                                          hideUserQueryBubble: false,
-                                          selectedRowId: widget.enrichSelectedRowId,
-                                          onQuickReplySelect: (option, blockId) {
-                                            _handleDeepSearch(
-                                              DeepSearchSubmitParams(
-                                                query: option,
-                                                displayQuery: option,
-                                              ),
-                                            );
-                                          },
-                                          onConfirmStart:
-                                              (query, displayQuery, blockId) {
+                            ? Column(
+                                children: [
+                                  Expanded(
+                                    child: SearchPanelWidget(
+                                      messageGroups: messageGroups,
+                                      scrollController: _scrollController,
+                                      activeTool: searchStore.activeTool,
+                                      hideUserQueryBubble: false,
+                                      selectedRowId: widget.enrichSelectedRowId,
+                                      onQuickReplySelect: (option, blockId) {
+                                        _handleDeepSearch(
+                                          DeepSearchSubmitParams(
+                                            query: option,
+                                            displayQuery: option,
+                                          ),
+                                        );
+                                      },
+                                      onConfirmStart:
+                                          (query, displayQuery, blockId) {
                                             _startFreshDeepSearch(
                                               query: query,
                                               displayQuery: displayQuery,
                                             );
                                           },
-                                          onCandidateClick: (
-                                            candidate,
-                                            index,
-                                            groupId,
-                                          ) {
-                                            if (widget.onEnrichRowClick != null) {
-                                              widget.onEnrichRowClick!(candidate);
+                                      onCandidateClick:
+                                          (candidate, index, groupId) {
+                                            if (widget.onEnrichRowClick !=
+                                                null) {
+                                              widget.onEnrichRowClick!(
+                                                candidate,
+                                              );
                                               return;
                                             }
-                                            final tabId = searchStore.openTabWithClick(
-                                              candidate,
-                                              index: index,
-                                              groupId: groupId,
-                                              matchByName: true,
-                                            );
+                                            final tabId = searchStore
+                                                .openTabWithClick(
+                                                  candidate,
+                                                  index: index,
+                                                  groupId: groupId,
+                                                  matchByName: true,
+                                                );
                                             if (tabId != null) {
                                               searchStore.setTabPanelOpen(true);
                                             }
                                           },
-                                          onAdvisorShuffle: logic.shuffleAdvisors,
-                                          advisorShuffleLoading:
-                                              logic.advisorShuffleLoading,
-                                          bottomInset: widget.embeddedInMainTab ? 20 : 12,
-                                          analysisPlatform: _analysisPlatform,
-                                          citationMode: _citationMode.name,
-                                          showInlineResults: !isMobile,
-                                          resultEntryMode: isMobile
-                                              ? ResultEntryMode.mobile
-                                              : ResultEntryMode.desktop,
-                                          activeResultsRoundId:
-                                              _activeResultsGroupId,
-                                          onOpenResultsRound: isMobile
-                                              ? (roundId) {
-                                                  setState(() {
-                                                    _activeResultsGroupId =
-                                                        roundId;
-                                                    _mobileResultsOpen = true;
-                                                  });
-                                                }
-                                              : null,
+                                      onAdvisorShuffle: logic.shuffleAdvisors,
+                                      advisorShuffleLoading:
+                                          logic.advisorShuffleLoading,
+                                      bottomInset: widget.embeddedInMainTab
+                                          ? 20
+                                          : 12,
+                                      analysisPlatform: _analysisPlatform,
+                                      citationMode: _citationMode.name,
+                                      showInlineResults: !isMobile,
+                                      resultEntryMode: isMobile
+                                          ? ResultEntryMode.mobile
+                                          : ResultEntryMode.desktop,
+                                      activeResultsRoundId:
+                                          _activeResultsGroupId,
+                                      onOpenResultsRound: isMobile
+                                          ? (roundId) {
+                                              setState(() {
+                                                _activeResultsGroupId = roundId;
+                                                _mobileResultsOpen = true;
+                                              });
+                                            }
+                                          : null,
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.fromLTRB(
+                                      isMobile ? 12 : 24,
+                                      0,
+                                      isMobile ? 12 : 24,
+                                      isMobile
+                                          ? _mobileBottomBarInset(context)
+                                          : 12,
+                                    ),
+                                    child: Center(
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 768,
                                         ),
+                                        child: searchBox,
                                       ),
-                                      Padding(
-                                        padding: EdgeInsets.fromLTRB(
-                                          isMobile ? 12 : 24,
-                                          0,
-                                          isMobile ? 12 : 24,
-                                          isMobile
-                                              ? _mobileBottomBarInset(context)
-                                              : 12,
-                                        ),
-                                        child: Center(
-                                          child: ConstrainedBox(
-                                            constraints: const BoxConstraints(maxWidth: 768),
-                                            child: searchBox,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : isMobile
-                                    ? _buildMobileWelcome(
-                                        userName: userName,
-                                        searchBox: searchBox,
-                                      )
-                                    : _buildDesktopWelcome(
-                                        userName: userName,
-                                        searchBox: searchBox,
-                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : isMobile
+                            ? _buildMobileWelcome(
+                                userName: userName,
+                                searchBox: searchBox,
+                              )
+                            : _buildDesktopWelcome(
+                                userName: userName,
+                                searchBox: searchBox,
+                              ),
                       ),
                     ],
                   ),
@@ -598,9 +608,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                   Positioned.fill(
                     child: MobileResultsWorkspace(
                       candidates: activeMobileResultsGroup.candidates,
-                      isSearching: mobileResultsStatus ==
+                      isSearching:
+                          mobileResultsStatus ==
                           DeepSearchRoundStatus.searching,
-                      isInterrupted: mobileResultsStatus ==
+                      isInterrupted:
+                          mobileResultsStatus ==
                           DeepSearchRoundStatus.interrupted,
                       selectedRowId: widget.enrichSelectedRowId,
                       roundStatus: mobileResultsStatus,
@@ -614,12 +626,13 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                           widget.onEnrichRowClick!(row);
                           return;
                         }
-                        final idx = activeMobileResultsGroup.candidates.indexWhere(
-                          (c) =>
-                              c['row_id']?.toString() ==
-                                  row['row_id']?.toString() ||
-                              c['name'] == row['name'],
-                        );
+                        final idx = activeMobileResultsGroup.candidates
+                            .indexWhere(
+                              (c) =>
+                                  c['row_id']?.toString() ==
+                                      row['row_id']?.toString() ||
+                                  c['name'] == row['name'],
+                            );
                         final tabId = searchStore.openTabWithClick(
                           row,
                           index: idx >= 0 ? idx : 0,
@@ -704,11 +717,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
     if (tooltip == null) return button;
 
-    return Tooltip(
-      message: tooltip,
-      preferBelow: false,
-      child: button,
-    );
+    return Tooltip(message: tooltip, preferBelow: false, child: button);
   }
 
   Widget _buildHistoryButton() {
@@ -722,10 +731,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         'assets/icons/search/history.svg',
         width: 20,
         height: 20,
-        colorFilter: const ColorFilter.mode(
-          _chromeForeground,
-          BlendMode.srcIn,
-        ),
+        colorFilter: const ColorFilter.mode(_chromeForeground, BlendMode.srcIn),
       ),
     );
   }
@@ -738,7 +744,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         context.read<SearchStore>().clearAll();
         context.go('/search');
       },
-      child: const Icon(Icons.home_outlined, size: 20, color: _chromeForeground),
+      child: const Icon(
+        Icons.home_outlined,
+        size: 20,
+        color: _chromeForeground,
+      ),
     );
   }
 
@@ -754,7 +764,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       onDeepSearchStop: _handleStop,
       deepSearchLoading: logic.loading,
       modelOptions: _modelChannelsLoaded ? _modelOptions : null,
-      modelProvider: searchStore.modelProvider ??
+      modelProvider:
+          searchStore.modelProvider ??
           ModelChannelsCache.instance.defaultProvider,
       onModelProviderChange: searchStore.setModelProvider,
       onAdvisorSearch: _handleAdvisorSearch,
@@ -784,9 +795,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     if (!widget.embeddedInMainTab) {
       return math.max(12, safeBottom);
     }
-    return ConstantsTool.bottomTabHeight +
-        math.max(26, safeBottom) +
-        12;
+    return ConstantsTool.bottomTabHeight + math.max(26, safeBottom) + 12;
   }
 
   Widget _buildMobileWelcome({
@@ -843,7 +852,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const PromptTemplateGridWidget(),
+                      PromptTemplateGridWidget(
+                        onPromptSelected: (query) =>
+                            _startFreshDeepSearch(query: query),
+                      ),
                     ],
                   ),
                 ),
@@ -875,7 +887,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SvgPicture.asset('assets/logo/dinq-black.svg', width: 24, height: 24),
+                  SvgPicture.asset(
+                    'assets/logo/dinq-black.svg',
+                    width: 24,
+                    height: 24,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Welcome, $userName',
@@ -891,7 +907,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
               const SizedBox(height: 20),
               searchBox,
               const SizedBox(height: 16),
-              const PromptTemplateGridWidget(),
+              PromptTemplateGridWidget(
+                onPromptSelected: (query) =>
+                    _startFreshDeepSearch(query: query),
+              ),
             ],
           ),
         ),
@@ -910,7 +929,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         TextButton.icon(
           key: _creditsAnchorKey,
           onPressed: () => setState(() => _creditsOpen = !_creditsOpen),
-          icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF171717)),
+          icon: const Icon(
+            Icons.auto_awesome,
+            size: 16,
+            color: Color(0xFF171717),
+          ),
           label: Text(
             creditsBalance.toString(),
             style: const TextStyle(
@@ -966,7 +989,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                           style: TextButton.styleFrom(
                             backgroundColor: const Color(0xFF1C1B1A),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           child: const Text('Upgrade'),
                         ),
@@ -985,7 +1011,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                           const Expanded(
                             child: Text(
                               'Available Credits',
-                              style: TextStyle(fontSize: 13, color: Color(0xFF8A8880)),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF8A8880),
+                              ),
                             ),
                           ),
                           Text(
@@ -1006,7 +1035,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                         context.go('/settings/subscription');
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 0,
+                          vertical: 4,
+                        ),
                       ),
                       child: const Row(
                         children: [
@@ -1030,7 +1062,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                     const SizedBox(height: 2),
                     Text(
                       path,
-                      style: const TextStyle(fontSize: 10, color: Color(0xFFB7B3AB)),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFFB7B3AB),
+                      ),
                     ),
                   ],
                 ),

@@ -7,10 +7,15 @@ import '../../stores/search_store.dart';
 const int displayCount = 4;
 
 class PromptTemplateGridWidget extends StatefulWidget {
-  const PromptTemplateGridWidget({super.key, this.onQueryFromPapers});
+  const PromptTemplateGridWidget({
+    super.key,
+    this.onQueryFromPapers,
+    this.onPromptSelected,
+  });
 
   /// Papers 页通过 Find Authors 返回的搜索文案，用于自动发起搜索
   final ValueChanged<String>? onQueryFromPapers;
+  final ValueChanged<String>? onPromptSelected;
 
   @override
   State<PromptTemplateGridWidget> createState() =>
@@ -69,6 +74,10 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
   }
 
   void _handleFill(String content) {
+    if (widget.onPromptSelected != null) {
+      widget.onPromptSelected!(content);
+      return;
+    }
     final searchStore = context.read<SearchStore>();
     searchStore.fillSearchBox(content);
   }
@@ -94,10 +103,7 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
             children: [
               const Text(
                 'Prompt Examples',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E9B93),
-                ),
+                style: TextStyle(fontSize: 13, color: Color(0xFF9E9B93)),
               ),
               const SizedBox(width: 8),
               InkWell(
@@ -203,4 +209,3 @@ class _PromptCardState extends State<_PromptCard> {
     );
   }
 }
-
