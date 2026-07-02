@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../theme/dinq_tokens.dart';
 import '../common/dinq_nav_buttons.dart';
 import 'preview_edit_toggle.dart';
 
@@ -16,7 +17,7 @@ class MyDinqTopBar extends AppBar {
     bool isSaving = false,
     VoidCallback? onBack,
   }) : super(
-          backgroundColor: Colors.white,
+          backgroundColor: DinqTokens.bgPage,
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: true,

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dinq_app/services/auth_service.dart';
 import 'package:dinq_app/services/profile_service.dart';
+import 'package:dinq_app/theme/dinq_tokens.dart';
 import 'package:dinq_app/services/upload_service.dart';
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:dinq_app/utils/top_toast_util.dart';
@@ -94,9 +95,8 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
       appBar: DefaultAppBar(
         context,
         titleString: "Career Verification",
-        backgroundColor: Colors.white,
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: DinqTokens.bgPage,
       body: Column(
         children: [
           Expanded(

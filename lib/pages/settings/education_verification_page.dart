@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dinq_app/services/auth_service.dart';
+import 'package:dinq_app/theme/dinq_tokens.dart';
 import 'package:dinq_app/services/profile_service.dart';
 import 'package:dinq_app/services/upload_service.dart';
 import 'package:dinq_app/utils/color_util.dart';
@@ -115,9 +116,8 @@ class _EducationVerificationPageState extends State<EducationVerificationPage> {
         appBar: DefaultAppBar(
           context,
           titleString: "Education Verification",
-          backgroundColor: Colors.white,
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: DinqTokens.bgPage,
         body: Column(
           children: [
             Expanded(

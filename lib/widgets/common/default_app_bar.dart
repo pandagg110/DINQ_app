@@ -1,3 +1,4 @@
+import 'package:dinq_app/theme/dinq_tokens.dart';
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:dinq_app/widgets/common/dinq_nav_buttons.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,7 @@ class DefaultAppBar extends AppBar {
     double? leadingWidth,
     super.actions,
   }) : super(
-         backgroundColor: backgroundColor ?? Colors.white,
+         backgroundColor: backgroundColor ?? DinqTokens.bgPage,
          systemOverlayStyle: const SystemUiOverlayStyle(statusBarBrightness: Brightness.light),
          title:
              titleWidget ??
