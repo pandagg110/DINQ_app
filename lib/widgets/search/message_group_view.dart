@@ -165,7 +165,8 @@ class _MessageGroupViewState extends State<MessageGroupView>
                   AssistantNarrationView(
                     text: rawAssistantText,
                     blockId: 'group-${group.id}',
-                    isStreaming: group.assistantStreaming,
+                    // loading 结束后一律不显示打字动画（防历史回放残留）
+                    isStreaming: group.assistantStreaming && group.loading,
                     isBlockUsed: group.quickRepliesUsed,
                     onQuickReplySelect: showQuickReplies && !group.quickRepliesUsed
                         ? (option, blockId) =>
