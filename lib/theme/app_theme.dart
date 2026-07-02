@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static const Color brandBlack = Color(0xFF171717);
   static const Color brandWhite = Color(0xFFFFFFFF);
+
+  /// 全局页面/顶栏统一底色（对齐 `my_first_app` DinqTokens.bgPage 米白），
+  /// 使顶部导航栏与页面同色、消除白/米白色缝。
+  static const Color brandPage = Color(0xFFFAF9F6);
   static const Color brandGray = Color(0xFFF9F9F9);
   static const Color brandLightGray = Color(0xFFEDEDE5);
 
@@ -17,7 +21,7 @@ class AppTheme {
     final base = ThemeData.light();
     return base.copyWith(
       primaryColor: brandBlack,
-      scaffoldBackgroundColor: brandWhite,
+      scaffoldBackgroundColor: brandPage,
       textTheme: _textTheme(base.textTheme),
       colorScheme: base.colorScheme.copyWith(
         primary: brandBlack,
@@ -25,7 +29,7 @@ class AppTheme {
         surface: brandWhite,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: brandWhite,
+        backgroundColor: brandPage,
         foregroundColor: brandBlack,
         elevation: 0,
         centerTitle: true,

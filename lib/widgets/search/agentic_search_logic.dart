@@ -653,7 +653,9 @@ class AgenticSearchLogic extends ChangeNotifier {
     );
 
     if (type == 'text_delta') {
-      g.assistantStreaming = true;
+      // 迟到/回放的 text_delta 不得在本轮已完成后把 streaming 置回 true，
+      // 否则搜索完成后会残留 "..." 打字动画。
+      g.assistantStreaming = !g.searchCompleted;
     } else if (type == 'text' || type == 'done') {
       g.assistantStreaming = false;
     }

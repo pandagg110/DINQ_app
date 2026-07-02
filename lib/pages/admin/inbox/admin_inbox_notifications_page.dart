@@ -1,4 +1,5 @@
-﻿import 'package:dinq_app/widgets/common/base_page.dart';
+﻿import 'package:dinq_app/theme/dinq_tokens.dart';
+import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -80,7 +81,7 @@ class _AdminInboxNotificationsPageState extends State<AdminInboxNotificationsPag
     final store = context.watch<NotificationsStore>();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: DinqTokens.bgPage,
       appBar: DefaultAppBar(
         context,
         titleString: "Notifications",

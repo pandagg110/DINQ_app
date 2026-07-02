@@ -732,27 +732,13 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
   Widget _buildBackHomeButton() {
     return _mobileChromeButton(
+      width: 40,
       tooltip: 'Home',
-      padding: const EdgeInsets.symmetric(horizontal: 14),
       onPressed: () {
         context.read<SearchStore>().clearAll();
         context.go('/search');
       },
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.home_outlined, size: 16, color: _chromeForeground),
-          SizedBox(width: 6),
-          Text(
-            'Home',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: _chromeForeground,
-            ),
-          ),
-        ],
-      ),
+      child: const Icon(Icons.home_outlined, size: 20, color: _chromeForeground),
     );
   }
 

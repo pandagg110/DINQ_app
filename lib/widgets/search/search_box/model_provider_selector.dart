@@ -84,11 +84,11 @@ class _ModelProviderSelectorState extends State<ModelProviderSelector> {
                       Icon(
                         widget.dropdownPosition == 'up'
                             ? (_menuOpen
-                                ? Icons.keyboard_arrow_down
-                                : Icons.keyboard_arrow_up)
+                                  ? Icons.keyboard_arrow_down
+                                  : Icons.keyboard_arrow_up)
                             : (_menuOpen
-                                ? Icons.keyboard_arrow_up
-                                : Icons.keyboard_arrow_down),
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down),
                         size: 14,
                         color: const Color(0xFF6B6862),
                       ),
@@ -133,38 +133,42 @@ class _ModelProviderSelectorState extends State<ModelProviderSelector> {
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              // 外层 8 + 项内 12 = 内容统一离屏幕边 20，与标题对齐
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Model',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF2A2826),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'Model',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2A2826),
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      InkWell(
-                        onTap: () => Navigator.of(ctx).pop(),
-                        borderRadius: BorderRadius.circular(8),
-                        child: const SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: Center(
-                            child: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: Color(0xFF6B6862),
+                        const Spacer(),
+                        InkWell(
+                          onTap: () => Navigator.of(ctx).pop(),
+                          borderRadius: BorderRadius.circular(8),
+                          child: const SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Center(
+                              child: Icon(
+                                Icons.close,
+                                size: 18,
+                                color: Color(0xFF6B6862),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
                   ConstrainedBox(
@@ -334,11 +338,7 @@ class ModelProviderMenu extends StatelessWidget {
 }
 
 class _ModelProviderIcon extends StatelessWidget {
-  const _ModelProviderIcon({
-    this.iconAsset,
-    this.label,
-    this.size = 16,
-  });
+  const _ModelProviderIcon({this.iconAsset, this.label, this.size = 16});
 
   final String? iconAsset;
   final String? label;
@@ -353,7 +353,10 @@ class _ModelProviderIcon extends StatelessWidget {
           iconAsset!,
           width: size,
           height: size,
-          colorFilter: const ColorFilter.mode(Color(0xFF6B6862), BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(
+            Color(0xFF6B6862),
+            BlendMode.srcIn,
+          ),
         ),
       );
     }

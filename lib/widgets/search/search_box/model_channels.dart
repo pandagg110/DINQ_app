@@ -27,6 +27,20 @@ const _providerIconAssets = <String, String>{
   'glm': 'assets/icons/search/glm.svg',
 };
 
+/// provider 精确匹配不到时按关键词回退，
+/// 避免后端新增渠道名（如 anthropic-xxx）掉到字母占位图标。
+String? providerIconAssetFor(String provider, {String? model}) {
+  final exact = _providerIconAssets[provider];
+  if (exact != null) return exact;
+  final haystack = '${provider.toLowerCase()} ${(model ?? '').toLowerCase()}';
+  if (haystack.contains('anthropic') || haystack.contains('claude')) {
+    return 'assets/icons/search/claude.svg';
+  }
+  if (haystack.contains('deepseek')) return 'assets/icons/search/deepseek.svg';
+  if (haystack.contains('glm')) return 'assets/icons/search/glm.svg';
+  return null;
+}
+
 const _modelLabels = <String, String>{
   'deepseek-v4-flash[1m]': 'V4 Flash',
   'anthropic/claude-sonnet-4.6': 'Sonnet 4.6',
@@ -71,7 +85,7 @@ List<ModelOption> modelOptionsFromResponse(DeepSearchChannelsResponse source) {
       model: channel.model,
       modelLabel: modelLabel,
       displayLabel: modelLabel != null ? '$label $modelLabel' : label,
-      iconAsset: _providerIconAssets[channel.provider],
+      iconAsset: providerIconAssetFor(channel.provider, model: channel.model),
     );
   }).toList();
 }

@@ -115,12 +115,17 @@ Future<void> showToolsBottomSheet(
                   ),
                 ),
                 const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 18, color: Color(0xFF6B6862)),
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size(32, 32),
-                    padding: EdgeInsets.zero,
+                // icon 视觉右缘与标题左边距(20)对称；命中区保持 32x32
+                InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(8),
+                  child: const SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Icon(Icons.close, size: 18, color: Color(0xFF6B6862)),
+                    ),
                   ),
                 ),
               ],
