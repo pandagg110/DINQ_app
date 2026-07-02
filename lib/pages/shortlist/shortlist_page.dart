@@ -764,6 +764,8 @@ class _ShortlistSearchField extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
               ),
               style: const TextStyle(

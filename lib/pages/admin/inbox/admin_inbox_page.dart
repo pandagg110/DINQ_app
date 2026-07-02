@@ -194,7 +194,11 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
                         fontSize: 15,
                         fontFamily: 'Geist',
                       ),
+                      // 主题 inputDecorationTheme 的 enabledBorder/focusedBorder
+                      // 优先于 border 生效，只设 border 仍会画出描边（双层边框根因）
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(vertical: 11),
                     ),
