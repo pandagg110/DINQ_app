@@ -32,20 +32,30 @@ class MyDinqPage extends StatefulWidget {
 class _MyDinqPageState extends State<MyDinqPage> {
   late MyDinqTab _tab;
   UserData? _userData;
+  MainStore? _mainStore;
 
   @override
   void initState() {
     super.initState();
     _tab = widget.initialTab;
+    // mounted 守卫：返回时 go('/me') 重置路由栈可能让本页重挂载后立即卸载，
+    // 迟到的 hide 回调若在 dispose 的 show 之后执行，会把底部导航永久隐藏。
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<MainStore>().hideBottomNavigation();
     });
     _loadUserData();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _mainStore = context.read<MainStore>();
+  }
+
+  @override
   void dispose() {
-    context.read<MainStore>().showBottomNavigation();
+    _mainStore?.showBottomNavigation();
     super.dispose();
   }
 

@@ -249,6 +249,11 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
     if (!_isFormValid) return;
     _codeInputController.focusNode.unfocus();
     final code = _codeInputController.code;
+    // register() 成功会触发 UserStore 变化 → go_router refreshListenable 重定向，
+    // 本页可能在 await 期间被卸载。此前 mounted return 发生在 dismiss 之前，
+    // 全局 loading HUD 会残留到首页（注册后首页一直 loading 的根因）。
+    // 用 finally 保证无论哪条路径（含 mounted return）都关闭 loading。
+    Object? verifyError;
     try {
       await ToastUtil.showLoading();
       if (!mounted) return;
@@ -260,7 +265,6 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
       if (!mounted) return;
       // 注册成功后默认同意协议, 因为注册前会弹出
       await context.read<UserStore>().agreeToTerms();
-      await ToastUtil.dismiss();
       if (!mounted) return;
       CacheManager.instance.signUpAccount = widget.email;
       context.go('/');
@@ -273,8 +277,12 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
         CacheManager.instance.signUpAccount = null;
       });
     } catch (error) {
+      verifyError = error;
+    } finally {
       await ToastUtil.dismiss();
-      await ToastUtil.show(apiErrorMessage(error));
+    }
+    if (verifyError != null) {
+      await ToastUtil.show(apiErrorMessage(verifyError));
     }
   }
 }
