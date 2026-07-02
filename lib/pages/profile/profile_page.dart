@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_portal/flutter_portal.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_constants.dart';
 import '../../models/user_models.dart';
 import '../../services/message_service.dart';
@@ -55,6 +57,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   final MessageService _messageService = MessageService();
   bool _isLoading = true;
   bool _isStartingChat = false;
+  int _totalViews = 0;
   UserData? _userData;
   bool _isStatusModalOpen = false;
   CardStore? _cardStore;
@@ -97,6 +100,23 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     final cardStore = _cardStore!;
     await _refreshProfileData(checkInitialName: true);
     await cardStore.loadCards(widget.username);
+    await _loadPageViewStats();
+  }
+
+  Future<void> _loadPageViewStats() async {
+    try {
+      final stats = await _profileService.getPageViewStats(
+        widget.username,
+        range: 'all',
+      );
+      if (!mounted) return;
+      final total = stats['total_views'];
+      setState(() {
+        _totalViews = total is num ? total.toInt() : 0;
+      });
+    } catch (_) {
+      // Footer stats are non-critical; keep the page usable if this fails.
+    }
   }
 
   Future<void> _refreshProfileData({bool checkInitialName = false}) async {
@@ -446,6 +466,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                           cardStore: _cardStore,
                         ),
                       ),
+                      const SizedBox(height: 32),
+                      _ProfileFooter(
+                        showOwnerStats: isEditable,
+                        totalViews: _totalViews,
+                      ),
                     ],
                   ],
                 ),
@@ -532,6 +557,100 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       return;
     }
     cardStore.addCard(type: config.type);
+  }
+}
+
+class _ProfileFooter extends StatelessWidget {
+  const _ProfileFooter({
+    required this.showOwnerStats,
+    required this.totalViews,
+  });
+
+  final bool showOwnerStats;
+  final int totalViews;
+
+  static const _textColor = Color(0xFF9CA3AF);
+  static const _dividerColor = Color(0xFFE5E7EB);
+
+  Future<void> _open(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  String _formatViews(int value) {
+    final text = value.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < text.length; i++) {
+      final remaining = text.length - i;
+      buffer.write(text[i]);
+      if (remaining > 1 && remaining % 3 == 1) {
+        buffer.write(',');
+      }
+    }
+    return buffer.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Built by ',
+            style: TextStyle(fontSize: 14, color: _textColor),
+          ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _open('https://dinq.me'),
+            child: const Text(
+              'DINQ.me',
+              style: TextStyle(fontSize: 14, color: _textColor),
+            ),
+          ),
+          if (showOwnerStats) ...[
+            const _FooterDivider(),
+            const Text(
+              'Views ',
+              style: TextStyle(fontSize: 14, color: _textColor),
+            ),
+            Text(
+              _formatViews(totalViews),
+              style: const TextStyle(fontSize: 14, color: _textColor),
+            ),
+            const _FooterDivider(),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _open('https://discord.com/invite/dgkW7ej2bj'),
+              child: SvgPicture.asset(
+                'assets/icons/social-icons-line/discord.svg',
+                width: 16,
+                height: 16,
+                colorFilter: const ColorFilter.mode(
+                  _textColor,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FooterDivider extends StatelessWidget {
+  const _FooterDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 12,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: _ProfileFooter._dividerColor,
+    );
   }
 }
 
