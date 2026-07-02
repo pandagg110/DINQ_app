@@ -233,8 +233,10 @@ class _SearchPageState extends State<SearchPage> {
     required bool embeddedInMainTab,
   }) {
     final mq = MediaQuery.of(context);
-    // 不修改内容高度：Scaffold 不 resize，用 Transform.translate 把整块内容顶上去
-    final keyboardHeight = mq.viewInsets.bottom;
+    // 主搜索输入保持原有键盘上移；历史侧栏搜索只弹键盘，不推动侧栏内容。
+    final keyboardHeight = chatHistoryStore.isMobileOpen
+        ? 0.0
+        : mq.viewInsets.bottom;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
@@ -257,22 +259,22 @@ class _SearchPageState extends State<SearchPage> {
                   bottom: false,
                   child: Stack(
                     children: [
-                // 主聊天区域
-                AgenticSearchContentWidget(
-                  embeddedInMainTab: embeddedInMainTab,
-                ),
+                      // 主聊天区域
+                      AgenticSearchContentWidget(
+                        embeddedInMainTab: embeddedInMainTab,
+                      ),
 
-                // 聊天历史移动端面板（左侧滑入）
-                ChatHistoryMobileWidget(
-                  isOpen: chatHistoryStore.isMobileOpen,
-                  onClose: () => chatHistoryStore.setMobileOpen(false),
-                ),
+                      // 聊天历史移动端面板（左侧滑入）
+                      ChatHistoryMobileWidget(
+                        isOpen: chatHistoryStore.isMobileOpen,
+                        onClose: () => chatHistoryStore.setMobileOpen(false),
+                      ),
 
-                // Tab 用户信息面板（底部滑入，与 history 同方式）
-                TabPanelMobileWidget(
-                  isOpen: searchStore.isTabPanelOpen,
-                  onClose: () => searchStore.setTabPanelOpen(false),
-                ),
+                      // Tab 用户信息面板（底部滑入，与 history 同方式）
+                      TabPanelMobileWidget(
+                        isOpen: searchStore.isTabPanelOpen,
+                        onClose: () => searchStore.setTabPanelOpen(false),
+                      ),
                     ],
                   ),
                 ),

@@ -12,11 +12,7 @@ import '../../widgets/search/history/chat_history_skeleton_widget.dart';
 
 /// 与 TSX MobileSearchHistory 一致：New Chat = fullReset + 关闭侧栏 + /search
 class ChatHistoryPage extends StatefulWidget {
-  const ChatHistoryPage({
-    super.key,
-    this.onClose,
-    this.isOpen = true,
-  });
+  const ChatHistoryPage({super.key, this.onClose, this.isOpen = true});
 
   final VoidCallback? onClose;
   final bool isOpen;
@@ -81,6 +77,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F7F3),
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -144,7 +141,11 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     height: 40,
                     child: TextButton.icon(
                       onPressed: _handleNewChat,
-                      icon: const Icon(Icons.add, size: 16, color: Color(0xFF171717)),
+                      icon: const Icon(
+                        Icons.add,
+                        size: 16,
+                        color: Color(0xFF171717),
+                      ),
                       label: const Text(
                         'New chat',
                         style: TextStyle(
@@ -180,11 +181,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                 },
               ),
             ),
-            _buildFooter(
-              context,
-              basePlan: basePlan,
-              credits: credits,
-            ),
+            _buildFooter(context, basePlan: basePlan, credits: credits),
           ],
         ),
       ),
@@ -257,7 +254,11 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           const SizedBox(height: 6),
           const Row(
             children: [
-              Icon(Icons.card_giftcard_outlined, size: 16, color: Color(0xFF6b6862)),
+              Icon(
+                Icons.card_giftcard_outlined,
+                size: 16,
+                color: Color(0xFF6b6862),
+              ),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -352,8 +353,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       );
     }
 
-    final showLoadMore =
-        normalizedQuery.isEmpty && chatStore.hasMore();
+    final showLoadMore = normalizedQuery.isEmpty && chatStore.hasMore();
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
