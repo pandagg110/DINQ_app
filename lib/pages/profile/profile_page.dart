@@ -455,8 +455,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                       const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.only(
-                          left: 12,
-                          right: 12,
+                          left: 16,
+                          right: 16,
                           top: 0,
                           bottom: 0,
                         ),
