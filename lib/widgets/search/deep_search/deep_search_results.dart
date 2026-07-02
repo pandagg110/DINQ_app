@@ -306,12 +306,26 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
 
   Future<void> _exportCsv() async {
     setState(() => _showExportMenu = false);
-    await Share.share(buildSearchResultsCsv(_sortedRows));
+    await _shareAsFile(buildSearchResultsCsv(_sortedRows), 'csv');
   }
 
   Future<void> _exportMarkdown() async {
     setState(() => _showExportMenu = false);
-    await Share.share(buildSearchResultsMarkdown(_sortedRows));
+    await _shareAsFile(buildSearchResultsMarkdown(_sortedRows), 'md');
+  }
+
+  /// 导出必须是文件而不是纯文本分享，否则收不到 .csv/.md 文件（导出"不能正常使用"）。
+  Future<void> _shareAsFile(String content, String ext) async {
+    try {
+      final date = DateTime.now().toIso8601String().substring(0, 10);
+      final filename = 'search-results-$date.$ext';
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$filename');
+      await file.writeAsString(content);
+      await Share.shareXFiles([XFile(file.path)], subject: filename);
+    } catch (_) {
+      if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
+    }
   }
 
   bool _canToggleExpanded(double collapsedMaxHeight) {

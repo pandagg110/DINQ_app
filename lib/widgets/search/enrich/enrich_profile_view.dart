@@ -690,29 +690,6 @@ class _ProfileSectionState extends State<_ProfileSection> {
                             ],
                           ),
                         ),
-                      if (revealedEmail != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Row(
-                            children: [
-                              const EnrichSvgIcon(
-                                EnrichIcons.mail,
-                                size: 14,
-                                color: _C.textMuted,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  parseEmails(revealedEmail).first,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: _C.textMuted,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       if (isAwaitingPerson) ...[
                         const SizedBox(height: 4),
                         const _SkeletonLine(widthFactor: 0.55, height: 16),
@@ -741,6 +718,11 @@ class _ProfileSectionState extends State<_ProfileSection> {
                     ),
                 ],
               ),
+            ],
+            // 获取 email 后展示邮箱列表（每行可复制，>2 折叠），对齐设计稿
+            if (revealedEmail != null) ...[
+              const SizedBox(height: 16),
+              _EmailListCard(emails: parseEmails(revealedEmail)),
             ],
             if (person != null && entry.status != EnrichStatus.error) ...[
               const SizedBox(height: 16),
@@ -2183,6 +2165,126 @@ class _RecentActivitySkeleton extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 邮箱列表卡：每行 email + 复制按钮；超过 2 个折叠为 "Show N more emails"。
+class _EmailListCard extends StatefulWidget {
+  const _EmailListCard({required this.emails});
+
+  final List<String> emails;
+
+  @override
+  State<_EmailListCard> createState() => _EmailListCardState();
+}
+
+class _EmailListCardState extends State<_EmailListCard> {
+  static const _collapsedCount = 2;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final emails = widget.emails;
+    if (emails.isEmpty) return const SizedBox.shrink();
+    final hiddenCount = emails.length - _collapsedCount;
+    final visible = _expanded || hiddenCount <= 0
+        ? emails
+        : emails.take(_collapsedCount).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < visible.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _EmailRow(email: visible[i]),
+        ],
+        if (hiddenCount > 0) ...[
+          const SizedBox(height: 8),
+          Material(
+            color: _C.bgMatch,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _expanded
+                          ? 'Show fewer emails'
+                          : 'Show $hiddenCount more emails',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: _C.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _expanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: _C.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _EmailRow extends StatelessWidget {
+  const _EmailRow({required this.email});
+
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: _C.bgMatch,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const EnrichSvgIcon(EnrichIcons.mail, size: 16, color: _C.textMuted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              email,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, color: _C.textPrimary),
+            ),
+          ),
+          InkWell(
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: email));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Email copied'),
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.copy_outlined, size: 16, color: _C.textMuted),
             ),
           ),
         ],
