@@ -649,6 +649,8 @@ class _AddedRow extends StatelessWidget {
             )
           else
             PopupMenuButton<String>(
+              color: Colors.white,
+              surfaceTintColor: Colors.transparent,
               icon: const Icon(
                 Icons.more_horiz,
                 size: 20,
