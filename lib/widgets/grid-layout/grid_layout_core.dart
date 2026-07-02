@@ -3,7 +3,6 @@
 // ---------------------------------------------------------------------------
 
 import 'grid_layout_types.dart';
-import '../../utils/card_layout_utils.dart';
 
 /// 两格点项是否重叠
 bool collides(LayoutItem l1, LayoutItem l2) {
@@ -22,7 +21,10 @@ LayoutItem? getFirstCollision(List<LayoutItem> layout, LayoutItem layoutItem) {
   return null;
 }
 
-List<LayoutItem> getAllCollisions(List<LayoutItem> layout, LayoutItem layoutItem) {
+List<LayoutItem> getAllCollisions(
+  List<LayoutItem> layout,
+  LayoutItem layoutItem,
+) {
   return layout.where((l) => collides(l, layoutItem)).toList();
 }
 
@@ -44,13 +46,17 @@ List<LayoutItem> sortLayoutItemsByColRow(List<LayoutItem> layout) {
   return out;
 }
 
-List<LayoutItem> sortLayoutItems(List<LayoutItem> layout, CompactType compactType) {
+List<LayoutItem> sortLayoutItems(
+  List<LayoutItem> layout,
+  CompactType compactType,
+) {
   switch (compactType) {
     case CompactType.horizontal:
       return sortLayoutItemsByColRow(layout);
     case CompactType.vertical:
-    case CompactType.none:
       return sortLayoutItemsByRowCol(layout);
+    case CompactType.none:
+      return List<LayoutItem>.from(layout);
   }
 }
 
@@ -105,15 +111,85 @@ void correctBounds(List<LayoutItem> layout, int cols) {
 }
 
 /// 垂直紧凑：对 layout 原地重排（按行再按列排序，逐项上移填缝）
+void resolveCompactionCollision(
+  List<LayoutItem> layout,
+  LayoutItem item,
+  int moveToCoord,
+  String axis,
+) {
+  final size = axis == 'x' ? item.w : item.h;
+  if (axis == 'x') {
+    item.x += 1;
+  } else {
+    item.y += 1;
+  }
+
+  final itemIndex = layout.indexWhere((l) => l.i == item.i);
+  final hasStatics = getStatics(layout).isNotEmpty;
+
+  for (var i = itemIndex + 1; i < layout.length; i++) {
+    final otherItem = layout[i];
+    if (otherItem.static_) continue;
+    if (!hasStatics && otherItem.y > item.y + item.h) break;
+    if (collides(item, otherItem)) {
+      resolveCompactionCollision(layout, otherItem, moveToCoord + size, axis);
+    }
+  }
+
+  if (axis == 'x') {
+    item.x = moveToCoord;
+  } else {
+    item.y = moveToCoord;
+  }
+}
+
+LayoutItem compactItemVertical(
+  List<LayoutItem> compareWith,
+  LayoutItem l,
+  List<LayoutItem> fullLayout,
+  int maxY,
+) {
+  if (l.x < 0) l.x = 0;
+  if (l.y < 0) l.y = 0;
+  if (l.y > maxY) l.y = maxY;
+
+  while (l.y > 0 && getFirstCollision(compareWith, l) == null) {
+    l.y--;
+  }
+
+  LayoutItem? collision;
+  while ((collision = getFirstCollision(compareWith, l)) != null) {
+    resolveCompactionCollision(fullLayout, l, collision!.y + collision.h, 'y');
+  }
+
+  if (l.y < 0) l.y = 0;
+  return l;
+}
+
 List<LayoutItem> compactVertical(List<LayoutItem> layout, int cols) {
   if (layout.isEmpty) return layout;
-  final items = layout.map((it) => (i: it.i, x: it.x, y: it.y, w: it.w, h: it.h)).toList();
-  final result = CardLayoutUtils.compactGridLayout(items, cols);
-  for (var i = 0; i < layout.length; i++) {
-    layout[i].x = result[i].x;
-    layout[i].y = result[i].y;
+  final compareWith = getStatics(layout);
+  var maxY = bottom(compareWith);
+  final sorted = sortLayoutItemsByRowCol(layout);
+  final out = List<LayoutItem?>.filled(layout.length, null);
+
+  for (final sortedItem in sorted) {
+    var l = cloneLayoutItem(sortedItem);
+    if (!l.static_) {
+      l = compactItemVertical(compareWith, l, sorted, maxY);
+      final bottomY = l.y + l.h;
+      if (bottomY > maxY) maxY = bottomY;
+      compareWith.add(l);
+    }
+
+    final originalIndex = layout.indexWhere((item) => item.i == sortedItem.i);
+    if (originalIndex >= 0) {
+      l.moved = false;
+      out[originalIndex] = l;
+    }
   }
-  return layout;
+
+  return out.whereType<LayoutItem>().toList();
 }
 
 /// 移动元素并解决碰撞（会修改 l 的 x/y/moved）
@@ -142,8 +218,8 @@ List<LayoutItem> moveElement(
   final movingUp = compactType == CompactType.vertical && y != null
       ? oldY >= y
       : compactType == CompactType.horizontal && x != null
-          ? oldX >= x
-          : false;
+      ? oldX >= x
+      : false;
   if (movingUp) sorted = sorted.reversed.toList();
 
   final collisions = getAllCollisions(sorted, l);
@@ -162,11 +238,21 @@ List<LayoutItem> moveElement(
     if (collision.moved) continue;
     if (collision.static_) {
       resultLayout = moveElementAwayFromCollision(
-        resultLayout, collision, l, isUserAction, compactType, cols,
+        resultLayout,
+        collision,
+        l,
+        isUserAction,
+        compactType,
+        cols,
       );
     } else {
       resultLayout = moveElementAwayFromCollision(
-        resultLayout, l, collision, isUserAction, compactType, cols,
+        resultLayout,
+        l,
+        collision,
+        isUserAction,
+        compactType,
+        cols,
       );
     }
   }
@@ -186,33 +272,67 @@ List<LayoutItem> moveElementAwayFromCollision(
   final preventCollision = collidesWith.static_;
 
   if (isUserAction) {
-    final fakeX = compactH ? (collidesWith.x - itemToMove.w).clamp(0, cols - itemToMove.w) : itemToMove.x;
-    final fakeY = compactV ? (collidesWith.y - itemToMove.h).clamp(0, 999) : itemToMove.y;
-    final fakeItem = LayoutItem(i: '-1', x: fakeX, y: fakeY, w: itemToMove.w, h: itemToMove.h);
+    final fakeX = compactH
+        ? (collidesWith.x - itemToMove.w).clamp(0, cols - itemToMove.w)
+        : itemToMove.x;
+    final fakeY = compactV
+        ? (collidesWith.y - itemToMove.h).clamp(0, 999)
+        : itemToMove.y;
+    final fakeItem = LayoutItem(
+      i: '-1',
+      x: fakeX,
+      y: fakeY,
+      w: itemToMove.w,
+      h: itemToMove.h,
+    );
 
     final firstCollision = getFirstCollision(layout, fakeItem);
-    final collisionNorth = firstCollision != null &&
+    final collisionNorth =
+        firstCollision != null &&
         firstCollision.y + firstCollision.h > collidesWith.y;
-    final collisionWest = firstCollision != null &&
+    final collisionWest =
+        firstCollision != null &&
         collidesWith.x + collidesWith.w > firstCollision.x;
 
     if (firstCollision == null) {
       return moveElement(
-        layout, itemToMove,
-        compactH ? fakeX : null, compactV ? fakeY : null,
-        false, preventCollision, compactType, cols,
+        layout,
+        itemToMove,
+        compactH ? fakeX : null,
+        compactV ? fakeY : null,
+        false,
+        preventCollision,
+        compactType,
+        cols,
       );
     }
     if (collisionNorth && compactV) {
       return moveElement(
-        layout, itemToMove, null, itemToMove.y + 1,
-        false, preventCollision, compactType, cols,
+        layout,
+        itemToMove,
+        null,
+        itemToMove.y + 1,
+        false,
+        preventCollision,
+        compactType,
+        cols,
       );
+    }
+    if (collisionNorth && compactType == CompactType.none) {
+      collidesWith.y = itemToMove.y;
+      itemToMove.y = itemToMove.y + itemToMove.h;
+      return List.from(layout);
     }
     if (collisionWest && compactH) {
       return moveElement(
-        layout, collidesWith, itemToMove.x, null,
-        false, preventCollision, compactType, cols,
+        layout,
+        collidesWith,
+        itemToMove.x,
+        null,
+        false,
+        preventCollision,
+        compactType,
+        cols,
       );
     }
   }
@@ -221,7 +341,13 @@ List<LayoutItem> moveElementAwayFromCollision(
   final newY = compactV ? itemToMove.y + 1 : null;
   if (newX == null && newY == null) return layout;
   return moveElement(
-    layout, itemToMove, newX, newY,
-    false, preventCollision, compactType, cols,
+    layout,
+    itemToMove,
+    newX,
+    newY,
+    false,
+    preventCollision,
+    compactType,
+    cols,
   );
 }

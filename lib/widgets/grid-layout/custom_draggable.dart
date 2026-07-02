@@ -58,7 +58,7 @@ class _CustomGridHandleDraggableState extends State<CustomGridHandleDraggable> {
       );
     }
 
-    final halfW = widget.rectWidth / 2-20;
+    final halfW = widget.rectWidth / 2 - 20;
     final halfH = widget.rectHeight / 2;
 
     final base = SizedBox(
@@ -66,7 +66,8 @@ class _CustomGridHandleDraggableState extends State<CustomGridHandleDraggable> {
       height: widget.rectHeight,
       child: Opacity(opacity: _dragging ? 0.5 : 1.0, child: widget.child),
     );
-    final handleCenterY = widget.rectHeight - handleBottom - handleSize / 2 -20;
+    final handleCenterY =
+        widget.rectHeight - handleBottom - handleSize / 2 - 20;
     return SizedBox(
       width: widget.rectWidth,
       height: widget.rectHeight,

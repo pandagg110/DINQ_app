@@ -19,6 +19,7 @@ class CardGridStaggered extends StatefulWidget {
     super.key,
     this.editable = false,
     this.onPlaceholderClick,
+
     /// 显式传入时使用该 store 并监听其更新（用于看他人 profile 时注入 ViewerCardStore，确保 loading 完成后能正确刷新）
     this.cardStore,
   });
@@ -39,6 +40,7 @@ class CardGridStaggered extends StatefulWidget {
 
 class _CardGridStaggeredState extends State<CardGridStaggered> {
   GridLayoutState? _gridState;
+
   /// 拖拽过程中由 onMove 写入的布局，用于 PlaceholderGrid 计算 placeholderPositions；松手后清空
   List<LayoutItem>? _layoutDuringMove;
 
@@ -58,7 +60,8 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         y: pos.y,
         w: dims.w.clamp(1, CardGridStaggered.gridColumns),
         h: dims.h.clamp(1, 100),
-        static_: !canDrag,
+        static_: false,
+        isDraggable: canDrag,
       );
     }).toList();
   }
@@ -133,11 +136,9 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         widget.editable &&
         widget.onPlaceholderClick != null &&
         placeholderNotifier.showPlaceholders;
-     final layoutOverrideForPlaceholders = _layoutDuringMove != null
-        ? _layoutDuringMove!
-            .map((e) => (x: e.x, y: e.y, w: e.w, h: e.h))
-            .toList()
-        : null;
+    final layoutOverrideForPlaceholders = _layoutDuringMove
+        ?.map((e) => (x: e.x, y: e.y, w: e.w, h: e.h))
+        .toList();
     final placeholderPositions = showPlaceholders
         ? computePlaceholderPositions(
             cards: cards,
@@ -267,7 +268,8 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
         },
         onLayoutChange: (newLayout) {
           _syncLayoutToStore(newLayout, cardStore);
-          if (_gridState?.dragState.activeDrag == null && _layoutDuringMove != null) {
+          if (_gridState?.dragState.activeDrag == null &&
+              _layoutDuringMove != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) setState(() => _layoutDuringMove = null);
             });
@@ -351,10 +353,14 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                                 onTap: () =>
                                     cardStore.toggleCardSelection(card.id),
                                 child: CardRenderer(
-                                    card: card, editable: widget.editable),
+                                  card: card,
+                                  editable: widget.editable,
+                                ),
                               )
                             : CardRenderer(
-                                card: card, editable: widget.editable);
+                                card: card,
+                                editable: widget.editable,
+                              );
                         return content;
                       },
                     ),

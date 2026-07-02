@@ -3,16 +3,14 @@
 // ---------------------------------------------------------------------------
 
 import 'package:flutter/foundation.dart';
-import 'grid_layout_types.dart';
+
 import 'grid_layout_core.dart' as core;
+import 'grid_layout_types.dart';
 
 /// 拖拽状态（RGL DragState）
 class DragState {
-  DragState({
-    this.activeDrag,
-    this.oldDragItem,
-    this.oldLayout,
-  });
+  DragState({this.activeDrag, this.oldDragItem, this.oldLayout});
+
   final LayoutItem? activeDrag;
   final LayoutItem? oldDragItem;
   final List<LayoutItem>? oldLayout;
@@ -20,11 +18,8 @@ class DragState {
 
 /// 缩放状态（RGL ResizeState）
 class ResizeState {
-  ResizeState({
-    this.resizing = false,
-    this.oldResizeItem,
-    this.oldLayout,
-  });
+  ResizeState({this.resizing = false, this.oldResizeItem, this.oldLayout});
+
   final bool resizing;
   final LayoutItem? oldResizeItem;
   final List<LayoutItem>? oldLayout;
@@ -33,6 +28,7 @@ class ResizeState {
 /// 放置状态（RGL DropState）- Flutter 侧可简化为占位位置
 class DropState {
   DropState({this.droppingPosition});
+
   final ({double left, double top})? droppingPosition;
 }
 
@@ -40,8 +36,10 @@ class DropState {
 class VerticalCompactor extends Compactor {
   @override
   CompactType get type => CompactType.vertical;
+
   @override
   bool get allowOverlap => false;
+
   @override
   List<LayoutItem> compact(List<LayoutItem> layout, int cols) =>
       core.compactVertical(core.cloneLayout(layout), cols);
@@ -53,22 +51,21 @@ class GridLayoutState extends ChangeNotifier {
     required List<LayoutItem> layout,
     required this.cols,
     this.preventCollision = false,
-    /// 松手时是否执行紧凑重排；为 false 时仅更新落点位置，不重排，与拖拽终点一致
     this.compactOnDragEnd = false,
     this.onLayoutChange,
-    /// 拖拽移动过程中每次位置变化时调用，可能为空
     this.onMove,
     Compactor? compactor,
-  })  : _layout = core.cloneLayout(layout),
-        compactor = compactor ?? VerticalCompactor() {
+  }) : _layout = core.cloneLayout(layout),
+       compactor = compactor ?? VerticalCompactor() {
     _applyCorrectAndCompact();
   }
 
   final int cols;
   final bool preventCollision;
+
+  /// 保留兼容字段；RGL v2 的 drag stop 始终执行 final move + compact。
   final bool compactOnDragEnd;
   final void Function(List<LayoutItem> layout)? onLayoutChange;
-  /// 拖拽移动过程中每次位置变化时调用，可能为空
   final void Function(List<LayoutItem> layout)? onMove;
   final Compactor compactor;
 
@@ -115,16 +112,20 @@ class GridLayoutState extends ChangeNotifier {
   LayoutItem? onDragStart(String itemId, int x, int y) {
     final item = core.getLayoutItem(_layout, itemId);
     if (item == null) return null;
+
     _isDragging = true;
-    final placeholder = core.cloneLayoutItem(item);
+
+    final placeholder = core.cloneLayoutItem(item).copyWith(static_: false);
     placeholder.x = x;
     placeholder.y = y;
     placeholder.moved = false;
+
     _dragState = DragState(
       activeDrag: placeholder,
       oldDragItem: core.cloneLayoutItem(item),
       oldLayout: core.cloneLayout(_layout),
     );
+
     notifyListeners();
     return placeholder;
   }
@@ -132,13 +133,17 @@ class GridLayoutState extends ChangeNotifier {
   void onDrag(String itemId, int x, int y) {
     final item = core.getLayoutItem(_layout, itemId);
     if (item == null) return;
+
     _dragState = DragState(
       activeDrag: _dragState.activeDrag != null
-          ? (core.cloneLayoutItem(_dragState.activeDrag!)..x = x..y = y)
+          ? (core.cloneLayoutItem(_dragState.activeDrag!)
+              ..x = x
+              ..y = y)
           : null,
       oldDragItem: _dragState.oldDragItem,
       oldLayout: _dragState.oldLayout,
     );
+
     final newLayout = core.moveElement(
       _layout,
       item,
@@ -151,19 +156,15 @@ class GridLayoutState extends ChangeNotifier {
       allowOverlap: compactor.allowOverlap,
     );
     _layout = compactor.compact(newLayout, cols);
+
     onMove?.call(_layout);
     notifyListeners();
   }
 
   void onDragStop(String itemId, int x, int y) {
-    _isDragging = false;
-    _dragState = DragState();
-    onLayoutChange?.call(_layout);
-    notifyListeners();
-    return;
     final item = core.getLayoutItem(_layout, itemId);
-    if (item == null) return;
-    if (compactOnDragEnd) {
+
+    if (item != null) {
       final newLayout = core.moveElement(
         _layout,
         item,
@@ -176,20 +177,8 @@ class GridLayoutState extends ChangeNotifier {
         allowOverlap: compactor.allowOverlap,
       );
       _layout = compactor.compact(newLayout, cols);
-    } else {
-      // 仅更新落点，不重排，与阴影位置一致（落点来自最后一次 onDragUpdate 的格点）
-      // 直接采用 widget 传入的 (x,y)，不再二次 clamp，避免与 calcXY 的 params 不一致导致错位
-      item.x = x;
-      item.y = y;
-      final other = core.getFirstCollision(_layout, item);
-      if (other != null) {
-        final ox = other.x, oy = other.y;
-        other.x = x;
-        other.y = y;
-        item.x = ox;
-        item.y = oy;
-      }
     }
+
     _isDragging = false;
     _dragState = DragState();
     onLayoutChange?.call(_layout);
@@ -218,6 +207,7 @@ class GridLayoutState extends ChangeNotifier {
       }
       return item;
     }).toList();
+
     core.correctBounds(newLayout, cols);
     _layout = compactor.compact(newLayout, cols);
     notifyListeners();
@@ -249,7 +239,7 @@ class GridLayoutState extends ChangeNotifier {
   void onDrop(LayoutItem droppingItem) {
     _layout = _layout.map((item) {
       if (item.i == '__dropping-elem__') {
-        return item.copyWith(i: droppingItem.i);
+        return item.copyWith(i: droppingItem.i, static_: false);
       }
       return item;
     }).toList();
