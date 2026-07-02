@@ -6,10 +6,7 @@ import '../cards/factory/card_registry.dart';
 
 /// 卡片编辑底栏：尺寸切换 + Done（取消选中）。
 class CardToolbar extends StatelessWidget {
-  const CardToolbar({
-    super.key,
-    required this.card,
-  });
+  const CardToolbar({super.key, required this.card});
 
   final CardItem card;
 
@@ -24,48 +21,47 @@ class CardToolbar extends StatelessWidget {
     final availableSizes = sizeConfig.supported;
     final currentSize = card.layout.mobile.size;
     final showSizeOptions = availableSizes.length > 1;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    final bottomPadding = (bottomInset > 0 ? bottomInset : 16.0) + 12.0;
 
     return Positioned(
       left: 0,
       right: 0,
       bottom: 0,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Center(
-            child: Container(
-              height: 56,
-              decoration: BoxDecoration(
-                color: const Color(0xFF171717),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (showSizeOptions) ...[
-                      _buildToolbarContent(
-                        context,
-                        cardStore: cardStore,
-                        availableSizes: availableSizes,
-                        currentSize: currentSize,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildDivider(),
-                      const SizedBox(width: 16),
-                    ],
-                    _buildDoneButton(context, cardStore),
-                  ],
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomPadding),
+        child: Center(
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFF171717),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showSizeOptions) ...[
+                    _buildToolbarContent(
+                      context,
+                      cardStore: cardStore,
+                      availableSizes: availableSizes,
+                      currentSize: currentSize,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildDivider(),
+                    const SizedBox(width: 16),
+                  ],
+                  _buildDoneButton(context, cardStore),
+                ],
               ),
             ),
           ),
@@ -81,8 +77,8 @@ class CardToolbar extends StatelessWidget {
       child: InkWell(
         onTap: cardStore.clearSelection,
         borderRadius: BorderRadius.circular(8),
-        splashColor: Colors.white.withOpacity(0.2),
-        highlightColor: Colors.white.withOpacity(0.1),
+        splashColor: Colors.white.withValues(alpha: 0.2),
+        highlightColor: Colors.white.withValues(alpha: 0.1),
         child: const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
@@ -103,7 +99,7 @@ class CardToolbar extends StatelessWidget {
     return Container(
       width: 1,
       height: 16,
-      color: Colors.white.withOpacity(0.15),
+      color: Colors.white.withValues(alpha: 0.15),
     );
   }
 
@@ -118,7 +114,9 @@ class CardToolbar extends StatelessWidget {
     const iconSize = 16.0;
     const innerRadius = 6.0;
 
-    final selectedIndex = availableSizes.indexOf(currentSize).clamp(0, availableSizes.length - 1);
+    final selectedIndex = availableSizes
+        .indexOf(currentSize)
+        .clamp(0, availableSizes.length - 1);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -181,7 +179,11 @@ class CardToolbar extends StatelessWidget {
 
 /// 尺寸图标：按 2x2 / 4x4 / 2x4 / 4x2 画小矩形
 class _SizeIcon extends StatelessWidget {
-  const _SizeIcon({required this.size, this.active = false, this.iconSize = 14});
+  const _SizeIcon({
+    required this.size,
+    this.active = false,
+    this.iconSize = 14,
+  });
 
   final String size;
   final bool active;
@@ -190,9 +192,11 @@ class _SizeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parts = size.toLowerCase().split('x');
-    final w = (parts.length >= 1 ? int.tryParse(parts[0].trim()) : null) ?? 2;
+    final w = (parts.isNotEmpty ? int.tryParse(parts[0].trim()) : null) ?? 2;
     final h = (parts.length >= 2 ? int.tryParse(parts[1].trim()) : null) ?? 2;
-    final color = active ? const Color(0xFF171717) : Colors.white.withOpacity(0.7);
+    final color = active
+        ? const Color(0xFF171717)
+        : Colors.white.withValues(alpha: 0.7);
     return SizedBox(
       width: iconSize,
       height: iconSize,

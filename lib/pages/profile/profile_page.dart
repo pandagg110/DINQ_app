@@ -303,6 +303,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                 backgroundColor: widget.showMyDinqTopBar
                     ? DinqTokens.bgPage
                     : null,
+                resizeToAvoidBottomInset: false,
                 appBar: _buildAppBar(
                   context: context,
                   isEditable: isEditable,

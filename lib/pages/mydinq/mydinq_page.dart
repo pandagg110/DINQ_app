@@ -92,6 +92,7 @@ class _MyDinqPageState extends State<MyDinqPage> {
     final isSaving = context.watch<CardStore>().isSaving;
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
+      resizeToAvoidBottomInset: false,
       appBar: MyDinqTopBar(
         context,
         isPageTab: _tab == MyDinqTab.page,
