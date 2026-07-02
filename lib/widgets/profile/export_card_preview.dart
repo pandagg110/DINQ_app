@@ -277,48 +277,48 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
   /// Default 为白底圆；Colorful 为渐变圆（与 TSX ColorfulIcon 一致）
   Widget _buildColorButton({required String option, required bool isSelected}) {
     final isColorful = option == 'colorful';
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: widget.isEditable
-            ? () {
-                _handleThemeChange('color', option);
-              }
-            : null,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: 48,
-          height: 48,
+    return GestureDetector(
+      onTap: widget.isEditable
+          ? () {
+              _handleThemeChange('color', option);
+            }
+          : null,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: DecoratedBox(
           decoration: BoxDecoration(
+            color: Colors.white,
             shape: BoxShape.circle,
             border: Border.all(
               color: isSelected
                   ? const Color(0xFF000000)
                   : const Color(0xFFC0C0C0),
               width: isSelected ? 1.63 : 1,
+              strokeAlign: BorderSide.strokeAlignInside,
             ),
           ),
-          alignment: Alignment.center,
-          child: isColorful
-              ? Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFFCDE3FF), Color(0xFFE0DCFF)],
+          child: Center(
+            child: isColorful
+                ? Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFCDE3FF), Color(0xFFE0DCFF)],
+                      ),
+                      border: Border.all(
+                        color: const Color(0xFFBDD3EC),
+                        width: 1,
+                      ),
                     ),
-                    border: Border.all(
-                      color: const Color(0xFFBDD3EC),
-                      width: 1,
-                    ),
-                  ),
-                )
-              : null,
+                  )
+                : null,
+          ),
         ),
       ),
     );
@@ -327,7 +327,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
   /// Classic | Custom 滑动切换（与 ExportCard.tsx 一致）
   Widget _buildClassicCustomToggle() {
     const inset = 4.0;
-    const sliderWidth = 66.0; // (140 - 8) / 2
+    const sliderWidth = 62.0; // calc(50% - 8px)
     final isCustom = _themeMode == 'card';
     return GestureDetector(
       onTap: () => _handleThemeChange('mode', isCustom ? 'classic' : 'card'),
@@ -338,6 +338,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
           color: const Color(0xFFF3F4F6),
           borderRadius: BorderRadius.circular(8),
         ),
+        clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
             AnimatedPositioned(
