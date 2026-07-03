@@ -87,16 +87,14 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
   Map<String, dynamic>? _pendingBookmarkRow;
 
   bool get _isRail => widget.variant == DeepSearchResultsVariant.rail;
-  bool get _isMobileResults => widget.variant == DeepSearchResultsVariant.mobile;
+  bool get _isMobileResults =>
+      widget.variant == DeepSearchResultsVariant.mobile;
 
   List<Map<String, dynamic>> get _rows =>
       List<Map<String, dynamic>>.from(widget.candidates);
 
-  List<Map<String, dynamic>> get _sortedRows => sortCandidateRows(
-        _rows,
-        column: _sortColumn,
-        ascending: _sortAscending,
-      );
+  List<Map<String, dynamic>> get _sortedRows =>
+      sortCandidateRows(_rows, column: _sortColumn, ascending: _sortAscending);
 
   List<Map<String, dynamic>> get _selectedRows => _sortedRows
       .where((row) => _selectedRowIds.contains(row['row_id']?.toString()))
@@ -169,9 +167,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
       final item = await _shortlistService.createFavorite(
         projectId: projectId,
         title: payload['title']?.toString() ?? '',
-        field: Map<String, dynamic>.from(
-          payload['field'] as Map? ?? const {},
-        ),
+        field: Map<String, dynamic>.from(payload['field'] as Map? ?? const {}),
       );
       final rowId = row['row_id']?.toString();
       if (!mounted) return;
@@ -222,10 +218,9 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/deep-search-$sessionId.pdf');
       await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'deep-search-$sessionId.pdf',
-      );
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: 'deep-search-$sessionId.pdf');
     } catch (_) {
       if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
     } finally {
@@ -234,19 +229,20 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
   }
 
   LatestTraceStatus? get _activityStatus => resolveSearchActivityStatus(
-        roundStatus: widget.roundStatus,
-        contentBlocks: widget.contentBlocks,
-        subAgents: widget.subAgents,
-      );
+    roundStatus: widget.roundStatus,
+    contentBlocks: widget.contentBlocks,
+    subAgents: widget.subAgents,
+  );
 
-  bool get _showActivityLine =>
-      widget.isSearching || _activityStatus != null;
+  bool get _showActivityLine => widget.isSearching || _activityStatus != null;
 
   @override
   void didUpdateWidget(covariant DeepSearchResults oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.candidates != widget.candidates) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _syncParentCallbacks());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _syncParentCallbacks(),
+      );
     }
   }
 
@@ -254,6 +250,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
     widget.onVisibleRowsChange?.call(_sortedRows);
     widget.onSelectedRowsChange?.call(_selectedRows);
   }
+
   void _toggleSort(DeepSearchResultsSortColumn column) {
     setState(() {
       if (_sortColumn == column) {
@@ -279,9 +276,11 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
 
   void _toggleAllVisibleRows() {
     setState(() {
-      final visibleIds =
-          _sortedRows.map((r) => r['row_id']?.toString() ?? '').where((id) => id.isNotEmpty);
-      final allSelected = _sortedRows.isNotEmpty &&
+      final visibleIds = _sortedRows
+          .map((r) => r['row_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty);
+      final allSelected =
+          _sortedRows.isNotEmpty &&
           _sortedRows.every(
             (row) => _selectedRowIds.contains(row['row_id']?.toString()),
           );
@@ -351,8 +350,9 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
   Widget _buildResultsContent({
     required List<Map<String, dynamic>> sortedRows,
   }) {
-    final contentColor =
-        _isRail || _isMobileResults ? Colors.white : DeepSearchResultsColors.scrollBg;
+    final contentColor = _isRail || _isMobileResults
+        ? Colors.white
+        : DeepSearchResultsColors.scrollBg;
     return ColoredBox(
       color: contentColor,
       child: _viewModeCard
@@ -506,8 +506,10 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
               hoverColor: const Color(0xFFF1F0EA),
               child: Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 decoration: const BoxDecoration(
                   border: Border(
                     top: BorderSide(color: DeepSearchResultsColors.border),
@@ -544,10 +546,7 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
     );
 
     if (_isRail || _isMobileResults) {
-      return ColoredBox(
-        color: Colors.white,
-        child: panelBody,
-      );
+      return ColoredBox(color: Colors.white, child: panelBody);
     }
 
     return Container(
@@ -597,10 +596,7 @@ class _DeepSearchSvgIcon extends StatelessWidget {
 }
 
 class _ResultsScrollArea extends StatefulWidget {
-  const _ResultsScrollArea({
-    required this.child,
-    this.onOverflowChanged,
-  });
+  const _ResultsScrollArea({required this.child, this.onOverflowChanged});
 
   final Widget child;
   final ValueChanged<bool>? onOverflowChanged;
@@ -631,7 +627,8 @@ class _ResultsScrollAreaState extends State<_ResultsScrollArea> {
     final position = _controller.position;
     final overflowing =
         position.maxScrollExtent > position.viewportDimension + slack;
-    final show = position.maxScrollExtent > 0 &&
+    final show =
+        position.maxScrollExtent > 0 &&
         position.pixels < position.maxScrollExtent - 4;
     widget.onOverflowChanged?.call(overflowing);
     if (show != _showGradient && mounted) {
@@ -691,35 +688,54 @@ class _ResultsNoticeBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       decoration: const BoxDecoration(
         color: Color(0xFFF8F6EF),
         border: Border(bottom: BorderSide(color: Color(0xFFE5E3DE))),
       ),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.centerRight,
         children: [
-          const Icon(
-            Icons.info_outline,
-            size: 16,
-            color: Color(0xFF7A6B52),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              DeepSearchResultsStrings.searchingNotice,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF7A6B52),
-              ),
+          Padding(
+            padding: const EdgeInsets.only(right: 28),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Color(0xFF7A6B52),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    DeepSearchResultsStrings.searchingNotice,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF7A6B52),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          IconButton(
-            onPressed: onDismiss,
-            tooltip: DeepSearchResultsStrings.dismissNotice,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            icon: const Icon(Icons.close, size: 14, color: Color(0xFF9B8D72)),
+          Tooltip(
+            message: DeepSearchResultsStrings.dismissNotice,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: onDismiss,
+                borderRadius: BorderRadius.circular(6),
+                hoverColor: const Color(0xFFECE7DC),
+                highlightColor: const Color(0xFFECE7DC),
+                splashColor: const Color(0xFFECE7DC),
+                child: const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Icon(Icons.close, size: 14, color: Color(0xFF9B8D72)),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -766,7 +782,9 @@ class _ResultsToolbar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: const BoxDecoration(
         color: DeepSearchResultsColors.toolbarBg,
-        border: Border(bottom: BorderSide(color: DeepSearchResultsColors.border)),
+        border: Border(
+          bottom: BorderSide(color: DeepSearchResultsColors.border),
+        ),
       ),
       child: Row(
         children: [
@@ -786,108 +804,115 @@ class _ResultsToolbar extends StatelessWidget {
           const Spacer(),
           if (hasRows) ...[
             PopupMenuButton<String>(
-            onOpened: onToggleExportMenu,
-            onCanceled: onDismissExportMenu,
-            offset: const Offset(0, 36),
-            color: Colors.white,
-            elevation: 4,
-            shadowColor: const Color(0x1A786E5A),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: const BorderSide(color: Color(0xFFEAE8E3)),
-            ),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'csv',
-                height: 36,
-                child: Text(
-                  'CSV',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF6B6962)),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'markdown',
-                height: 36,
-                child: Text(
-                  'Markdown',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF6B6962)),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'pdf',
-                enabled: !pdfExportDisabled,
-                height: 36,
-                child: Text(
-                  isExportingPdf
-                      ? DeepSearchResultsStrings.exportExporting
-                      : 'PDF',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: pdfExportDisabled
-                        ? const Color(0xFF9CA3AF)
-                        : const Color(0xFF6B6962),
-                  ),
-                ),
-              ),
-            ],
-            onSelected: (value) {
-              onDismissExportMenu();
-              switch (value) {
-                case 'csv':
-                  onExportCsv();
-                case 'markdown':
-                  onExportMarkdown();
-                case 'pdf':
-                  onExportPdf();
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
+              onOpened: onToggleExportMenu,
+              onCanceled: onDismissExportMenu,
+              offset: const Offset(0, 36),
+              color: Colors.white,
+              elevation: 4,
+              shadowColor: const Color(0x1A786E5A),
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                color: showExportMenu
-                    ? const Color(0xFFF3F1EC)
-                    : Colors.transparent,
+                side: const BorderSide(color: Color(0xFFEAE8E3)),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _DeepSearchSvgIcon(
-                    DeepSearchResultsAssets.download,
-                    size: 12,
-                    color: const Color(0xFF171717),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'csv',
+                  height: 36,
+                  child: Text(
+                    'CSV',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6B6962)),
                   ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    DeepSearchResultsStrings.exportButton,
+                ),
+                const PopupMenuItem(
+                  value: 'markdown',
+                  height: 36,
+                  child: Text(
+                    'Markdown',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6B6962)),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'pdf',
+                  enabled: !pdfExportDisabled,
+                  height: 36,
+                  child: Text(
+                    isExportingPdf
+                        ? DeepSearchResultsStrings.exportExporting
+                        : 'PDF',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF171717),
+                      color: pdfExportDisabled
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF6B6962),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onCopy,
-              borderRadius: BorderRadius.circular(8),
+                ),
+              ],
+              onSelected: (value) {
+                onDismissExportMenu();
+                switch (value) {
+                  case 'csv':
+                    onExportCsv();
+                  case 'markdown':
+                    onExportMarkdown();
+                  case 'pdf':
+                    onExportPdf();
+                }
+              },
               child: Container(
-                padding: const EdgeInsets.all(6),
-                child: copiedResults
-                    ? const Icon(Icons.check, size: 14, color: Color(0xFF171717))
-                    : _DeepSearchSvgIcon(
-                        DeepSearchResultsAssets.copy,
-                        size: 14,
-                        color: const Color(0xFF171717),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: showExportMenu
+                      ? const Color(0xFFF3F1EC)
+                      : Colors.transparent,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _DeepSearchSvgIcon(
+                      DeepSearchResultsAssets.download,
+                      size: 12,
+                      color: const Color(0xFF171717),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      DeepSearchResultsStrings.exportButton,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF171717),
                       ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 4),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onCopy,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  child: copiedResults
+                      ? const Icon(
+                          Icons.check,
+                          size: 14,
+                          color: Color(0xFF171717),
+                        )
+                      : _DeepSearchSvgIcon(
+                          DeepSearchResultsAssets.copy,
+                          size: 14,
+                          color: const Color(0xFF171717),
+                        ),
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -910,8 +935,7 @@ class _ToolbarIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        selected ? const Color(0xFF171717) : const Color(0xFFB5B3AE);
+    final color = selected ? const Color(0xFF171717) : const Color(0xFFB5B3AE);
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -971,11 +995,14 @@ class _CardResultsList extends StatelessWidget {
             ),
           _CandidateResultCard(
             row: rows[i],
-            selected: selectedRowId != null &&
+            selected:
+                selectedRowId != null &&
                 selectedRowId == rows[i]['row_id']?.toString(),
             checked: selectedRowIds.contains(rows[i]['row_id']?.toString()),
             showMobileSelection: showMobileSelection,
-            isBookmarked: favoriteMap.containsKey(rows[i]['row_id']?.toString()),
+            isBookmarked: favoriteMap.containsKey(
+              rows[i]['row_id']?.toString(),
+            ),
             onToggleChecked: () {
               final rowId = rows[i]['row_id']?.toString();
               if (rowId != null && rowId.isNotEmpty) {
@@ -1008,7 +1035,8 @@ class _CardDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     final rowId = row['row_id']?.toString();
     final prevId = prevRow['row_id']?.toString();
-    final fullWidth = selectedRowId != null &&
+    final fullWidth =
+        selectedRowId != null &&
             (selectedRowId == rowId || selectedRowId == prevId) ||
         selectedRowIds.contains(rowId) ||
         selectedRowIds.contains(prevId);
@@ -1054,16 +1082,18 @@ class _CandidateResultCard extends StatelessWidget {
         : formatConfidence(displayMatch.confidence);
     final badge = confidence == null ? null : matchBadgeStyle(confidence);
     final evidence = displayMatch.evidence;
-    final subtitle =
-        [title, company].where((s) => s.trim().isNotEmpty).join(' · ');
+    final subtitle = [
+      title,
+      company,
+    ].where((s) => s.trim().isNotEmpty).join(' · ');
     final showMatchRow = confidence != null || evidence.isNotEmpty;
 
     return Material(
       color: selected
           ? const Color(0xFFF0EFE9)
           : checked
-              ? const Color(0xFFF8F7F4)
-              : Colors.transparent,
+          ? const Color(0xFFF8F7F4)
+          : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         hoverColor: const Color(0xFFF5F4EF),
