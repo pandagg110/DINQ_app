@@ -29,10 +29,8 @@ Future<bool?> showToolSwitchConfirm({
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _ToolSwitchConfirmSheet(
-        title: title,
-        message: message,
-      ),
+      builder: (context) =>
+          _ToolSwitchConfirmSheet(title: title, message: message),
     );
   }
 
@@ -61,43 +59,40 @@ Future<bool?> showToolSwitchConfirm({
 }
 
 class _ToolSwitchConfirmSheet extends StatelessWidget {
-  const _ToolSwitchConfirmSheet({
-    required this.title,
-    required this.message,
-  });
+  const _ToolSwitchConfirmSheet({required this.title, required this.message});
 
   final String title;
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFD1D5DB),
-                borderRadius: BorderRadius.circular(999),
-              ),
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD1D5DB),
+              borderRadius: BorderRadius.circular(999),
             ),
-            _ToolSwitchConfirmBody(
-              title: title,
-              message: message,
-              onCancel: () => Navigator.of(context).pop(false),
-              onConfirm: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        ),
+          ),
+          _ToolSwitchConfirmBody(
+            title: title,
+            message: message,
+            onCancel: () => Navigator.of(context).pop(false),
+            onConfirm: () => Navigator.of(context).pop(true),
+          ),
+          SizedBox(height: bottomInset),
+        ],
       ),
     );
   }
@@ -167,11 +162,7 @@ class _ToolSwitchConfirmBody extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              _ConfirmButton(
-                label: 'Cancel',
-                outlined: true,
-                onTap: onCancel,
-              ),
+              _ConfirmButton(label: 'Cancel', outlined: true, onTap: onCancel),
               const SizedBox(width: 8),
               _ConfirmButton(
                 label: 'Switch',
