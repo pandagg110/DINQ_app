@@ -9,6 +9,8 @@ class NetworkModal extends StatelessWidget {
 
   final Map<String, dynamic> connection;
   final VoidCallback onClose;
+  static const String _fallbackAvatarAsset =
+      'assets/profile/default-avator.png';
 
   void _handleSearchClick() {
     // TODO: Implement search navigation
@@ -72,39 +74,7 @@ class NetworkModal extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: avatarUrl != null && avatarUrl.isNotEmpty
-                            ? Image.network(
-                                avatarUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset(
-                                    'assets/images/default-avatar.svg',
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Center(
-                                        child: Text(
-                                          name
-                                              .split(' ')
-                                              .map(
-                                                (n) => n.isNotEmpty ? n[0] : '',
-                                              )
-                                              .join(''),
-                                          style: const TextStyle(fontSize: 20),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              )
-                            : Center(
-                                child: Text(
-                                  name
-                                      .split(' ')
-                                      .map((n) => n.isNotEmpty ? n[0] : '')
-                                      .join(''),
-                                  style: const TextStyle(fontSize: 20),
-                                ),
-                              ),
+                        child: _buildAvatarImage(avatarUrl),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -205,6 +175,28 @@ class NetworkModal extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  static Widget _buildAvatarImage(String? avatarUrl) {
+    final url = avatarUrl?.trim() ?? '';
+    if (url.startsWith('http') && !url.contains('scholar.google')) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _fallbackAvatar(),
+      );
+    }
+    return _fallbackAvatar();
+  }
+
+  static Widget _fallbackAvatar() {
+    return Image.asset(
+      _fallbackAvatarAsset,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(Icons.person, size: 24);
+      },
     );
   }
 }

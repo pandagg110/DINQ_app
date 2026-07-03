@@ -4,6 +4,15 @@ import 'network_constants.dart';
 import 'network_components.dart';
 
 class NetworkLayouts {
+  static const String _fallbackAvatarAsset =
+      'assets/profile/default-avator.png';
+  static const double _graphNodeWidth = 110;
+  static const double _graphNodeHeight = 80;
+  static const double _graphAvatarSize = 44;
+  static const double _graphTagHeight = 24;
+  static const double _graphTagGap = 4;
+  static const double _bottomTagOffset = 8;
+
   // 2x2 Size - Horizontal row at bottom
   static Widget build2x2Layout({
     required BuildContext context,
@@ -263,29 +272,7 @@ class NetworkLayouts {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: ClipOval(
-        child: avatarUrl != null && avatarUrl.isNotEmpty
-            ? Image.network(
-                avatarUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Image.asset(
-                    'assets/images/default-avatar.svg',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.person, size: 16);
-                    },
-                  );
-                },
-              )
-            : Image.asset(
-                'assets/images/default-avatar.svg',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.person, size: 16);
-                },
-              ),
-      ),
+      child: ClipOval(child: _buildAvatarImage(avatarUrl, 16)),
     );
 
     if (kIsWeb) {
@@ -348,29 +335,7 @@ class NetworkLayouts {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
           ),
-          child: ClipOval(
-            child: avatarUrl != null && avatarUrl.isNotEmpty
-                ? Image.network(
-                    avatarUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        'assets/images/default-avatar.svg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.person, size: 24);
-                        },
-                      );
-                    },
-                  )
-                : Image.asset(
-                    'assets/images/default-avatar.svg',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.person, size: 24);
-                    },
-                  ),
-          ),
+          child: ClipOval(child: _buildAvatarImage(avatarUrl, 24)),
         ),
         CompanyLogoBadge(logoUrl: logoUrl, size: size == 48 ? 'md' : 'sm'),
       ],
@@ -440,21 +405,20 @@ class NetworkLayouts {
               final connectionKey = 'top-${connection['name']}-$index';
               final xPercent =
                   NetworkConstants.connectionXPositions[index] / 100;
-              final connectionY = height * 0.27; // Connection point at 27%
+              final connectionY = height * 0.30; // Connection point at 30%
               final connectionX =
                   width * xPercent; // Connection point X position
-              const avatarWidth = 44.0; // Avatar width
-              const nameTagHeight =
-                  28; // Name tag height (padding 4*2 + text 12)
+              final left = (connectionX - _graphNodeWidth / 2).clamp(
+                0.0,
+                (width - _graphNodeWidth).clamp(0.0, double.infinity),
+              );
 
               return Positioned(
-                left:
-                    connectionX -
-                    avatarWidth / 2, // Center avatar at connection X
-                bottom:
-                    height -
-                    connectionY +
-                    nameTagHeight, // Move up by name tag height
+                left: left,
+                top: (connectionY - _graphNodeHeight).clamp(
+                  0.0,
+                  (height - _graphNodeHeight).clamp(0.0, double.infinity),
+                ),
                 child: _buildTopRowItem(
                   connection: connection,
                   connectionKey: connectionKey,
@@ -494,21 +458,21 @@ class NetworkLayouts {
               final connectionKey = 'bottom-${connection['name']}-${index + 3}';
               final xPercent =
                   NetworkConstants.connectionXPositions[index] / 100;
-              final yPercent = 0.73;
+              final yPercent = 0.70;
               final connectionX =
                   width * xPercent; // Connection point X position
               final actualIndex = index + 3;
-              const avatarWidth = 44.0; // Avatar width
-              final nameTagHeight =
-                  28; // Name tag height (padding 4*2 + text 12)
+              final left = (connectionX - _graphNodeWidth / 2).clamp(
+                0.0,
+                (width - _graphNodeWidth).clamp(0.0, double.infinity),
+              );
 
               return Positioned(
-                left:
-                    connectionX -
-                    avatarWidth / 2, // Center avatar at connection X
-                top:
-                    height * yPercent +
-                    nameTagHeight, // Move down by name tag height
+                left: left,
+                top: (height * yPercent).clamp(
+                  0.0,
+                  (height - _graphNodeHeight).clamp(0.0, double.infinity),
+                ),
                 child: _buildBottomRowItem(
                   connection: connection,
                   connectionKey: connectionKey,
@@ -542,74 +506,39 @@ class NetworkLayouts {
     final avatarUrl = connection['avatarUrl']?.toString();
     final logoUrl = connection['institution_logo_url']?.toString();
 
-    // Stack: avatar on top, name tag below
-    // Connection point at bottom edge of name tag
-    Widget content = Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        // Avatar at top
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
+    Widget content = SizedBox(
+      width: _graphNodeWidth,
+      height: _graphNodeHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          Positioned(top: 0, child: _buildAvatarWithLogo(avatarUrl, logoUrl)),
+          Positioned(
+            top: _graphAvatarSize + _graphTagGap,
+            child: Container(
+              height: _graphTagHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                color: NetworkConstants.blueTagColor,
+                borderRadius: BorderRadius.circular(999),
               ),
-              child: ClipOval(
-                child: avatarUrl != null && avatarUrl.isNotEmpty
-                    ? Image.network(
-                        avatarUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'assets/images/default-avatar.svg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.person, size: 20);
-                            },
-                          );
-                        },
-                      )
-                    : Image.asset(
-                        'assets/images/default-avatar.svg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.person, size: 20);
-                        },
-                      ),
+              constraints: const BoxConstraints(maxWidth: _graphNodeWidth),
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF111827),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-            ),
-            CompanyLogoBadge(logoUrl: logoUrl, size: 'sm'),
-          ],
-        ),
-        // Name tag below avatar - connection point at bottom edge
-        Positioned(
-          top: 44 + 4, // Avatar height (44) + gap (8)
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            decoration: BoxDecoration(
-              color: NetworkConstants.blueTagColor,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            constraints: const BoxConstraints(maxWidth: 100),
-            child: Text(
-              name,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF111827),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
 
     if (kIsWeb) {
@@ -661,74 +590,42 @@ class NetworkLayouts {
     final avatarUrl = connection['avatarUrl']?.toString();
     final logoUrl = connection['institution_logo_url']?.toString();
 
-    // Stack: name tag on top, avatar below
-    // Connection point at top edge of name tag
-    Widget content = Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.bottomCenter,
-      children: [
-        // Name tag at top - connection point at top edge
-        Positioned(
-          bottom: 44 + 4, // Avatar height (44) + gap (8)
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            decoration: BoxDecoration(
-              color: NetworkConstants.purpleTagColor,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            constraints: const BoxConstraints(maxWidth: 100),
-            child: Text(
-              name,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF111827),
+    Widget content = SizedBox(
+      width: _graphNodeWidth,
+      height: _graphNodeHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          Positioned(
+            top: _bottomTagOffset,
+            child: Container(
+              height: _graphTagHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              decoration: BoxDecoration(
+                color: NetworkConstants.purpleTagColor,
+                borderRadius: BorderRadius.circular(999),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+              constraints: const BoxConstraints(maxWidth: _graphNodeWidth),
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF111827),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
-        ),
-        // Avatar at bottom
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: ClipOval(
-                child: avatarUrl != null && avatarUrl.isNotEmpty
-                    ? Image.network(
-                        avatarUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'assets/images/default-avatar.svg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.person, size: 20);
-                            },
-                          );
-                        },
-                      )
-                    : Image.asset(
-                        'assets/images/default-avatar.svg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.person, size: 20);
-                        },
-                      ),
-              ),
-            ),
-            CompanyLogoBadge(logoUrl: logoUrl, size: 'sm'),
-          ],
-        ),
-      ],
+          Positioned(
+            top: _bottomTagOffset + _graphTagHeight + _graphTagGap,
+            child: _buildAvatarWithLogo(avatarUrl, logoUrl),
+          ),
+        ],
+      ),
     );
 
     if (kIsWeb) {
@@ -809,39 +706,15 @@ class NetworkLayouts {
                   ),
                 ),
                 child: ClipOval(
-                  child:
-                      ownerAvatar.isNotEmpty &&
-                          ownerAvatar != '/images/default-avatar.svg'
+                  child: _resolvedAvatarUrl(ownerAvatar).isNotEmpty
                       ? Image.network(
-                          ownerAvatar,
+                          _resolvedAvatarUrl(ownerAvatar),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Text(
-                                ownerName
-                                    .split(' ')
-                                    .map((n) => n.isNotEmpty ? n[0] : '')
-                                    .join(''),
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            );
+                            return _fallbackAvatar(20);
                           },
                         )
-                      : Center(
-                          child: Text(
-                            ownerName
-                                .split(' ')
-                                .map((n) => n.isNotEmpty ? n[0] : '')
-                                .join(''),
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
+                      : _fallbackAvatar(20),
                 ),
               ),
             ],
@@ -871,6 +744,53 @@ class NetworkLayouts {
           ),
         ),
       ],
+    );
+  }
+
+  static Widget _buildAvatarWithLogo(String? avatarUrl, String? logoUrl) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: _graphAvatarSize,
+          height: _graphAvatarSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: ClipOval(child: _buildAvatarImage(avatarUrl, 20)),
+        ),
+        CompanyLogoBadge(logoUrl: logoUrl, size: 'sm'),
+      ],
+    );
+  }
+
+  static Widget _buildAvatarImage(String? avatarUrl, double fallbackIconSize) {
+    final resolvedUrl = _resolvedAvatarUrl(avatarUrl);
+    if (resolvedUrl.isEmpty) return _fallbackAvatar(fallbackIconSize);
+
+    return Image.network(
+      resolvedUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) =>
+          _fallbackAvatar(fallbackIconSize),
+    );
+  }
+
+  static String _resolvedAvatarUrl(String? value) {
+    final url = value?.trim() ?? '';
+    if (!url.startsWith('http')) return '';
+    if (url.contains('scholar.google')) return '';
+    return url;
+  }
+
+  static Widget _fallbackAvatar(double fallbackIconSize) {
+    return Image.asset(
+      _fallbackAvatarAsset,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(Icons.person, size: fallbackIconSize);
+      },
     );
   }
 }
@@ -921,8 +841,8 @@ class _ConnectionLinesPainter extends CustomPainter {
     final centerY = size.height / 2;
     final topJunctionY = centerY - (size.height * 0.15);
     final bottomJunctionY = centerY + (size.height * 0.15);
-    final topConnectionY = size.height * 0.27;
-    final bottomConnectionY = size.height * 0.73;
+    final topConnectionY = size.height * 0.30;
+    final bottomConnectionY = size.height * 0.70;
     final xPositions = NetworkConstants.connectionXPositions
         .map((x) => size.width * (x / 100))
         .toList();

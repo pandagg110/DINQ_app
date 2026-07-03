@@ -9,6 +9,8 @@ class NetworkHoverCard extends StatelessWidget {
 
   final Map<String, dynamic> connection;
   final Map<String, Color> colorScheme;
+  static const String _fallbackAvatarAsset =
+      'assets/profile/default-avator.png';
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,7 @@ class NetworkHoverCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFF171717), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -56,9 +58,11 @@ class NetworkHoverCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.black.withOpacity(0.1)),
+                    border: Border.all(
+                      color: Colors.black.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: Text(
                     relationshipType.toUpperCase(),
@@ -74,7 +78,7 @@ class NetworkHoverCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF171717).withOpacity(0.8),
+                    color: const Color(0xFF171717).withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -100,27 +104,7 @@ class NetworkHoverCard extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: avatarUrl != null && avatarUrl.isNotEmpty
-                        ? Image.network(
-                            avatarUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Image.asset(
-                                'assets/images/default-avatar.svg',
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(Icons.person, size: 24);
-                                },
-                              );
-                            },
-                          )
-                        : Image.asset(
-                            'assets/images/default-avatar.svg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.person, size: 24);
-                            },
-                          ),
+                    child: _buildAvatarImage(avatarUrl),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -166,9 +150,11 @@ class NetworkHoverCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black.withOpacity(0.1)),
+                  border: Border.all(
+                    color: Colors.black.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Text(
                   reason,
@@ -182,6 +168,28 @@ class NetworkHoverCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  static Widget _buildAvatarImage(String? avatarUrl) {
+    final url = avatarUrl?.trim() ?? '';
+    if (url.startsWith('http') && !url.contains('scholar.google')) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _fallbackAvatar(),
+      );
+    }
+    return _fallbackAvatar();
+  }
+
+  static Widget _fallbackAvatar() {
+    return Image.asset(
+      _fallbackAvatarAsset,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(Icons.person, size: 24);
+      },
     );
   }
 }
