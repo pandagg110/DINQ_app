@@ -224,7 +224,11 @@ class YouTubeLayouts {
               ),
               child: Text(
                 summary,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: Color(0xFF4B5563),
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
