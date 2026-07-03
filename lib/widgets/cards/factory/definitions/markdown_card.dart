@@ -86,7 +86,7 @@ class MarkdownCardDefinition extends CardDefinition {
 
   @override
   CardViewModeSizes get sizes => const CardViewModeSizes(
-    desktop: CardSizeConfig(supported: ['4x4'], defaultSize: '4x4'),
+    desktop: CardSizeConfig(supported: ['8x2', '4x4'], defaultSize: '8x2'),
     mobile: CardSizeConfig(supported: ['4x4'], defaultSize: '4x4'),
   );
 
@@ -357,9 +357,26 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
     });
   }
 
+  bool get _isSquareLayout => widget.size == '4x4';
+
+  String _normalizedMarkdown(String value) {
+    return value
+        .replaceAllMapped(
+          RegExp(r'\*\*\s+(.*?)\s*\*\*'),
+          (match) => '**${match.group(1)}**',
+        )
+        .replaceAllMapped(
+          RegExp(r'\*\s+(.*?)\s*\*'),
+          (match) => '*${match.group(1)}*',
+        );
+  }
+
   Widget _buildTagSection() {
+    final title = widget.card.data.title?.toString() ?? '';
+    if (!widget.editable && title.isEmpty) return const SizedBox.shrink();
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 8),
       child: widget.editable && _isEditingTag
           ? TextField(
               controller: _tagController,
@@ -433,252 +450,243 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
   }
 
   Widget _buildMarkdownSection() {
-    return Expanded(
-      child: widget.editable && _isEditingMarkdown
-          ? TextField(
-              controller: _markdownController,
-              focusNode: _markdownFocusNode,
-              maxLines: null,
-              expands: true,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF171717)),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.all(8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
+    return widget.editable && _isEditingMarkdown
+        ? TextField(
+            controller: _markdownController,
+            focusNode: _markdownFocusNode,
+            maxLines: null,
+            expands: true,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF171717)),
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.all(8),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF3B82F6),
+                  width: 2,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
-                ),
-                hintText:
-                    "**This is your title**\n\nthis is your description content, and your **name**, and *more*\n\n`tag`[dinq.me](https://dinq.me)",
-                hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-                filled: true,
-                fillColor: Colors.white,
               ),
-            )
-          : GestureDetector(
-              onTap: widget.editable
-                  ? () {
-                      setState(() => _isEditingMarkdown = true);
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _markdownFocusNode.requestFocus();
-                      });
-                    }
-                  : null,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF3B82F6),
+                  width: 2,
                 ),
-                child: _markdownContent.isEmpty
-                    ? Center(
-                        child: Text(
-                          widget.editable
-                              ? 'Click to add content'
-                              : 'No content yet',
-                          style: const TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontStyle: FontStyle.italic,
-                            fontSize: 14,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF3B82F6),
+                  width: 2,
+                ),
+              ),
+              hintText:
+                  "**This is your title**\n\nthis is your description content, and your **name**, and *more*\n\n`tag`[dinq.me](https://dinq.me)",
+              hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          )
+        : GestureDetector(
+            onTap: widget.editable
+                ? () {
+                    setState(() => _isEditingMarkdown = true);
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _markdownFocusNode.requestFocus();
+                    });
+                  }
+                : null,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: _markdownContent.isEmpty
+                  ? Text(
+                      widget.editable
+                          ? 'Click to add content'
+                          : 'No content yet',
+                      style: const TextStyle(
+                        color: Color(0xFF9CA3AF),
+                        fontStyle: FontStyle.italic,
+                        fontSize: 14,
+                      ),
+                    )
+                  : MarkdownBody(
+                      data: _normalizedMarkdown(_markdownContent),
+                      styleSheet: MarkdownStyleSheet(
+                        // 段落样式
+                        p: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF374151),
+                          height: 1.5,
+                        ),
+                        pPadding: const EdgeInsets.only(bottom: 4),
+                        // 移除最后一个段落的底部间距
+                        horizontalRuleDecoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: Colors.transparent,
+                              width: 0,
+                            ),
                           ),
                         ),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.all(8),
-                        child: MarkdownBody(
-                          data: _markdownContent,
-                          styleSheet: MarkdownStyleSheet(
-                            // 段落样式
-                            p: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF374151),
-                              height: 1.5,
-                            ),
-                            pPadding: const EdgeInsets.only(bottom: 4, top: 4),
-                            // 移除最后一个段落的底部间距
-                            horizontalRuleDecoration: BoxDecoration(
-                              border: Border(
-                                top: BorderSide(
-                                  color: Colors.transparent,
-                                  width: 0,
-                                ),
-                              ),
-                            ),
-                            // 标题样式
-                            h1: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF111827),
-                            ),
-                            h1Padding: const EdgeInsets.only(bottom: 8, top: 8),
-                            h2: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF111827),
-                            ),
-                            h2Padding: const EdgeInsets.only(bottom: 8, top: 8),
-                            h3: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF111827),
-                            ),
-                            h3Padding: const EdgeInsets.only(bottom: 8, top: 8),
-                            // 粗体样式
-                            strong: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF111827),
-                            ),
-                            // 内联代码样式（会被 builder 覆盖，但保留作为后备）
-                            code: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF374151),
-                              backgroundColor: Color(0xFFF3F4F6),
-                            ),
-                            // 代码块样式
-                            codeblockDecoration: BoxDecoration(
-                              color: const Color(0xFF1F2937),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            codeblockPadding: const EdgeInsets.all(8),
-                            // 链接样式（会被 builder 覆盖，但保留作为后备）
-                            a: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF374151),
-                              decoration: TextDecoration.none,
-                            ),
-                            // 列表样式
-                            listBullet: const TextStyle(
-                              color: Color(0xFF374151),
-                            ),
-                            listIndent: 24,
-                            // 移除最后一个元素的底部间距
-                            blockquotePadding: const EdgeInsets.only(left: 16),
-                            blockquoteDecoration: BoxDecoration(
-                              color: const Color(0xFFF3F4F6),
-                              border: Border(
-                                left: BorderSide(
-                                  color: const Color(0xFFDFDFDF),
-                                  width: 4,
-                                ),
-                              ),
+                        // 标题样式
+                        h1: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                        ),
+                        h1Padding: const EdgeInsets.only(bottom: 8, top: 8),
+                        h2: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                        ),
+                        h2Padding: const EdgeInsets.only(bottom: 8, top: 8),
+                        h3: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                        ),
+                        h3Padding: const EdgeInsets.only(bottom: 8, top: 8),
+                        // 粗体样式
+                        strong: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                        ),
+                        // 内联代码样式（会被 builder 覆盖，但保留作为后备）
+                        code: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF374151),
+                          backgroundColor: Color(0xFFF3F4F6),
+                        ),
+                        // 代码块样式
+                        codeblockDecoration: BoxDecoration(
+                          color: const Color(0xFF1F2937),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        codeblockPadding: const EdgeInsets.all(8),
+                        // 链接样式（会被 builder 覆盖，但保留作为后备）
+                        a: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF374151),
+                          decoration: TextDecoration.none,
+                        ),
+                        // 列表样式
+                        listBullet: const TextStyle(color: Color(0xFF374151)),
+                        listIndent: 24,
+                        // 移除最后一个元素的底部间距
+                        blockquotePadding: const EdgeInsets.only(left: 16),
+                        blockquoteDecoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          border: Border(
+                            left: BorderSide(
+                              color: const Color(0xFFDFDFDF),
+                              width: 4,
                             ),
                           ),
-                          builders: {
-                            // 自定义内联代码渲染 - 使用 'code' 作为键
-                            'code': InlineCodeBuilder(),
-                            // 自定义链接渲染 - 使用 'a' 作为键
-                            'a': LinkBuilder(),
-                          },
-                          onTapLink: (text, href, title) {
-                            if (href != null) {
-                              launchUrl(
-                                Uri.parse(href),
-                                mode: LaunchMode.externalApplication,
-                              );
-                            }
-                          },
                         ),
                       ),
-              ),
+                      builders: {
+                        // 自定义内联代码渲染 - 使用 'code' 作为键
+                        'code': InlineCodeBuilder(),
+                        // 自定义链接渲染 - 使用 'a' 作为键
+                        'a': LinkBuilder(),
+                      },
+                      onTapLink: (text, href, title) {
+                        if (href != null) {
+                          launchUrl(
+                            Uri.parse(href),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+                      },
+                    ),
             ),
-    );
+          );
   }
 
-  Widget _buildMediaSection() {
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: GestureDetector(
-        onTap: _mediaUrl.isNotEmpty ? null : _handleMediaUpload,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF6F6F6),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: const Color(0xFFE2E2E2),
-              style: BorderStyle.solid,
-              width: 1,
-            ),
+  Widget _buildMediaSection({required bool isSquare}) {
+    final media = GestureDetector(
+      onTap: _mediaUrl.isNotEmpty ? null : _handleMediaUpload,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6F6F6),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: const Color(0xFFE2E2E2),
+            style: BorderStyle.solid,
+            width: 1,
           ),
-          child: Stack(
-            children: [
-              if (_mediaUrl.isNotEmpty && !_mediaError)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _isVideo
-                      ? _buildVideoPlayer()
-                      : Image.network(
-                          _mediaUrl,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          errorBuilder: (context, error, stackTrace) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (mounted) {
-                                setState(() => _mediaError = true);
-                              }
-                            });
-                            return _buildEmptyMedia();
-                          },
-                        ),
-                )
-              else
-                _buildEmptyMedia(),
-              if (_isUploading)
-                Container(
-                  color: Colors.black.withOpacity(0.3),
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-              if (widget.editable && _mediaUrl.isNotEmpty && !_isUploading)
-                Positioned.fill(
-                  child: MouseRegion(
-                    child: GestureDetector(
-                      onTap: () {}, // Prevent triggering parent's onTap
-                      child: Container(
-                        color: Colors.transparent,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildMediaActionButton(
-                              icon: Icons.delete,
-                              color: Colors.red,
-                              onTap: _handleMediaRemove,
-                            ),
-                            const SizedBox(width: 12),
-                            _buildMediaActionButton(
-                              icon: _isVideo
-                                  ? Icons.videocam
-                                  : Icons.camera_alt,
-                              color: const Color(0xFF3B82F6),
-                              onTap: _handleMediaUpload,
-                            ),
-                          ],
-                        ),
+        ),
+        child: Stack(
+          children: [
+            if (_mediaUrl.isNotEmpty && !_mediaError)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _isVideo
+                    ? _buildVideoPlayer()
+                    : Image.network(
+                        _mediaUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() => _mediaError = true);
+                            }
+                          });
+                          return _buildEmptyMedia();
+                        },
+                      ),
+              )
+            else
+              _buildEmptyMedia(),
+            if (_isUploading)
+              Container(
+                color: Colors.black.withValues(alpha: 0.3),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+            if (widget.editable && _mediaUrl.isNotEmpty && !_isUploading)
+              Positioned.fill(
+                child: MouseRegion(
+                  child: GestureDetector(
+                    onTap: () {}, // Prevent triggering parent's onTap
+                    child: Container(
+                      color: Colors.transparent,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildMediaActionButton(
+                            icon: Icons.delete,
+                            color: Colors.red,
+                            onTap: _handleMediaRemove,
+                          ),
+                          const SizedBox(width: 12),
+                          _buildMediaActionButton(
+                            icon: _isVideo ? Icons.videocam : Icons.camera_alt,
+                            color: const Color(0xFF3B82F6),
+                            onTap: _handleMediaUpload,
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
+
+    if (isSquare) return media;
+    return AspectRatio(aspectRatio: 1, child: media);
   }
 
   Widget _buildVideoPlayer() {
@@ -747,21 +755,42 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    final isSquare = _isSquareLayout;
+    Widget markdownSection({required bool bounded}) {
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [_buildTagSection(), _buildMarkdownSection()],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildMediaSection(),
+          _buildTagSection(),
+          if (bounded)
+            Expanded(child: _buildMarkdownSection())
+          else
+            _buildMarkdownSection(),
         ],
-      ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: isSquare
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_isEditingMarkdown)
+                  Expanded(flex: 2, child: markdownSection(bounded: true))
+                else
+                  markdownSection(bounded: false),
+                const SizedBox(height: 12),
+                Expanded(child: _buildMediaSection(isSquare: true)),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildMediaSection(isSquare: false),
+                const SizedBox(width: 16),
+                Expanded(child: markdownSection(bounded: _isEditingMarkdown)),
+              ],
+            ),
     );
   }
 }
