@@ -1,6 +1,8 @@
 import 'package:dinq_app/widgets/common/asset_icon.dart';
 import 'package:flutter/material.dart';
 
+const Duration dinqBreathingLogoDuration = Duration(milliseconds: 4000);
+
 /// 与 TSX 一致的文案循环（按 clickCount 取 phraseIndex = (count % 8) ~/ 2）
 const List<String> _dinqPhrases = [
   'Who are you looking for?',
@@ -11,30 +13,51 @@ const List<String> _dinqPhrases = [
 
 /// 呼吸动画 Logo（与 TSX BreathingLogo 对应）
 class BreathingLogo extends StatelessWidget {
-  const BreathingLogo({
-    super.key,
-    this.size = 24,
-    required this.animation,
-  });
+  const BreathingLogo({super.key, this.size = 24, required this.animation});
 
   final double size;
   final AnimationController animation;
 
   @override
   Widget build(BuildContext context) {
-    final scale = Tween<double>(begin: 0.9, end: 1.15).animate(
-      CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-    );
     return AnimatedBuilder(
-      animation: scale,
+      animation: animation,
       builder: (context, child) {
-        return Transform.scale(
-          scale: scale.value,
-          child: child,
+        final progress = animation.value;
+        final scale = _interpolateKeyframes(
+          progress,
+          values: const [1, 1.15, 0.9, 1.15, 0.9, 1],
+        );
+        final turns = _interpolateKeyframes(
+          progress,
+          values: const [0, 0, 0, 0, 0, 1],
+        );
+        return Transform.rotate(
+          angle: turns * 2 * 3.14159265359,
+          child: Transform.scale(scale: scale, child: child),
         );
       },
       child: AssetIcon(asset: 'logo/dinq-black.svg', size: size),
     );
+  }
+
+  double _interpolateKeyframes(
+    double progress, {
+    required List<double> values,
+  }) {
+    const times = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+    final clamped = progress.clamp(0.0, 1.0);
+    for (var i = 0; i < times.length - 1; i++) {
+      final start = times[i];
+      final end = times[i + 1];
+      if (clamped >= start && clamped <= end) {
+        final eased = Curves.easeInOut.transform(
+          (clamped - start) / (end - start),
+        );
+        return values[i] + (values[i + 1] - values[i]) * eased;
+      }
+    }
+    return values.last;
   }
 }
 
@@ -78,9 +101,11 @@ class _DinqLogoButtonState extends State<DinqLogoButton>
     _rotationController.addStatusListener(_onRotationStatus);
     _breathingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: dinqBreathingLogoDuration,
     );
-    if (widget.isLoading) _breathingController.repeat(reverse: true);
+    if (widget.isLoading) {
+      _breathingController.repeat();
+    }
   }
 
   void _onRotationStatus(AnimationStatus status) {
@@ -96,7 +121,7 @@ class _DinqLogoButtonState extends State<DinqLogoButton>
   void didUpdateWidget(DinqLogoButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isLoading && !_breathingController.isAnimating) {
-      _breathingController.repeat(reverse: true);
+      _breathingController.repeat();
     } else if (!widget.isLoading && _breathingController.isAnimating) {
       _breathingController.stop();
       _breathingController.reset();
@@ -115,13 +140,17 @@ class _DinqLogoButtonState extends State<DinqLogoButton>
     if (widget.foundMoreCount != null) {
       return 'Found ${widget.foundMoreCount} more!';
     }
-    if (widget.isLoading) return 'DINQ is thinking...';
+    if (widget.isLoading) {
+      return 'DINQ is thinking...';
+    }
     final index = (_clickCount % 8) ~/ 2;
     return _dinqPhrases[index.clamp(0, _dinqPhrases.length - 1)];
   }
 
   void _handleTap() {
-    if (widget.isLoading || widget.foundMoreCount != null || _isRotating) return;
+    if (widget.isLoading || widget.foundMoreCount != null || _isRotating) {
+      return;
+    }
     setState(() {
       _clickCount++;
       _isRotating = true;
@@ -166,10 +195,7 @@ class _DinqLogoButtonState extends State<DinqLogoButton>
         child: InkWell(
           onTap: _handleTap,
           borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: logo,
-          ),
+          child: Padding(padding: const EdgeInsets.all(4), child: logo),
         ),
       ),
     );

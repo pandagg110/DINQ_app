@@ -73,7 +73,7 @@ class _ResumePreviewState extends State<ResumePreview>
     super.initState();
     _breathingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: dinqBreathingLogoDuration,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadPdfIfNeeded());
   }
@@ -362,7 +362,7 @@ class _ResumePreviewState extends State<ResumePreview>
 
     if (widget.isLoading) {
       if (!_breathingController.isAnimating) {
-        _breathingController.repeat(reverse: true);
+        _breathingController.repeat();
       }
       return Center(
         child: BreathingLogo(size: 32, animation: _breathingController),

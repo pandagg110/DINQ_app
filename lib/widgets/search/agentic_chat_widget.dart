@@ -81,9 +81,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     super.initState();
     _breathingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: dinqBreathingLogoDuration,
     );
-    _breathingController.repeat(reverse: true);
+    _breathingController.repeat();
   }
 
   @override

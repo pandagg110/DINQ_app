@@ -31,7 +31,7 @@ class MessageGroupView extends StatefulWidget {
   final MessageGroupData group;
   final VoidCallback? onToggleThinking;
   final void Function(Map<String, dynamic> candidate, int index, int groupId)?
-      onCandidateClick;
+  onCandidateClick;
   final ValueChanged<String>? onQuickReplySelect;
   final bool isLatest;
   final bool externalSubAgentLayout;
@@ -52,8 +52,8 @@ class _MessageGroupViewState extends State<MessageGroupView>
     super.initState();
     _breathingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
+      duration: dinqBreathingLogoDuration,
+    )..repeat();
   }
 
   @override
@@ -74,7 +74,8 @@ class _MessageGroupViewState extends State<MessageGroupView>
     final rawAssistantText = group.assistantText?.trim() ?? '';
     final hasAssistantText =
         rawAssistantText.isNotEmpty || group.assistantStreaming;
-    final showQuickReplies = widget.isLatest &&
+    final showQuickReplies =
+        widget.isLatest &&
         !group.quickRepliesUsed &&
         !group.assistantStreaming &&
         group.candidates.isEmpty;
@@ -82,7 +83,8 @@ class _MessageGroupViewState extends State<MessageGroupView>
     final hasSubAgents = group.subAgents.isNotEmpty;
     final shouldRenderSubAgentInternally =
         hasSubAgents && !widget.externalSubAgentLayout;
-    final showDeepSearchHeader = group.isDeepSearch &&
+    final showDeepSearchHeader =
+        group.isDeepSearch &&
         group.loading &&
         !group.searchCompleted &&
         group.deepSearchToolCount > 0 &&
@@ -168,16 +170,15 @@ class _MessageGroupViewState extends State<MessageGroupView>
                     // loading 结束后一律不显示打字动画（防历史回放残留）
                     isStreaming: group.assistantStreaming && group.loading,
                     isBlockUsed: group.quickRepliesUsed,
-                    onQuickReplySelect: showQuickReplies && !group.quickRepliesUsed
+                    onQuickReplySelect:
+                        showQuickReplies && !group.quickRepliesUsed
                         ? (option, blockId) =>
-                            widget.onQuickReplySelect?.call(option)
+                              widget.onQuickReplySelect?.call(option)
                         : null,
                   ),
 
                 if (shouldRenderSubAgentInternally)
-                  SubAgentTracker(
-                    subAgents: group.subAgents,
-                  ),
+                  SubAgentTracker(subAgents: group.subAgents),
 
                 if (showDeepSearchHeader)
                   DeepSearchProgressHeader(
@@ -256,9 +257,11 @@ class _MessageGroupViewState extends State<MessageGroupView>
                       isLatest: true,
                       feedback: _feedback,
                       onFeedbackUp: () => setState(
-                          () => _feedback = _feedback == 'up' ? null : 'up'),
-                      onFeedbackDown: () => setState(() =>
-                          _feedback = _feedback == 'down' ? null : 'down'),
+                        () => _feedback = _feedback == 'up' ? null : 'up',
+                      ),
+                      onFeedbackDown: () => setState(
+                        () => _feedback = _feedback == 'down' ? null : 'down',
+                      ),
                     )
                   else
                     AnimatedOpacity(
@@ -268,9 +271,11 @@ class _MessageGroupViewState extends State<MessageGroupView>
                         isLatest: false,
                         feedback: _feedback,
                         onFeedbackUp: () => setState(
-                            () => _feedback = _feedback == 'up' ? null : 'up'),
-                        onFeedbackDown: () => setState(() =>
-                            _feedback = _feedback == 'down' ? null : 'down'),
+                          () => _feedback = _feedback == 'up' ? null : 'up',
+                        ),
+                        onFeedbackDown: () => setState(
+                          () => _feedback = _feedback == 'down' ? null : 'down',
+                        ),
                       ),
                     ),
                 ],
