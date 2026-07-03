@@ -55,7 +55,9 @@ bool isValidUrl(String urlString) {
     if (!RegExp(r'^[a-zA-Z0-9.-]+$').hasMatch(hostname)) return false;
     final parts = hostname.split('.');
     if (parts.any((part) => part.isEmpty)) return false;
-    final hasNonNumericPart = parts.any((part) => !RegExp(r'^\d+$').hasMatch(part));
+    final hasNonNumericPart = parts.any(
+      (part) => !RegExp(r'^\d+$').hasMatch(part),
+    );
     if (!hasNonNumericPart) return false;
     if (parts.length < 2) return false;
     if (RegExp(r'^\d+$').hasMatch(parts.last)) return false;
@@ -67,13 +69,16 @@ bool isValidUrl(String urlString) {
 
 String? _detectTypeLocally(String urlString) {
   try {
-    final url = urlString.startsWith(RegExp(r'^https?://', caseSensitive: false))
+    final url =
+        urlString.startsWith(RegExp(r'^https?://', caseSensitive: false))
         ? urlString
         : 'https://$urlString';
     final host = Uri.parse(url).host.toLowerCase();
     if (host.contains('linkedin.com')) return 'LINKEDIN';
     if (host.contains('github.com')) return 'GITHUB';
-    if (host.contains('twitter.com') || host.contains('x.com')) return 'TWITTER';
+    if (host.contains('twitter.com') || host.contains('x.com')) {
+      return 'TWITTER';
+    }
     if (host.contains('scholar.google')) return 'SCHOLAR';
     if (host.contains('openreview.net')) return 'OPENREVIEW';
     if (host.contains('huggingface.co')) return 'HUGGINGFACE';
@@ -88,9 +93,16 @@ String? _detectTypeLocally(String urlString) {
     if (host.contains('open.spotify.com') || host.contains('spotify.com')) {
       return 'SPOTIFY';
     }
-    if (host.contains('t.me') || host.contains('telegram.org')) return 'TELEGRAM';
+    if (host.contains('t.me') || host.contains('telegram.org')) {
+      return 'TELEGRAM';
+    }
     if (host.contains('tiktok.com')) return 'TIKTOK';
-    if (host.contains('youtube.com') || host.contains('youtu.be')) return 'YOUTUBE';
+    if (host.contains('youtube.com') || host.contains('youtu.be')) {
+      return 'YOUTUBE';
+    }
+    if (host.contains('bilibili.com') || host.contains('b23.tv')) {
+      return 'BILIBILI';
+    }
     if (host.contains('reddit.com')) return 'REDDIT';
     if (host.contains('threads.net')) return 'THREADS';
     if (host.contains('bsky.app')) return 'BLUESKY';
@@ -150,4 +162,5 @@ String platformNameForType(String type) {
   return upper;
 }
 
-String stripUrlScheme(String url) => url.replaceFirst(RegExp(r'^https?://'), '');
+String stripUrlScheme(String url) =>
+    url.replaceFirst(RegExp(r'^https?://'), '');

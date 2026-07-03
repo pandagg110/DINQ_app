@@ -31,7 +31,7 @@ class CardFormFactory {
         focusNode: focusNode,
         definition: definition,
       );
-    } else if (typeUpper == 'LINK') {
+    } else if (definition.addFlow == CardAddFlow.url || typeUpper == 'LINK') {
       if (controller == null || focusNode == null) {
         throw ArgumentError('LinkForm requires controller and focusNode');
       }
@@ -45,7 +45,11 @@ class CardFormFactory {
       if (controller == null || focusNode == null) {
         throw ArgumentError('DefaultForm requires controller and focusNode');
       }
-      return DefaultForm(controller: controller, focusNode: focusNode, definition: definition);
+      return DefaultForm(
+        controller: controller,
+        focusNode: focusNode,
+        definition: definition,
+      );
     }
   }
 }
