@@ -7,6 +7,8 @@ import '../utils/card_layout_utils.dart';
 import '../widgets/cards/factory/card_registry.dart';
 import '../widgets/cards/factory/definitions/index.dart' show isAICard;
 
+enum CardRegenerationResult { started, empty, skipped, reused }
+
 class CardStore extends ChangeNotifier {
   CardStore() {
     _cardService = CardService();
@@ -403,7 +405,7 @@ class CardStore extends ChangeNotifier {
     return selectedCardIds.contains(cardId);
   }
 
-  Future<void> regenerateCard({String? cardId}) async {
+  Future<CardRegenerationResult> regenerateCard({String? cardId}) async {
     try {
       Map<String, dynamic> response;
       List<dynamic> results = [];
@@ -413,7 +415,7 @@ class CardStore extends ChangeNotifier {
         response = await _datasourceService.regenerateAllCards();
         results = (response['results'] as List<dynamic>?) ?? [];
         if (results.isEmpty) {
-          return;
+          return CardRegenerationResult.empty;
         }
       } else {
         // Regenerate single card
@@ -433,9 +435,13 @@ class CardStore extends ChangeNotifier {
 
       // Handle results
       bool hasStarted = false;
+      bool allSkipped = results.isNotEmpty;
+      bool allReused = results.isNotEmpty;
       for (final result in results) {
         final resultMap = Map<String, dynamic>.from(result as Map);
         final status = resultMap['status']?.toString() ?? '';
+        allSkipped = allSkipped && status == 'skipped';
+        allReused = allReused && status == 'reused';
         if (status == 'started') {
           hasStarted = true;
           final datasourceId = resultMap['datasource_id']?.toString() ?? '';
@@ -461,11 +467,22 @@ class CardStore extends ChangeNotifier {
         }
       }
 
+      if (allSkipped) {
+        return CardRegenerationResult.skipped;
+      }
+
+      if (allReused) {
+        return CardRegenerationResult.reused;
+      }
+
       if (hasStarted) {
         _startPolling();
       }
 
       notifyListeners();
+      return hasStarted
+          ? CardRegenerationResult.started
+          : CardRegenerationResult.empty;
     } catch (e) {
       rethrow;
     }
@@ -512,6 +529,7 @@ class CardStore extends ChangeNotifier {
       await _cardService.updateCardBoard(cardsToSave);
       dirtyCardIds.clear();
     } catch (e) {
+      // Keep dirty cards queued; the next scheduled save can retry.
     } finally {
       isSaving = false;
       notifyListeners();
@@ -545,7 +563,6 @@ class CardStore extends ChangeNotifier {
       for (final datasourceData in datasources) {
         final datasource = Map<String, dynamic>.from(datasourceData as Map);
         final datasourceId = datasource['id']?.toString() ?? '';
-        final datasourceType = datasource['type']?.toString() ?? '';
         try {
           final cardIndex = cards.indexWhere(
             (card) => card.data.id == datasourceId,
@@ -631,7 +648,9 @@ class CardStore extends ChangeNotifier {
           }
 
           cards[cardIndex] = updatedCard;
-        } catch (e) {}
+        } catch (e) {
+          // Ignore malformed datasource entries and keep the current card state.
+        }
       }
 
       // Filter out datasource type cards

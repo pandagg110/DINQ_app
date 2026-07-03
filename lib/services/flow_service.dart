@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import '../models/user_models.dart';
 import 'api_client.dart';
 
@@ -13,13 +13,19 @@ class FlowService {
 
   /// 检查域名可用性
   Future<Map<String, dynamic>> checkDomain({required String domain}) async {
-    final response = await _dio.post('/flow/check-domain', data: {'domain': domain});
+    final response = await _dio.post(
+      '/flow/check-domain',
+      data: {'domain': domain},
+    );
     return Map<String, dynamic>.from(response.data as Map);
   }
 
   /// 占用域名
   Future<UserFlow> claimDomain({required String domain}) async {
-    final response = await _dio.post('/flow/claim-domain', data: {'domain': domain});
+    final response = await _dio.post(
+      '/flow/claim-domain',
+      data: {'domain': domain},
+    );
     return UserFlow.fromJson(Map<String, dynamic>.from(response.data as Map));
   }
 
@@ -30,9 +36,8 @@ class FlowService {
   }
 
   /// 重置流程
-  Future<Map<String, dynamic>> resetFlow() async {
-    final response = await _dio.post('/flow/reset');
-    return Map<String, dynamic>.from(response.data as Map);
+  Future<void> resetFlow() async {
+    await _dio.post('/flow/reset');
   }
 
   /// 生成 DINQ Card
@@ -41,5 +46,3 @@ class FlowService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 }
-
-

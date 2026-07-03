@@ -64,6 +64,9 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       okStyle: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFFA325),
         foregroundColor: Colors.white,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -72,7 +75,30 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       if (confirmed != true) return;
       if (!mounted) return;
       try {
-        await context.read<CardStore>().regenerateCard();
+        final result = await context.read<CardStore>().regenerateCard();
+        if (!mounted) return;
+        switch (result) {
+          case CardRegenerationResult.started:
+            TopToastUtil.showSuccess(
+              context: context,
+              title: 'Regeneration has started',
+            );
+          case CardRegenerationResult.empty:
+            TopToastUtil.showInfo(
+              context: context,
+              title: 'No cards to update',
+            );
+          case CardRegenerationResult.skipped:
+            TopToastUtil.showWarning(
+              context: context,
+              title: 'Cards are already processing',
+            );
+          case CardRegenerationResult.reused:
+            TopToastUtil.showInfo(
+              context: context,
+              title: 'Reusing existing card data',
+            );
+        }
       } catch (e) {
         if (mounted) {
           TopToastUtil.showError(
@@ -95,6 +121,9 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       okStyle: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFE12C2C),
         foregroundColor: Colors.white,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
