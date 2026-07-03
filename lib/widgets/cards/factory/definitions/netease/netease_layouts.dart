@@ -7,6 +7,9 @@ class NeteaseLayouts {
     required String songTitle,
     required String artist,
     required String link,
+    required bool isPlaying,
+    required bool hasPreview,
+    required VoidCallback onPlayTap,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -49,29 +52,10 @@ class NeteaseLayouts {
               ],
             ),
           ),
-          // Bottom: Play button placeholder (not functional, just visual)
-          Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE60026),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.play_arrow, size: 16, color: Colors.white),
-                SizedBox(width: 4),
-                Text(
-                  'Play',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+          _NeteasePlayButton(
+            isPlaying: isPlaying,
+            hasPreview: hasPreview,
+            onTap: onPlayTap,
           ),
         ],
       ),
@@ -84,6 +68,9 @@ class NeteaseLayouts {
     required String artist,
     required String? coverImageUrl,
     required String link,
+    required bool isPlaying,
+    required bool hasPreview,
+    required VoidCallback onPlayTap,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -136,29 +123,10 @@ class NeteaseLayouts {
             ),
           if (coverImageUrl != null && coverImageUrl.isNotEmpty)
             const SizedBox(height: 12),
-          // Play button placeholder
-          Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE60026),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.play_arrow, size: 16, color: Colors.white),
-                SizedBox(width: 4),
-                Text(
-                  'Play',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+          _NeteasePlayButton(
+            isPlaying: isPlaying,
+            hasPreview: hasPreview,
+            onTap: onPlayTap,
           ),
         ],
       ),
@@ -171,6 +139,9 @@ class NeteaseLayouts {
     required String artist,
     required String? coverImageUrl,
     required String link,
+    required bool isPlaying,
+    required bool hasPreview,
+    required VoidCallback onPlayTap,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -219,32 +190,10 @@ class NeteaseLayouts {
                     ],
                   ),
                 ),
-                // Bottom: Play button placeholder
-                Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE60026),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.play_arrow, size: 16, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text(
-                        'Play',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
+                _NeteasePlayButton(
+                  isPlaying: isPlaying,
+                  hasPreview: hasPreview,
+                  onTap: onPlayTap,
                 ),
               ],
             ),
@@ -281,6 +230,9 @@ class NeteaseLayouts {
     required String artist,
     required String? coverImageUrl,
     required String link,
+    required bool isPlaying,
+    required bool hasPreview,
+    required VoidCallback onPlayTap,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -296,31 +248,10 @@ class NeteaseLayouts {
                 asset: 'icons/social-icons/Netease.svg',
                 size: 40,
               ),
-              Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE60026),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.play_arrow, size: 16, color: Colors.white),
-                    SizedBox(width: 4),
-                    Text(
-                      'Play',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
+              _NeteasePlayButton(
+                isPlaying: isPlaying,
+                hasPreview: hasPreview,
+                onTap: onPlayTap,
               ),
             ],
           ),
@@ -370,6 +301,56 @@ class NeteaseLayouts {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _NeteasePlayButton extends StatelessWidget {
+  const _NeteasePlayButton({
+    required this.isPlaying,
+    required this.hasPreview,
+    required this.onTap,
+  });
+
+  final bool isPlaying;
+  final bool hasPreview;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: hasPreview ? 1 : 0.5,
+      child: Material(
+        color: const Color(0xFFE60026),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: hasPreview ? onTap : null,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isPlaying ? Icons.pause : Icons.play_arrow,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isPlaying ? 'Pause' : 'Play',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

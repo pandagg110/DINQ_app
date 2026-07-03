@@ -347,21 +347,10 @@ class _CardGridStaggeredState extends State<CardGridStaggered> {
                       itemBuilder: (context, item) {
                         final card = cardById[item.i];
                         if (card == null) return const SizedBox.shrink();
-                        final content = widget.editable
-                            ? GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () =>
-                                    cardStore.toggleCardSelection(card.id),
-                                child: CardRenderer(
-                                  card: card,
-                                  editable: widget.editable,
-                                ),
-                              )
-                            : CardRenderer(
-                                card: card,
-                                editable: widget.editable,
-                              );
-                        return content;
+                        return CardRenderer(
+                          card: card,
+                          editable: widget.editable,
+                        );
                       },
                     ),
                   ],

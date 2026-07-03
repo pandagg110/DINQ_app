@@ -83,6 +83,10 @@ class NeteaseCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return NeteaseWidget(card: params.card, size: params.size);
+    return NeteaseWidget(
+      card: params.card,
+      size: params.size,
+      editable: params.editable,
+    );
   }
 }
