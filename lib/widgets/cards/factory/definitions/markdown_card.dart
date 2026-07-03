@@ -5,6 +5,7 @@ import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -134,6 +135,10 @@ class _MarkdownCardWidget extends StatefulWidget {
 }
 
 class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
+  static const _lucideTrash2 = 'assets/icons/lucide/trash-2.svg';
+  static const _lucideCamera = 'assets/icons/lucide/camera.svg';
+  static const _lucideVideo = 'assets/icons/lucide/video.svg';
+
   final UploadService _uploadService = UploadService();
   final TextEditingController _markdownController = TextEditingController();
   final TextEditingController _tagController = TextEditingController();
@@ -659,18 +664,21 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
                   child: GestureDetector(
                     onTap: () {}, // Prevent triggering parent's onTap
                     child: Container(
-                      color: Colors.transparent,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _buildMediaActionButton(
-                            icon: Icons.delete,
-                            color: Colors.red,
+                            iconAsset: _lucideTrash2,
+                            color: const Color(0xFFEF4444),
                             onTap: _handleMediaRemove,
                           ),
                           const SizedBox(width: 12),
                           _buildMediaActionButton(
-                            icon: _isVideo ? Icons.videocam : Icons.camera_alt,
+                            iconAsset: _isVideo ? _lucideVideo : _lucideCamera,
                             color: const Color(0xFF3B82F6),
                             onTap: _handleMediaUpload,
                           ),
@@ -729,7 +737,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
   }
 
   Widget _buildMediaActionButton({
-    required IconData icon,
+    required String iconAsset,
     required Color color,
     required VoidCallback onTap,
   }) {
@@ -748,7 +756,12 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
             ),
           ],
         ),
-        child: Icon(icon, size: 16, color: color),
+        child: SvgPicture.asset(
+          iconAsset,
+          width: 16,
+          height: 16,
+          colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+        ),
       ),
     );
   }

@@ -74,6 +74,7 @@ flutter:
     - assets/icons/avatar/
     - assets/icons/line-icons/
     - assets/icons/logo/
+    - assets/icons/lucide/
     - assets/icons/search/
     - assets/icons/search/progress/
     - assets/icons/search/citation/
