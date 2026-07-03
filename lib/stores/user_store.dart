@@ -88,7 +88,12 @@ class UserStore extends ChangeNotifier {
       authToken = result['token']?.toString();
       ApiClient.instance.setAuthToken(authToken);
       await _persistToken();
-      await initialize();
+      // 登录已成功（token 已持久化）。初始化失败不能让整个登录表现为
+      // "密码错误"（H5 可登录、客户端报密码错误的根因之一），
+      // 首页各模块会自行拉取数据。
+      try {
+        await initialize();
+      } catch (_) {}
       isLoading = false;
       notifyListeners();
       return user;
