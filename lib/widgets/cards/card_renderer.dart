@@ -74,6 +74,10 @@ class _CardRendererState extends State<CardRenderer> {
     try {
       final jsonMap = widget.card.toJson();
       final jsonString = const JsonEncoder.withIndent('  ').convert(jsonMap);
+      assert(() {
+        debugPrint(jsonString);
+        return true;
+      }());
     } catch (e) {
       // Debug logging must not break card rendering.
     }
@@ -157,49 +161,59 @@ class _CardRendererState extends State<CardRenderer> {
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Oops!',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF171717),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'The card didn\'t go through...',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                      if (widget.editable) ...[
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            cardStore.regenerateCard(cardId: widget.card.id);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF171717),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                          ),
-                          child: const Text(
-                            'Try Again',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Oops!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF171717),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'The card didn\'t go through...',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                        if (widget.editable) ...[
+                          const SizedBox(height: 16),
+                          Center(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                cardStore.regenerateCard(
+                                  cardId: widget.card.id,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF171717),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                              ),
+                              child: const Text(
+                                'Try Again',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -493,7 +507,7 @@ class _CardRendererState extends State<CardRenderer> {
             },
           ),
         );
-      } catch (error, stackTrace) {
+      } catch (error) {
         return _buildRenderErrorCard();
       }
     }
