@@ -1,5 +1,7 @@
+import 'package:dinq_app/utils/api_error.dart';
 import 'package:dinq_app/utils/cache_manager.dart';
 import 'package:dinq_app/utils/toast_util.dart';
+import 'package:dio/dio.dart';
 import 'package:dinq_app/widgets/account/agreement_protocol_modal.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/common_dialog.dart';
@@ -479,8 +481,15 @@ class _SignInPageState extends State<SignInPage> {
       _handleLoginSuccess();
     } catch (error) {
       await ToastUtil.dismiss();
-      ToastUtil.show("Username or password is incorrect.");
-      // setState(() => _error = 'Username or password is incorrect.');
+      // 仅账号密码错误(401/400)显示固定文案；其它错误展示真实原因，
+      // 避免网关/初始化等问题被误报成"密码错误"（H5 正常客户端失败难排查）。
+      final status = error is DioException ? error.response?.statusCode : null;
+      final isCredentialError = status == 401 || status == 400;
+      ToastUtil.show(
+        isCredentialError
+            ? "Username or password is incorrect."
+            : apiErrorMessage(error),
+      );
     }
   }
 
