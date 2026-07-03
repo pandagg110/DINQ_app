@@ -43,6 +43,11 @@ class TelegramCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return TelegramWidget(card: params.card, size: params.size);
+    return TelegramWidget(
+      card: params.card,
+      size: params.size,
+      editable: params.editable,
+      onUpdate: params.onUpdate,
+    );
   }
 }

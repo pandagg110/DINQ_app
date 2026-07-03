@@ -43,6 +43,11 @@ class WeChatCardDefinition extends CardDefinition {
 
   @override
   Widget render(CardRenderParams params) {
-    return WeChatWidget(card: params.card, size: params.size);
+    return WeChatWidget(
+      card: params.card,
+      size: params.size,
+      editable: params.editable,
+      onUpdate: params.onUpdate,
+    );
   }
 }

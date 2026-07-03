@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../common/asset_icon.dart';
+import '../social_image_upload_preview.dart';
 
 class WeChatLayouts {
   // 2x2 Size - Compact
@@ -31,6 +32,8 @@ class WeChatLayouts {
   static Widget build2x4Layout({
     required String username,
     required String? imageUrl,
+    required bool editable,
+    required ValueChanged<String> onImageChange,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -52,24 +55,16 @@ class WeChatLayouts {
             ),
             const SizedBox(height: 8),
           ],
-          if (imageUrl != null && imageUrl.isNotEmpty)
-            Expanded(
+          if ((imageUrl != null && imageUrl.isNotEmpty) || editable)
+            SizedBox(
+              width: double.infinity,
               child: AspectRatio(
-                aspectRatio: 1.0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(Icons.image, color: Colors.grey),
-                        ),
-                      );
-                    },
-                  ),
+                aspectRatio: 1,
+                child: SocialImageUploadPreview(
+                  imageUrl: imageUrl ?? '',
+                  editable: editable,
+                  altText: 'WeChat',
+                  onImageChange: onImageChange,
                 ),
               ),
             ),
@@ -82,55 +77,73 @@ class WeChatLayouts {
   static Widget build4x2Layout({
     required String username,
     required String? imageUrl,
+    required bool editable,
+    required ValueChanged<String> onImageChange,
   }) {
+    final showImage = (imageUrl != null && imageUrl.isNotEmpty) || editable;
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icon + Username
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const AssetIcon(asset: 'icons/social-icons/WeChat.svg', size: 40),
-              if (username.isNotEmpty)
-                Text(
-                  '@$username',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          // Right: Image
-          if (imageUrl != null && imageUrl.isNotEmpty)
-            Expanded(
-              child: AspectRatio(
-                aspectRatio: 1.0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.centerLeft,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(Icons.image, color: Colors.grey),
+      child: showImage
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Icon + Username
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const AssetIcon(
+                      asset: 'icons/social-icons/WeChat.svg',
+                      size: 40,
+                    ),
+                    if (username.isNotEmpty)
+                      Text(
+                        '@$username',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF111827),
                         ),
-                      );
-                    },
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                // Right: Image
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: SocialImageUploadPreview(
+                        imageUrl: imageUrl ?? '',
+                        editable: editable,
+                        altText: 'WeChat',
+                        onImageChange: onImageChange,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const AssetIcon(
+                  asset: 'icons/social-icons/WeChat.svg',
+                  size: 40,
+                ),
+                if (username.isNotEmpty)
+                  Text(
+                    '@$username',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
     );
   }
 
@@ -138,6 +151,8 @@ class WeChatLayouts {
   static Widget build4x4Layout({
     required String username,
     required String? imageUrl,
+    required bool editable,
+    required ValueChanged<String> onImageChange,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -161,22 +176,18 @@ class WeChatLayouts {
               ),
             ),
           // Image Section
-          if (imageUrl != null && imageUrl.isNotEmpty)
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.image, color: Colors.grey),
-                      ),
-                    );
-                  },
-                ),
+          if ((imageUrl != null && imageUrl.isNotEmpty) || editable)
+            const Spacer(),
+          if ((imageUrl != null && imageUrl.isNotEmpty) || editable)
+            SizedBox(
+              height: 150,
+              width: double.infinity,
+              child: SocialImageUploadPreview(
+                imageUrl: imageUrl ?? '',
+                editable: editable,
+                altText: 'WeChat',
+                onImageChange: onImageChange,
+                objectFit: BoxFit.contain,
               ),
             ),
         ],
