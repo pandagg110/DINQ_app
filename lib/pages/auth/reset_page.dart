@@ -281,6 +281,7 @@ class _ResetPageState extends State<ResetPage> {
       _message = null;
       _isSending = true;
     });
+    Object? sendError;
     try {
       // 构建重置密码回调 URL
       final redirectUrl = '${appUrl}/reset-callback';
@@ -292,12 +293,14 @@ class _ResetPageState extends State<ResetPage> {
         });
       }
     } catch (error) {
-      await ToastUtil.dismiss();
-
-      await ToastUtil.show(apiErrorMessage(error));
-      // setState(() => _message = error.toString());
+      sendError = error;
     } finally {
-      setState(() => _isSending = false);
+      // 成功路径此前从不 dismiss，导致重置密码后 loading 一直挂着
+      await ToastUtil.dismiss();
+      if (mounted) setState(() => _isSending = false);
+    }
+    if (sendError != null) {
+      await ToastUtil.show(apiErrorMessage(sendError));
     }
   }
 }

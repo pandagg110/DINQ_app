@@ -27,6 +27,13 @@ class AppTheme {
         primary: brandBlack,
         secondary: brandBlack,
         surface: brandWhite,
+        // M3 默认紫色 surfaceTint 会在弹出菜单/对话框的 elevation 上泄漏
+        // （integration 页下拉菜单紫色底的根因），全局压掉
+        surfaceTint: Colors.transparent,
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: brandWhite,
+        surfaceTintColor: Colors.transparent,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: brandPage,
