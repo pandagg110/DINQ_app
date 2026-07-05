@@ -208,7 +208,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
     }
     setState(() {
       _refreshing = true;
-      _logsExpanded = true;
+      _logsExpanded = false;
     });
     try {
       await onRefresh();
@@ -226,7 +226,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
     final isFinished = isDone || isError;
     final hasLogs =
         entry.toolLogs.isNotEmpty || (entry.errorMessage?.isNotEmpty ?? false);
-    final showFullLogs = !isFinished || _logsExpanded;
+    final showFullLogs = _logsExpanded;
     final canRefresh =
         widget.onRefresh != null &&
         entry.requestParams != null &&
@@ -246,7 +246,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (isFinished && !_logsExpanded)
+                  if (!_logsExpanded)
                     InkWell(
                       onTap: () => setState(() => _logsExpanded = true),
                       borderRadius: const BorderRadius.vertical(
@@ -259,21 +259,33 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                         ),
                         child: Row(
                           children: [
-                            EnrichSvgIcon(
-                              isError
-                                  ? EnrichIcons.alertCircle
-                                  : EnrichIcons.check,
-                              size: 14,
-                              color: isError
-                                  ? const Color(0xFFEF4444)
-                                  : const Color(0xFF22C55E),
-                            ),
+                            if (isStreamingStatus)
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: _C.textMuted,
+                                ),
+                              )
+                            else
+                              EnrichSvgIcon(
+                                isError
+                                    ? EnrichIcons.alertCircle
+                                    : EnrichIcons.check,
+                                size: 14,
+                                color: isError
+                                    ? const Color(0xFFEF4444)
+                                    : const Color(0xFF22C55E),
+                              ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 isError
                                     ? (entry.errorMessage ?? 'Search failed')
-                                    : 'Search completed',
+                                    : isFinished
+                                    ? 'Search completed'
+                                    : _latestLogMessage(entry),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isError
@@ -283,27 +295,28 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 28,
-                                minHeight: 28,
-                              ),
-                              onPressed: canRefresh ? _handleRefresh : null,
-                              icon: _refreshing
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                            if (isFinished)
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
+                                onPressed: canRefresh ? _handleRefresh : null,
+                                icon: _refreshing
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const EnrichSvgIcon(
+                                        EnrichIcons.refresh,
+                                        size: 14,
                                       ),
-                                    )
-                                  : const EnrichSvgIcon(
-                                      EnrichIcons.refresh,
-                                      size: 14,
-                                    ),
-                            ),
+                              ),
                             IconButton(
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
@@ -330,7 +343,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                           padding: EdgeInsets.fromLTRB(
                             12,
                             12,
-                            isFinished ? 40 : 12,
+                            isFinished ? 68 : 40,
                             12,
                           ),
                           child: ConstrainedBox(
@@ -357,20 +370,20 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
                               ),
                             ),
                           ),
-                          Positioned(
-                            top: 4,
-                            right: 4,
-                            child: IconButton(
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () =>
-                                  setState(() => _logsExpanded = false),
-                              icon: const EnrichSvgIcon(
-                                EnrichIcons.chevronUp,
-                                size: 14,
-                              ),
+                        ],
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: IconButton(
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () =>
+                                setState(() => _logsExpanded = false),
+                            icon: const EnrichSvgIcon(
+                              EnrichIcons.chevronUp,
+                              size: 14,
                             ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                 ],
@@ -401,6 +414,12 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: profile,
     );
+  }
+
+  String _latestLogMessage(EnrichEntry entry) {
+    if (entry.toolLogs.isEmpty) return 'Searching with Dinq Search AI';
+    final log = entry.toolLogs.last;
+    return log.message.isNotEmpty ? log.message : log.tool;
   }
 }
 
@@ -2223,10 +2242,7 @@ class _EmailListCardState extends State<_EmailListCard> {
                       _expanded
                           ? 'Show fewer emails'
                           : 'Show $hiddenCount more emails',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: _C.textMuted,
-                      ),
+                      style: const TextStyle(fontSize: 14, color: _C.textMuted),
                     ),
                     const SizedBox(width: 4),
                     Icon(
