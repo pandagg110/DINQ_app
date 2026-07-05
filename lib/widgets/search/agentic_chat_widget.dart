@@ -549,7 +549,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                           : null,
                                     ),
                                   ),
-                                  Padding(
+                                  AnimatedPadding(
+                                    duration: const Duration(milliseconds: 180),
+                                    curve: Curves.easeOutCubic,
                                     padding: EdgeInsets.fromLTRB(
                                       isMobile ? 12 : 24,
                                       0,
@@ -791,6 +793,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
   /// 为 MainTab 浮动底栏预留空间（与 main_tab_bottom_view 高度一致）。
   double _mobileBottomBarInset(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (keyboardOpen) {
+      return 20;
+    }
+
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     if (!widget.embeddedInMainTab) {
       return math.max(12, safeBottom);
@@ -863,7 +870,9 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
             },
           ),
         ),
-        Padding(
+        AnimatedPadding(
+          duration: const Duration(milliseconds: 80),
+          curve: Curves.linear,
           padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
           child: searchBox,
         ),
