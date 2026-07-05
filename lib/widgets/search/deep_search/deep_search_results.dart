@@ -184,11 +184,11 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
       _isExportingPdf ||
       widget.sseEventsId == null ||
       widget.sseEventsId!.isEmpty ||
-      widget.isSearching;
+      widget.roundStatus != DeepSearchRoundStatus.done;
 
   Future<void> _handleExportPdf() async {
     if (_isExportingPdf) return;
-    if (widget.isSearching) {
+    if (widget.roundStatus != DeepSearchRoundStatus.done) {
       _showToast(DeepSearchResultsStrings.exportWaitForFinish);
       return;
     }
@@ -221,8 +221,13 @@ class _DeepSearchResultsState extends State<DeepSearchResults> {
       await Share.shareXFiles([
         XFile(file.path),
       ], subject: 'deep-search-$sessionId.pdf');
-    } catch (_) {
-      if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
+    } catch (e) {
+      if (!mounted) return;
+      _showToast(
+        e is SearchExportException
+            ? e.message
+            : DeepSearchResultsStrings.exportFailed,
+      );
     } finally {
       if (mounted) setState(() => _isExportingPdf = false);
     }

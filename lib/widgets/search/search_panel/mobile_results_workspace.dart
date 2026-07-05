@@ -167,7 +167,10 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
   }
 
   Future<void> _exportMarkdown() async {
-    await _shareAsFile(buildSearchResultsMarkdown(_visibleRowsForActions), 'md');
+    await _shareAsFile(
+      buildSearchResultsMarkdown(_visibleRowsForActions),
+      'md',
+    );
   }
 
   /// 导出必须是文件而不是纯文本分享，否则收不到 .csv/.md 文件（导出"不能正常使用"）。
@@ -186,7 +189,7 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
 
   Future<void> _handleExportPdf() async {
     if (_isExportingPdf) return;
-    if (widget.isSearching) {
+    if (widget.roundStatus != DeepSearchRoundStatus.done) {
       _showToast(DeepSearchResultsStrings.exportWaitForFinish);
       return;
     }
@@ -213,12 +216,16 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/deep-search-$sessionId.pdf');
       await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'deep-search-$sessionId.pdf',
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: 'deep-search-$sessionId.pdf');
+    } catch (e) {
+      if (!mounted) return;
+      _showToast(
+        e is SearchExportException
+            ? e.message
+            : DeepSearchResultsStrings.exportFailed,
       );
-    } catch (_) {
-      if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
     } finally {
       if (mounted) setState(() => _isExportingPdf = false);
     }
@@ -228,7 +235,7 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
       _isExportingPdf ||
       widget.sseEventsId == null ||
       widget.sseEventsId!.isEmpty ||
-      widget.isSearching;
+      widget.roundStatus != DeepSearchRoundStatus.done;
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +323,9 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
                       const SizedBox(width: 6),
                       _ActionIconButton(
                         tooltip: DeepSearchResultsStrings.copyResults,
-                        icon: _resultsCopied ? Icons.check : Icons.copy_outlined,
+                        icon: _resultsCopied
+                            ? Icons.check
+                            : Icons.copy_outlined,
                         onTap: _handleCopyResults,
                       ),
                       const SizedBox(width: 6),
@@ -464,7 +473,9 @@ class _SaveCandidatesButton extends StatelessWidget {
                   height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: hasSelection ? Colors.white : const Color(0xFF4F4C47),
+                    color: hasSelection
+                        ? Colors.white
+                        : const Color(0xFF4F4C47),
                   ),
                 )
               else
@@ -485,8 +496,9 @@ class _SaveCandidatesButton extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color:
-                        hasSelection ? Colors.white : const Color(0xFF4F4C47),
+                    color: hasSelection
+                        ? Colors.white
+                        : const Color(0xFF4F4C47),
                   ),
                 ),
               ),

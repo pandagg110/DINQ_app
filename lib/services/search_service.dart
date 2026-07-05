@@ -1,1 +1,1 @@
-export 'discover_service.dart' show SearchService;
+export 'discover_service.dart' show SearchExportException, SearchService;

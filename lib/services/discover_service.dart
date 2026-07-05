@@ -7,11 +7,22 @@ import '../models/deep_search_channel_models.dart';
 import 'api_client.dart';
 
 /// Search 相关 API（后端仍沿用 /discover 路径）
+class SearchExportException implements Exception {
+  const SearchExportException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class SearchService {
   final _dio = ApiClient.instance.dio;
 
   /// 解析 Dio ResponseBody SSE 流为 JSON 事件
-  Stream<Map<String, dynamic>> _parseSseStream(ResponseBody responseBody) async* {
+  Stream<Map<String, dynamic>> _parseSseStream(
+    ResponseBody responseBody,
+  ) async* {
     final stream = responseBody.stream;
     String buffer = '';
     await for (final chunk in stream) {
@@ -40,7 +51,10 @@ class SearchService {
       final type = decoded['type']?.toString();
       if (type == 'llm_end') {
         final message = decoded['message']?.toString() ?? '';
-        if (RegExp(r'insufficient\s+credits', caseSensitive: false).hasMatch(message)) {
+        if (RegExp(
+          r'insufficient\s+credits',
+          caseSensitive: false,
+        ).hasMatch(message)) {
           return {
             'type': 'error',
             'message': _normalizeStreamErrorMessage(message),
@@ -170,7 +184,8 @@ class SearchService {
   }) async* {
     final body = <String, dynamic>{
       'query': query,
-      if (candidateData != null && candidateData.isNotEmpty) 'data': candidateData,
+      if (candidateData != null && candidateData.isNotEmpty)
+        'data': candidateData,
     };
 
     final response = await _dio.post<ResponseBody>(
@@ -198,16 +213,27 @@ class SearchService {
     required String sessionId,
     required String sseEventsId,
   }) async {
-    final response = await _dio.get<List<int>>(
-      '/scholar/deep-search/export-pdf',
-      queryParameters: {
-        'user_id': userId,
-        'session_id': sessionId,
-        'sse_events_id': sseEventsId,
-      },
-      options: Options(responseType: ResponseType.bytes),
-    );
-    return response.data ?? const [];
+    try {
+      final response = await _dio.get<List<int>>(
+        '/scholar/deep-search/export-pdf',
+        queryParameters: {
+          'user_id': userId,
+          'session_id': sessionId,
+          'sse_events_id': sseEventsId,
+        },
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? const [];
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 404) {
+        throw const SearchExportException('Search record not found');
+      }
+      if (statusCode != null) {
+        throw SearchExportException('Export failed ($statusCode)');
+      }
+      rethrow;
+    }
   }
 
   /// GET /scholar/deep-search/channels — 模型通道列表（Deep Search v2.5）
@@ -376,7 +402,9 @@ class SearchService {
 
   /// POST /discover/conversations — 创建会话
   /// [data] 可选，如 { "title": "..." }
-  Future<Map<String, dynamic>> createConversation([Map<String, dynamic>? data]) async {
+  Future<Map<String, dynamic>> createConversation([
+    Map<String, dynamic>? data,
+  ]) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/discover/conversations',
       data: data ?? {},
@@ -414,7 +442,10 @@ class SearchService {
 
   /// PUT /discover/conversations/:id — 更新会话（重命名）
   /// [data] 如 { "title": "..." }
-  Future<Map<String, dynamic>> updateConversation(int id, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateConversation(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
     final response = await _dio.put<Map<String, dynamic>>(
       '/discover/conversations/$id',
       data: data,

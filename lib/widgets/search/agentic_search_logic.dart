@@ -273,8 +273,9 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   static bool _valueEquals(dynamic a, dynamic b) {
     if (a == b) return true;
-    if (a is List && b is List)
+    if (a is List && b is List) {
       return a.length == b.length && a.toString() == b.toString();
+    }
     return false;
   }
 
@@ -308,7 +309,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       final parsed = jsonDecode(input) as Map<String, dynamic>?;
       if (parsed != null) {
         final v = parsed['query'] ?? parsed['url'];
-        return v != null ? v.toString() : null;
+        return v?.toString();
       }
       return null;
     } catch (_) {
@@ -495,7 +496,7 @@ class AgenticSearchLogic extends ChangeNotifier {
                   (last['inputs'] as List<dynamic>?)?.cast<String>() ?? [];
               final newInputs = [
                 ...prevInputs,
-                if (inputValue != null) inputValue,
+                ?inputValue,
               ].where((e) => e.isNotEmpty).toList();
               g.thinkingSteps = [
                 ...steps.sublist(0, steps.length - 1),
@@ -588,6 +589,11 @@ class AgenticSearchLogic extends ChangeNotifier {
     if (idx < 0) return;
     final g = messageGroups[idx];
     if (g.searchCompleted && type != 'done' && type != 'error') return;
+
+    final eventSseEventsId = event['sse_events_id']?.toString();
+    if (eventSseEventsId != null && eventSseEventsId.isNotEmpty) {
+      g.sseEventsId = eventSseEventsId;
+    }
 
     if (!g.isDeepSearch) {
       g.isDeepSearch = true;
@@ -888,7 +894,7 @@ class AgenticSearchLogic extends ChangeNotifier {
                   (lastStep['inputs'] as List<dynamic>?)?.cast<String>() ?? [];
               lastStep['inputs'] = [
                 ...inputs,
-                if (inputValue != null) inputValue,
+                ?inputValue,
               ].where((e) => e.isNotEmpty).toList();
             } else {
               steps.add({
@@ -1093,7 +1099,10 @@ class AgenticSearchLogic extends ChangeNotifier {
       group.isDeepSearch = isDeepSearch;
       group.deepSearchToolCount = deepSearchToolCount;
       group.deepSearchDurationMs = deepSearchDurationMs;
-      if (groupId > 0) {
+      final rawSseEventsId = r['sse_events_id']?.toString();
+      if (rawSseEventsId != null && rawSseEventsId.isNotEmpty) {
+        group.sseEventsId = rawSseEventsId;
+      } else if (groupId > 0) {
         group.sseEventsId = groupId.toString();
       }
 
@@ -1224,8 +1233,9 @@ class AgenticSearchLogic extends ChangeNotifier {
   }) {
     final trimmedQuery = query.trim();
     final attachment = attachmentUrl?.trim();
-    if (trimmedQuery.isEmpty && (attachment == null || attachment.isEmpty))
+    if (trimmedQuery.isEmpty && (attachment == null || attachment.isEmpty)) {
       return;
+    }
 
     if (_activeSessionId == null) {
       final existing = searchStore.deepSearchSessionId;
@@ -1779,7 +1789,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         notifyListeners();
         onScrollToBottom?.call();
       },
-      onError: (_, __) {
+      onError: (_, _) {
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
         if (idx >= 0) {
           messageGroups[idx].loading = false;
@@ -2252,7 +2262,7 @@ class AgenticSearchLogic extends ChangeNotifier {
               notifyListeners();
               onScrollToBottom?.call();
             },
-            onError: (_, __) {
+            onError: (_, _) {
               updateGroup((group, _) {
                 group.loading = false;
                 group.searchCompleted = true;
