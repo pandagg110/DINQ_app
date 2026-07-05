@@ -87,9 +87,10 @@ class CardGrid extends StatelessWidget {
                   builder: (context) {
                     final card = sortedCards[i];
 
-                    // 计算实际尺寸（像素）
+                    // 计算实际尺寸（像素），左右各留 32 安全边距，
+                    // 给选中态的蓝色边框和角上的删除/编辑按钮留出空间
                     final screenWidth = MediaQuery.of(context).size.width;
-                    final cardWidth = screenWidth - 48;
+                    final cardWidth = screenWidth - 64;
 
                     final cardHeight = card.data.type.toUpperCase() == 'TITLE'
                         ? 124.0

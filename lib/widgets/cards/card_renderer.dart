@@ -355,6 +355,7 @@ class _CardRendererState extends State<CardRenderer> {
                   : const SizedBox.shrink(),
             ],
 
+            // 移动按钮骑在选中卡片自己的底边框上，不压下方卡片的边框
             Positioned(
               left: 0,
               right: 0,

@@ -39,16 +39,20 @@ class _AddCardBottomSheet extends StatefulWidget {
 class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
-  final GlobalKey<State<FormBuilderWidget>> _markdownFormKey = GlobalKey<State<FormBuilderWidget>>();
+  final GlobalKey<State<FormBuilderWidget>> _markdownFormKey =
+      GlobalKey<State<FormBuilderWidget>>();
   late final CardFormBase _form;
-  
+
   /// 键盘是否遮挡当前输入框；为 true 时顶起整个弹框，否则不顶起、让键盘覆盖下方内容
   /// 默认 false：键盘刚弹出时先不顶起，等测量完成后再决定，避免“先顶起再回滚”的闪烁
   bool _shouldLiftForKeyboard = false;
+
   /// 键盘是否已处于激活状态（仅在其刚弹出时判断一次，避免重复判断导致闪烁）
   bool _keyboardAlreadyActive = false;
+
   /// 安全区域底部高度，仅在第一次初始化时设置
   double? _safeAreaBottom;
+
   /// 上一次的键盘高度，用于检测键盘关闭事件
   double _lastKeyboardHeight = 0.0;
   bool _isSubmitting = false;
@@ -122,10 +126,7 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
           metadata: {'metadata': formData},
         );
       } else if (def.addFlow == CardAddFlow.username) {
-        await cardStore.addCard(
-          type: def.type,
-          metadata: formData,
-        );
+        await cardStore.addCard(type: def.type, metadata: formData);
       } else {
         final rawUrl = formData['url']?.toString() ?? '';
         final validated = await validateCardUrlInput(rawUrl);
@@ -156,7 +157,7 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
     // 仅在第一次初始化时设置 safeAreaBottom
     _safeAreaBottom ??= mq.padding.bottom;
     final safeAreaBottom = _safeAreaBottom!;
-    
+
     // 检测键盘关闭事件：从 > 0 变为 0
     final currentKeyboardHeight = mq.viewInsets.bottom;
     if (_lastKeyboardHeight > 0 && currentKeyboardHeight == 0) {
@@ -165,89 +166,97 @@ class _AddCardBottomSheetState extends State<_AddCardBottomSheet> {
       _shouldLiftForKeyboard = false;
     }
     _lastKeyboardHeight = currentKeyboardHeight;
-    
+
     if (currentKeyboardHeight > 0) {
       if (!_keyboardAlreadyActive) {
         _keyboardAlreadyActive = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) => _measureAndUpdateLift());
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _measureAndUpdateLift(),
+        );
       }
     }
-    // 仅用 padding 控制是否顶起，不移除 viewInsets，否则子树会认为键盘已关闭导致键盘被收起
-    final bottomInset = _shouldLiftForKeyboard ? mq.viewInsets.bottom : 0.0;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-          ),
+    // 仅用 padding 控制是否顶起，不移除 viewInsets，否则子树会认为键盘已关闭导致键盘被收起。
+    // 顶起时把键盘 inset 放进白色容器内部 padding，让白色背景延伸到屏幕底部，
+    // 避免弹窗与键盘之间露出蒙层形成空白断层。
+    final liftInset = _shouldLiftForKeyboard ? mq.viewInsets.bottom : 0.0;
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
         ),
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          20 + safeAreaBottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${def.name} Card',
-                      style: const TextStyle(
-                        fontFamily: 'Geist',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF171717),
-                      ),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        liftInset > 0 ? 20 + liftInset : 20 + safeAreaBottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${def.name} Card',
+                    style: const TextStyle(
+                      fontFamily: 'Geist',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF171717),
                     ),
                   ),
-                  TextButton(
-                    onPressed: _isSubmitting ? null : _onAdd,
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF2563EB),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                TextButton(
+                  onPressed: _isSubmitting ? null : _onAdd,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
+                  ),
+                  child: Text(
+                    _isSubmitting ? 'Adding...' : 'Add',
+                    style: const TextStyle(
+                      fontFamily: 'Geist',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _form.build(context, def),
+            if (_inputError != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 16,
+                    color: Color(0xFFEF4444),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      _isSubmitting ? 'Adding...' : 'Add',
+                      _inputError!,
                       style: const TextStyle(
                         fontFamily: 'Geist',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                        color: Color(0xFFEF4444),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _form.build(context, def),
-              if (_inputError != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.error_outline, size: 16, color: Color(0xFFEF4444)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _inputError!,
-                        style: const TextStyle(
-                          fontFamily: 'Geist',
-                          fontSize: 13,
-                          color: Color(0xFFEF4444),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
-          ),
+          ],
         ),
       ),
     );
