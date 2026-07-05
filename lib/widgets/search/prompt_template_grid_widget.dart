@@ -94,10 +94,9 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 768),
-      width: double.infinity,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -125,24 +124,29 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
             ],
           ),
           const SizedBox(height: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: List.generate(displayCount, (index) {
-              final prompt = _displayedPrompts[index];
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: index < displayCount - 1 ? spacing : 0,
-                ),
-                child: FadeTransition(
-                  key: ValueKey('${_shuffleKey}_${prompt.id}'),
-                  opacity: _animationController,
-                  child: _PromptCard(
-                    prompt: prompt,
-                    onTap: () => _handleFill(prompt.content),
-                  ),
-                ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.generate(displayCount, (index) {
+                  final prompt = _displayedPrompts[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index < displayCount - 1 ? spacing : 0,
+                    ),
+                    child: FadeTransition(
+                      key: ValueKey('${_shuffleKey}_${prompt.id}'),
+                      opacity: _animationController,
+                      child: _PromptCard(
+                        prompt: prompt,
+                        maxWidth: constraints.maxWidth,
+                        onTap: () => _handleFill(prompt.content),
+                      ),
+                    ),
+                  );
+                }),
               );
-            }),
+            },
           ),
         ],
       ),
@@ -151,9 +155,14 @@ class _PromptTemplateGridWidgetState extends State<PromptTemplateGridWidget>
 }
 
 class _PromptCard extends StatefulWidget {
-  const _PromptCard({required this.prompt, required this.onTap});
+  const _PromptCard({
+    required this.prompt,
+    required this.maxWidth,
+    required this.onTap,
+  });
 
   final PromptTemplate prompt;
+  final double maxWidth;
   final VoidCallback onTap;
 
   @override
@@ -172,17 +181,17 @@ class _PromptCardState extends State<_PromptCard> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          width: double.infinity,
+          constraints: BoxConstraints(maxWidth: widget.maxWidth),
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: _hovered ? const Color(0xFFF7F6F2) : Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFD5D3CE), width: 1),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
+              Flexible(
                 child: Text(
                   widget.prompt.title,
                   style: const TextStyle(
