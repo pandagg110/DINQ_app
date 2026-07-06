@@ -21,14 +21,15 @@ class AgenticSearchContentWidget extends StatefulWidget {
 
   final bool embeddedInMainTab;
   final void Function(List<Map<String, dynamic>> candidates, String query)?
-      onSearchComplete;
+  onSearchComplete;
 
   @override
   State<AgenticSearchContentWidget> createState() =>
       _AgenticSearchContentWidgetState();
 }
 
-class _AgenticSearchContentWidgetState extends State<AgenticSearchContentWidget> {
+class _AgenticSearchContentWidgetState
+    extends State<AgenticSearchContentWidget> {
   static const _enrichMinWidth = 360.0;
   static const _enrichMaxWidth = 700.0;
   static const _enrichDefaultWidth = 520.0;
@@ -88,7 +89,8 @@ class _AgenticSearchContentWidgetState extends State<AgenticSearchContentWidget>
                   selectedRowId: selectedRowId,
                   confidencePct: enrichStore.confidenceFor(selectedRowId),
                   onClose: () => _enrichController?.close(),
-                  onRefresh: () => _enrichController?.refreshEnrich() ?? Future.value(),
+                  onRefresh: () =>
+                      _enrichController?.refreshEnrich() ?? Future.value(),
                 ),
             ],
           );
@@ -112,8 +114,10 @@ class _AgenticSearchContentWidgetState extends State<AgenticSearchContentWidget>
                           onDragStart: () => setState(() => _isDragging = true),
                           onDragUpdate: (dx) {
                             setState(() {
-                              _enrichWidth = (_enrichWidth - dx)
-                                  .clamp(_enrichMinWidth, _enrichMaxWidth);
+                              _enrichWidth = (_enrichWidth - dx).clamp(
+                                _enrichMinWidth,
+                                _enrichMaxWidth,
+                              );
                             });
                           },
                           onDragEnd: () => setState(() => _isDragging = false),
@@ -141,7 +145,8 @@ class _AgenticSearchContentWidgetState extends State<AgenticSearchContentWidget>
                                             confidencePct: enrichStore
                                                 .confidenceFor(selectedRowId),
                                             onRefresh: () =>
-                                                _enrichController?.refreshEnrich() ??
+                                                _enrichController
+                                                    ?.refreshEnrich() ??
                                                 Future.value(),
                                           ),
                                         ),
@@ -218,47 +223,62 @@ class _EnrichBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+
     return Positioned.fill(
-      child: GestureDetector(
-        onTap: onClose,
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.4),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: GestureDetector(
-              onTap: () {},
-              child: FractionallySizedBox(
-                widthFactor: 1,
-                heightFactor: 0.85,
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: entry == null
-                      ? const SizedBox.shrink()
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            return SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-                              child: SizedBox(
-                                width: constraints.maxWidth,
-                                child: EnrichProfileView(
-                                  entry: entry!,
-                                  isMobile: true,
-                                  selectedRowId: selectedRowId,
-                                  confidencePct: confidencePct,
-                                  onRefresh: onRefresh,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+      child: Material(
+        color: Colors.white,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: EdgeInsets.only(top: topPadding),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(bottom: BorderSide(color: Color(0xFFEAE8E3))),
+              ),
+              child: SizedBox(
+                height: 48,
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: onClose,
+                      icon: const Icon(Icons.arrow_back, size: 20),
+                      color: const Color(0xFF171717),
+                      tooltip: 'Back',
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
+            Expanded(
+              child: entry == null
+                  ? const SizedBox.shrink()
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            24,
+                            16,
+                            24 + bottomPadding,
+                          ),
+                          child: SizedBox(
+                            width: constraints.maxWidth,
+                            child: EnrichProfileView(
+                              entry: entry!,
+                              isMobile: true,
+                              selectedRowId: selectedRowId,
+                              confidencePct: confidencePct,
+                              onRefresh: onRefresh,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );

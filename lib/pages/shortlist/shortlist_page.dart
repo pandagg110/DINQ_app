@@ -253,8 +253,9 @@ class _ShortlistPageState extends State<ShortlistPage> {
       }
 
       final folder = store.activeProject;
-      final folderName =
-          folder?.isDefault == true ? 'Default' : (folder?.name ?? 'shortlist');
+      final folderName = folder?.isDefault == true
+          ? 'Default'
+          : (folder?.name ?? 'shortlist');
       final date = DateTime.now().toIso8601String().substring(0, 10);
       final slug = service.safeFilenamePart(folderName);
 
@@ -325,12 +326,14 @@ class _ShortlistPageState extends State<ShortlistPage> {
     final store = context.watch<ShortlistStore>();
     final enrichStore = context.watch<DeepSearchEnrichStore>();
     final waitingForProject =
-        store.activeProjectId == null && !store.projectsLoaded && store.projectsLoadError == null;
+        store.activeProjectId == null &&
+        !store.projectsLoaded &&
+        store.projectsLoadError == null;
     final hasSearchOrStatus =
         _searchQuery.isNotEmpty || store.statusFilter != null;
     final visibleIds = store.favorites.map((item) => item.id);
-    final allVisibleSelected = visibleIds.isNotEmpty &&
-        visibleIds.every(store.selectedIds.contains);
+    final allVisibleSelected =
+        visibleIds.isNotEmpty && visibleIds.every(store.selectedIds.contains);
 
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
@@ -397,8 +400,9 @@ class _ShortlistPageState extends State<ShortlistPage> {
               _EnrichOverlay(
                 entry: enrichStore.selectedEntry,
                 selectedRowId: enrichStore.selectedRowId,
-                confidencePct:
-                    enrichStore.confidenceFor(enrichStore.selectedRowId),
+                confidencePct: enrichStore.confidenceFor(
+                  enrichStore.selectedRowId,
+                ),
                 onClose: () {
                   _enrichController?.close();
                   _syncBottomNav();
@@ -661,10 +665,7 @@ class _ShortlistHeaderTextAction extends StatelessWidget {
 }
 
 class _ShortlistFolderPill extends StatelessWidget {
-  const _ShortlistFolderPill({
-    required this.folderName,
-    required this.onTap,
-  });
+  const _ShortlistFolderPill({required this.folderName, required this.onTap});
 
   final String folderName;
   final VoidCallback onTap;
@@ -831,8 +832,9 @@ class _ShortlistStatusChoicePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor =
-        selected ? const Color(0xFF2563EB) : DinqTokens.textPrimary;
+    final textColor = selected
+        ? const Color(0xFF2563EB)
+        : DinqTokens.textPrimary;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -1147,40 +1149,53 @@ class _EnrichOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+
     return Positioned.fill(
-      child: GestureDetector(
-        onTap: onClose,
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.4),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: GestureDetector(
-              onTap: () {},
-              child: FractionallySizedBox(
-                widthFactor: 1,
-                heightFactor: 0.85,
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: entry == null
-                      ? const Center(child: CircularProgressIndicator())
-                      : SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-                          child: EnrichProfileView(
-                            entry: entry!,
-                            isMobile: true,
-                            selectedRowId: selectedRowId,
-                            confidencePct: confidencePct,
-                            onRefresh: onRefresh,
-                          ),
-                        ),
+      child: Material(
+        color: Colors.white,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(bottom: BorderSide(color: Color(0xFFEAE8E3))),
+              ),
+              child: SizedBox(
+                height: 48,
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: onClose,
+                      icon: const Icon(Icons.arrow_back, size: 20),
+                      color: const Color(0xFF171717),
+                      tooltip: 'Back',
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
+            Expanded(
+              child: entry == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        24,
+                        16,
+                        24 + bottomPadding,
+                      ),
+                      child: EnrichProfileView(
+                        entry: entry!,
+                        isMobile: true,
+                        selectedRowId: selectedRowId,
+                        confidencePct: confidencePct,
+                        onRefresh: onRefresh,
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );
