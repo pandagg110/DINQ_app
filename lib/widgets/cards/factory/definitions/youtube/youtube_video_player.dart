@@ -38,8 +38,15 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
   }
 
   void _initializeController() {
-    final embedUrl =
-        'https://www.youtube.com/embed/${widget.videoId}?rel=0&modestbranding=1&enablejsapi=1${widget.isMuted ? '&mute=1' : ''}';
+    final embedUrl = Uri.https('www.youtube.com', '/embed/${widget.videoId}', {
+      'rel': '0',
+      'modestbranding': '1',
+      'playsinline': '1',
+      'enablejsapi': '1',
+      'origin': 'https://dinq.me',
+      if (widget.isMuted) 'mute': '1',
+    }).toString();
+    final html = _buildEmbedHtml(embedUrl);
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -92,7 +99,7 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
 
     // 加载 URL
     try {
-      _controller.loadRequest(Uri.parse(embedUrl));
+      _controller.loadHtmlString(html, baseUrl: 'https://dinq.me');
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -101,6 +108,41 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
         });
       }
     }
+  }
+
+  String _buildEmbedHtml(String embedUrl) {
+    return '''
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      src="$embedUrl"
+      title="YouTube video player"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen>
+    </iframe>
+  </body>
+</html>
+''';
   }
 
   Widget _buildWebPlaceholder() {
@@ -121,14 +163,14 @@ class _YouTubeVideoPlayerState extends State<YouTubeVideoPlayer> {
             Icon(
               Icons.play_circle_outline,
               size: 48,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
             const SizedBox(height: 8),
             Text(
               'Video: ${widget.videoId}',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
               ),
             ),
           ],
