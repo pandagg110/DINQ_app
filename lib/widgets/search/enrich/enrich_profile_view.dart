@@ -8,10 +8,14 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/deep_search_enrich_models.dart';
 import '../../../services/connector_service.dart';
+import '../../../services/message_service.dart';
+import '../../../services/profile_service.dart';
 import '../../../services/search_service.dart';
 import '../../../services/shortlist_service.dart';
 import '../../../stores/deep_search_enrich_store.dart';
 import '../../../stores/search_store.dart';
+import '../../../stores/user_store.dart';
+import '../../../utils/api_error.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import '../../common/asset_icon.dart';
 import 'enrich_contact_email_modal.dart';
@@ -444,8 +448,11 @@ class _ProfileSectionState extends State<_ProfileSection> {
   final _searchService = SearchService();
   final _shortlistService = ShortlistService();
   final _connectorService = ConnectorService();
+  final _profileService = ProfileService();
+  final _messageService = MessageService();
   final Map<String, String> _favoriteMap = {};
   bool _emailConnected = false;
+  bool _isStartingChat = false;
 
   @override
   void initState() {
@@ -799,6 +806,16 @@ class _ProfileSectionState extends State<_ProfileSection> {
                   ),
                 ],
               ),
+              // 站内私信：仅对「在 dinq 注册且有主页」的用户展示（personalHomepage
+              // 指向 dinq.me/<domain>）。对齐 web ProfileSection 私信入口。
+              if (_dinqDomain(person.personalHomepage) case final domain?) ...[
+                const SizedBox(height: 8),
+                _MessageButton(
+                  loading: _isStartingChat,
+                  onPressed:
+                      _isStartingChat ? null : () => _startChat(domain),
+                ),
+              ],
             ],
           ],
         ),
@@ -942,6 +959,127 @@ class _ProfileSectionState extends State<_ProfileSection> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Added to folder')));
     }
+  }
+
+  /// 从 personalHomepage 解析 dinq 主页 domain（形如 dinq.me/xxx）。
+  /// 只有指向 dinq.me 单段路径、且非保留路径时才视为「已注册且有主页」的用户。
+  static const _reservedDomains = {
+    'invite',
+    'integration',
+    'api-playground',
+    'api',
+    'search',
+    'settings',
+    'signin',
+    'u',
+  };
+
+  String? _dinqDomain(String? homepage) {
+    if (homepage == null || homepage.isEmpty) return null;
+    final normalized =
+        homepage.startsWith('http') ? homepage : 'https://$homepage';
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) return null;
+    if (!uri.host.toLowerCase().endsWith('dinq.me')) return null;
+    final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (segs.length != 1) return null;
+    final domain = segs.first;
+    if (_reservedDomains.contains(domain.toLowerCase())) return null;
+    return domain;
+  }
+
+  /// 站内私信：先按 domain 解析出 user_id 再创建私聊会话（对齐 profile_page._startChat）。
+  /// 未登录跳登录；成功后进入会话详情页。
+  Future<void> _startChat(String domain) async {
+    if (_isStartingChat) return;
+    final userStore = context.read<UserStore>();
+    if (!userStore.isLoggedIn()) {
+      context.push('/signin');
+      return;
+    }
+    setState(() => _isStartingChat = true);
+    try {
+      final userData = await _profileService.getUserData(domain);
+      if (userData.userId.isEmpty) {
+        if (mounted) _snack('This user cannot be messaged');
+        return;
+      }
+      final resp =
+          await _messageService.createPrivateConversation(userData.userId);
+      final conv = resp['conversation'];
+      final convId =
+          (conv is Map ? (conv['id'] ?? conv['conversation_id']) : resp['id'])
+                  ?.toString() ??
+              '';
+      if (!mounted) return;
+      if (convId.isNotEmpty) {
+        context.push('/admin/inbox/$convId');
+      } else {
+        _snack('Failed to open conversation');
+      }
+    } catch (e) {
+      if (mounted) _snack(apiErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _isStartingChat = false);
+    }
+  }
+
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+}
+
+class _MessageButton extends StatelessWidget {
+  const _MessageButton({required this.loading, this.onPressed});
+
+  final bool loading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    const fg = Color(0xFF1F1F1F);
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _C.borderBtn),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (loading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                )
+              else
+                const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 14,
+                  color: fg,
+                ),
+              const SizedBox(width: 6),
+              const Text(
+                'Message',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

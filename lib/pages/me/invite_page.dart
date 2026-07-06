@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
@@ -148,15 +149,10 @@ class _InvitePageState extends State<InvitePage> {
   Widget _illustrationHeader() {
     return Column(
       children: [
-        Container(
-          width: 72,
-          height: 56,
-          decoration: BoxDecoration(
-            color: const Color(0xFFD9C2A1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          alignment: Alignment.center,
-          child: const Icon(Icons.mail_outline_rounded, size: 30, color: Colors.white),
+        SvgPicture.asset(
+          'assets/icons/invite-envelope.svg',
+          width: 84,
+          height: 67,
         ),
         const SizedBox(height: 16),
         const Text('Invite friends',
