@@ -4,10 +4,18 @@ import 'package:url_launcher/url_launcher.dart';
 import 'link_layouts.dart';
 
 class LinkWidget extends StatefulWidget {
-  const LinkWidget({super.key, required this.card, required this.size});
+  const LinkWidget({
+    super.key,
+    required this.card,
+    required this.size,
+    this.editable = false,
+    this.onUpdate,
+  });
 
   final dynamic card;
   final String size;
+  final bool editable;
+  final ValueChanged<Map<String, dynamic>>? onUpdate;
 
   @override
   State<LinkWidget> createState() => _LinkWidgetState();
@@ -43,6 +51,16 @@ class _LinkWidgetState extends State<LinkWidget> {
     // Compute effective preview image: og_image -> screenshot_url
     final ogImage = rawOgImage.isNotEmpty ? rawOgImage : screenshotUrl;
 
+    // 编辑态换图/贴 URL/删除时，同时写 og_image 与 screenshot_url，
+    // 保证有效预览图 = 用户所选的那张（删除即真正清空，不再回退截图）。
+    void handleImageChange(String value) {
+      widget.onUpdate?.call({
+        ...metadata,
+        'og_image': value,
+        'screenshot_url': value,
+      });
+    }
+
     late final Widget child;
     switch (widget.size) {
       case '2x2':
@@ -58,6 +76,8 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
+          editable: widget.editable,
+          onImageChange: handleImageChange,
         );
         break;
       case '4x2':
@@ -66,6 +86,8 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
+          editable: widget.editable,
+          onImageChange: handleImageChange,
         );
         break;
       case '4x4':
@@ -74,6 +96,8 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
+          editable: widget.editable,
+          onImageChange: handleImageChange,
         );
         break;
       default:
