@@ -74,8 +74,9 @@ class _ConfirmBlockViewState extends State<ConfirmBlockView> {
     final split = _split;
     final isLocked = widget.block.isStreaming;
     final value = _controller.text;
-    final isConsumed =
-        context.watch<QuickRepliesStore>().isUsed(widget.block.id);
+    final isConsumed = context.watch<QuickRepliesStore>().isUsed(
+      widget.block.id,
+    );
 
     if (isConsumed) {
       return Padding(
@@ -87,7 +88,10 @@ class _ConfirmBlockViewState extends State<ConfirmBlockView> {
             if (value.trim().isNotEmpty) ...[
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFE5E3DE)),
@@ -150,6 +154,11 @@ class _ConfirmBlockViewState extends State<ConfirmBlockView> {
               ),
               decoration: const InputDecoration(
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
                 hintText: 'Edit your search criteria…',
@@ -166,9 +175,9 @@ class _ConfirmBlockViewState extends State<ConfirmBlockView> {
               onPressed: isLocked || value.trim().isEmpty
                   ? null
                   : () {
-                      context
-                          .read<QuickRepliesStore>()
-                          .markUsed(widget.block.id);
+                      context.read<QuickRepliesStore>().markUsed(
+                        widget.block.id,
+                      );
                       widget.onStartSearch(value.trim(), startSearchLabel);
                     },
               icon: const Icon(Icons.search, size: 16),
@@ -177,7 +186,10 @@ class _ConfirmBlockViewState extends State<ConfirmBlockView> {
                 backgroundColor: const Color(0xFF2A2826),
                 disabledBackgroundColor: const Color(0xFFA5A39E),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -201,11 +213,7 @@ class _IntroProse extends StatelessWidget {
       data: intro,
       selectable: true,
       styleSheet: MarkdownStyleSheet(
-        p: const TextStyle(
-          fontSize: 14,
-          height: 1.5,
-          color: Color(0xFF4A4845),
-        ),
+        p: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF4A4845)),
         strong: const TextStyle(
           fontWeight: FontWeight.w600,
           color: Color(0xFF3A3835),
