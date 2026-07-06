@@ -4,7 +4,6 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../models/user_models.dart';
@@ -37,7 +36,7 @@ class ExportQrCard extends StatelessWidget {
 
   String get _avatarUrl => userInfo.avatarUrl.isNotEmpty
       ? userInfo.avatarUrl
-      : assetPath('images/default-avatar.svg');
+      : assetPath('profile/default-avator.png');
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +116,7 @@ class ExportQrCard extends StatelessWidget {
           child: ClipOval(
             child: _avatarUrl.startsWith('http')
                 ? Image.network(_avatarUrl, fit: BoxFit.cover)
-                : SvgPicture.asset(
+                : Image.asset(
                     _avatarUrl,
                     width: 52,
                     height: 52,

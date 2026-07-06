@@ -65,6 +65,22 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   bool _isDownloading = false;
   String? _downloadError;
   final GlobalKey _moreButtonKey = GlobalKey();
+  late Map<String, String> _shareTheme;
+
+  @override
+  void initState() {
+    super.initState();
+    final theme = widget.userData.theme ?? ShareCardTheme();
+    _shareTheme = {
+      'mode': theme.mode,
+      'color': theme.color,
+      if (theme.logo != null && theme.logo!.isNotEmpty) 'logo': theme.logo!,
+      if (theme.leftCard != null && theme.leftCard!.isNotEmpty)
+        'leftCard': theme.leftCard!,
+      if (theme.rightCard != null && theme.rightCard!.isNotEmpty)
+        'rightCard': theme.rightCard!,
+    };
+  }
 
   String get _shareTitle {
     return _isSelf
@@ -219,6 +235,39 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     }
   }
 
+  Future<void> _handleShareThemeChange(String key, String value) async {
+    setState(() {
+      if (value.isEmpty) {
+        _shareTheme.remove(key);
+      } else {
+        _shareTheme[key] = value;
+      }
+    });
+
+    final payloadTheme = {
+      'mode': _shareTheme['mode'] ?? 'classic',
+      'color': _shareTheme['color'] ?? 'default',
+      if ((_shareTheme['logo'] ?? '').isNotEmpty) 'logo': _shareTheme['logo'],
+      if ((_shareTheme['leftCard'] ?? '').isNotEmpty)
+        'left_card': _shareTheme['leftCard'],
+      if ((_shareTheme['rightCard'] ?? '').isNotEmpty)
+        'right_card': _shareTheme['rightCard'],
+    };
+
+    try {
+      await context.read<UserStore>().updateUserData({'theme': payloadTheme});
+    } catch (_) {
+      if (!mounted) return;
+      TopToastUtil.showCustom(
+        context: context,
+        icon: Icons.error_outline,
+        iconColor: Colors.red,
+        title: 'Update failed',
+        description: 'Please try again.',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final mediaSize = MediaQuery.of(context).size;
@@ -325,6 +374,8 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                                 cards: cardStore.cards,
                                 height: cardPreviewHeight,
                                 isEditable: _isSelf,
+                                theme: _shareTheme,
+                                onThemeChange: _handleShareThemeChange,
                               );
                             },
                           )

@@ -1,7 +1,9 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/card_models.dart';
 import '../../models/user_models.dart';
+import '../../services/upload_service.dart';
 import '../share_card/share_card.dart';
 
 /// 分享卡片预览组件，对应 Web [ExportCard](example/.../shareCard/ExportCard.tsx)。
@@ -60,6 +62,9 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
   /// Card 模式下的左/右卡片类型，与 TSX theme.leftCard / theme.rightCard 对应
   String? _leftCard;
   String? _rightCard;
+  String? _logoUrl;
+  bool _uploadingLogo = false;
+  final _uploadService = UploadService();
 
   @override
   void initState() {
@@ -69,6 +74,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
     _themeColor = widget.theme?['color'] ?? userTheme?.color ?? 'default';
     _leftCard = widget.theme?['leftCard'] ?? userTheme?.leftCard;
     _rightCard = widget.theme?['rightCard'] ?? userTheme?.rightCard;
+    _logoUrl = widget.theme?['logo'] ?? userTheme?.logo;
   }
 
   @override
@@ -81,6 +87,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
       _themeColor = widget.theme?['color'] ?? userTheme?.color ?? 'default';
       _leftCard = widget.theme?['leftCard'] ?? userTheme?.leftCard;
       _rightCard = widget.theme?['rightCard'] ?? userTheme?.rightCard;
+      _logoUrl = widget.theme?['logo'] ?? userTheme?.logo;
     }
   }
 
@@ -111,9 +118,45 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
         case 'rightCard':
           _rightCard = value.isEmpty ? null : value;
           break;
+        case 'logo':
+          _logoUrl = value.isEmpty ? null : value;
+          break;
       }
     });
     widget.onThemeChange?.call(key, value);
+  }
+
+  Future<void> _pickAndUploadLogo() async {
+    if (_uploadingLogo) return;
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+
+    final file = result.files.single;
+    final ext = (file.extension ?? 'jpg').toLowerCase();
+    final contentType = switch (ext) {
+      'png' => 'image/png',
+      'gif' => 'image/gif',
+      'webp' => 'image/webp',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      _ => 'image/jpeg',
+    };
+
+    try {
+      setState(() => _uploadingLogo = true);
+      final logoUrl = await _uploadService.uploadFile(
+        bytes: file.bytes!,
+        filename: file.name,
+        contentType: contentType,
+      );
+      _handleThemeChange('logo', logoUrl);
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
+    }
   }
 
   /// 可选：Card 模式下左卡选项（与 TSX FIRST_CARDS.filter(ct => cardsMap[ct] || ct === 'BIO')）
@@ -180,9 +223,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
                         themeColor: _themeColor,
                         leftCardType: _leftCard,
                         rightCardType: _rightCard,
-                        logoUrl: widget.theme?['logo']?.isNotEmpty == true
-                            ? widget.theme!['logo']
-                            : widget.userData.theme?.logo,
+                        logoUrl: _logoUrl,
                         verifiedCount: widget.verifiedCount,
                       ),
                     ),
@@ -190,11 +231,72 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
                 ),
                 if (widget.isEditable && _themeMode == 'card')
                   _buildCardDropdownOverlays(scale),
+                if (widget.isEditable) _buildLogoUploadHotspot(scale),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLogoUploadHotspot(double scale) {
+    return Positioned(
+      top: 20 * scale,
+      right: 20 * scale,
+      child: SizedBox(
+        width: 60 * scale,
+        height: 60 * scale,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _pickAndUploadLogo,
+                child: const SizedBox.expand(),
+              ),
+            ),
+            if (_uploadingLogo)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: 18 * scale,
+                    height: 18 * scale,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            if ((_logoUrl ?? '').isNotEmpty && !_uploadingLogo)
+              Positioned(
+                top: -7 * scale,
+                right: -7 * scale,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _handleThemeChange('logo', ''),
+                  child: Container(
+                    width: 18 * scale,
+                    height: 18 * scale,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFDC2626),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.close,
+                      size: 12 * scale,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

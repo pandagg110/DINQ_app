@@ -160,16 +160,7 @@ class ShareCard extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        CircleAvatar(
-          radius: 60,
-          backgroundColor: const Color(0xFFF3F4F6),
-          backgroundImage: userInfo.avatarUrl.isNotEmpty
-              ? NetworkImage(userInfo.avatarUrl)
-              : null,
-          child: userInfo.avatarUrl.isEmpty
-              ? const Icon(Icons.person, color: Color(0xFF9CA3AF), size: 60)
-              : null,
-        ),
+        _buildUserAvatar(),
         const SizedBox(width: 24),
         Expanded(
           child: Column(
@@ -249,14 +240,40 @@ class ShareCard extends StatelessWidget {
           height: 120,
           child: logoUrl != null && logoUrl!.isNotEmpty
               ? Image.network(logoUrl!, fit: BoxFit.contain)
-              : SvgPicture.asset(
-                  assetPath('logo/dinq-black.svg'),
-                  width: 120,
-                  height: 120,
+              : Image.asset(
+                  assetPath('profile/default-avator.png'),
                   fit: BoxFit.contain,
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildUserAvatar() {
+    final fallback = Image.asset(
+      assetPath('profile/default-avator.png'),
+      width: 120,
+      height: 120,
+      fit: BoxFit.cover,
+    );
+
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Color(0xFFF3F4F6),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: userInfo.avatarUrl.isNotEmpty
+          ? Image.network(
+              userInfo.avatarUrl,
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => fallback,
+            )
+          : fallback,
     );
   }
 
