@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -10,6 +10,9 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../services/upload_service.dart';
+import '../../../common/read_bytes_from_path_stub.dart'
+    if (dart.library.io) '../../../common/read_bytes_from_path_io.dart'
+    as path_reader;
 import '../card_definition.dart';
 
 /// 自定义内联代码渲染器，匹配 TSX 版本的样式
@@ -153,6 +156,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
   bool _isEditingTag = false;
   bool _isUploading = false;
   bool _mediaError = false;
+  Uint8List? _localMediaBytes;
 
   @override
   void initState() {
@@ -196,6 +200,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
           "**This is your title**\n\nthis is your description content, and your **name**, and *more*\n\n`tag`[dinq.me](https://dinq.me)";
       _tag = metadata['tag']?.toString() ?? 'CONFERENCE / TAG';
       _isVideo = metadata['isVideo'] == true;
+      _localMediaBytes = null;
       _markdownController.text = _markdownContent;
       _tagController.text = _tag;
     });
@@ -244,30 +249,27 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
   }
 
   Future<void> _handleMediaUpload() async {
-    if (!widget.editable) return;
+    if (!widget.editable || _isUploading) return;
 
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.media,
         allowMultiple: false,
+        withData: true,
       );
 
       if (result == null || result.files.isEmpty) return;
 
       final file = result.files.first;
-      if (file.path == null) return;
-
-      final fileBytes = await File(file.path!).readAsBytes();
+      final extension = (file.extension ?? '').toLowerCase();
       final isVideoFile =
-          file.extension?.toLowerCase() == 'mp4' ||
-          file.extension?.toLowerCase() == 'mov' ||
-          file.extension?.toLowerCase() == 'avi';
+          extension == 'mp4' || extension == 'mov' || extension == 'avi';
       final isImageFile =
-          file.extension?.toLowerCase() == 'jpg' ||
-          file.extension?.toLowerCase() == 'jpeg' ||
-          file.extension?.toLowerCase() == 'png' ||
-          file.extension?.toLowerCase() == 'gif' ||
-          file.extension?.toLowerCase() == 'webp';
+          extension == 'jpg' ||
+          extension == 'jpeg' ||
+          extension == 'png' ||
+          extension == 'gif' ||
+          extension == 'webp';
 
       if (!isImageFile && !isVideoFile) {
         if (mounted) {
@@ -275,6 +277,22 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
             context: context,
             title: 'Upload Failed',
             description: 'Please upload an image or video file',
+          );
+        }
+        return;
+      }
+
+      Uint8List fileBytes;
+      if (file.bytes != null) {
+        fileBytes = file.bytes!;
+      } else if (!kIsWeb && file.path != null && file.path!.isNotEmpty) {
+        fileBytes = await path_reader.readBytesFromPath(file.path!);
+      } else {
+        if (mounted) {
+          TopToastUtil.showError(
+            context: context,
+            title: 'Upload Failed',
+            description: 'Unable to read the selected file. Please try again.',
           );
         }
         return;
@@ -297,22 +315,21 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
         _isUploading = true;
         _mediaError = false;
         _isVideo = isVideoFile;
+        _localMediaBytes = isImageFile ? fileBytes : null;
       });
 
-      // 显示预览
-      setState(() => _mediaUrl = file.path!);
-
       try {
-        final contentType = isVideoFile
-            ? 'video/${file.extension}'
-            : 'image/${file.extension}';
         final uploadedUrl = await _uploadService.uploadFile(
           bytes: Uint8List.fromList(fileBytes),
           filename: file.name,
-          contentType: contentType,
+          contentType: _contentTypeForExtension(extension, isVideoFile),
         );
 
-        setState(() => _mediaUrl = uploadedUrl);
+        setState(() {
+          _mediaUrl = uploadedUrl;
+          _localMediaBytes = null;
+          _mediaError = false;
+        });
         widget.onUpdate({
           ...widget.card.data.metadata,
           'url': uploadedUrl,
@@ -331,6 +348,7 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
         setState(() {
           _mediaError = true;
           _mediaUrl = '';
+          _localMediaBytes = null;
         });
       } finally {
         setState(() => _isUploading = false);
@@ -347,11 +365,34 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
     }
   }
 
+  String _contentTypeForExtension(String extension, bool isVideo) {
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'mov':
+        return 'video/quicktime';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'mp4':
+        return 'video/mp4';
+      default:
+        return isVideo ? 'video/mp4' : 'image/jpeg';
+    }
+  }
+
   void _handleMediaRemove() {
     setState(() {
       _mediaUrl = '';
       _isVideo = false;
       _mediaError = false;
+      _localMediaBytes = null;
     });
     widget.onUpdate({
       ...widget.card.data.metadata,
@@ -631,25 +672,11 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
         ),
         child: Stack(
           children: [
-            if (_mediaUrl.isNotEmpty && !_mediaError)
+            if ((_mediaUrl.isNotEmpty || _localMediaBytes != null) &&
+                !_mediaError)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: _isVideo
-                    ? _buildVideoPlayer()
-                    : Image.network(
-                        _mediaUrl,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (context, error, stackTrace) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) {
-                              setState(() => _mediaError = true);
-                            }
-                          });
-                          return _buildEmptyMedia();
-                        },
-                      ),
+                child: _isVideo ? _buildVideoPlayer() : _buildImagePreview(),
               )
             else
               _buildEmptyMedia(),
@@ -707,6 +734,33 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
           child: Icon(Icons.play_circle_outline, color: Colors.white, size: 48),
         ),
       ),
+    );
+  }
+
+  Widget _buildImagePreview() {
+    final localBytes = _localMediaBytes;
+    if (localBytes != null) {
+      return Image.memory(
+        localBytes,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+
+    return Image.network(
+      _mediaUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() => _mediaError = true);
+          }
+        });
+        return _buildEmptyMedia();
+      },
     );
   }
 
