@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../social_image_upload_preview.dart';
+
 class LinkLayouts {
   // Special icons that override backend favicon
   static const Map<String, String> specialIcons = {
@@ -45,7 +47,7 @@ class LinkLayouts {
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -139,6 +141,8 @@ class LinkLayouts {
     required String url,
     required String? favicon,
     required String? ogImage,
+    required bool editable,
+    required ValueChanged<String> onImageChange,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -182,20 +186,10 @@ class LinkLayouts {
             Expanded(
               child: AspectRatio(
                 aspectRatio: 1.0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    ogImage,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(Icons.image, color: Colors.grey),
-                        ),
-                      );
-                    },
-                  ),
+                child: _buildPreviewImage(
+                  imageUrl: ogImage,
+                  editable: editable,
+                  onImageChange: onImageChange,
                 ),
               ),
             ),
@@ -210,6 +204,8 @@ class LinkLayouts {
     required String url,
     required String? favicon,
     required String? ogImage,
+    required bool editable,
+    required ValueChanged<String> onImageChange,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -261,21 +257,11 @@ class LinkLayouts {
             Expanded(
               child: AspectRatio(
                 aspectRatio: 1.0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    ogImage,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.centerLeft,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(Icons.image, color: Colors.grey),
-                        ),
-                      );
-                    },
-                  ),
+                child: _buildPreviewImage(
+                  imageUrl: ogImage,
+                  editable: editable,
+                  onImageChange: onImageChange,
+                  objectFit: BoxFit.cover,
                 ),
               ),
             ),
@@ -290,6 +276,8 @@ class LinkLayouts {
     required String url,
     required String? favicon,
     required String? ogImage,
+    required bool editable,
+    required ValueChanged<String> onImageChange,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -340,23 +328,31 @@ class LinkLayouts {
           if (ogImage != null && ogImage.isNotEmpty)
             AspectRatio(
               aspectRatio: 2.0,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  ogImage,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.image, color: Colors.grey),
-                      ),
-                    );
-                  },
-                ),
+              child: _buildPreviewImage(
+                imageUrl: ogImage,
+                editable: editable,
+                onImageChange: onImageChange,
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  static Widget _buildPreviewImage({
+    required String imageUrl,
+    required bool editable,
+    required ValueChanged<String> onImageChange,
+    BoxFit objectFit = BoxFit.cover,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SocialImageUploadPreview(
+        imageUrl: imageUrl,
+        editable: editable,
+        altText: 'Link preview image',
+        objectFit: objectFit,
+        onImageChange: onImageChange,
       ),
     );
   }

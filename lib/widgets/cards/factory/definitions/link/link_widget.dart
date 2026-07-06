@@ -4,10 +4,20 @@ import 'package:url_launcher/url_launcher.dart';
 import 'link_layouts.dart';
 
 class LinkWidget extends StatefulWidget {
-  const LinkWidget({super.key, required this.card, required this.size});
+  const LinkWidget({
+    super.key,
+    required this.card,
+    required this.size,
+    required this.editable,
+    required this.isSelected,
+    required this.onUpdate,
+  });
 
   final dynamic card;
   final String size;
+  final bool editable;
+  final bool isSelected;
+  final ValueChanged<Map<String, dynamic>> onUpdate;
 
   @override
   State<LinkWidget> createState() => _LinkWidgetState();
@@ -29,6 +39,17 @@ class _LinkWidgetState extends State<LinkWidget> {
   Future<void> _openUrl(String url) async {
     if (url.isEmpty) return;
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  void _handlePreviewImageChange(String imageUrl) {
+    final metadata = Map<String, dynamic>.from(widget.card.data.metadata);
+    if (imageUrl.isEmpty) {
+      metadata['og_image'] = '';
+      metadata['screenshot_url'] = '';
+    } else {
+      metadata['og_image'] = imageUrl;
+    }
+    widget.onUpdate(metadata);
   }
 
   @override
@@ -58,6 +79,8 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
+          editable: widget.editable && widget.isSelected,
+          onImageChange: _handlePreviewImageChange,
         );
         break;
       case '4x2':
@@ -66,6 +89,8 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
+          editable: widget.editable && widget.isSelected,
+          onImageChange: _handlePreviewImageChange,
         );
         break;
       case '4x4':
@@ -74,6 +99,8 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
+          editable: widget.editable && widget.isSelected,
+          onImageChange: _handlePreviewImageChange,
         );
         break;
       default:
@@ -82,7 +109,7 @@ class _LinkWidgetState extends State<LinkWidget> {
 
     final tapTarget = GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _toggleDetails,
+      onTap: widget.editable ? null : _toggleDetails,
       child: child,
     );
 
