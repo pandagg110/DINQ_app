@@ -299,8 +299,11 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
         _isVideo = isVideoFile;
       });
 
-      // 显示预览
-      setState(() => _mediaUrl = file.path!);
+      // 注意：不要在这里把 _mediaUrl 设成本地 file.path 做「预览」。
+      // 媒体区用的是 Image.network，喂本地路径必然触发 errorBuilder →
+      // _mediaError=true，随后即使拿到上传后的网络 URL，也会因为
+      // (_mediaUrl.isNotEmpty && !_mediaError) 为 false 而不显示，必须退出重进
+      // 才恢复。上传期间只显示 loading 蒙层即可。
 
       try {
         final contentType = isVideoFile
@@ -312,7 +315,10 @@ class _MarkdownCardWidgetState extends State<_MarkdownCardWidget> {
           contentType: contentType,
         );
 
-        setState(() => _mediaUrl = uploadedUrl);
+        setState(() {
+          _mediaError = false;
+          _mediaUrl = uploadedUrl;
+        });
         widget.onUpdate({
           ...widget.card.data.metadata,
           'url': uploadedUrl,
