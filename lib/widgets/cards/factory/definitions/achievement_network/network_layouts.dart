@@ -228,25 +228,47 @@ class NetworkLayouts {
     required Function(Map<String, dynamic>, int) onOpenModal,
     required bool isTopRow,
   }) {
-    return Wrap(
-      spacing: -8,
-      children: connections.asMap().entries.map((entry) {
-        final index = entry.key;
-        final connection = entry.value;
-        final connectionKey = '${connection['name']}-$index';
-        return _buildAvatar(
-          connection: connection,
-          connectionKey: connectionKey,
-          index: index,
-          activeHoverKey: activeHoverKey,
-          hoverCardOffset: hoverCardOffset,
-          onHover: onHover,
-          onHoverEnd: onHoverEnd,
-          onOpenModal: onOpenModal,
-          isTopRow: isTopRow,
-          size: 32,
+    const double size = 32;
+    // 默认相邻头像重叠 8px；宽度不够时自动加大重叠，保证单行展示不折行
+    const double defaultStep = size - 8;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final count = connections.length;
+        if (count == 0) return const SizedBox.shrink();
+        double step = defaultStep;
+        if (count > 1 && constraints.maxWidth.isFinite) {
+          final maxStep = (constraints.maxWidth - size) / (count - 1);
+          if (maxStep < step) step = maxStep < 0 ? 0 : maxStep;
+        }
+        final rowWidth = size + step * (count - 1);
+        return SizedBox(
+          width: rowWidth,
+          height: size,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: connections.asMap().entries.map((entry) {
+              final index = entry.key;
+              final connection = entry.value;
+              final connectionKey = '${connection['name']}-$index';
+              return Positioned(
+                left: index * step,
+                child: _buildAvatar(
+                  connection: connection,
+                  connectionKey: connectionKey,
+                  index: index,
+                  activeHoverKey: activeHoverKey,
+                  hoverCardOffset: hoverCardOffset,
+                  onHover: onHover,
+                  onHoverEnd: onHoverEnd,
+                  onOpenModal: onOpenModal,
+                  isTopRow: isTopRow,
+                  size: size,
+                ),
+              );
+            }).toList(),
+          ),
         );
-      }).toList(),
+      },
     );
   }
 
