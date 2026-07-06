@@ -301,25 +301,11 @@ class LinkedInComponents {
               return Positioned(
                 left: left,
                 top: 0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    buildOrgLogo(
-                      logo: item['logo']?.toString(),
-                      name: item['name']?.toString() ?? '',
-                      size: 'md',
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${item['year']}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF9CA3AF),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                // 长卡片下方年份先不显示：节点过密时年份文字会互相重叠
+                child: buildOrgLogo(
+                  logo: item['logo']?.toString(),
+                  name: item['name']?.toString() ?? '',
+                  size: 'md',
                 ),
               );
             }),
@@ -367,6 +353,14 @@ class LinkedInComponents {
         final plotWidth = chartWidth - horizontalPadding * 2;
         final plotHeight = chartHeight - marginBottom;
 
+        // 年份标签降采样：按可用宽度计算最多能放多少个标签（每个约 48px），
+        // 超出则隔档显示，并保证最新年份（最后一个节点）始终显示
+        const minLabelWidth = 48.0;
+        final maxLabels = (plotWidth / minLabelWidth)
+            .floor()
+            .clamp(1, chartData.length);
+        final labelStep = (chartData.length / maxLabels).ceil();
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
           child: Stack(
@@ -403,7 +397,12 @@ class LinkedInComponents {
                         interval: 1,
                         getTitlesWidget: (value, meta) {
                           final index = value.toInt();
-                          if (index >= 0 && index < chartData.length) {
+                          // 从最后一个节点往前隔 labelStep 取，其余不显示
+                          final showLabel =
+                              (chartData.length - 1 - index) % labelStep == 0;
+                          if (index >= 0 &&
+                              index < chartData.length &&
+                              showLabel) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
