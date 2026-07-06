@@ -469,6 +469,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
         ),
         const SizedBox(height: 6),
         DropdownMenu<String>(
+          width: double.infinity,
           key: ValueKey('job_$initialValue'),
           initialSelection: initialValue,
           hintText: 'Not set',
@@ -534,6 +535,7 @@ class _ProfileEditBottomSheetState extends State<_ProfileEditBottomSheet> {
         ),
         const SizedBox(height: 6),
         DropdownMenu<String>(
+          width: double.infinity,
           key: ValueKey('tz_$initialValue'),
           initialSelection: initialValue,
           hintText: 'Select timezone',
