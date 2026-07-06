@@ -214,7 +214,8 @@ class _OnboardingProfileExpertiseViewState
             SizedBox(
               height: 44,
               child: OutlinedButton(
-                onPressed: tags.length >= profileTagLimit ||
+                onPressed:
+                    tags.length >= profileTagLimit ||
                         _customTagController.text.trim().isEmpty
                     ? null
                     : _addCustomTag,
@@ -243,50 +244,55 @@ class _OnboardingProfileExpertiseViewState
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _bioController,
-          maxLines: 5,
-          maxLength: profileBioLimit,
-          onChanged: (value) {
-            final next = value.length > profileBioLimit
-                ? value.substring(0, profileBioLimit)
-                : value;
-            widget.onBioChanged(next);
-            setState(() {});
-          },
-          decoration: InputDecoration(
-            hintText:
-                'A concise intro about your work, focus, and current interests.',
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
+        Stack(
+          children: [
+            TextField(
+              controller: _bioController,
+              maxLines: 5,
+              maxLength: profileBioLimit,
+              onChanged: (value) {
+                final next = value.length > profileBioLimit
+                    ? value.substring(0, profileBioLimit)
+                    : value;
+                widget.onBioChanged(next);
+                setState(() {});
+              },
+              decoration: InputDecoration(
+                hintText:
+                    'A concise intro about your work, focus, and current interests.',
+                counterText: '',
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 30),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFF171717)),
+                ),
+              ),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
+            Positioned(
+              right: 12,
+              bottom: 10,
+              child: IgnorePointer(
+                child: Text(
+                  '${_bioController.text.length}/$profileBioLimit',
+                  style: const TextStyle(
+                    fontFamily: 'Geist',
+                    fontSize: 12,
+                    color: Color(0xFF6B6862),
+                  ),
+                ),
+              ),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF171717)),
-            ),
-          ),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            '${_bioController.text.length}/$profileBioLimit',
-            style: const TextStyle(
-              fontFamily: 'Geist',
-              fontSize: 12,
-              color: Color(0xFF9E9B93),
-            ),
-          ),
+          ],
         ),
       ],
     );
