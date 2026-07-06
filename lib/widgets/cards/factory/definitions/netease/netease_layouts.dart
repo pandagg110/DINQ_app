@@ -103,21 +103,13 @@ class NeteaseLayouts {
           const Spacer(),
           // Cover image - Square
           if (coverImageUrl != null && coverImageUrl.isNotEmpty)
-            AspectRatio(
-              aspectRatio: 1.0,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  coverImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.music_note, color: Colors.grey),
-                      ),
-                    );
-                  },
+            SizedBox(
+              width: double.infinity,
+              child: AspectRatio(
+                aspectRatio: 1.0,
+                child: _NeteaseCoverImage(
+                  coverImageUrl: coverImageUrl,
+                  borderRadius: 12,
                 ),
               ),
             ),
@@ -203,20 +195,9 @@ class NeteaseLayouts {
           if (coverImageUrl != null && coverImageUrl.isNotEmpty)
             SizedBox(
               width: 128,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  coverImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.music_note, color: Colors.grey),
-                      ),
-                    );
-                  },
-                ),
+              child: _NeteaseCoverImage(
+                coverImageUrl: coverImageUrl,
+                borderRadius: 12,
               ),
             ),
         ],
@@ -280,27 +261,51 @@ class NeteaseLayouts {
           // Cover image - Takes most space
           if (coverImageUrl != null && coverImageUrl.isNotEmpty)
             Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  coverImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(
-                          Icons.music_note,
-                          size: 48,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    );
-                  },
+              child: SizedBox(
+                width: double.infinity,
+                child: _NeteaseCoverImage(
+                  coverImageUrl: coverImageUrl,
+                  borderRadius: 16,
+                  iconSize: 48,
                 ),
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _NeteaseCoverImage extends StatelessWidget {
+  const _NeteaseCoverImage({
+    required this.coverImageUrl,
+    required this.borderRadius,
+    this.iconSize = 24,
+  });
+
+  final String coverImageUrl;
+  final double borderRadius;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: Image.network(
+        coverImageUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.grey[200],
+            child: Center(
+              child: Icon(Icons.music_note, size: iconSize, color: Colors.grey),
+            ),
+          );
+        },
       ),
     );
   }
