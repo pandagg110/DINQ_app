@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../stores/resume_store.dart';
 import '../../stores/user_store.dart';
 
 /// Settings 页（对齐线上 set_b 设计）：
@@ -63,6 +64,8 @@ class SettingsPage extends StatelessWidget {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
+                  // 清掉跨用户会残留的简历数据，避免新账号看到上一用户的简历
+                  context.read<ResumeStore>().clear();
                   userStore.logout();
                   context.go('/signin');
                 },
