@@ -64,6 +64,16 @@ class _LinkWidgetState extends State<LinkWidget> {
     // Compute effective preview image: og_image -> screenshot_url
     final ogImage = rawOgImage.isNotEmpty ? rawOgImage : screenshotUrl;
 
+    // 编辑态换图/贴 URL/删除时，同时写 og_image 与 screenshot_url，
+    // 保证有效预览图 = 用户所选的那张（删除即真正清空，不再回退截图）。
+    void handleImageChange(String value) {
+      widget.onUpdate?.call({
+        ...metadata,
+        'og_image': value,
+        'screenshot_url': value,
+      });
+    }
+
     late final Widget child;
     switch (widget.size) {
       case '2x2':

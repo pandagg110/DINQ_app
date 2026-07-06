@@ -4,12 +4,46 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../social_image_upload_preview.dart';
 
 class LinkLayouts {
+  /// 预览图区域：编辑态用带「换图 / 贴 URL / 删除」三个操作的上传组件，
+  /// 只读态保持原来的 Image.network 展示。对齐 web 链接卡片。
+  static Widget _previewImage({
+    required String? ogImage,
+    required bool editable,
+    required ValueChanged<String>? onImageChange,
+    required String altText,
+    Alignment alignment = Alignment.center,
+  }) {
+    if (editable) {
+      return SocialImageUploadPreview(
+        imageUrl: ogImage ?? '',
+        editable: true,
+        altText: altText,
+        onImageChange: onImageChange ?? (_) {},
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        ogImage!,
+        fit: BoxFit.cover,
+        alignment: alignment,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Center(child: Icon(Icons.image, color: Colors.grey)),
+          );
+        },
+      ),
+    );
+  }
+
   // Special icons that override backend favicon
   static const Map<String, String> specialIcons = {
     'xiaohongshu.com': 'icons/social-icons/RedNote.svg',
     'xhslink.com': 'icons/social-icons/RedNote.svg',
     'discord.gg': 'icons/social-icons/Discord.svg',
     'discord.com': 'icons/social-icons/Discord.svg',
+    'openreview.net': 'icons/social-icons/OpenReview.svg',
     'dinq.me': 'logo/dinq-black.svg',
   };
 
@@ -144,6 +178,7 @@ class LinkLayouts {
     required bool editable,
     required ValueChanged<String> onImageChange,
   }) {
+    final hasImage = ogImage != null && ogImage.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -182,7 +217,7 @@ class LinkLayouts {
           ),
           const SizedBox(height: 16),
           // Bottom section: og_image (1:1 ratio)
-          if (ogImage != null && ogImage.isNotEmpty)
+          if (hasImage || editable)
             Expanded(
               child: AspectRatio(
                 aspectRatio: 1.0,
@@ -207,6 +242,7 @@ class LinkLayouts {
     required bool editable,
     required ValueChanged<String> onImageChange,
   }) {
+    final hasImage = ogImage != null && ogImage.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -253,7 +289,7 @@ class LinkLayouts {
           ),
           const SizedBox(width: 12),
           // Right section: preview image (1:1 ratio)
-          if (ogImage != null && ogImage.isNotEmpty)
+          if (hasImage || editable)
             Expanded(
               child: AspectRatio(
                 aspectRatio: 1.0,
@@ -279,6 +315,7 @@ class LinkLayouts {
     required bool editable,
     required ValueChanged<String> onImageChange,
   }) {
+    final hasImage = ogImage != null && ogImage.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -325,7 +362,7 @@ class LinkLayouts {
           ),
           const Spacer(),
           // Bottom section: og_image (2:1 ratio)
-          if (ogImage != null && ogImage.isNotEmpty)
+          if (hasImage || editable)
             AspectRatio(
               aspectRatio: 2.0,
               child: _buildPreviewImage(
