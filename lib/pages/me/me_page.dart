@@ -33,7 +33,10 @@ class _MePageState extends State<MePage> {
         setState(() => _isUploading = true);
 
         try {
-          final uploadedUrl = await _uploadService.uploadFile(bytes: file, filename: "image.jpg");
+          final uploadedUrl = await _uploadService.uploadFile(
+            bytes: file,
+            filename: "image.jpg",
+          );
           if (!mounted) {
             return;
           }
@@ -43,20 +46,32 @@ class _MePageState extends State<MePage> {
             return;
           }
           setState(() => _isUploading = false);
-          TopToastUtil.showSuccess(context: context, title: '上传成功', description: '头像已更新');
+          TopToastUtil.showSuccess(
+            context: context,
+            title: '上传成功',
+            description: '头像已更新',
+          );
         } catch (error) {
           if (!mounted) {
             return;
           }
           setState(() => _isUploading = false);
-          TopToastUtil.showError(context: context, title: '上传失败', description: error.toString());
+          TopToastUtil.showError(
+            context: context,
+            title: '上传失败',
+            description: error.toString(),
+          );
         }
       }
     } catch (error) {
       if (!mounted) {
         return;
       }
-      TopToastUtil.showError(context: context, title: '选择文件失败', description: error.toString());
+      TopToastUtil.showError(
+        context: context,
+        title: '选择文件失败',
+        description: error.toString(),
+      );
     }
   }
 
@@ -118,7 +133,11 @@ class _MePageState extends State<MePage> {
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () => context.push('/settings/profile'),
-                          child: Icon(Icons.edit_outlined, size: 18, color: ColorUtil.sub1TextColor),
+                          child: Icon(
+                            Icons.edit_outlined,
+                            size: 18,
+                            color: ColorUtil.sub1TextColor,
+                          ),
                         ),
                       ],
                     ),
@@ -138,32 +157,41 @@ class _MePageState extends State<MePage> {
                     const SizedBox(height: 16),
                     // 菜单分组卡
                     _menuCard([
-                      _menuItem(Icons.badge_outlined, 'My DINQ', () => context.push('/admin/mydinq')),
+                      _menuItem(
+                        Icons.badge_outlined,
+                        'My DINQ',
+                        () => context.push('/admin/mydinq'),
+                      ),
                       _menuDivider(),
-                      _menuItem(Icons.add_circle_outline, 'Create DINQ', () {
-                        final next = Uri.encodeComponent('/me');
-                        context.push('/generation?next=$next');
-                      }),
+                      _menuItem(
+                        Icons.business_outlined,
+                        'Organization',
+                        () => context.push('/me/organization'),
+                      ),
                       _menuDivider(),
-                      _menuItem(Icons.business_outlined, 'Organization',
-                          () => context.push('/me/organization')),
+                      _menuItem(
+                        Icons.code_rounded,
+                        'API Playground',
+                        () => context.push('/me/api-keys'),
+                      ),
                       _menuDivider(),
-                      _menuItem(Icons.code_rounded, 'API Playground',
-                          () => context.push('/me/api-keys')),
+                      _menuItem(
+                        Icons.description_outlined,
+                        'Resume',
+                        () => context.push('/admin/mydinq/resume'),
+                      ),
                       _menuDivider(),
-                      _menuItem(Icons.description_outlined, 'Resume',
-                          () => context.push('/admin/mydinq/resume')),
+                      _menuItem(
+                        Icons.hub_outlined,
+                        'Integrations',
+                        () => context.push('/me/integration'),
+                      ),
                       _menuDivider(),
-                      _menuItem(Icons.link_outlined, 'Add social links', () {
-                        final next = Uri.encodeComponent('/me');
-                        context.push('/generation?step=socials&next=$next');
-                      }),
-                      _menuDivider(),
-                      _menuItem(Icons.hub_outlined, 'Integrations',
-                          () => context.push('/me/integration')),
-                      _menuDivider(),
-                      _menuItem(Icons.settings_outlined, 'Settings',
-                          () => context.push('/settings')),
+                      _menuItem(
+                        Icons.settings_outlined,
+                        'Settings',
+                        () => context.push('/settings'),
+                      ),
                     ]),
                   ],
                 ),
@@ -184,7 +212,10 @@ class _MePageState extends State<MePage> {
           child: Container(
             width: 90,
             height: 90,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFE0F0FF)),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFE0F0FF),
+            ),
             child: ClipOval(
               child: _isUploading
                   ? const Center(child: CircularProgressIndicator())
@@ -194,7 +225,11 @@ class _MePageState extends State<MePage> {
                       width: 90,
                       height: 90,
                       fit: BoxFit.cover,
-                      placeholder: const Icon(Icons.person, size: 60, color: Colors.grey),
+                      placeholder: const Icon(
+                        Icons.person,
+                        size: 60,
+                        color: Colors.grey,
+                      ),
                     )
                   : const Icon(Icons.person, size: 60, color: Colors.grey),
             ),
@@ -295,7 +330,11 @@ class _MePageState extends State<MePage> {
                 children: [
                   Text(
                     'Available Credits',
-                    style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: Color(0xFF636363)),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Geist',
+                      color: Color(0xFF636363),
+                    ),
                   ),
                   Row(
                     children: [
@@ -326,11 +365,19 @@ class _MePageState extends State<MePage> {
               height: 54,
               child: Row(
                 children: [
-                  Icon(Icons.card_giftcard_outlined, size: 20, color: Color(0xFF636363)),
+                  Icon(
+                    Icons.card_giftcard_outlined,
+                    size: 20,
+                    color: Color(0xFF636363),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Invite friends, earn credits',
-                    style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: ColorUtil.textColor),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Geist',
+                      color: ColorUtil.textColor,
+                    ),
                   ),
                   const Spacer(),
                   AssetImageView("gray_right", width: 20, height: 20),
@@ -346,13 +393,21 @@ class _MePageState extends State<MePage> {
   // 菜单分组卡（对齐设计：单卡 + 分割线）
   Widget _menuCard(List<Widget> children) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(children: children),
     );
   }
 
   Widget _menuDivider() => const Divider(
-      height: 1, thickness: 1, color: Color(0xFFF3F2EF), indent: 16, endIndent: 16);
+    height: 1,
+    thickness: 1,
+    color: Color(0xFFF3F2EF),
+    indent: 16,
+    endIndent: 16,
+  );
 
   Widget _menuItem(IconData icon, String label, VoidCallback onTap) {
     return NormalButton(
@@ -364,8 +419,14 @@ class _MePageState extends State<MePage> {
           children: [
             Icon(icon, size: 22, color: ColorUtil.textColor),
             const SizedBox(width: 12),
-            Text(label,
-                style: TextStyle(fontSize: 15, fontFamily: 'Geist', color: ColorUtil.textColor)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontFamily: 'Geist',
+                color: ColorUtil.textColor,
+              ),
+            ),
             const Spacer(),
             AssetImageView("gray_right", width: 20, height: 20),
           ],
@@ -373,5 +434,4 @@ class _MePageState extends State<MePage> {
       ),
     );
   }
-
 }

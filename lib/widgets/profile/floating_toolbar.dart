@@ -139,7 +139,8 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
             title: 'Regenerate successful',
             description: 'Redirecting...',
           );
-          context.go('/generation');
+          final next = Uri.encodeComponent('/admin/mydinq');
+          context.go('/generation?next=$next');
         }
       } catch (e) {
         if (mounted) {
