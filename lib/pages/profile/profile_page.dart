@@ -469,6 +469,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                       const SizedBox(height: 32),
                       _ProfileFooter(
                         showOwnerStats: isEditable,
+                        username: widget.username,
                         totalViews: _totalViews,
                       ),
                     ],
@@ -563,10 +564,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 class _ProfileFooter extends StatelessWidget {
   const _ProfileFooter({
     required this.showOwnerStats,
+    required this.username,
     required this.totalViews,
   });
 
   final bool showOwnerStats;
+  final String username;
   final int totalViews;
 
   static const _textColor = Color(0xFF9CA3AF);
@@ -590,6 +593,18 @@ class _ProfileFooter extends StatelessWidget {
     return buffer.toString();
   }
 
+  void _showViewsStats(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _ViewsStatsBottomSheet(
+        username: username,
+        initialTotalViews: totalViews,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -611,13 +626,16 @@ class _ProfileFooter extends StatelessWidget {
           ),
           if (showOwnerStats) ...[
             const _FooterDivider(),
-            const Text(
-              'Views ',
-              style: TextStyle(fontSize: 14, color: _textColor),
-            ),
-            Text(
-              _formatViews(totalViews),
-              style: const TextStyle(fontSize: 14, color: _textColor),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _showViewsStats(context),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Views ${_formatViews(totalViews)}',
+                  style: const TextStyle(fontSize: 14, color: _textColor),
+                ),
+              ),
             ),
             const _FooterDivider(),
             GestureDetector(
@@ -654,7 +672,397 @@ class _FooterDivider extends StatelessWidget {
   }
 }
 
-// 设置姓名的 Dialog 组件
+// Page visitor details.
+class _ViewsStatsBottomSheet extends StatefulWidget {
+  const _ViewsStatsBottomSheet({
+    required this.username,
+    required this.initialTotalViews,
+  });
+
+  final String username;
+  final int initialTotalViews;
+
+  @override
+  State<_ViewsStatsBottomSheet> createState() => _ViewsStatsBottomSheetState();
+}
+
+class _ViewsStatsBottomSheetState extends State<_ViewsStatsBottomSheet> {
+  final ProfileService _profileService = ProfileService();
+  bool _loading = true;
+  List<_ViewerEntry> _viewers = const [];
+  int _total = 0;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadViewers();
+  }
+
+  Future<void> _loadViewers() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await _profileService.getViewers(
+        username: widget.username,
+        page: 1,
+        pageSize: 50,
+      );
+      final rawViewers = data['viewers'];
+      if (!mounted) return;
+      setState(() {
+        _total = _intFrom(data['total']);
+        _viewers = rawViewers is List
+            ? rawViewers.whereType<Map>().map((entry) {
+                return _ViewerEntry.fromJson(Map<String, dynamic>.from(entry));
+              }).toList()
+            : const [];
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = apiErrorMessage(e);
+        _loading = false;
+      });
+    }
+  }
+
+  String _plural(int value, String singular) {
+    return '$value $singular${value == 1 ? '' : 's'}';
+  }
+
+  int _intFrom(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.replaceAll(',', '')) ?? 0;
+    return 0;
+  }
+
+  int _locationCount() {
+    final groups = <String>{};
+    for (final viewer in _viewers) {
+      if (viewer.latitude == null || viewer.longitude == null) continue;
+      if (viewer.city.isEmpty) continue;
+      groups.add('${viewer.city}-${viewer.country}');
+    }
+    return groups.length;
+  }
+
+  Widget _buildVisitorsContent() {
+    final visits = _total > 0 ? _total : widget.initialTotalViews;
+    final locationCount = _locationCount();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 14),
+          child: Row(
+            children: [
+              const Text(
+                'Visitors',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF171717),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${_plural(visits, 'visit')} · ${_plural(locationCount, 'location')}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Color(0xFF9CA3AF)),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        Expanded(
+          child: _viewers.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No visitors yet',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 20, 32),
+                  itemBuilder: (context, index) {
+                    return _ViewerRow(viewer: _viewers[index]);
+                  },
+                  separatorBuilder: (_, index) => const SizedBox(height: 22),
+                  itemCount: _viewers.length,
+                ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomPadding),
+        child: Container(
+          constraints: const BoxConstraints(maxHeight: 560),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                    ? _ViewsError(message: _error!, onRetry: _loadViewers)
+                    : _buildVisitorsContent(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewerEntry {
+  const _ViewerEntry({
+    required this.viewerType,
+    required this.viewerName,
+    required this.viewerCompany,
+    required this.viewerAvatar,
+    required this.viewerUsername,
+    required this.country,
+    required this.city,
+    required this.latitude,
+    required this.longitude,
+    required this.lastViewedAt,
+    required this.viewCount,
+  });
+
+  factory _ViewerEntry.fromJson(Map<String, dynamic> json) {
+    double? doubleValue(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
+    int intValue(dynamic value) {
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    String textValue(String key) => json[key]?.toString().trim() ?? '';
+
+    return _ViewerEntry(
+      viewerType: textValue('viewer_type'),
+      viewerName: textValue('viewer_name'),
+      viewerCompany: textValue('viewer_company'),
+      viewerAvatar: textValue('viewer_avatar'),
+      viewerUsername: textValue('viewer_username'),
+      country: textValue('country'),
+      city: textValue('city'),
+      latitude: doubleValue(json['latitude']),
+      longitude: doubleValue(json['longitude']),
+      lastViewedAt: textValue('last_viewed_at'),
+      viewCount: intValue(json['view_count']),
+    );
+  }
+
+  final String viewerType;
+  final String viewerName;
+  final String viewerCompany;
+  final String viewerAvatar;
+  final String viewerUsername;
+  final String country;
+  final String city;
+  final double? latitude;
+  final double? longitude;
+  final String lastViewedAt;
+  final int viewCount;
+
+  bool get isAnonymous => viewerType == 'anonymous';
+
+  String get displayName {
+    if (isAnonymous) return 'Guest';
+    return viewerName.isEmpty ? 'User' : viewerName;
+  }
+
+  String get location =>
+      [city, country].where((part) => part.isNotEmpty).join(', ');
+
+  String get subtitle {
+    if (isAnonymous) return location;
+    return [
+      viewerCompany,
+      location,
+    ].where((part) => part.isNotEmpty).join(' · ');
+  }
+}
+
+class _ViewerRow extends StatelessWidget {
+  const _ViewerRow({required this.viewer});
+
+  final _ViewerEntry viewer;
+
+  String _formatTimeAgo(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return '';
+    final diff = DateTime.now().difference(parsed.toLocal());
+    if (diff.inDays >= 365) return '${diff.inDays ~/ 365}y';
+    if (diff.inDays >= 30) return '${diff.inDays ~/ 30}mo';
+    if (diff.inDays >= 1) return '${diff.inDays}d';
+    if (diff.inHours >= 1) return '${diff.inHours}h';
+    if (diff.inMinutes >= 1) return '${diff.inMinutes}m';
+    return 'now';
+  }
+
+  Widget _avatar() {
+    final image = viewer.isAnonymous ? '' : viewer.viewerAvatar;
+    if (image.isEmpty) {
+      return SvgPicture.asset(
+        'assets/images/default-avatar.svg',
+        width: 40,
+        height: 40,
+      );
+    }
+    return ClipOval(
+      child: Image.network(
+        image,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, error, stackTrace) {
+          return SvgPicture.asset(
+            'assets/images/default-avatar.svg',
+            width: 40,
+            height: 40,
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final timeAgo = _formatTimeAgo(viewer.lastViewedAt);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _avatar(),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      viewer.displayName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF171717),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (viewer.viewCount > 1) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      '×${viewer.viewCount}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (viewer.subtitle.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  viewer.subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6B7280),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (timeAgo.isNotEmpty) ...[
+          const SizedBox(width: 12),
+          Text(
+            timeAgo,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ViewsError extends StatelessWidget {
+  const _ViewsError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SetNameDialog extends StatefulWidget {
   final TextEditingController nameController;
   final Future<void> Function() onSave;

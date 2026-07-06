@@ -134,4 +134,20 @@ class ProfileService {
     );
     return Map<String, dynamic>.from(response.data as Map);
   }
+
+  Future<Map<String, dynamic>> getViewers({
+    int page = 1,
+    int pageSize = 50,
+    String? username,
+  }) async {
+    final response = await _dio.get(
+      '/page-view/viewers',
+      queryParameters: {
+        'page': page,
+        'page_size': pageSize,
+        if (username != null && username.isNotEmpty) 'username': username,
+      },
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
 }
