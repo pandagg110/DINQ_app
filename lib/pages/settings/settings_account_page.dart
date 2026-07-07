@@ -377,20 +377,11 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
       return;
     }
 
-    // 确认断开
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Disconnect GitHub'),
-        content: const Text('Are you sure you want to disconnect your GitHub account?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Disconnect'),
-          ),
-        ],
-      ),
+    // 确认断开（弹窗样式对齐设计图：白卡 + 右上 X + 居中标题/说明 + 等宽双按钮）
+    final confirmed = await _showBrandConfirmDialog(
+      title: 'Disconnect GitHub',
+      message: 'Are you sure you want to disconnect your GitHub account?',
+      confirmText: 'Disconnect',
     );
 
     if (confirmed == true) {
@@ -409,40 +400,121 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     }
   }
 
-  void _showSetPasswordFirstDialog() {
-    showDialog(
+  void _showSetPasswordFirstDialog() async {
+    final confirmed = await _showBrandConfirmDialog(
+      title: 'Please set a password first',
+      message: 'Set password before disconnecting this account',
+      confirmText: 'Set Password',
+    );
+    if (confirmed == true && mounted) {
+      _pushChangePassword(false);
+    }
+  }
+
+  /// 品牌风格确认弹窗（对齐设计图）：白色圆角卡 + 右上 X 关闭 +
+  /// 居中加粗标题 + 灰色居中说明 + 底部等宽双按钮（描边 Cancel + 黑底主按钮）。
+  Future<bool?> _showBrandConfirmDialog({
+    required String title,
+    required String message,
+    required String confirmText,
+    String cancelText = 'Cancel',
+  }) {
+    return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Please set a password first',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        content: const Text(
-          'Set password before disconnecting this account',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.grey),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: ColorUtil.sub2TextColor)),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Navigator.pop(context, false),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.close, size: 22, color: Color(0xFF171717)),
+                  ),
+                ),
+              ),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Geist',
+                  color: Color(0xFF171717),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.4,
+                  fontFamily: 'Geist',
+                  color: Color(0xFF9E9B93),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE5E2DC)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        cancelText,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Geist',
+                          color: Color(0xFF9E9B93),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ColorUtil.textColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        confirmText,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _pushChangePassword(false);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ColorUtil.textColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Set Password'),
-          ),
-        ],
+        ),
       ),
     );
   }
