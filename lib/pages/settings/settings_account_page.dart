@@ -384,7 +384,7 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
       confirmText: 'Disconnect',
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       try {
         await context.read<UserStore>().unlinkAccount(provider: 'github');
         if (!mounted) return;
