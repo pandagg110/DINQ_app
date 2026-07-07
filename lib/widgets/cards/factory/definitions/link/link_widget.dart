@@ -7,7 +7,7 @@ class LinkWidget extends StatefulWidget {
   const LinkWidget({
     super.key,
     required this.card,
-    required this.sizez
+    required this.size,
     required this.editable,
     required this.isSelected,
     required this.onUpdate,
