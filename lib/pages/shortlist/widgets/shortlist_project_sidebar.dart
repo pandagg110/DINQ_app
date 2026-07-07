@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../constants/shortlist_constants.dart';
@@ -60,12 +61,9 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar> {
     if (!store.projectsLoaded || !mounted) return;
     final plan = context.read<UserStore>().subscription?.plan;
     if (isShortlistProjectLimitReached(store.projects.length, plan)) {
-      // Pricing modal not wired on mobile yet — show toast.
-      TopToastUtil.showError(
-        context: context,
-        title: 'Upgrade required',
-        description: 'Folder limit reached for your plan.',
-      );
+      // 达到当前套餐的文件夹上限（free 只有 1 个 Default）：引导到订阅/定价页，
+      // 对齐 web 的 openPricingModal("b_shortlist_project_limit")。
+      context.push('/pricing');
       return;
     }
     setState(() {
