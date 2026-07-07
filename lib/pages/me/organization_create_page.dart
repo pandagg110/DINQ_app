@@ -20,15 +20,28 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
   final _nameCtrl = TextEditingController();
   final _slugCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
   Timer? _slugDebounce;
   bool? _slugAvailable;
   bool _checkingSlug = false;
   bool _submitting = false;
-  String _type = 'company';
+  // 默认「未指定」（对齐 web：org_type 可选，不预选 company）。
+  String _type = '';
 
-  static const _types = [
-    'community', 'company', 'lab', 'opensource', 'event', 'investor', 'incubator', 'media',
-  ];
+  static const _descMaxLen = 200;
+
+  // value → label，对齐 web ORG_TYPES；'' 表示未指定。
+  static const _typeLabels = <String, String>{
+    '': 'Not specified',
+    'community': 'Community',
+    'company': 'Company',
+    'lab': 'Research Lab',
+    'opensource': 'Open Source',
+    'event': 'Event',
+    'investor': 'Investor',
+    'incubator': 'Incubator',
+    'media': 'Media',
+  };
 
   @override
   void dispose() {
@@ -36,7 +49,20 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
     _nameCtrl.dispose();
     _slugCtrl.dispose();
     _descCtrl.dispose();
+    _locationCtrl.dispose();
     super.dispose();
+  }
+
+  // 对齐 web：slug 转小写、空格转连字符。
+  void _onSlugInput(String v) {
+    final sanitized = v.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
+    if (sanitized != v) {
+      _slugCtrl.value = TextEditingValue(
+        text: sanitized,
+        selection: TextSelection.collapsed(offset: sanitized.length),
+      );
+    }
+    _onSlugChanged(sanitized);
   }
 
   void _onSlugChanged(String v) {
@@ -76,6 +102,7 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
         slug: _slugCtrl.text.trim(),
         orgType: _type,
         description: _descCtrl.text.trim(),
+        location: _locationCtrl.text.trim(),
       );
       if (!mounted) return;
       _snack('Organization created');
@@ -101,10 +128,11 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           _label('Name'),
-          _input(_nameCtrl, 'e.g. DINQ Labs', onChanged: (_) => setState(() {})),
+          _input(_nameCtrl, 'e.g. DINQ Labs', maxLength: 60,
+              onChanged: (_) => setState(() {})),
           const SizedBox(height: 16),
           _label('Handle'),
-          _input(_slugCtrl, 'your-org', prefix: 'dinq.me/', onChanged: _onSlugChanged),
+          _slugField(),
           if (_slugCtrl.text.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
             _slugHint(),
@@ -114,7 +142,19 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
           _typeSelector(),
           const SizedBox(height: 16),
           _label('Description (optional)'),
-          _input(_descCtrl, 'What is this organization about?', maxLines: 3),
+          _input(_descCtrl, 'What is this organization about?',
+              maxLines: 3, maxLength: _descMaxLen, onChanged: (_) => setState(() {})),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, right: 2),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text('${_descCtrl.text.characters.length}/$_descMaxLen',
+                  style: const TextStyle(fontSize: 12, color: DinqTokens.textTertiary)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _label('Location'),
+          _input(_locationCtrl, 'San Francisco, CA'),
           const SizedBox(height: 24),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -146,17 +186,50 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
       );
 
   Widget _input(TextEditingController c, String hint,
-      {String? prefix, int maxLines = 1, ValueChanged<String>? onChanged}) {
+      {int maxLines = 1, int? maxLength, ValueChanged<String>? onChanged}) {
     return TextField(
       controller: c,
       maxLines: maxLines,
+      maxLength: maxLength,
       onChanged: onChanged,
+      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Color(0xFFA8A29E)),
-        prefixText: prefix,
         contentPadding: const EdgeInsets.all(14),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  /// Handle 输入：常驻显示 `dinq.me/` 前缀（Flutter 的 prefixText 未聚焦时不显示，
+  /// 会导致前缀看不见，故用 Row 常驻展示），对齐 web。
+  Widget _slugField() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFA8A29E)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          const Text('dinq.me/',
+              style: TextStyle(fontSize: 15, color: Color(0xFFA8A29E))),
+          Expanded(
+            child: TextField(
+              controller: _slugCtrl,
+              maxLength: 32,
+              onChanged: _onSlugInput,
+              buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+              decoration: const InputDecoration(
+                hintText: 'your-org',
+                hintStyle: TextStyle(color: Color(0xFFA8A29E)),
+                contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 2),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -175,29 +248,20 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
   }
 
   Widget _typeSelector() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final t in _types)
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _type = t),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: _type == t ? ColorUtil.textColor : DinqTokens.bgCard,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: _type == t ? ColorUtil.textColor : DinqTokens.borderL),
-              ),
-              child: Text(t,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: _type == t ? Colors.white : ColorUtil.textColor)),
-            ),
-          ),
+    return DropdownButtonFormField<String>(
+      initialValue: _type,
+      isExpanded: true,
+      icon: const Icon(Icons.keyboard_arrow_down_rounded),
+      style: TextStyle(fontSize: 15, color: ColorUtil.textColor),
+      decoration: InputDecoration(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      items: [
+        for (final e in _typeLabels.entries)
+          DropdownMenuItem(value: e.key, child: Text(e.value)),
       ],
+      onChanged: (v) => setState(() => _type = v ?? ''),
     );
   }
 }
