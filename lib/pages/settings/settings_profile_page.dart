@@ -105,7 +105,8 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
                     // 提示文字
                     _buildHintText(),
                     const SizedBox(height: 24),
-                    // 第一组信息卡片：Name
+                    // 信息卡片：Name 与其余字段合并为一张卡。原来分两张卡时，
+                    // 两卡缝隙两端的圆角缺口会露出「多余的边缘」观感（QA 反馈）。
                     _buildInfoCard([
                       _buildInfoRow(
                         label: 'Name',
@@ -116,10 +117,7 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
                           field: 'name',
                         ),
                       ),
-                    ]),
-                    const SizedBox(height: 16),
-                    // 第二组信息卡片
-                    _buildInfoCard([
+                      _buildDivider(),
                       _buildInfoRow(
                         label: 'Date of Birth',
                         value: _formatDateOfBirth(userStore),
