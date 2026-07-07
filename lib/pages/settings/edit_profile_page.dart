@@ -312,11 +312,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       value: _location,
       hint: 'Location /Timezone',
       onTap: () async {
-        final result = await ProfileFormPickers.showTextEditDialog(
+        final result = await ProfileFormPickers.showLocationTimezonePicker(
           context: context,
-          title: 'Location / Timezone',
-          initialValue: _location,
-          hintText: 'Enter location',
+          currentValue: _location,
         );
         if (result != null) {
           setState(() => _location = result);
