@@ -5,6 +5,7 @@ import '../../services/connector_service.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/api_error.dart';
 import '../../widgets/common/default_app_bar.dart';
+import 'connector_auth_page.dart';
 
 /// My → 开发者 → Integration。1:1 还原 web integration/page.tsx：
 /// Section1 Email integration（未连接 → Gmail/Microsoft/IMAP 连接卡 OAuth；
@@ -76,11 +77,42 @@ class _IntegrationPageState extends State<IntegrationPage> {
   Future<void> _connect(String platform) async {
     try {
       final url = await _connector.initiateConnect(platform, _callbackUrl);
-      if (url != null && url.isNotEmpty) {
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (url == null || url.isEmpty) return;
+      if (!mounted) return;
+      // app 内 WebView 完成 OAuth：导航命中 callbackUrl 即自动关闭回本页，
+      // 不再经外部浏览器/H5 登录流程；顶部返回按钮即「返回 App」兜底。
+      final done = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ConnectorAuthPage(
+            authUrl: url,
+            callbackUrl: _callbackUrl,
+            title: _connectTitle(platform),
+          ),
+        ),
+      );
+      if (!mounted) return;
+      if (done == true) {
+        await _load();
+        if (mounted && _accounts.isNotEmpty) {
+          _snack('Email connected');
+        }
       }
     } catch (e) {
       _snack('Connect failed: $e');
+    }
+  }
+
+  String _connectTitle(String platform) {
+    switch (platform) {
+      case 'gmail':
+        return 'Connect Gmail';
+      case 'microsoft':
+        return 'Connect Microsoft';
+      case 'imap':
+        return 'Connect IMAP';
+      default:
+        return 'Connect email';
     }
   }
 
