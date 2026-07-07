@@ -264,17 +264,13 @@ class _MePageState extends State<MePage> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
+      // 注意：不要给卡片加 BoxShadow。阴影会投到下方菜单卡上，中段被白色
+      // 卡身遮住、只在菜单卡顶部两个圆角缺口处露出，形成「两个黑色的角」
+      // （滚动时随位置闪现）。web SubscriptionCard 也是纯 border 无阴影。
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Color(0xFFEEEEEE), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((255 * 0.05).toInt()),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         children: [
