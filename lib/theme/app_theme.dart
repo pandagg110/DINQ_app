@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme {
   static const Color brandBlack = Color(0xFF171717);
@@ -40,6 +41,13 @@ class AppTheme {
         foregroundColor: brandBlack,
         elevation: 0,
         centerTitle: true,
+        // 带 AppBar 的页面会覆盖全局 SystemChrome 设置，这里同样保持
+        // Android 状态栏透明+深色图标，与米白页面底色统一。
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
         titleTextStyle: TextStyle(
           fontFamily: 'Geist',
           fontWeight: FontWeight.w600,
