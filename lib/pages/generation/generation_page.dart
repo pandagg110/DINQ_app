@@ -244,10 +244,10 @@ class _GenerationPageState extends State<GenerationPage> {
         });
       }
 
-      // 填充已保存的数据
-      if (myFlow.domain.isNotEmpty && _domainController.text.isEmpty) {
-        _domainController.text = myFlow.domain;
-      }
+      // 注意：不再用后端 myFlow.domain 预填 handle 输入框。后端会根据当前账号
+      // 返回一个建议 domain，导致「上传别人的主页却把 handle 预填成当前账号名
+      // (mark)」。严格对齐 web：handle 预填只走前端候选(_maybePrefillHandle：
+      // email→name)，后端 domain 不参与预填。
 
       // 加载社交链接（第三步）
       if (_currentStep == GenerationStep.social && _socialLinks.isEmpty) {
@@ -3047,13 +3047,27 @@ class _GenerationPageState extends State<GenerationPage> {
     return _cleanHandleCandidate(localPart);
   }
 
+  /// 对齐 web getNameHandleCandidate：名字含非 ASCII（如中文）直接判空，
+  /// 不用中文名生成 handle。
+  String _getNameHandleCandidate(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    for (final code in raw.runes) {
+      if (code > 127) return '';
+    }
+    return _cleanHandleCandidate(raw);
+  }
+
   void _maybePrefillHandle() {
     if (_hasEditedHandle || _domainController.text.trim().isNotEmpty) return;
     final user = context.read<UserStore>().user;
-    final candidate =
-        _getEmailHandleCandidate(user?.user.email) ??
-        _cleanHandleCandidate(_profileNameController.text.trim()) ??
-        _cleanHandleCandidate(_draftUserData?['name'] as String?);
+    // 对齐 web：候选按 email → basics 名 → draft 名 顺序取第一个非空。
+    // （原来用 ?? 串联，但这些函数返回的是空字符串而非 null，?? 不会 fallback，
+    // 等于只用了 email 候选——已修正为「取第一个非空」。）
+    final candidate = [
+      _getEmailHandleCandidate(user?.user.email),
+      _getNameHandleCandidate(_profileNameController.text.trim()),
+      _getNameHandleCandidate(_draftUserData?['name'] as String?),
+    ].firstWhere((c) => c.isNotEmpty, orElse: () => '');
     if (candidate.isEmpty) return;
     _domainController.text = candidate;
     _onDomainChanged();
