@@ -19,6 +19,7 @@ import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/onboarding_draft_mapping.dart';
 import '../../utils/top_toast_util.dart';
+import '../../widgets/account/agreement_protocol_modal.dart';
 import '../../widgets/generation/onboarding/onboarding_analyze_view.dart';
 import '../../widgets/generation/onboarding/onboarding_footer.dart';
 import '../../widgets/generation/onboarding/onboarding_handle_view.dart';
@@ -3361,6 +3362,11 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   Future<void> _finishOnboardingSocials(List<OnboardingAddedLink> links) async {
+    // 发布 DINQ Card 前必须先同意「Public Visibility」协议（对齐 web onboarding
+    // 最后一步；缺此协议会导致流程走不下去）。Agree 才继续，Cancel 则停留。
+    final agreed = await showAgreementProtocolConfirm(context);
+    if (!agreed || !mounted) return;
+
     final domain =
         context.read<UserStore>().myFlow?.domain ??
         _domainController.text.trim();
