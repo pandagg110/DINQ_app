@@ -4,22 +4,26 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-void showAgreementProtocolDialog(BuildContext context, {required VoidCallback onContinue}) {
-  showDialog(
+/// 弹出「Public Visibility」协议弹窗，返回 true 表示用户点了 Agree，
+/// Cancel / 点击遮罩关闭返回 false。可 await，用于必须先同意才能继续的流程
+/// （如 onboarding 发布 DINQ Card）。
+Future<bool> showAgreementProtocolConfirm(BuildContext context) async {
+  final agreed = await showDialog<bool>(
     context: context,
-    builder: (context) => _AgreementProtocolDialog(
-      onAgree: () {
-        Navigator.pop(context);
-        onContinue();
-      },
-    ),
+    builder: (context) => const _AgreementProtocolDialog(),
   );
+  return agreed == true;
+}
+
+/// 回调版（保留给 signin/signup 使用）：Agree 后执行 onContinue。
+void showAgreementProtocolDialog(BuildContext context, {required VoidCallback onContinue}) {
+  showAgreementProtocolConfirm(context).then((agreed) {
+    if (agreed) onContinue();
+  });
 }
 
 class _AgreementProtocolDialog extends StatelessWidget {
-  final VoidCallback onAgree;
-
-  const _AgreementProtocolDialog({required this.onAgree});
+  const _AgreementProtocolDialog();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +46,7 @@ class _AgreementProtocolDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              "I agree that my DINQ Card will be publicly visible on the internet, appear in search engines, and be used in DINQ’s talent discovery features.?",
+              "I agree that my DINQ Card will be publicly visible on the internet, appear in search engines, and be used in DINQ’s talent discovery features.",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -129,7 +133,7 @@ class _AgreementProtocolDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Color(0xFFD8D8D8)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -149,9 +153,7 @@ class _AgreementProtocolDialog extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      onAgree();
-                    },
+                    onPressed: () => Navigator.pop(context, true),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorUtil.mainColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

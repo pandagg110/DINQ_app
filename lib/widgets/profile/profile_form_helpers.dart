@@ -2,6 +2,7 @@ import 'package:dinq_app/utils/toast_util.dart';
 import 'package:flutter/material.dart';
 
 import '../../utils/color_util.dart';
+import '../../utils/onboarding_draft_mapping.dart';
 
 /// 个人资料表单相关的常量配置
 class ProfileFormConfig {
@@ -184,6 +185,21 @@ class ProfileFormPickers {
       items: ProfileFormConfig.jobStatusOptions.keys.toList(),
       itemLabels: ProfileFormConfig.jobStatusOptions,
       selectedValue: currentStatus,
+    );
+  }
+
+  /// 显示 Location / Timezone 选择器（对齐 onboarding 的时区选项，
+  /// 用底部选择器替代原来的自由文本输入）。
+  static Future<String?> showLocationTimezonePicker({
+    required BuildContext context,
+    String? currentValue,
+  }) {
+    final normalized = normalizeOnboardingTimezone(currentValue);
+    return showBottomPicker(
+      context: context,
+      title: 'Location / Timezone',
+      items: onboardingTimezones,
+      selectedValue: normalized.isNotEmpty ? normalized : null,
     );
   }
 

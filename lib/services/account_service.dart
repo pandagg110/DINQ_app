@@ -119,12 +119,18 @@ class AccountService {
     required String slug,
     String? orgType,
     String? description,
+    String? location,
+    String? logoUrl,
+    String? backgroundUrl,
   }) async {
     final resp = await _dio.post<Map<String, dynamic>>('/org', data: {
       'name': name,
       'slug': slug,
-      if (orgType != null) 'org_type': orgType,
+      if (orgType != null && orgType.isNotEmpty) 'org_type': orgType,
       if (description != null && description.isNotEmpty) 'description': description,
+      if (location != null && location.isNotEmpty) 'location': location,
+      if (logoUrl != null && logoUrl.isNotEmpty) 'logo_url': logoUrl,
+      if (backgroundUrl != null && backgroundUrl.isNotEmpty) 'background_url': backgroundUrl,
     });
     return Map<String, dynamic>.from(resp.data as Map? ?? {});
   }
