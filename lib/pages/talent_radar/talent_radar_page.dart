@@ -6,7 +6,6 @@ import '../../stores/user_store.dart';
 import '../../theme/dinq_icons.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
-import 'talent_radar_create_page.dart';
 import 'talent_radar_detail_page.dart';
 
 /// Talent Radar Tab（持续找人）。
@@ -141,31 +140,7 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
         children: [
           _PageHeaderTitle(scale: s, title: 'Talent Radar'),
           SizedBox(height: 16 * s),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _onCreate,
-            child: Container(
-              width: double.infinity,
-              height: 48 * s,
-              decoration: BoxDecoration(
-                color: DinqTokens.textPrimary,
-                borderRadius: BorderRadius.circular(12 * s),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  DinqSvgIcon(assetName: DinqIcons.plus, size: 16 * s, color: DinqTokens.bgCard),
-                  SizedBox(width: 10 * s),
-                  Text('Create Radar',
-                      style: TextStyle(
-                        fontSize: 15 * s,
-                        fontWeight: FontWeight.w600,
-                        color: DinqTokens.bgCard,
-                      )),
-                ],
-              ),
-            ),
-          ),
+          _ComingSoonButton(scale: s, height: 48 * s, fontSize: 15 * s),
           SizedBox(height: 16 * s),
           for (final t in _tasks)
             Padding(
@@ -180,14 +155,6 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _onCreate() async {
-    final created = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const TalentRadarCreatePage()),
-    );
-    if (created == true) await _load();
   }
 
   Future<void> _openDetail(Map<String, dynamic> task) async {
@@ -260,34 +227,7 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
             ),
           ),
           SizedBox(height: 24 * s),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _onCreate,
-            child: Container(
-              width: double.infinity,
-              height: 56 * s,
-              decoration: BoxDecoration(
-                color: DinqTokens.textPrimary,
-                borderRadius: BorderRadius.circular(12 * s),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  DinqSvgIcon(assetName: DinqIcons.plus, size: 18 * s, color: DinqTokens.bgCard),
-                  SizedBox(width: 12 * s),
-                  Text(
-                    'Create Your First Radar',
-                    style: TextStyle(
-                      fontSize: 16 * s,
-                      height: 22 / 16,
-                      fontWeight: FontWeight.w600,
-                      color: DinqTokens.bgCard,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _ComingSoonButton(scale: s, height: 56 * s, fontSize: 16 * s),
           SizedBox(height: 20 * s),
           _StepCard(scale: s, step: '1', title: 'Describe', subtitle: 'Describe the role in plain language.'),
           SizedBox(height: 12 * s),
@@ -295,6 +235,41 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
           SizedBox(height: 12 * s),
           _StepCard(scale: s, step: '3', title: 'Get Notified', subtitle: 'Matches delivered to your inbox daily.'),
         ],
+      ),
+    );
+  }
+}
+
+/// Radar 首页创建入口暂时置灰为「Coming Soon」（功能未发布，禁用点击）。
+class _ComingSoonButton extends StatelessWidget {
+  const _ComingSoonButton({
+    required this.scale,
+    required this.height,
+    required this.fontSize,
+  });
+
+  final double scale;
+  final double height;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: height,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: DinqTokens.bgSurface,
+        borderRadius: BorderRadius.circular(12 * scale),
+        border: Border.all(color: DinqTokens.borderL),
+      ),
+      child: Text(
+        'Coming Soon',
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w600,
+          color: DinqTokens.textTertiary,
+        ),
       ),
     );
   }
