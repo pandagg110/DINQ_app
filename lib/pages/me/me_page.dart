@@ -320,9 +320,9 @@ class _MePageState extends State<MePage> {
             ),
           ),
           DashedLine(color: Color(0xFFECECEC)),
-          // 积分行
+          // 积分行：进入 Credits 页（对齐 web，不再直接进 Subscriptions）
           NormalButton(
-            onTap: () => context.push('/settings/subscription'),
+            onTap: () => context.push('/settings/credits'),
             child: SizedBox(
               height: 54,
               child: Row(

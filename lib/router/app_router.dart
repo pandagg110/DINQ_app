@@ -47,6 +47,7 @@ import '../pages/settings/settings_account_page.dart';
 import '../pages/settings/settings_dinqcard_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/settings/settings_profile_page.dart';
+import '../pages/settings/settings_credits_page.dart';
 import '../pages/settings/settings_subscription_page.dart';
 import '../pages/settings/settings_verification_page.dart';
 import '../pages/splash_page.dart';
@@ -315,6 +316,10 @@ class AppRouter {
         GoRoute(
           path: '/settings/subscription',
           builder: (context, state) => const SettingsSubscriptionPage(),
+        ),
+        GoRoute(
+          path: '/settings/credits',
+          builder: (context, state) => const SettingsCreditsPage(),
         ),
         GoRoute(
           path: '/payment/success',

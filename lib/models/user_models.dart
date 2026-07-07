@@ -205,6 +205,9 @@ class Subscription {
     required this.creditsBalance,
     required this.monthlyCredits,
     required this.cancelAtPeriodEnd,
+    this.referralCredits = 0,
+    this.paygEnabled = false,
+    this.paygStatus,
     this.currentPeriodEnd,
   });
 
@@ -213,19 +216,29 @@ class Subscription {
   final int creditsBalance;
   final int monthlyCredits;
   final bool cancelAtPeriodEnd;
+
+  /// 邀请奖励积分总额（对齐 web SubscriptionResponse.referral_credits）。
+  final int referralCredits;
+
+  /// Pay-as-you-go 状态（web SubscriptionResponse.payg），app 端只读展示。
+  final bool paygEnabled;
+  final String? paygStatus;
   final String? currentPeriodEnd; // ISO 8601 日期字符串，如 "2026-12-25T00:00:00Z"
 
+  static int _asInt(dynamic v) =>
+      v is int ? v : int.tryParse(v?.toString() ?? '0') ?? 0;
+
   factory Subscription.fromJson(Map<String, dynamic> json) {
+    final payg = json['payg'];
     return Subscription(
       plan: json['plan']?.toString() ?? 'free',
       status: json['status']?.toString() ?? 'active',
-      creditsBalance: json['credits_balance'] is int
-          ? json['credits_balance'] as int
-          : int.tryParse(json['credits_balance']?.toString() ?? '0') ?? 0,
-      monthlyCredits: json['monthly_credits'] is int
-          ? json['monthly_credits'] as int
-          : int.tryParse(json['monthly_credits']?.toString() ?? '0') ?? 0,
+      creditsBalance: _asInt(json['credits_balance']),
+      monthlyCredits: _asInt(json['monthly_credits']),
+      referralCredits: _asInt(json['referral_credits']),
       cancelAtPeriodEnd: json['cancel_at_period_end'] == true,
+      paygEnabled: payg is Map && payg['enabled'] == true,
+      paygStatus: payg is Map ? payg['status']?.toString() : null,
       currentPeriodEnd: json['current_period_end']?.toString(),
     );
   }
@@ -235,6 +248,7 @@ class Subscription {
         'status': status,
         'credits_balance': creditsBalance,
         'monthly_credits': monthlyCredits,
+        'referral_credits': referralCredits,
         'cancel_at_period_end': cancelAtPeriodEnd,
         if (currentPeriodEnd != null) 'current_period_end': currentPeriodEnd,
       };
