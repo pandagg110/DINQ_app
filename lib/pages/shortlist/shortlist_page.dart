@@ -65,6 +65,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
           context.read<SearchStore>().deepSearchSessionId ?? '',
     );
     context.read<DeepSearchEnrichStore>().addListener(_syncBottomNav);
+    context.read<ShortlistStore>().addListener(_syncBottomNav);
     _syncBottomNav();
   }
 
@@ -74,6 +75,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
     _searchController.dispose();
     _scrollController.dispose();
     context.read<DeepSearchEnrichStore>().removeListener(_syncBottomNav);
+    context.read<ShortlistStore>().removeListener(_syncBottomNav);
     _enrichController?.close();
     super.dispose();
   }
@@ -81,7 +83,11 @@ class _ShortlistPageState extends State<ShortlistPage> {
   void _syncBottomNav() {
     if (!mounted) return;
     final enrichOpen = context.read<DeepSearchEnrichStore>().isOpen;
-    context.read<MainStore>().setShowBottomNav(!enrichOpen);
+    // 选择模式下隐藏主 tab 栏：主 tab 栏是浮层(Positioned bottom:0)，会盖住
+    // 页面内 bottom:18 的批量操作 bar(Move/Export/Remove)，导致「选中后底部
+    // 没有 bar」。对齐 web/设计：选中态隐藏 tab 栏、露出批量 bar。
+    final selecting = context.read<ShortlistStore>().selectionActive;
+    context.read<MainStore>().setShowBottomNav(!enrichOpen && !selecting);
   }
 
   Future<void> _loadWhenReady() async {
