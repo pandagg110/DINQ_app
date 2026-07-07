@@ -173,6 +173,15 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
     );
   }
 
+  /// iOS（尤其 iPad）分享面板必须提供锚点矩形，否则 share_plus 会抛
+  /// PlatformException(sharePositionOrigin must be set...)。用当前 State 的
+  /// RenderBox 作为非零锚点，兜住导出报错；box 为空或无尺寸时返回 null。
+  Rect? _shareOrigin() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
   /// 导出必须是文件而不是纯文本分享，否则收不到 .csv/.md 文件（导出"不能正常使用"）。
   Future<void> _shareAsFile(String content, String ext) async {
     try {
@@ -181,7 +190,7 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/$filename');
       await file.writeAsString(content);
-      await Share.shareXFiles([XFile(file.path)], subject: filename);
+      await Share.shareXFiles([XFile(file.path)], subject: filename, sharePositionOrigin: _shareOrigin());
     } catch (_) {
       if (mounted) _showToast(DeepSearchResultsStrings.exportFailed);
     }
@@ -218,7 +227,7 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
       await file.writeAsBytes(bytes);
       await Share.shareXFiles([
         XFile(file.path),
-      ], subject: 'deep-search-$sessionId.pdf');
+      ], subject: 'deep-search-$sessionId.pdf', sharePositionOrigin: _shareOrigin());
     } catch (e) {
       if (!mounted) return;
       _showToast(
