@@ -416,7 +416,7 @@ class _SignInPageState extends State<SignInPage> {
                             context.push(
                               '/webview',
                               extra: {
-                                'url': '$appUrl/terms',
+                                'url': termsUrl,
                                 'navTitle': 'Terms of Service',
                               },
                             );
