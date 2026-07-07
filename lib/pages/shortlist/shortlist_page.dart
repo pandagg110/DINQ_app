@@ -206,6 +206,15 @@ class _ShortlistPageState extends State<ShortlistPage> {
     );
   }
 
+  /// iOS（尤其 iPad）分享面板必须提供锚点矩形，否则 share_plus 会抛
+  /// PlatformException(sharePositionOrigin must be set...)。用当前页面的
+  /// RenderBox 作为非零锚点，兜住导出报错。
+  Rect? _shareOrigin() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
   Future<void> _handleExport(ShortlistExportFormat format) async {
     if (_isExporting) return;
     final store = context.read<ShortlistStore>();
@@ -273,14 +282,22 @@ class _ShortlistPageState extends State<ShortlistPage> {
         final dir = await getTemporaryDirectory();
         final file = File('${dir.path}/${result.filename}');
         await file.writeAsBytes(result.bytes);
-        await Share.shareXFiles([XFile(file.path)], subject: result.filename);
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: result.filename,
+          sharePositionOrigin: _shareOrigin(),
+        );
       } else {
         final csv = service.buildCsvContent(rows);
         final dir = await getTemporaryDirectory();
         final filename = '$slug-$date.csv';
         final file = File('${dir.path}/$filename');
         await file.writeAsString(csv);
-        await Share.shareXFiles([XFile(file.path)], subject: filename);
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: filename,
+          sharePositionOrigin: _shareOrigin(),
+        );
       }
 
       if (mounted) {
