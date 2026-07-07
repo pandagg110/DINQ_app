@@ -4,39 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../social_image_upload_preview.dart';
 
 class LinkLayouts {
-  /// 预览图区域：编辑态用带「换图 / 贴 URL / 删除」三个操作的上传组件，
-  /// 只读态保持原来的 Image.network 展示。对齐 web 链接卡片。
-  static Widget _previewImage({
-    required String? ogImage,
-    required bool editable,
-    required ValueChanged<String>? onImageChange,
-    required String altText,
-    Alignment alignment = Alignment.center,
-  }) {
-    if (editable) {
-      return SocialImageUploadPreview(
-        imageUrl: ogImage ?? '',
-        editable: true,
-        altText: altText,
-        onImageChange: onImageChange ?? (_) {},
-      );
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        ogImage!,
-        fit: BoxFit.cover,
-        alignment: alignment,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.grey[200],
-            child: const Center(child: Icon(Icons.image, color: Colors.grey)),
-          );
-        },
-      ),
-    );
-  }
-
   // Special icons that override backend favicon
   static const Map<String, String> specialIcons = {
     'xiaohongshu.com': 'icons/social-icons/RedNote.svg',
@@ -377,7 +344,7 @@ class LinkLayouts {
   }
 
   static Widget _buildPreviewImage({
-    required String imageUrl,
+    required String? imageUrl,
     required bool editable,
     required ValueChanged<String> onImageChange,
     BoxFit objectFit = BoxFit.cover,
@@ -385,7 +352,7 @@ class LinkLayouts {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SocialImageUploadPreview(
-        imageUrl: imageUrl,
+        imageUrl: imageUrl ?? '',
         editable: editable,
         altText: 'Link preview image',
         objectFit: objectFit,
