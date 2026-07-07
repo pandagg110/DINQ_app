@@ -48,13 +48,14 @@ const Map<String, _PlanConfig> kPlanConfig = {
     sectionHeader: 'Free includes:',
     creditsFormat: '{credits} Credits (One-time)',
   ),
+  // subtitle 对齐 web PricingModal PLAN_CONFIG
   'basic': _PlanConfig(
-    subtitle: 'Starter',
+    subtitle: 'Individual Users / Beginners',
     sectionHeader: 'Everything in Free, plus:',
     creditsFormat: '{credits} Credits /month',
   ),
   'pro': _PlanConfig(
-    subtitle: 'Individual/Freelancer',
+    subtitle: 'Recruiters / Sales',
     sectionHeader: 'Everything in Basic, plus:',
     creditsFormat: '{credits} Credits /month',
     popular: true,
@@ -707,7 +708,8 @@ class _PricingPageState extends State<PricingPage> {
               if (_billingPeriod == 'yearly') ...[
                 const SizedBox(width: 12),
                 Text(
-                  '\$${_formatNumber(yearlyPrice)} total/year',
+                  // 对齐 web："$1,008 /year"（无 total）
+                  '\$${_formatNumber(yearlyPrice)} /year',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFFBDBDBD),
@@ -720,12 +722,51 @@ class _PricingPageState extends State<PricingPage> {
         ),
         const SizedBox(height: 24),
 
+        // Credits 独立展示卡（对齐 web：蓝框 Credits + "{N} Credits /month"，
+        // features 里含 credits 的行被过滤，不再混在特性列表里）
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1487FA).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFCCE5FF)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Credits',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF171717),
+                  fontFamily: 'Geist',
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                config.creditsFormat
+                    .replaceAll('{credits}', _formatNumber(credits)),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1487FA),
+                  fontFamily: 'Geist',
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
         // Divider
         Container(height: 1, color: const Color(0xFFF0F0F0)),
         const SizedBox(height: 20),
 
-        // Features
-        ...features.map((feature) => Padding(
+        // Features（对齐 web getFeatureList：credits 行已单独展示，此处过滤）
+        ...features
+            .where((f) => !f.toLowerCase().contains('credits'))
+            .map((feature) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
