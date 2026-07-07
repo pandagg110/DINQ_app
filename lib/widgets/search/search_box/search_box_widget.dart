@@ -317,7 +317,10 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
         }
 
         return Container(
-          clipBehavior: Clip.none,
+          // 裁剪子内容到圆角内：内部面板/分割线是方角的，不裁剪会盖在圆角
+          // 边框上，表现为「输入框边框被截断/压线」（advisor 等所有工具输入框
+          // 共用此容器）。下拉均为 showModalBottomSheet 浮层，裁剪无副作用。
+          clipBehavior: Clip.antiAlias,
           width: widget.fullWidth ? double.infinity : 480,
           decoration: BoxDecoration(
             color: Colors.white,
