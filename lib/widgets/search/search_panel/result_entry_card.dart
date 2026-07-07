@@ -37,18 +37,19 @@ int getGroupToolCount(AgenticMessageGroup group) {
   return count;
 }
 
-bool groupHasResultWorkspace(AgenticMessageGroup group, {required bool isSearching}) {
+bool groupHasResultWorkspace(
+  AgenticMessageGroup group, {
+  required bool isSearching,
+}) {
   if (group.toolType != null) return false;
   final hasRows = group.candidates.isNotEmpty;
   if (hasRows) return true;
-  // 与 Web SearchPanel.tsx RoundSection 一致：仅搜索进行中且（有工具 / start search）时展示结果工作区入口
   if (!isSearching) return false;
   final toolCount = getGroupToolCount(group);
   return toolCount > 0 ||
       isStartSearchMarker(group.displayQuery ?? group.userQuery);
 }
 
-/// 与 TSX `SearchPanel.tsx` result-entry-flow-card 对齐。
 class ResultEntryCard extends StatelessWidget {
   const ResultEntryCard({
     super.key,
@@ -97,8 +98,7 @@ class ResultEntryCard extends StatelessWidget {
     if (resultCount > 0) {
       final candidateLabel =
           resultCount == 1 ? '1 candidate' : '$resultCount candidates';
-      final toolLabel =
-          toolCount == 1 ? '1 tool call' : '$toolCount tool calls';
+      final toolLabel = toolCount == 1 ? '1 tool call' : '$toolCount tool calls';
       return '$candidateLabel · $toolLabel';
     }
     return 'Screening profiles · ranking matches';
@@ -234,9 +234,41 @@ class _ResultPreviewIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth <= 360;
+    final isWideMobile = screenWidth >= 430;
+    final isDesktop = screenWidth >= 640;
+
+    final width = isDesktop
+        ? 140.0
+        : isWideMobile
+            ? 126.0
+            : isCompact
+                ? 96.0
+                : 112.0;
+    final height = isDesktop
+        ? 84.0
+        : isWideMobile
+            ? 78.0
+            : isCompact
+                ? 64.0
+                : 72.0;
+    final horizontalPadding = isCompact
+        ? 8.0
+        : isWideMobile || isDesktop
+            ? 12.0
+            : 10.0;
+    final rowGap = isCompact ? 6.0 : 8.0;
+    final iconGap = isDesktop ? 6.0 : isCompact ? 4.0 : 5.0;
+    final badgeSize = isDesktop ? 16.0 : isCompact ? 12.0 : 14.0;
+    final badgeRadius = isDesktop ? 4.0 : 3.5;
+    final lineHeight = isCompact ? 5.0 : 6.0;
+    final coinSize = isCompact ? 32.0 : 36.0;
+    final checkSize = isCompact ? 18.0 : 20.0;
+
     return SizedBox(
-      width: 126,
-      height: 78,
+      width: width,
+      height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xFFEFECE5),
@@ -249,15 +281,33 @@ class _ResultPreviewIllustration extends StatelessWidget {
             children: [
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      _SkeletonRow(widthFactor: 0.66),
-                      SizedBox(height: 8),
-                      _SkeletonRow(widthFactor: 0.52),
-                      SizedBox(height: 8),
-                      _SkeletonRow(widthFactor: 0.40),
+                    children: [
+                      _SkeletonRow(
+                        widthFactor: 0.66,
+                        badgeSize: badgeSize,
+                        badgeRadius: badgeRadius,
+                        lineHeight: lineHeight,
+                        gap: iconGap,
+                      ),
+                      SizedBox(height: rowGap),
+                      _SkeletonRow(
+                        widthFactor: 0.52,
+                        badgeSize: badgeSize,
+                        badgeRadius: badgeRadius,
+                        lineHeight: lineHeight,
+                        gap: iconGap,
+                      ),
+                      SizedBox(height: rowGap),
+                      _SkeletonRow(
+                        widthFactor: 0.40,
+                        badgeSize: badgeSize,
+                        badgeRadius: badgeRadius,
+                        lineHeight: lineHeight,
+                        gap: iconGap,
+                      ),
                     ],
                   ),
                 ),
@@ -267,12 +317,12 @@ class _ResultPreviewIllustration extends StatelessWidget {
               else
                 Center(
                   child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
+                    width: coinSize,
+                    height: coinSize,
+                    decoration: const BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
                           color: Color.fromRGBO(42, 40, 38, 0.16),
                           blurRadius: 10,
@@ -280,10 +330,10 @@ class _ResultPreviewIllustration extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check,
-                      size: 20,
-                      color: Color(0xFF2F8F68),
+                      size: checkSize,
+                      color: const Color(0xFF2F8F68),
                     ),
                   ),
                 ),
@@ -296,9 +346,19 @@ class _ResultPreviewIllustration extends StatelessWidget {
 }
 
 class _SkeletonRow extends StatelessWidget {
-  const _SkeletonRow({required this.widthFactor});
+  const _SkeletonRow({
+    required this.widthFactor,
+    required this.badgeSize,
+    required this.badgeRadius,
+    required this.lineHeight,
+    required this.gap,
+  });
 
   final double widthFactor;
+  final double badgeSize;
+  final double badgeRadius;
+  final double lineHeight;
+  final double gap;
 
   @override
   Widget build(BuildContext context) {
@@ -307,17 +367,17 @@ class _SkeletonRow extends StatelessWidget {
         return Row(
           children: [
             Container(
-              width: 14,
-              height: 14,
+              width: badgeSize,
+              height: badgeSize,
               decoration: BoxDecoration(
                 color: const Color(0xFFE3DED4),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(badgeRadius),
               ),
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: gap),
             Container(
               width: constraints.maxWidth * widthFactor,
-              height: 6,
+              height: lineHeight,
               decoration: BoxDecoration(
                 color: const Color(0xFFE3DED4),
                 borderRadius: BorderRadius.circular(999),
@@ -330,7 +390,6 @@ class _SkeletonRow extends StatelessWidget {
   }
 }
 
-/// 与 TSX `ScanningLens` 对齐：放大镜在三行 skeleton 上扫描。
 class ScanningLens extends StatefulWidget {
   const ScanningLens({super.key});
 
@@ -348,8 +407,8 @@ class _ScanningLensState extends State<ScanningLens>
   final _random = math.Random();
   Offset _position = Offset(_left, _rowY[0]);
   List<_ScanSegment> _segments = [];
-  var _segIdx = 0;
-  var _segStart = Duration.zero;
+  var _segmentIndex = 0;
+  var _segmentStart = Duration.zero;
 
   @override
   void initState() {
@@ -370,16 +429,16 @@ class _ScanningLensState extends State<ScanningLens>
       t < 0.5 ? 2 * t * t : 1 - math.pow(-2 * t + 2, 2) / 2;
 
   void _buildLoop() {
-    final next = <_ScanSegment>[];
+    final segments = <_ScanSegment>[];
     for (var i = 0; i < 3; i++) {
-      next.add(_ScanSegment(
+      segments.add(_ScanSegment(
         fromL: _left,
         toL: _right,
         fromT: _rowY[i],
         toT: _rowY[i],
         durMs: _rand(420, 980),
       ));
-      next.add(_ScanSegment(
+      segments.add(_ScanSegment(
         fromL: _right,
         toL: _right,
         fromT: _rowY[i],
@@ -387,7 +446,7 @@ class _ScanningLensState extends State<ScanningLens>
         durMs: _rand(40, 150),
       ));
       if (i < 2) {
-        next.add(_ScanSegment(
+        segments.add(_ScanSegment(
           fromL: _right,
           toL: _left,
           fromT: _rowY[i],
@@ -396,16 +455,16 @@ class _ScanningLensState extends State<ScanningLens>
         ));
       }
     }
-    next.add(_ScanSegment(
+    segments.add(_ScanSegment(
       fromL: _right,
       toL: _left,
       fromT: _rowY[2],
       toT: _rowY[0],
       durMs: _rand(280, 400),
     ));
-    _segments = next;
-    _segIdx = 0;
-    _segStart = Duration.zero;
+    _segments = segments;
+    _segmentIndex = 0;
+    _segmentStart = Duration.zero;
   }
 
   void _onTick(Duration elapsed) {
@@ -414,20 +473,21 @@ class _ScanningLensState extends State<ScanningLens>
       setState(() => _position = const Offset(0.5, 0.5));
       return;
     }
-    if (_segStart == Duration.zero) _segStart = elapsed;
-    final seg = _segments[_segIdx];
-    final p = ((elapsed - _segStart).inMilliseconds / seg.durMs).clamp(0.0, 1.0);
-    final e = _easeInOut(p);
+    if (_segmentStart == Duration.zero) _segmentStart = elapsed;
+    final segment = _segments[_segmentIndex];
+    final progress =
+        ((elapsed - _segmentStart).inMilliseconds / segment.durMs).clamp(0.0, 1.0);
+    final eased = _easeInOut(progress);
     setState(() {
       _position = Offset(
-        lerpDouble(seg.fromL, seg.toL, e)!,
-        lerpDouble(seg.fromT, seg.toT, e)!,
+        lerpDouble(segment.fromL, segment.toL, eased)!,
+        lerpDouble(segment.fromT, segment.toT, eased)!,
       );
     });
-    if (p >= 1) {
-      _segStart = elapsed;
-      _segIdx += 1;
-      if (_segIdx >= _segments.length) _buildLoop();
+    if (progress >= 1) {
+      _segmentStart = elapsed;
+      _segmentIndex += 1;
+      if (_segmentIndex >= _segments.length) _buildLoop();
     }
   }
 
@@ -438,18 +498,24 @@ class _ScanningLensState extends State<ScanningLens>
         child: Icon(Icons.search, size: 20, color: Color(0xFF7A766E)),
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Positioned(
-          left: constraints.maxWidth * _position.dx - 10,
-          top: constraints.maxHeight * _position.dy - 10,
-          child: const Icon(
-            Icons.search,
-            size: 20,
-            color: Color(0xFF7A766E),
-          ),
-        );
-      },
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              Positioned(
+                left: constraints.maxWidth * _position.dx - 10,
+                top: constraints.maxHeight * _position.dy - 10,
+                child: const Icon(
+                  Icons.search,
+                  size: 20,
+                  color: Color(0xFF7A766E),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
