@@ -1,5 +1,7 @@
-import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../models/card_models.dart';
 import '../../models/user_models.dart';
@@ -65,6 +67,7 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
   String? _logoUrl;
   bool _uploadingLogo = false;
   final _uploadService = UploadService();
+  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -129,16 +132,26 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
   Future<void> _pickAndUploadLogo() async {
     if (_uploadingLogo) return;
 
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-      withData: true,
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 100,
     );
-    if (result == null || result.files.single.bytes == null) return;
+    if (image == null) return;
 
-    final file = result.files.single;
-    final ext = (file.extension ?? 'jpg').toLowerCase();
-    final contentType = switch (ext) {
+    final bytes = await image.readAsBytes();
+    final extension = _extensionFromName(image.name);
+    final isImage = const {
+      'jpg',
+      'jpeg',
+      'png',
+      'gif',
+      'webp',
+    }.contains(extension);
+    if (!isImage) return;
+
+    if (bytes.length > 10 * 1024 * 1024) return;
+
+    final contentType = switch (extension) {
       'png' => 'image/png',
       'gif' => 'image/gif',
       'webp' => 'image/webp',
@@ -149,14 +162,20 @@ class _ExportCardPreviewState extends State<ExportCardPreview> {
     try {
       setState(() => _uploadingLogo = true);
       final logoUrl = await _uploadService.uploadFile(
-        bytes: file.bytes!,
-        filename: file.name,
+        bytes: Uint8List.fromList(bytes),
+        filename: image.name,
         contentType: contentType,
       );
       _handleThemeChange('logo', logoUrl);
     } finally {
       if (mounted) setState(() => _uploadingLogo = false);
     }
+  }
+
+  String _extensionFromName(String name) {
+    final index = name.lastIndexOf('.');
+    if (index < 0 || index == name.length - 1) return 'jpg';
+    return name.substring(index + 1).toLowerCase();
   }
 
   /// 可选：Card 模式下左卡选项（与 TSX FIRST_CARDS.filter(ct => cardsMap[ct] || ct === 'BIO')）
