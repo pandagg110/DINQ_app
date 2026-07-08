@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../services/task_service.dart';
-import '../../stores/user_store.dart';
 import '../../theme/dinq_icons.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
-import 'talent_radar_detail_page.dart';
 
 /// Talent Radar Tab（持续找人）。
-/// 无 Radar 时显示空状态（还原 my_first_app `_TasksPageOverlay`）；
-/// 有 Radar 时显示卡片列表（还原 my_first_app `_TaskCard`：状态徽章 +
-/// SCANNED / HIGH MATCH / RESULTS 指标 + new today），支持暂停/恢复/删除。
-/// 接口走 TaskService（/tasks）。
+/// 功能未发布：整页写死为 Coming Soon 空状态（还原 my_first_app
+/// `_TasksPageOverlay`），不请求 /tasks、不展示任何历史任务。
+/// 上线时从 git 历史恢复任务列表/操作逻辑。
 class TalentRadarPage extends StatefulWidget {
   const TalentRadarPage({super.key});
 
@@ -21,151 +16,23 @@ class TalentRadarPage extends StatefulWidget {
 }
 
 class _TalentRadarPageState extends State<TalentRadarPage> {
-  final _service = TaskService();
-  List<dynamic> _tasks = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWhenReady();
-  }
-
-  Future<void> _loadWhenReady() async {
-    // 等登录态就绪再拉数据，避免 401
-    for (var i = 0; i < 40; i++) {
-      if (!mounted) return;
-      if (context.read<UserStore>().isLoggedIn()) break;
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-    await _load();
-  }
-
-  Future<void> _load() async {
-    if (!mounted) return;
-    setState(() => _loading = true);
-    try {
-      final tasks = await _service.listTasks();
-      if (!mounted) return;
-      setState(() {
-        _tasks = tasks;
-        _loading = false;
-      });
-    } catch (_) {
-      // 拉取失败（含无 task 权限）回落到空状态
-      if (!mounted) return;
-      setState(() {
-        _tasks = [];
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _showActions(Map<String, dynamic> task) async {
-    final id = (task['id'] ?? '').toString();
-    final status = (task['status'] ?? '').toString();
-    final isPaused = status == 'paused';
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: DinqTokens.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded),
-              title: Text(isPaused ? 'Resume' : 'Pause'),
-              onTap: () => Navigator.pop(ctx, isPaused ? 'resume' : 'pause'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
-              title: const Text('Delete', style: TextStyle(color: Color(0xFFDC2626))),
-              onTap: () => Navigator.pop(ctx, 'delete'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (action == null) return;
-    try {
-      switch (action) {
-        case 'pause':
-          await _service.pauseTask(id);
-          break;
-        case 'resume':
-          await _service.resumeTask(id);
-          break;
-        case 'delete':
-          await _service.deleteTask(id);
-          break;
-      }
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    // Radar 未发布：页面写死为 Coming Soon 空状态，不拉取、不展示任何
+    // 历史任务（含其他端创建的）。上线时从 git 历史恢复任务列表逻辑。
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final double s = constraints.maxWidth / 430;
-          if (_loading) {
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-          }
-          // 拉取失败（含无 task 权限 4013）时回落到空状态，而非裸报错
-          return SafeArea(
-            bottom: false,
-            child: _tasks.isEmpty ? _emptyState(s) : _list(s),
-          );
+          return SafeArea(bottom: false, child: _emptyState(s));
         },
       ),
     );
   }
 
-  // ============== 有数据：列表 ==============
-  Widget _list(double s) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-        padding: EdgeInsets.fromLTRB(16 * s, 12 * s, 16 * s, 104 * s),
-        children: [
-          _PageHeaderTitle(scale: s, title: 'Talent Radar'),
-          SizedBox(height: 16 * s),
-          _ComingSoonButton(scale: s, height: 48 * s, fontSize: 15 * s),
-          SizedBox(height: 16 * s),
-          for (final t in _tasks)
-            Padding(
-              padding: EdgeInsets.only(bottom: 12 * s),
-              child: _RadarCard(
-                scale: s,
-                task: Map<String, dynamic>.from(t as Map),
-                onMore: () => _showActions(Map<String, dynamic>.from(t)),
-                onTap: () => _openDetail(Map<String, dynamic>.from(t)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _openDetail(Map<String, dynamic> task) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => TalentRadarDetailPage(task: task)),
-    );
-    if (mounted) await _load();
-  }
-
-  // ============== 无数据：空状态（还原 _TasksPageOverlay）==============
+  // ============== 空状态（还原 _TasksPageOverlay）==============
   Widget _emptyState(double s) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -299,219 +166,6 @@ class _PageHeaderTitle extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Radar 卡片（还原 my_first_app `_TaskCard`）。
-class _RadarCard extends StatelessWidget {
-  const _RadarCard({
-    required this.scale,
-    required this.task,
-    required this.onMore,
-    required this.onTap,
-  });
-
-  final double scale;
-  final Map<String, dynamic> task;
-  final VoidCallback onMore;
-  final VoidCallback onTap;
-
-  int _int(String key) => int.tryParse((task[key] ?? '0').toString()) ?? 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = scale;
-    final prompt = (task['prompt'] ?? task['name'] ?? 'Talent search').toString();
-    final status = (task['status'] ?? 'pending').toString();
-    final scanned = _int('scanned_candidates');
-    final highMatch = _int('high_match_candidates');
-    final results = _int('result_count') != 0 ? _int('result_count') : _int('results_count');
-    final todayNew = _int('today_new_candidates');
-    final sb = _statusStyle(status);
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      onLongPress: onMore,
-      child: Container(
-        padding: EdgeInsets.all(16 * s),
-        decoration: BoxDecoration(
-          color: DinqTokens.bgCard,
-          borderRadius: BorderRadius.circular(16 * s),
-          border: Border.all(color: DinqTokens.borderL),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 顶部：Talent search pill + 状态徽章 + more
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 5 * s),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F4),
-                    borderRadius: BorderRadius.circular(36 * s),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.radar_rounded, size: 13 * s, color: const Color(0xFF57534E)),
-                      SizedBox(width: 5 * s),
-                      Text('Talent search',
-                          style: TextStyle(
-                            fontSize: 11 * s,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF57534E),
-                          )),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 4 * s),
-                  decoration: BoxDecoration(
-                    color: sb.bg,
-                    borderRadius: BorderRadius.circular(36 * s),
-                  ),
-                  child: Text(sb.label,
-                      style: TextStyle(
-                        fontSize: 11 * s,
-                        fontWeight: FontWeight.w600,
-                        color: sb.fg,
-                      )),
-                ),
-                SizedBox(width: 4 * s),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onMore,
-                  child: Icon(Icons.more_horiz_rounded, size: 20 * s, color: DinqTokens.textTertiary),
-                ),
-              ],
-            ),
-            SizedBox(height: 12 * s),
-            // 标题 + new today
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(prompt,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 17 * s,
-                        height: 22 / 17,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1C1917),
-                      )),
-                ),
-                if (todayNew > 0) ...[
-                  SizedBox(width: 8 * s),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 3 * s),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(4 * s),
-                      border: Border.all(color: const Color(0xFFFEE2E2)),
-                    ),
-                    child: Text('+$todayNew new today',
-                        style: TextStyle(
-                          fontSize: 11 * s,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFDC2626),
-                        )),
-                  ),
-                ],
-              ],
-            ),
-            SizedBox(height: 12 * s),
-            // 指标行
-            Container(
-              padding: EdgeInsets.symmetric(vertical: 12 * s),
-              decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Color(0xFFF5F5F4)),
-                  bottom: BorderSide(color: Color(0xFFF5F5F4)),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(child: _Metric(scale: s, label: 'SCANNED', value: '$scanned')),
-                  _Divider(scale: s),
-                  Expanded(child: _Metric(scale: s, label: 'HIGH MATCH', value: '$highMatch')),
-                  _Divider(scale: s),
-                  Expanded(child: _Metric(scale: s, label: 'RESULTS', value: '$results')),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  _StatusStyle _statusStyle(String status) {
-    switch (status) {
-      case 'active':
-      case 'running':
-      case 'scheduled':
-      case 'pending':
-        return const _StatusStyle('Active', Color(0xFF16803D), Color(0xFFDCFCE7));
-      case 'paused':
-        return const _StatusStyle('Paused', Color(0xFFB45309), Color(0xFFFEF3C7));
-      case 'completed':
-        return const _StatusStyle('Completed', Color(0xFF1D4ED8), Color(0xFFDBEAFE));
-      case 'failed':
-      case 'cancelled':
-        return const _StatusStyle('Failed', Color(0xFFDC2626), Color(0xFFFEE2E2));
-      default:
-        return _StatusStyle(status, DinqTokens.textSecondary, const Color(0xFFF5F5F4));
-    }
-  }
-}
-
-class _StatusStyle {
-  const _StatusStyle(this.label, this.fg, this.bg);
-  final String label;
-  final Color fg;
-  final Color bg;
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({required this.scale, required this.label, required this.value});
-
-  final double scale;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label,
-            style: TextStyle(
-              fontSize: 10 * scale,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-              color: DinqTokens.textTertiary,
-            )),
-        SizedBox(height: 4 * scale),
-        Text(value,
-            style: TextStyle(
-              fontSize: 18 * scale,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF1C1917),
-            )),
-      ],
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  const _Divider({required this.scale});
-  final double scale;
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 28 * scale, color: const Color(0xFFF5F5F4));
   }
 }
 
