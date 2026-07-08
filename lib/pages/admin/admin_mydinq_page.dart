@@ -32,6 +32,9 @@ class _AdminMyDinqPageState extends State<AdminMyDinqPage> {
 
     final userStore = context.read<UserStore>();
     if (!userStore.isInitialized) return;
+    // 用户数据没加载成功（如网络失败）时无法判断是否已建 page，
+    // 不弹「创建」确认框，避免误导已建卡用户
+    if (userStore.user == null) return;
 
     final flow = userStore.myFlow;
     final userData = userStore.user?.userData;

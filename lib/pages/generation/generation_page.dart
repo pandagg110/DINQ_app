@@ -17,6 +17,7 @@ import '../../services/upload_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
+import '../../utils/dinq_page_gate.dart';
 import '../../utils/onboarding_draft_mapping.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/account/agreement_protocol_modal.dart';
@@ -129,6 +130,17 @@ class _GenerationPageState extends State<GenerationPage> {
     _confettiController = ConfettiController(
       duration: const Duration(milliseconds: 50),
     );
+    // 反向守卫（对齐 web onboarding layout）：已有生效 dinq page 的用户
+    // 打开创建流程直接回 mydinq。只判 hasLiveDinqPage（flow success），
+    // 不判 userData.domain 兜底——Regenerate 会 resetFlow 后进入本页，
+    // 此时 domain 仍在，不能被弹回。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final userStore = context.read<UserStore>();
+      if (userStore.isInitialized && hasLiveDinqPage(userStore.myFlow)) {
+        context.go('/admin/mydinq');
+      }
+    });
   }
 
   void _onDomainChanged() {
