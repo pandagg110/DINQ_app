@@ -79,7 +79,7 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
-          editable: widget.editable && widget.isSelected,
+          editable: widget.editable,
           onImageChange: _handlePreviewImageChange,
         );
         break;
@@ -89,7 +89,7 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
-          editable: widget.editable && widget.isSelected,
+          editable: widget.editable,
           onImageChange: _handlePreviewImageChange,
         );
         break;
@@ -99,7 +99,7 @@ class _LinkWidgetState extends State<LinkWidget> {
           url: url,
           favicon: favicon,
           ogImage: ogImage,
-          editable: widget.editable && widget.isSelected,
+          editable: widget.editable,
           onImageChange: _handlePreviewImageChange,
         );
         break;
