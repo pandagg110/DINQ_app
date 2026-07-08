@@ -229,7 +229,7 @@ class YouTubeLayouts {
                   height: 1.35,
                   color: Color(0xFF4B5563),
                 ),
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
