@@ -171,6 +171,7 @@ class EnrichProfileView extends StatefulWidget {
     super.key,
     required this.entry,
     this.isMobile = false,
+    this.pinActionsToBottom = false,
     this.onRefresh,
     this.confidencePct,
     this.selectedRowId,
@@ -178,6 +179,10 @@ class EnrichProfileView extends StatefulWidget {
 
   final EnrichEntry entry;
   final bool isMobile;
+
+  /// 移动端整页模式：操作按钮（Get email/Shortlist/私信）固定在页面底部，
+  /// 其余内容自带滚动区。为 true 时本组件占满可用高度，外层不要再包滚动容器。
+  final bool pinActionsToBottom;
   final Future<void> Function()? onRefresh;
   final int? confidencePct;
   final String? selectedRowId;
@@ -396,12 +401,20 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
           )
         : const SizedBox.shrink();
 
+    final pinActions = widget.isMobile && widget.pinActionsToBottom;
     final profile = _ProfileSection(
       entry: entry,
       isMobile: widget.isMobile,
       confidencePct: widget.confidencePct,
       selectedRowId: widget.selectedRowId,
+      pinActions: pinActions,
+      pinnedHeader: pinActions && hasLogs ? logSection : null,
     );
+
+    if (pinActions) {
+      // 滚动区 + 底部按钮栏都由 _ProfileSection 负责
+      return profile;
+    }
 
     if (widget.isMobile) {
       return Column(
@@ -433,12 +446,20 @@ class _ProfileSection extends StatefulWidget {
     required this.isMobile,
     this.confidencePct,
     this.selectedRowId,
+    this.pinActions = false,
+    this.pinnedHeader,
   });
 
   final EnrichEntry entry;
   final bool isMobile;
   final int? confidencePct;
   final String? selectedRowId;
+
+  /// 操作按钮固定底部：内容区自带滚动，按钮栏常驻页面底部
+  final bool pinActions;
+
+  /// pinActions 模式下插入滚动区顶部的组件（如工具日志区）
+  final Widget? pinnedHeader;
 
   @override
   State<_ProfileSection> createState() => _ProfileSectionState();
@@ -600,6 +621,82 @@ class _ProfileSectionState extends State<_ProfileSection> {
     );
   }
 
+  /// Get email / Shortlist / 私信按钮区；person 未就绪或 error 时为 null
+  Widget? _buildActionButtons() {
+    final entry = widget.entry;
+    final person = entry.person;
+    if (person == null || entry.status == EnrichStatus.error) return null;
+    final rowId = widget.selectedRowId;
+    final favoriteId = rowId != null ? _favoriteMap[rowId] : null;
+    final isFavorited = favoriteId != null;
+    final isRevealing = entry.emailRevealing;
+    final emailRevealed = entry.emailRevealAttempted;
+    final revealedEmail = entry.revealedEmail;
+    final emailRevealError = entry.emailRevealError;
+    final revealState = isRevealing
+        ? 'loading'
+        : emailRevealed && revealedEmail != null
+        ? 'send'
+        : emailRevealed && emailRevealError
+        ? 'retry'
+        : emailRevealed
+        ? 'not-found'
+        : 'get';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _EmailActionButton(
+                state: revealState,
+                onPressed: (isRevealing || revealState == 'not-found')
+                    ? null
+                    : () {
+                        if (revealState == 'send') {
+                          if (_emailConnected) {
+                            EnrichContactEmailModal.show(
+                              context,
+                              recipientEmail: revealedEmail!,
+                              recipientName: person.name,
+                              favoriteId: favoriteId,
+                              recipientTitle: [person.position, person.location]
+                                  .whereType<String>()
+                                  .map(stripBold)
+                                  .join(' • '),
+                            );
+                          } else {
+                            _showConnectPrompt();
+                          }
+                        } else {
+                          _handleRevealEmail();
+                        }
+                      },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _ShortlistButton(
+                isFavorited: isFavorited,
+                onPressed: () => _handleBookmark(rowId, person, favoriteId),
+              ),
+            ),
+          ],
+        ),
+        // 站内私信：仅对「在 dinq 注册且有主页」的用户展示（personalHomepage
+        // 指向 dinq.me/<domain>）。对齐 web ProfileSection 私信入口。
+        if (_dinqDomain(person.personalHomepage) case final domain?) ...[
+          const SizedBox(height: 8),
+          _MessageButton(
+            loading: _isStartingChat,
+            onPressed: _isStartingChat ? null : () => _startChat(domain),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final entry = widget.entry;
@@ -612,28 +709,10 @@ class _ProfileSectionState extends State<_ProfileSection> {
         entry.status != EnrichStatus.error;
     final isStreaming = entry.status == EnrichStatus.streaming;
     bool sectionSkeleton(bool hasData) => !hasData && isStreaming;
-    final rowId = widget.selectedRowId;
-    final favoriteId = rowId != null ? _favoriteMap[rowId] : null;
-    final isFavorited = favoriteId != null;
-
-    final isRevealing = entry.emailRevealing;
-    final emailRevealed = entry.emailRevealAttempted;
     final revealedEmail = entry.revealedEmail;
-    final emailRevealError = entry.emailRevealError;
-
-    final revealState = isRevealing
-        ? 'loading'
-        : emailRevealed && revealedEmail != null
-        ? 'send'
-        : emailRevealed && emailRevealError
-        ? 'retry'
-        : emailRevealed
-        ? 'not-found'
-        : 'get';
-
     final oneLiner = person?.oneLiner;
 
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // space-y-4 block: avatar + social + buttons
@@ -764,59 +843,12 @@ class _ProfileSectionState extends State<_ProfileSection> {
               const SizedBox(height: 16),
               _EmailListCard(emails: parseEmails(revealedEmail)),
             ],
-            if (person != null && entry.status != EnrichStatus.error) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _EmailActionButton(
-                      state: revealState,
-                      onPressed: (isRevealing || revealState == 'not-found')
-                          ? null
-                          : () {
-                              if (revealState == 'send') {
-                                if (_emailConnected) {
-                                  EnrichContactEmailModal.show(
-                                    context,
-                                    recipientEmail: revealedEmail!,
-                                    recipientName: person.name,
-                                    favoriteId: favoriteId,
-                                    recipientTitle:
-                                        [person.position, person.location]
-                                            .whereType<String>()
-                                            .map(stripBold)
-                                            .join(' • '),
-                                  );
-                                } else {
-                                  _showConnectPrompt();
-                                }
-                              } else {
-                                _handleRevealEmail();
-                              }
-                            },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ShortlistButton(
-                      isFavorited: isFavorited,
-                      onPressed: () =>
-                          _handleBookmark(rowId, person, favoriteId),
-                    ),
-                  ),
-                ],
-              ),
-              // 站内私信：仅对「在 dinq 注册且有主页」的用户展示（personalHomepage
-              // 指向 dinq.me/<domain>）。对齐 web ProfileSection 私信入口。
-              if (_dinqDomain(person.personalHomepage) case final domain?) ...[
-                const SizedBox(height: 8),
-                _MessageButton(
-                  loading: _isStartingChat,
-                  onPressed:
-                      _isStartingChat ? null : () => _startChat(domain),
-                ),
+            // pinActions 模式下按钮移到页面底部常驻栏，不再内联
+            if (!widget.pinActions)
+              if (_buildActionButtons() case final actions?) ...[
+                const SizedBox(height: 16),
+                actions,
               ],
-            ],
           ],
         ),
 
@@ -921,6 +953,45 @@ class _ProfileSectionState extends State<_ProfileSection> {
           _PersonNewsSection(news: person.news!)
         else if (sectionSkeleton(person?.news?.isNotEmpty != true))
           const _RecentActivitySkeleton(),
+      ],
+    );
+
+    if (!widget.pinActions) return content;
+
+    // 整页模式：内容区滚动，操作按钮栏固定在页面底部
+    final actions = _buildActionButtons();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.pinnedHeader != null) ...[
+                  widget.pinnedHeader!,
+                  const SizedBox(height: 16),
+                ],
+                content,
+              ],
+            ),
+          ),
+        ),
+        if (actions != null)
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: _C.border)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: actions,
+              ),
+            ),
+          ),
       ],
     );
   }
