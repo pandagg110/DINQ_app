@@ -17,6 +17,7 @@ import '../../services/upload_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
+import '../../utils/dinq_page_gate.dart';
 import '../../utils/onboarding_draft_mapping.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/account/agreement_protocol_modal.dart';
@@ -72,7 +73,6 @@ class _GenerationPageState extends State<GenerationPage> {
   int? _resumeUploadExpiresAt;
   bool _profileDraftReady = false;
   bool _useOnboardingHandle = false;
-  bool _hasEditedHandle = false;
   String? _handleCharWarning;
   Map<String, dynamic>? _draftUserData;
   String? _analyzeMode; // resume | url
@@ -130,6 +130,17 @@ class _GenerationPageState extends State<GenerationPage> {
     _confettiController = ConfettiController(
       duration: const Duration(milliseconds: 50),
     );
+    // 反向守卫（对齐 web onboarding layout）：已有生效 dinq page 的用户
+    // 打开创建流程直接回 mydinq。只判 hasLiveDinqPage（flow success），
+    // 不判 userData.domain 兜底——Regenerate 会 resetFlow 后进入本页，
+    // 此时 domain 仍在，不能被弹回。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final userStore = context.read<UserStore>();
+      if (userStore.isInitialized && hasLiveDinqPage(userStore.myFlow)) {
+        context.go('/admin/mydinq');
+      }
+    });
   }
 
   void _onDomainChanged() {
@@ -244,10 +255,9 @@ class _GenerationPageState extends State<GenerationPage> {
         });
       }
 
-      // 注意：不再用后端 myFlow.domain 预填 handle 输入框。后端会根据当前账号
-      // 返回一个建议 domain，导致「上传别人的主页却把 handle 预填成当前账号名
-      // (mark)」。严格对齐 web：handle 预填只走前端候选(_maybePrefillHandle：
-      // email→name)，后端 domain 不参与预填。
+      // 注意：handle 输入框不做任何预填（后端 myFlow.domain 和前端 email/name
+      // 候选都不用）。产品要求创建主页地址时输入框默认为空、由用户手动输入，
+      // 否则会出现「上传别人的主页却预填成当前账号名(mark)」。
 
       // 加载社交链接（第三步）
       if (_currentStep == GenerationStep.social && _socialLinks.isEmpty) {
@@ -2858,7 +2868,6 @@ class _GenerationPageState extends State<GenerationPage> {
         _currentStep = GenerationStep.profileBasics;
       });
       _prefillProfileFromDraft();
-      _maybePrefillHandle();
     } catch (error) {
       if (!mounted) return;
       final message = error.toString().replaceAll('Exception: ', '');
@@ -2925,7 +2934,6 @@ class _GenerationPageState extends State<GenerationPage> {
     _welcomeFinalizeStarted = false;
     if (clearDomain) {
       _domainController.clear();
-      _hasEditedHandle = false;
       _domainCheckResult = null;
     }
   }
@@ -2935,7 +2943,6 @@ class _GenerationPageState extends State<GenerationPage> {
       _useOnboardingHandle = true;
       _currentStep = GenerationStep.domain;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePrefillHandle());
   }
 
   void _prefillProfileFromDraft() {
@@ -3024,57 +3031,16 @@ class _GenerationPageState extends State<GenerationPage> {
       _useOnboardingHandle = true;
       _currentStep = GenerationStep.domain;
     });
-    _maybePrefillHandle();
   }
 
   void _handleHandleBack() {
     setState(() => _currentStep = GenerationStep.profileExpertise);
   }
 
-  String _cleanHandleCandidate(String? raw) {
-    if (raw == null || raw.isEmpty) return '';
-    final cleaned = raw.trim().toLowerCase().replaceAll(
-      RegExp(r'[^a-z0-9_-]'),
-      '',
-    );
-    final clipped = cleaned.length > 100 ? cleaned.substring(0, 100) : cleaned;
-    return clipped.length >= 3 ? clipped : '';
-  }
-
-  String _getEmailHandleCandidate(String? email) {
-    if (email == null || email.isEmpty) return '';
-    final localPart = email.split('@').first.split('+').first;
-    return _cleanHandleCandidate(localPart);
-  }
-
-  /// 对齐 web getNameHandleCandidate：名字含非 ASCII（如中文）直接判空，
-  /// 不用中文名生成 handle。
-  String _getNameHandleCandidate(String? raw) {
-    if (raw == null || raw.isEmpty) return '';
-    for (final code in raw.runes) {
-      if (code > 127) return '';
-    }
-    return _cleanHandleCandidate(raw);
-  }
-
-  void _maybePrefillHandle() {
-    if (_hasEditedHandle || _domainController.text.trim().isNotEmpty) return;
-    final user = context.read<UserStore>().user;
-    // 对齐 web：候选按 email → basics 名 → draft 名 顺序取第一个非空。
-    // （原来用 ?? 串联，但这些函数返回的是空字符串而非 null，?? 不会 fallback，
-    // 等于只用了 email 候选——已修正为「取第一个非空」。）
-    final candidate = [
-      _getEmailHandleCandidate(user?.user.email),
-      _getNameHandleCandidate(_profileNameController.text.trim()),
-      _getNameHandleCandidate(_draftUserData?['name'] as String?),
-    ].firstWhere((c) => c.isNotEmpty, orElse: () => '');
-    if (candidate.isEmpty) return;
-    _domainController.text = candidate;
-    _onDomainChanged();
-  }
+  // handle 输入框不做任何自动预填：产品要求创建主页地址时默认为空、由用户
+  // 手动输入（原 email/name 候选预填会把别人的主页预填成当前账号名）。
 
   void _onOnboardingHandleChanged(String nextValue) {
-    _hasEditedHandle = true;
     final sanitized = nextValue.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
     final clipped = sanitized.length > 100
         ? sanitized.substring(0, 100)

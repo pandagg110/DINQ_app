@@ -25,7 +25,13 @@ class DefaultAppBar extends AppBar {
     super.actions,
   }) : super(
          backgroundColor: backgroundColor ?? DinqTokens.bgPage,
-         systemOverlayStyle: const SystemUiOverlayStyle(statusBarBrightness: Brightness.light),
+         // Android 状态栏透明+深色图标（statusBarColor 缺省会回退成系统灰底，
+         // 与米白页面割裂）；statusBarBrightness 控制 iOS 图标颜色。
+         systemOverlayStyle: const SystemUiOverlayStyle(
+           statusBarColor: Colors.transparent,
+           statusBarIconBrightness: Brightness.dark,
+           statusBarBrightness: Brightness.light,
+         ),
          title:
              titleWidget ??
              Text(

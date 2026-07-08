@@ -7,9 +7,11 @@ import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../widgets/common/default_app_bar.dart';
 
-/// My → Organization → 详情（组织轻管理）。
-/// 还原线上 H5：成员查看 + 邀请链接（admin/owner 可刷新）+ 加入申请审批（admin/owner）。
-/// 接口：/orgs/{id}/members、/orgs/{id}/refresh-invite、/orgs/{id}/requests(+审批)。
+/// My → Organization → 详情。对齐 web organization/[slug]：
+/// 封面头图 + 叠加 logo + 组织名/成员数/地点/tags/描述 + 加入按钮状态机
+/// （Join / Requested / Request again / 成员则 Chat）+ 四个 tab
+/// （Cards / Members / Chat / Team，非成员对后三个 tab 显示 LockedGate）。
+/// 数据：GET /org/profile?slug=（含 viewer 上下文）+ 各 tab 接口。
 class OrganizationDetailPage extends StatefulWidget {
   final Map<String, dynamic> org;
   const OrganizationDetailPage({super.key, required this.org});
@@ -21,52 +23,141 @@ class OrganizationDetailPage extends StatefulWidget {
 class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   final _service = AccountService();
 
+  late Map<String, dynamic> _org;
   List<dynamic> _members = [];
   List<dynamic> _requests = [];
+  List<dynamic> _cards = [];
+  List<dynamic> _recruits = [];
+  bool _cardsLoaded = false;
+  bool _recruitsLoaded = false;
   bool _loading = true;
-  String? _error;
-  late String _inviteCode;
+  bool _joining = false;
   bool _refreshing = false;
+  int _tab = 0; // 0 Cards / 1 Members / 2 Chat / 3 Team
+  late String _inviteCode;
 
-  String get _id => (widget.org['id'] ?? '').toString();
-  String get _role => (widget.org['role'] ?? widget.org['my_role'] ?? '').toString();
+  static const _tabs = ['Cards', 'Members', 'Chat', 'Team'];
+
+  // web tags 的 8 种 pastel 背景循环
+  static const _tagPalette = [
+    Color(0xFFFDE277), Color(0xFFFED7D7), Color(0xFFD6F995),
+    Color(0xFFC6E2FF), Color(0xFFE2C6FF), Color(0xFFFFE4CC),
+    Color(0xFFD4F4DD), Color(0xFFFFD6E8),
+  ];
+
+  String get _id => (_org['id'] ?? '').toString();
+  String get _slug => (_org['slug'] ?? '').toString();
+
+  String get _role {
+    final viewer = _org['viewer'];
+    if (viewer is Map && viewer['role'] != null) {
+      return viewer['role'].toString();
+    }
+    return (_org['role'] ?? _org['my_role'] ?? '').toString();
+  }
+
+  /// member / pending / rejected / none（对齐 web joinStatus）
+  String get _joinStatus {
+    if (_role.isNotEmpty) return 'member';
+    final viewer = _org['viewer'];
+    final rs = viewer is Map
+        ? (viewer['request_status'] ?? '').toString()
+        : (_org['request_status'] ?? '').toString();
+    if (rs == 'pending') return 'pending';
+    if (rs == 'rejected') return 'rejected';
+    return 'none';
+  }
+
+  bool get _isMember => _joinStatus == 'member';
   bool get _isManager => _role == 'owner' || _role == 'admin';
 
   @override
   void initState() {
     super.initState();
-    _inviteCode = (widget.org['invite_code'] ?? '').toString();
+    _org = Map<String, dynamic>.from(widget.org);
+    _inviteCode = (_org['invite_code'] ?? '').toString();
     _load();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
+    // 刷新组织档案（拿 viewer 上下文/main_conversation_id 等）
     try {
-      final members = await _service.getOrgMembers(_id);
-      List<dynamic> requests = const [];
-      if (_isManager) {
-        requests = await _service.getOrgJoinRequests(_id);
+      if (_slug.isNotEmpty) {
+        final profile = await _service.getOrgProfile(_slug);
+        if (profile.isNotEmpty) {
+          _org = {..._org, ...profile};
+          final code = (_org['invite_code'] ?? '').toString();
+          if (code.isNotEmpty) _inviteCode = code;
+        }
       }
-      if (!mounted) return;
-      setState(() {
-        _members = members;
-        _requests = requests;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+    } catch (_) {}
+    // 成员/审批（非成员会 403，静默忽略）
+    try {
+      _members = await _service.getOrgMembers(_id);
+    } catch (_) {
+      _members = const [];
+    }
+    if (_isManager) {
+      try {
+        _requests = await _service.getOrgJoinRequests(_id);
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _loading = false);
+    _loadTabData();
+  }
+
+  Future<void> _loadTabData() async {
+    if (_tab == 0 && !_cardsLoaded) {
+      try {
+        _cards = await _service.getOrgCardBoard(_id);
+      } catch (_) {}
+      _cardsLoaded = true;
+      if (mounted) setState(() {});
+    }
+    if (_tab == 3 && !_recruitsLoaded && _isMember) {
+      try {
+        _recruits = await _service.getOrgTeamRecruits(_id);
+      } catch (_) {}
+      _recruitsLoaded = true;
+      if (mounted) setState(() {});
     }
   }
 
-  String get _inviteLink =>
-      _inviteCode.isEmpty ? '' : 'https://dinq.me/invite/${_inviteCode.toUpperCase()}';
+  Future<void> _requestJoin() async {
+    if (_joining) return;
+    setState(() => _joining = true);
+    try {
+      final status = await _service.requestJoinOrg(_id);
+      if (!mounted) return;
+      if (status == 'already_member') {
+        _snack('You are already a member');
+      } else {
+        _snack('Join request sent — waiting for approval');
+        setState(() {
+          final viewer = Map<String, dynamic>.from(
+              (_org['viewer'] as Map?)?.cast<String, dynamic>() ?? {});
+          viewer['request_status'] = 'pending';
+          _org['viewer'] = viewer;
+          _org['request_status'] = 'pending';
+        });
+      }
+    } catch (e) {
+      _snack('Request failed: $e');
+    } finally {
+      if (mounted) setState(() => _joining = false);
+    }
+  }
+
+  void _share() {
+    if (_slug.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: 'https://dinq.me/$_slug'));
+    _snack('Link copied');
+  }
+
+  String get _inviteLink => _inviteCode.isEmpty
+      ? ''
+      : 'https://dinq.me/invite/${_inviteCode.toUpperCase()}';
 
   Future<void> _copyInvite() async {
     if (_inviteLink.isEmpty) return;
@@ -94,11 +185,22 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     try {
       await _service.reviewOrgJoinRequest(_id, rid, action);
       if (!mounted) return;
-      setState(() => _requests = _requests.where((r) => (r as Map)['id'].toString() != rid).toList());
+      setState(() => _requests = _requests
+          .where((r) => (r as Map)['id'].toString() != rid)
+          .toList());
       _snack(action == 'approved' ? 'Request approved' : 'Request rejected');
     } catch (e) {
       _snack('Failed: $e');
     }
+  }
+
+  void _openChat() {
+    final convId = (_org['main_conversation_id'] ?? '').toString();
+    if (convId.isEmpty) {
+      _snack('Chat is not ready yet');
+      return;
+    }
+    context.push('/admin/inbox/$convId');
   }
 
   void _snack(String msg) {
@@ -106,94 +208,173 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // ─────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final name = (widget.org['name'] ?? 'Organization').toString();
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
-      appBar: DefaultAppBar(context, titleString: name),
-      body: _body(),
-    );
-  }
-
-  Widget _body() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!, style: const TextStyle(color: DinqTokens.textTertiary)),
-            const SizedBox(height: 12),
-            TextButton(onPressed: _load, child: const Text('Retry')),
-          ],
-        ),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: [
-        _header(),
-        const SizedBox(height: 20),
-        if (_inviteCode.isNotEmpty || _isManager) ...[
-          _sectionTitle('Invite link'),
-          const SizedBox(height: 8),
-          _inviteCard(),
-          const SizedBox(height: 20),
-        ],
-        if (_isManager && _requests.isNotEmpty) ...[
-          _sectionTitle('Join requests (${_requests.length})'),
-          const SizedBox(height: 8),
-          for (final r in _requests) _requestRow(Map<String, dynamic>.from(r as Map)),
-          const SizedBox(height: 20),
-        ],
-        _sectionTitle('Members (${_members.length})'),
-        const SizedBox(height: 8),
-        for (final m in _members) _memberRow(Map<String, dynamic>.from(m as Map)),
-      ],
-    );
-  }
-
-  Widget _header() {
-    final name = (widget.org['name'] ?? 'Organization').toString();
-    final slug = (widget.org['slug'] ?? '').toString();
-    final count = (widget.org['member_count'] ?? _members.length).toString();
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    return Row(
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: DinqTokens.bgSurface,
-            borderRadius: BorderRadius.circular(14),
+      appBar: DefaultAppBar(
+        context,
+        titleString: '',
+        actions: [
+          IconButton(
+            tooltip: 'Share',
+            icon: const Icon(Icons.share_outlined,
+                size: 20, color: Color(0xFF6B6862)),
+            onPressed: _share,
           ),
-          child: Text(initial,
-              style: TextStyle(
-                  fontSize: 24, fontWeight: FontWeight.w700, color: ColorUtil.textColor)),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : RefreshIndicator(
+              onRefresh: () async {
+                _cardsLoaded = false;
+                _recruitsLoaded = false;
+                await _load();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
+                children: [
+                  _header(),
+                  const SizedBox(height: 20),
+                  _tabBar(),
+                  const SizedBox(height: 16),
+                  _tabContent(),
+                ],
+              ),
+            ),
+    );
+  }
+
+  // ── 头部（封面 + logo + 信息 + CTA）───────────────────────────
+  Widget _header() {
+    final name = (_org['name'] ?? 'Organization').toString();
+    final logoUrl = (_org['logo_url'] ?? '').toString();
+    final backgroundUrl = (_org['background_url'] ?? '').toString();
+    final location = (_org['location'] ?? '').toString();
+    final description = (_org['description'] ?? '').toString();
+    final tags = (_org['tags'] as List?)?.map((e) => e.toString()).toList() ??
+        const <String>[];
+    final memberCount =
+        (_org['member_count'] as num?)?.toInt() ?? _members.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 封面（401:120，圆角16）
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: AspectRatio(
+            aspectRatio: 401 / 120,
+            child: backgroundUrl.isNotEmpty
+                ? Image.network(backgroundUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        Container(color: const Color(0xFFF8F7F4)))
+                : Container(color: const Color(0xFFF8F7F4)),
+          ),
         ),
-        const SizedBox(width: 14),
-        Expanded(
+        // logo 叠加封面下缘
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Transform.translate(
+            offset: const Offset(0, -50),
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F7F4),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFEEEDE9)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: logoUrl.isNotEmpty
+                  ? Image.network(logoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _logoInitial(name))
+                  : _logoInitial(name),
+            ),
+          ),
+        ),
+        Transform.translate(
+          offset: const Offset(0, -36),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w700, color: ColorUtil.textColor)),
-              const SizedBox(height: 3),
-              Text(
-                [
-                  if (slug.isNotEmpty) '@$slug',
-                  '$count members',
-                  if (_role.isNotEmpty) _role,
-                ].join(' · '),
-                style: const TextStyle(fontSize: 13, color: DinqTokens.textTertiary),
+                  style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF171717))),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.people_outline,
+                      size: 18, color: Color(0xFF303030)),
+                  const SizedBox(width: 6),
+                  Text('$memberCount member${memberCount == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF171717))),
+                  if (location.isNotEmpty) ...[
+                    const SizedBox(width: 16),
+                    const Icon(Icons.place_outlined,
+                        size: 18, color: Color(0xFF303030)),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF171717))),
+                    ),
+                  ],
+                ],
               ),
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var i = 0; i < tags.length; i++)
+                      Container(
+                        height: 32,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _tagPalette[i % _tagPalette.length],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(tags[i],
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF171717))),
+                      ),
+                  ],
+                ),
+              ],
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(description,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.5,
+                        color: Color(0xFF6B6862))),
+              ],
+              const SizedBox(height: 16),
+              _ctaButton(),
             ],
           ),
         ),
@@ -201,13 +382,449 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     );
   }
 
-  Widget _sectionTitle(String t) => Text(t,
-      style: const TextStyle(
-          fontSize: 14, fontWeight: FontWeight.w700, color: DinqTokens.textPrimary));
+  Widget _logoInitial(String name) {
+    final initial =
+        name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+    return Container(
+      color: const Color(0xFFEADFCE),
+      alignment: Alignment.center,
+      child: Text(initial,
+          style: const TextStyle(
+              fontSize: 40,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F1F1F))),
+    );
+  }
+
+  /// 加入按钮状态机（对齐 web MembershipCta）：
+  /// member→Chat；pending→Requested(禁用)；rejected→Request again；none→Join。
+  Widget _ctaButton() {
+    final status = _joinStatus;
+    String label;
+    VoidCallback? onTap;
+    bool disabled = false;
+    switch (status) {
+      case 'member':
+        label = 'Chat';
+        onTap = _openChat;
+        break;
+      case 'pending':
+        label = 'Requested';
+        disabled = true;
+        break;
+      case 'rejected':
+        label = 'Request again';
+        onTap = _requestJoin;
+        break;
+      default:
+        label = 'Join';
+        onTap = _requestJoin;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: disabled || _joining ? null : onTap,
+          child: Container(
+            height: 44,
+            width: double.infinity,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color:
+                  disabled ? const Color(0xFFF6F5F2) : const Color(0xFF171717),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: _joining
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(label,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: disabled
+                            ? const Color(0xFF6B6862)
+                            : Colors.white)),
+          ),
+        ),
+        if (status == 'rejected')
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text('Your previous request was declined.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF9E9B93))),
+          ),
+      ],
+    );
+  }
+
+  // ── Tab 导航（SegmentedControl 风格）──────────────────────────
+  Widget _tabBar() {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: DinqTokens.bgSurface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < _tabs.length; i++)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() => _tab = i);
+                  _loadTabData();
+                },
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _tab == i ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Text(_tabs[i],
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              _tab == i ? FontWeight.w600 : FontWeight.w400,
+                          color: _tab == i
+                              ? const Color(0xFF171717)
+                              : const Color(0xFF9E9B93))),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabContent() {
+    switch (_tab) {
+      case 0:
+        return _cardsTab();
+      case 1:
+        return _isMember
+            ? _membersTab()
+            : _lockedGate(
+                'Members are only visible to organization members',
+                'Join the organization to see all members');
+      case 2:
+        return _isMember
+            ? _chatTab()
+            : _lockedGate(
+                'Chat is only visible to organization members',
+                'Join the organization to join the conversation');
+      default:
+        return _isMember
+            ? _teamTab()
+            : _lockedGate(
+                'Team recruits are only visible to organization members',
+                'Join the organization to see team recruits');
+    }
+  }
+
+  // ── Cards tab（公开）─────────────────────────────────────────
+  Widget _cardsTab() {
+    if (!_cardsLoaded) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 60),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    if (_cards.isEmpty) {
+      return _emptyState(Icons.grid_view_rounded, 'No cards yet');
+    }
+    // 简版只读列表（完整卡片渲染复用个人主页卡片系统，后续迭代）
+    return Column(
+      children: [
+        for (final c in _cards.whereType<Map>())
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: DinqTokens.bgCard,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: DinqTokens.borderLL),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.crop_square_rounded,
+                    size: 20, color: DinqTokens.textTertiary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    (c['title'] ??
+                            (c['data'] is Map
+                                ? ((c['data'] as Map)['type'] ?? 'Card')
+                                : (c['type'] ?? 'Card')))
+                        .toString(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 14, color: ColorUtil.textColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── Members tab（成员）───────────────────────────────────────
+  Widget _membersTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_isManager) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text('${_members.length} members',
+                    style: const TextStyle(
+                        fontSize: 13, color: DinqTokens.textTertiary)),
+              ),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _openReviewSheet,
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFEEEDE9)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.fact_check_outlined,
+                          size: 16, color: Color(0xFF171717)),
+                      const SizedBox(width: 6),
+                      const Text('Review',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF171717))),
+                      if (_requests.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          constraints: const BoxConstraints(minWidth: 16),
+                          height: 16,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 4),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _requests.length > 99
+                                ? '99+'
+                                : '${_requests.length}',
+                            style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (_inviteCode.isNotEmpty) ...[
+          _inviteCard(),
+          const SizedBox(height: 12),
+        ],
+        for (final m in _members.whereType<Map>())
+          _memberRow(Map<String, dynamic>.from(m)),
+      ],
+    );
+  }
+
+  Future<void> _openReviewSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: DinqTokens.bgPage,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Join requests (${_requests.length})',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF171717))),
+                const SizedBox(height: 14),
+                if (_requests.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 30),
+                    child: Center(
+                      child: Text('No pending requests',
+                          style: TextStyle(
+                              fontSize: 13, color: DinqTokens.textTertiary)),
+                    ),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxHeight:
+                            MediaQuery.sizeOf(context).height * 0.55),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final r in _requests.whereType<Map>())
+                          _requestRow(Map<String, dynamic>.from(r),
+                              onReviewed: () => setSheetState(() {})),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
 
   Widget _inviteCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: DinqTokens.bgCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: DinqTokens.borderLL),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.link_rounded,
+              size: 20, color: DinqTokens.textTertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(_inviteLink,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 12, color: DinqTokens.textSecondary)),
+          ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _copyInvite,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6),
+              child:
+                  Icon(Icons.copy_rounded, size: 18, color: Color(0xFF171717)),
+            ),
+          ),
+          if (_isManager)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _refreshInvite,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _refreshing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.refresh_rounded,
+                        size: 18, color: Color(0xFF171717)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Chat tab（成员）──────────────────────────────────────────
+  Widget _chatTab() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      decoration: BoxDecoration(
+        color: DinqTokens.bgCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DinqTokens.borderLL),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.chat_bubble_outline_rounded,
+              size: 32, color: DinqTokens.textTertiary),
+          const SizedBox(height: 12),
+          const Text('Organization group chat',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF171717))),
+          const SizedBox(height: 6),
+          const Text('Chat with all members in one place.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF9E9B93))),
+          const SizedBox(height: 18),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _openChat,
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFF171717),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text('Open chat',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Team tab（成员）──────────────────────────────────────────
+  Widget _teamTab() {
+    if (!_recruitsLoaded) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 60),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    if (_recruits.isEmpty) {
+      return _emptyState(Icons.group_add_outlined, 'No team recruits yet');
+    }
+    return Column(
+      children: [
+        for (final r in _recruits.whereType<Map>()) _recruitRow(r),
+      ],
+    );
+  }
+
+  Widget _recruitRow(Map r) {
+    final title = (r['title'] ?? r['role'] ?? 'Team recruit').toString();
+    final desc = (r['description'] ?? '').toString();
+    final state = (r['state'] ?? r['status'] ?? '').toString();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: DinqTokens.bgCard,
         borderRadius: BorderRadius.circular(14),
@@ -216,63 +833,144 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _inviteLink.isEmpty ? 'No invite link yet' : _inviteLink,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                fontSize: 13,
-                color: _inviteLink.isEmpty ? DinqTokens.textTertiary : ColorUtil.textColor),
-          ),
-          const SizedBox(height: 12),
           Row(
             children: [
-              if (_inviteLink.isNotEmpty)
-                _actionPill(
-                  icon: Icons.copy_rounded,
-                  label: 'Copy',
-                  onTap: _copyInvite,
+              Expanded(
+                child: Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: ColorUtil.textColor)),
+              ),
+              if (state.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: DinqTokens.bgSurface,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(state,
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: DinqTokens.textSecondary)),
                 ),
-              if (_isManager) ...[
-                if (_inviteLink.isNotEmpty) const SizedBox(width: 10),
-                _actionPill(
-                  icon: Icons.refresh_rounded,
-                  label: _refreshing ? 'Refreshing…' : 'Refresh',
-                  onTap: _refreshing ? null : _refreshInvite,
-                ),
-              ],
             ],
           ),
+          if (desc.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(desc,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontSize: 12, color: Color(0xFF9E9B93))),
+          ],
         ],
       ),
     );
   }
 
-  Widget _actionPill({required IconData icon, required String label, VoidCallback? onTap}) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: DinqTokens.bgSurface,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: ColorUtil.textColor),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: ColorUtil.textColor)),
-          ],
-        ),
+  // ── LockedGate（对齐 web OrgLockedGate）───────────────────────
+  Widget _lockedGate(String title, String subtitle) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F6F2),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFEEEDE9)),
+            ),
+            child: const Icon(Icons.lock_outline_rounded,
+                size: 20, color: Color(0xFF6B6862)),
+          ),
+          const SizedBox(height: 14),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF171717))),
+          const SizedBox(height: 6),
+          Text(subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF9E9B93))),
+          const SizedBox(height: 18),
+          if (_joinStatus == 'pending')
+            _gateButton('Requested', disabled: true)
+          else if (_joinStatus == 'rejected') ...[
+            _gateButton('Request again', onTap: _requestJoin),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Your previous request was declined.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF9E9B93))),
+            ),
+          ] else
+            _gateButton('Join Organization', onTap: _requestJoin),
+        ],
       ),
     );
   }
 
-  Widget _requestRow(Map<String, dynamic> r) {
+  Widget _gateButton(String label,
+      {VoidCallback? onTap, bool disabled = false}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: disabled || _joining ? null : onTap,
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: disabled ? const Color(0xFFF6F5F2) : const Color(0xFF171717),
+          borderRadius: BorderRadius.circular(8),
+          border:
+              disabled ? Border.all(color: const Color(0xFFEEEDE9)) : null,
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: disabled ? const Color(0xFF6B6862) : Colors.white)),
+      ),
+    );
+  }
+
+  Widget _emptyState(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEFEFED),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 22, color: const Color(0xFF9E9B93)),
+          ),
+          const SizedBox(height: 12),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF6B6862))),
+        ],
+      ),
+    );
+  }
+
+  // ── 成员/审批行（沿用原实现）─────────────────────────────────
+  Widget _requestRow(Map<String, dynamic> r, {VoidCallback? onReviewed}) {
     final user = (r['user'] as Map?)?.cast<String, dynamic>() ?? const {};
     final name = (user['name'] ?? r['user_id'] ?? 'User').toString();
     final sub = (user['full_position'] ?? user['domain'] ?? '').toString();
@@ -292,14 +990,22 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
           Expanded(child: _nameSub(name, sub)),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => _review(r, 'approved'),
-            child: const Icon(Icons.check_circle_outline, size: 24, color: Color(0xFF5C8840)),
+            onTap: () async {
+              await _review(r, 'approved');
+              onReviewed?.call();
+            },
+            child: const Icon(Icons.check_circle_outline,
+                size: 24, color: Color(0xFF5C8840)),
           ),
           const SizedBox(width: 14),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => _review(r, 'rejected'),
-            child: const Icon(Icons.cancel_outlined, size: 24, color: Color(0xFFE24B3C)),
+            onTap: () async {
+              await _review(r, 'rejected');
+              onReviewed?.call();
+            },
+            child: const Icon(Icons.cancel_outlined,
+                size: 24, color: Color(0xFFE24B3C)),
           ),
         ],
       ),
@@ -309,7 +1015,8 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   Widget _memberRow(Map<String, dynamic> m) {
     final user = (m['user'] as Map?)?.cast<String, dynamic>() ?? const {};
     final name = (user['name'] ?? m['user_id'] ?? 'Member').toString();
-    final position = (user['full_position'] ?? user['full_degree'] ?? '').toString();
+    final position =
+        (user['full_position'] ?? user['full_degree'] ?? '').toString();
     final location = (user['location'] ?? '').toString();
     final sub = [
       if (position.isNotEmpty) position,
@@ -319,7 +1026,6 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     final domain = (user['domain'] ?? '').toString();
     final role = (m['role'] ?? '').toString();
     final uid = (m['user_id'] ?? '').toString();
-    // 管理者可管理「非 owner」成员（对齐 H5：owner 不可被管理）
     final canManage = _isManager && role != 'owner';
 
     return GestureDetector(
@@ -341,16 +1047,20 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
             if (role.isNotEmpty) _roleBadge(role),
             if (canManage)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_horiz_rounded, size: 20, color: DinqTokens.textTertiary),
+                icon: const Icon(Icons.more_horiz_rounded,
+                    size: 20, color: DinqTokens.textTertiary),
                 onSelected: (v) => _manageMember(uid, name, v),
                 itemBuilder: (_) => [
                   if (role != 'admin')
-                    const PopupMenuItem(value: 'admin', child: Text('Make admin')),
+                    const PopupMenuItem(
+                        value: 'admin', child: Text('Make admin')),
                   if (role == 'admin')
-                    const PopupMenuItem(value: 'member', child: Text('Make member')),
+                    const PopupMenuItem(
+                        value: 'member', child: Text('Make member')),
                   const PopupMenuItem(
                       value: 'remove',
-                      child: Text('Remove member', style: TextStyle(color: Color(0xFFE24B3C)))),
+                      child: Text('Remove member',
+                          style: TextStyle(color: Color(0xFFE24B3C)))),
                 ],
               ),
           ],
@@ -360,7 +1070,6 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   }
 
   Widget _roleBadge(String role) {
-    // owner 绿 / admin 金 / member 中性（对齐 H5 RoleBadge）
     Color fg;
     Color bg;
     switch (role) {
@@ -379,9 +1088,11 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     return Container(
       margin: const EdgeInsets.only(left: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
       child: Text(role[0].toUpperCase() + role.substring(1),
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
     );
   }
 
@@ -394,19 +1105,25 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
             title: const Text('Remove member'),
             content: Text('Remove $name from this organization?'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel')),
               TextButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Remove', style: TextStyle(color: Color(0xFFE24B3C)))),
+                  child: const Text('Remove',
+                      style: TextStyle(color: Color(0xFFE24B3C)))),
             ],
           ),
         );
         if (ok != true) return;
         await _service.removeOrgMember(_id, uid);
       } else {
-        await _service.updateOrgMemberRole(_id, uid, action); // 'admin' | 'member'
+        await _service.updateOrgMemberRole(_id, uid, action);
       }
-      await _load();
+      try {
+        _members = await _service.getOrgMembers(_id);
+      } catch (_) {}
+      if (mounted) setState(() {});
     } catch (e) {
       _snack('Failed: $e');
     }
@@ -420,19 +1137,21 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w600, color: ColorUtil.textColor)),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: ColorUtil.textColor)),
         if (sub.isNotEmpty) ...[
           const SizedBox(height: 2),
           Text(sub,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: DinqTokens.textTertiary)),
+              style:
+                  const TextStyle(fontSize: 12, color: DinqTokens.textTertiary)),
         ],
       ],
     );
   }
 
-  // 与 H5 nameToAvatarColor 思路一致：按名字哈希取一个柔和底色
   static const _avatarPalette = [
     Color(0xFFE7F6EF), Color(0xFFFBF1DC), Color(0xFFEAF0FB),
     Color(0xFFF7EAF3), Color(0xFFFCEEE8), Color(0xFFEDEEF7),
@@ -456,7 +1175,9 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
           ? null
           : Text(initial,
               style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: ColorUtil.textColor)),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: ColorUtil.textColor)),
     );
   }
 }

@@ -224,7 +224,6 @@ class _EnrichBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.paddingOf(context).top;
-    final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
     return Positioned.fill(
       child: Material(
@@ -253,29 +252,16 @@ class _EnrichBottomSheet extends StatelessWidget {
               ),
             ),
             Expanded(
+              // 内容滚动 + 操作按钮固定底部由 EnrichProfileView 整页模式负责
               child: entry == null
                   ? const SizedBox.shrink()
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        return SingleChildScrollView(
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            24,
-                            16,
-                            24 + bottomPadding,
-                          ),
-                          child: SizedBox(
-                            width: constraints.maxWidth,
-                            child: EnrichProfileView(
-                              entry: entry!,
-                              isMobile: true,
-                              selectedRowId: selectedRowId,
-                              confidencePct: confidencePct,
-                              onRefresh: onRefresh,
-                            ),
-                          ),
-                        );
-                      },
+                  : EnrichProfileView(
+                      entry: entry!,
+                      isMobile: true,
+                      pinActionsToBottom: true,
+                      selectedRowId: selectedRowId,
+                      confidencePct: confidencePct,
+                      onRefresh: onRefresh,
                     ),
             ),
           ],

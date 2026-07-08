@@ -39,6 +39,29 @@ class PaymentService {
     final response = await _dio.post('/payment/auto-renew', data: {'auto_renew': autoRenew});
     return Map<String, dynamic>.from(response.data as Map);
   }
+
+  /// 积分流水列表（分页，Credits 页 Usage tab；对齐 web getCreditTransactions）
+  /// 需要认证
+  Future<Map<String, dynamic>> getCreditTransactions({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final response = await _dio.get(
+      '/payment/credit-transactions',
+      queryParameters: {'page': page, 'page_size': pageSize},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// 支付订单列表（分页，Credits 页 Billing tab；对齐 web getOrders）
+  /// 需要认证
+  Future<Map<String, dynamic>> getOrders({int page = 1, int pageSize = 20}) async {
+    final response = await _dio.get(
+      '/payment/orders',
+      queryParameters: {'page': page, 'page_size': pageSize},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
 }
 
 

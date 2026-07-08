@@ -4,8 +4,10 @@ const String gatewayUrl = String.fromEnvironment(
   defaultValue: 'https://testapi.dinq.me',
 );
 
-const String privacyUrl = '$appUrl/privacy';
-const String termsUrl = '$appUrl/terms';
+// ?type=app：web 的 terms/privacy 页检测到该参数会隐藏页内 Back 返回栏
+// （app WebView 顶部已有原生返回，避免出现两个返回按钮）。
+const String privacyUrl = '$appUrl/privacy?type=app';
+const String termsUrl = '$appUrl/terms?type=app';
 
 /// 分析页 base URL，与 TSX buildFullAnalysisUrl 一致
 const String analysisBaseUrl = 'https://analysis.dinq.me';

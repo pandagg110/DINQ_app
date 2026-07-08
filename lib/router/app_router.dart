@@ -47,6 +47,7 @@ import '../pages/settings/settings_account_page.dart';
 import '../pages/settings/settings_dinqcard_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/settings/settings_profile_page.dart';
+import '../pages/settings/settings_credits_page.dart';
 import '../pages/settings/settings_subscription_page.dart';
 import '../pages/settings/settings_verification_page.dart';
 import '../pages/splash_page.dart';
@@ -59,6 +60,7 @@ import '../pages/me/integration_page.dart';
 import '../pages/me/push_settings_page.dart';
 import '../pages/mydinq/mydinq_page.dart';
 import '../stores/user_store.dart';
+import '../utils/dinq_page_gate.dart';
 
 class AppRouter {
   // 不需要登录就能访问的公开路由
@@ -110,9 +112,13 @@ class AppRouter {
           return location == '/splash' ? null : '/splash';
         }
 
-        // 初始化完成后，如果还在启动页，根据登录状态跳转
+        // 初始化完成后，如果还在启动页，根据登录状态跳转；
+        // 已创建 dinq page 的用户进 App 直接进入 mydinq（对齐 web）
         if (location == '/splash') {
-          return isLoggedIn ? '/' : '/signin';
+          if (!isLoggedIn) return '/signin';
+          return hasExistingDinqPage(userStore.myFlow, userStore.user?.userData)
+              ? '/admin/mydinq'
+              : '/';
         }
 
         // 判断当前是否在登录/注册页
@@ -315,6 +321,10 @@ class AppRouter {
         GoRoute(
           path: '/settings/subscription',
           builder: (context, state) => const SettingsSubscriptionPage(),
+        ),
+        GoRoute(
+          path: '/settings/credits',
+          builder: (context, state) => const SettingsCreditsPage(),
         ),
         GoRoute(
           path: '/payment/success',

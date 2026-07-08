@@ -113,6 +113,28 @@ class AccountService {
     await _dio.delete('/orgs/$id/members/$uid');
   }
 
+  /// GET /org/profile?slug= — 组织公开档案（含 viewer 上下文：role/request_status）。
+  Future<Map<String, dynamic>> getOrgProfile(String slug) async {
+    final resp = await _dio.get('/org/profile', queryParameters: {'slug': slug});
+    return Map<String, dynamic>.from(resp.data as Map? ?? {});
+  }
+
+  /// GET /orgs/{id}/card-board — 组织卡片板（任意人可读，用于 Cards tab）。
+  Future<List<dynamic>> getOrgCardBoard(String id) async {
+    final resp = await _dio.get('/orgs/$id/card-board');
+    final d = resp.data;
+    if (d is Map && d['cards'] is List) return d['cards'] as List;
+    return const [];
+  }
+
+  /// GET /orgs/{id}/team-recruits — 组队招募列表（仅成员可读）。
+  Future<List<dynamic>> getOrgTeamRecruits(String id) async {
+    final resp = await _dio.get('/orgs/$id/team-recruits');
+    final d = resp.data;
+    if (d is Map && d['recruits'] is List) return d['recruits'] as List;
+    return const [];
+  }
+
   /// POST /org — 创建组织。
   Future<Map<String, dynamic>> createOrg({
     required String name,
