@@ -42,11 +42,8 @@ class CardStore extends ChangeNotifier {
 
   Future<void> loadCards(String username) async {
     _currentUsername = username;
-    cards.clear();
-    notifyListeners();
-    // If we have cached cards, mark as initialized immediately (no blocking)
-    if (cards.isNotEmpty) {
-      isInitialized = true;
+    final showLoading = !isInitialized;
+    if (showLoading) {
       notifyListeners();
     }
 
