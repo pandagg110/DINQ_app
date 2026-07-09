@@ -222,16 +222,7 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
           _typeSelector(),
           const SizedBox(height: 16),
           _label('Description (optional)'),
-          _input(_descCtrl, 'What is this organization about?',
-              maxLines: 3, maxLength: _descMaxLen, onChanged: (_) => setState(() {})),
-          Padding(
-            padding: const EdgeInsets.only(top: 4, right: 2),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text('${_descCtrl.text.characters.length}/$_descMaxLen',
-                  style: const TextStyle(fontSize: 12, color: DinqTokens.textTertiary)),
-            ),
-          ),
+          _descriptionField(),
           const SizedBox(height: 16),
           _label('Location'),
           _input(_locationCtrl, 'San Francisco, CA'),
@@ -271,105 +262,111 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          // 封面
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _uploadingCover ? null : () => _pickImage(isCover: true),
-            child: AspectRatio(
-              aspectRatio: 401 / 120,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_backgroundUrl.isNotEmpty)
-                    Image.network(_backgroundUrl, fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            Container(color: const Color(0xFFF8F7F4)))
-                  else
-                    Container(
-                      color: const Color(0xFFF8F7F4),
-                      child: const Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.camera_alt_outlined,
-                                size: 16, color: Color(0xFF9E9B93)),
-                            SizedBox(width: 6),
-                            Text('Add cover',
-                                style: TextStyle(
-                                    fontSize: 13, color: Color(0xFF9E9B93))),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (_uploadingCover)
-                    Container(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          // logo 承载区（logo 上移叠在封面左下）
-          Container(
-            height: 44,
-            padding: const EdgeInsets.only(left: 16),
-            alignment: Alignment.centerLeft,
-            child: Transform.translate(
-              offset: const Offset(0, -32),
-              child: GestureDetector(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 封面
+              GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: _uploadingLogo ? null : () => _pickImage(isCover: false),
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEADFCE),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  clipBehavior: Clip.antiAlias,
+                onTap:
+                    _uploadingCover ? null : () => _pickImage(isCover: true),
+                child: AspectRatio(
+                  aspectRatio: 401 / 120,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (_logoUrl.isNotEmpty)
-                        Image.network(_logoUrl, fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _logoInitials(initials))
+                      if (_backgroundUrl.isNotEmpty)
+                        Image.network(_backgroundUrl, fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                Container(color: const Color(0xFFF8F7F4)))
                       else
-                        _logoInitials(initials),
-                      if (_uploadingLogo)
                         Container(
-                          color: Colors.black.withValues(alpha: 0.5),
+                          color: const Color(0xFFF8F7F4),
+                          child: const Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt_outlined,
+                                    size: 16, color: Color(0xFF9E9B93)),
+                                SizedBox(width: 6),
+                                Text('Add cover',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF9E9B93))),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (_uploadingCover)
+                        Container(
+                          color: Colors.black.withValues(alpha: 0.45),
                           child: const Center(
                             child: SizedBox(
-                              width: 16,
-                              height: 16,
+                              width: 20,
+                              height: 20,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white),
                             ),
                           ),
-                        )
-                      else
-                        const Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: EdgeInsets.all(3),
-                            child: Icon(Icons.camera_alt,
-                                size: 13, color: Color(0xFF6B6862)),
-                          ),
                         ),
                     ],
                   ),
+                ),
+              ),
+              // logo 承载区（对齐 web OrgBrandingEditor 的 h-9=36px）
+              const SizedBox(height: 36, width: double.infinity),
+            ],
+          ),
+          // logo 叠在封面左下。用 Positioned 固定 64x64（对齐 web
+          // h-16 w-16 方形），此前 Transform.translate 放在 44 高的
+          // 父容器里会把 logo 高度压到 44 导致矩形被压扁。
+          Positioned(
+            left: 16,
+            bottom: 8,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _uploadingLogo ? null : () => _pickImage(isCover: false),
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEADFCE),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (_logoUrl.isNotEmpty)
+                      Image.network(_logoUrl, fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _logoInitials(initials))
+                    else
+                      _logoInitials(initials),
+                    if (_uploadingLogo)
+                      Container(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          ),
+                        ),
+                      )
+                    else
+                      const Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(
+                          padding: EdgeInsets.all(3),
+                          child: Icon(Icons.camera_alt,
+                              size: 13, color: Color(0xFF6B6862)),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -393,8 +390,19 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ColorUtil.textColor)),
       );
 
+  /// 单层描边（12px 圆角）。必须把 enabled/focused 状态一起显式指定：
+  /// 全局 inputDecorationTheme 的 enabledBorder/focusedBorder（8px 圆角）
+  /// 优先级高于 decoration.border，不覆盖会叠出内外两层不同圆角的边框。
+  OutlineInputBorder _fieldBorder(Color color) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: color),
+      );
+
   Widget _input(TextEditingController c, String hint,
-      {int maxLines = 1, int? maxLength, ValueChanged<String>? onChanged}) {
+      {int maxLines = 1,
+      int? maxLength,
+      ValueChanged<String>? onChanged,
+      EdgeInsets? contentPadding}) {
     return TextField(
       controller: c,
       maxLines: maxLines,
@@ -404,9 +412,35 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Color(0xFFA8A29E)),
-        contentPadding: const EdgeInsets.all(14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: contentPadding ?? const EdgeInsets.all(14),
+        // 对齐 web create dialog：enabled #D8D8D8 / focused #171717
+        border: _fieldBorder(const Color(0xFFD8D8D8)),
+        enabledBorder: _fieldBorder(const Color(0xFFD8D8D8)),
+        focusedBorder: _fieldBorder(const Color(0xFF171717)),
       ),
+    );
+  }
+
+  /// 描述输入：字符计数放在输入框内部右下角（Stack + Positioned，
+  /// contentPadding 底部预留），同 onboarding_profile_expertise_view.dart。
+  Widget _descriptionField() {
+    return Stack(
+      children: [
+        _input(_descCtrl, 'What is this organization about?',
+            maxLines: 3,
+            maxLength: _descMaxLen,
+            onChanged: (_) => setState(() {}),
+            contentPadding: const EdgeInsets.fromLTRB(14, 14, 14, 30)),
+        Positioned(
+          right: 12,
+          bottom: 10,
+          child: IgnorePointer(
+            child: Text('${_descCtrl.text.characters.length}/$_descMaxLen',
+                style: const TextStyle(
+                    fontSize: 12, color: DinqTokens.textTertiary)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -414,8 +448,9 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
   /// 会导致前缀看不见，故用 Row 常驻展示），对齐 web。
   Widget _slugField() {
     return Container(
+      // 外层 Container 是唯一边框（对齐 web slug 输入的组合框样式）
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFA8A29E)),
+        border: Border.all(color: const Color(0xFFD8D8D8)),
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -433,7 +468,12 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
                 hintText: 'your-org',
                 hintStyle: TextStyle(color: Color(0xFFA8A29E)),
                 contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 2),
+                // 全状态去边框：全局 inputDecorationTheme 的
+                // enabledBorder/focusedBorder 会盖过 border: none，
+                // 导致外层 Container 边框内再套一层输入框边框
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
               ),
             ),
           ),
@@ -461,9 +501,16 @@ class _OrganizationCreatePageState extends State<OrganizationCreatePage> {
       isExpanded: true,
       icon: const Icon(Icons.keyboard_arrow_down_rounded),
       style: TextStyle(fontSize: 15, color: ColorUtil.textColor),
+      // 弹出面板显式白底 + 圆角：M3 默认会带 surfaceTint 紫底（同
+      // onboarding_socials_view.dart PopupMenuButton 的修法；全局
+      // popupMenuTheme 覆盖不到 DropdownButton 的 dropdownColor）
+      dropdownColor: Colors.white,
+      borderRadius: BorderRadius.circular(12),
       decoration: InputDecoration(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: _fieldBorder(const Color(0xFFD8D8D8)),
+        enabledBorder: _fieldBorder(const Color(0xFFD8D8D8)),
+        focusedBorder: _fieldBorder(const Color(0xFF171717)),
       ),
       items: [
         for (final e in _typeLabels.entries)

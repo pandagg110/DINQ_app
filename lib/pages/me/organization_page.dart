@@ -22,6 +22,10 @@ class OrganizationPage extends StatefulWidget {
 }
 
 class _OrganizationPageState extends State<OrganizationPage> {
+  /// 无自定义封面时的默认 banner，对齐 web DEFAULT_ORG_BANNER
+  /// （OrgBrandingEditor.tsx: "/images/org-card.png"，401x120）。
+  static const kDefaultOrgBanner = 'assets/images/org-card.png';
+
   final _service = AccountService();
   List<Map<String, dynamic>> _memberOrgs = [];
   List<Map<String, dynamic>> _pendingOrgs = [];
@@ -262,8 +266,7 @@ class _OrganizationPageState extends State<OrganizationPage> {
     final orgType = (o['org_type'] ?? '').toString();
     final description = (o['description'] ?? '').toString();
     final location = (o['location'] ?? '').toString();
-    final tags = (o['tags'] as List?)?.map((e) => e.toString()).toList() ??
-        const <String>[];
+    final tags = _parseTags(o['tags']);
     final memberCount = (o['member_count'] as num?)?.toInt();
     final role = (o['role'] ?? '').toString();
     final isPending = (o['request_status'] ?? '').toString() == 'pending';
@@ -289,7 +292,8 @@ class _OrganizationPageState extends State<OrganizationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // banner
+            // banner（对齐 web：background_url 为空或加载失败时回退默认
+            // banner 素材，而不是灰底）
             SizedBox(
               height: 120,
               width: double.infinity,
@@ -297,8 +301,8 @@ class _OrganizationPageState extends State<OrganizationPage> {
                   ? Image.network(backgroundUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) =>
-                          Container(color: const Color(0xFFF8F7F4)))
-                  : Container(color: const Color(0xFFF8F7F4)),
+                          Image.asset(kDefaultOrgBanner, fit: BoxFit.cover))
+                  : Image.asset(kDefaultOrgBanner, fit: BoxFit.cover),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -440,11 +444,13 @@ class _OrganizationPageState extends State<OrganizationPage> {
                                                 borderRadius:
                                                     BorderRadius.circular(4),
                                               ),
+                                              // 对齐 web org 卡片 tag chip：
+                                                  // font-medium(w500)
                                               child: Text(t,
                                                   style: const TextStyle(
                                                       fontSize: 12,
                                                       fontWeight:
-                                                          FontWeight.w600,
+                                                          FontWeight.w500,
                                                       color: Color(
                                                           0xFF171717))),
                                             ),
@@ -563,4 +569,24 @@ class _OrganizationPageState extends State<OrganizationPage> {
 
   String _capitalize(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+  /// tags 容错解析：标准返回为 string[]（web Organization.tags），个别
+  /// 序列化会给逗号拼接字符串，这里统一拆成逐个 tag，避免整串渲染成
+  /// 一个 chip 或 cast 崩溃。
+  static List<String> _parseTags(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    if (raw is String) {
+      return raw
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    return const <String>[];
+  }
 }

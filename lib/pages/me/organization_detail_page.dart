@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
@@ -21,6 +22,10 @@ class OrganizationDetailPage extends StatefulWidget {
 }
 
 class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
+  /// 无自定义封面时的默认 banner，对齐 web DEFAULT_ORG_BANNER
+  /// （OrgBrandingEditor.tsx: "/images/org-card.png"，401x120）。
+  static const kDefaultOrgBanner = 'assets/images/org-card.png';
+
   final _service = AccountService();
 
   late Map<String, dynamic> _org;
@@ -149,10 +154,26 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     }
   }
 
-  void _share() {
+  /// iOS（尤其 iPad）分享面板必须提供锚点矩形，否则 share_plus 会抛
+  /// PlatformException(sharePositionOrigin must be set...)。做法同
+  /// shortlist_page.dart 的 _shareOrigin()。
+  Rect? _shareOrigin() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  /// 右上分享：唤起系统分享面板（对齐 web ShareModal 的分享入口，移动端
+  /// 等价物是 system share sheet）。失败时兜底复制链接。
+  Future<void> _share() async {
     if (_slug.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: 'https://dinq.me/$_slug'));
-    _snack('Link copied');
+    final link = 'https://dinq.me/$_slug';
+    try {
+      await Share.share(link, sharePositionOrigin: _shareOrigin());
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: link));
+      _snack('Link copied');
+    }
   }
 
   String get _inviteLink => _inviteCode.isEmpty
@@ -258,15 +279,15 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     final backgroundUrl = (_org['background_url'] ?? '').toString();
     final location = (_org['location'] ?? '').toString();
     final description = (_org['description'] ?? '').toString();
-    final tags = (_org['tags'] as List?)?.map((e) => e.toString()).toList() ??
-        const <String>[];
+    final tags = _parseTags(_org['tags']);
     final memberCount =
         (_org['member_count'] as num?)?.toInt() ?? _members.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 封面（401:120，圆角16）
+        // 封面（401:120，圆角16）。对齐 web：background_url 为空或加载
+        // 失败时回退默认 banner 素材，而不是灰底
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: AspectRatio(
@@ -275,8 +296,8 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
                 ? Image.network(backgroundUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) =>
-                        Container(color: const Color(0xFFF8F7F4)))
-                : Container(color: const Color(0xFFF8F7F4)),
+                        Image.asset(kDefaultOrgBanner, fit: BoxFit.cover))
+                : Image.asset(kDefaultOrgBanner, fit: BoxFit.cover),
           ),
         ),
         // logo 叠加封面下缘
@@ -380,6 +401,26 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
         ),
       ],
     );
+  }
+
+  /// tags 容错解析：标准返回为 string[]（web Organization.tags），个别
+  /// 序列化会给逗号拼接字符串，统一拆成逐个 tag 渲染（与 web 一致），
+  /// 避免整串渲染成一个 chip 或 cast 崩溃。
+  static List<String> _parseTags(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    if (raw is String) {
+      return raw
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    return const <String>[];
   }
 
   Widget _logoInitial(String name) {
