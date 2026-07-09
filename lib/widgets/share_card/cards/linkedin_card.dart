@@ -73,7 +73,15 @@ class _Timeline extends StatelessWidget {
           for (var i = 0; i < items.length; i++)
             Offset(_startX + i * spacing, getY(scores[i])),
         ];
-        final visibleYearLabels = _visibleYearLabelIndices(points, scale);
+
+        // 年份标签降采样：相邻节点渲染间距不足 48px 时隔档显示，
+        // 从最后一个节点（最新年份）往前取，避免文字挤压重叠
+        const minLabelGap = 48.0;
+        final renderedSpacing = spacing * scale;
+        final labelStep = renderedSpacing > 0
+            ? math.max(1, (minLabelGap / renderedSpacing).ceil())
+            : 1;
+        bool showYear(int i) => (items.length - 1 - i) % labelStep == 0;
 
         return Column(
           children: [
@@ -105,7 +113,7 @@ class _Timeline extends StatelessWidget {
                               url: (items[i]['logo'] ?? '').toString(),
                             ),
                           ),
-                          if (visibleYearLabels.contains(i))
+                          if (showYear(i))
                             Text(
                               (items[i]['year'] ?? '').toString(),
                               maxLines: 1,
@@ -126,35 +134,6 @@ class _Timeline extends StatelessWidget {
         );
       },
     );
-  }
-
-  static Set<int> _visibleYearLabelIndices(List<Offset> points, double scale) {
-    if (points.length <= 2) {
-      return {for (var i = 0; i < points.length; i++) i};
-    }
-
-    const minLabelGap = 72.0;
-    final selected = <int>[0];
-
-    for (var i = 1; i < points.length - 1; i++) {
-      final x = points[i].dx * scale;
-      final previousX = points[selected.last].dx * scale;
-      if (x - previousX >= minLabelGap) {
-        selected.add(i);
-      }
-    }
-
-    final lastIndex = points.length - 1;
-    final lastX = points[lastIndex].dx * scale;
-    while (selected.length > 1 &&
-        lastX - points[selected.last].dx * scale < minLabelGap) {
-      selected.removeLast();
-    }
-    if (lastX - points[selected.last].dx * scale >= minLabelGap) {
-      selected.add(lastIndex);
-    }
-
-    return selected.toSet();
   }
 
   static double _scoreOf(Map<String, dynamic> item) {
