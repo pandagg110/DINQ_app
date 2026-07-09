@@ -123,7 +123,7 @@ class _QuickRepliesWidgetState extends State<QuickRepliesWidget> {
   }
 }
 
-/// 双选项：Web `mt-3 flex items-center gap-5`，主按钮文字在按钮内换行。
+/// 双选项：主/次按钮上下两行展示，主按钮文字在按钮内换行。
 class _BinaryQuickReplies extends StatelessWidget {
   const _BinaryQuickReplies({
     required this.maxWidth,
@@ -133,7 +133,7 @@ class _BinaryQuickReplies extends StatelessWidget {
     required this.onSecondary,
   });
 
-  static const _binaryGap = 20.0;
+  static const _binaryGap = 12.0;
 
   final double maxWidth;
   final String primary;
@@ -145,15 +145,13 @@ class _BinaryQuickReplies extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: maxWidth,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Flexible(
-            fit: FlexFit.loose,
-            child: _PrimaryButton(label: primary, onTap: onPrimary),
-          ),
-          const SizedBox(width: _binaryGap),
-          Expanded(
+          _PrimaryButton(label: primary, onTap: onPrimary),
+          const SizedBox(height: _binaryGap),
+          Align(
+            alignment: Alignment.centerLeft,
             child: _SecondaryButton(label: secondary, onTap: onSecondary),
           ),
         ],
@@ -187,7 +185,7 @@ class _PrimaryButton extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Flexible(
+                Expanded(
                   child: Text(
                     label,
                     style: _labelStyle,
