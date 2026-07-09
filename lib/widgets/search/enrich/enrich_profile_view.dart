@@ -625,7 +625,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
   Widget? _buildActionButtons() {
     final entry = widget.entry;
     final person = entry.person;
-    if (person == null || entry.status == EnrichStatus.error) return null;
+    final hasPerson = person != null && person.name.trim().isNotEmpty;
+    if (!hasPerson || entry.status == EnrichStatus.error) return null;
     final rowId = widget.selectedRowId;
     final favoriteId = rowId != null ? _favoriteMap[rowId] : null;
     final isFavorited = favoriteId != null;
