@@ -278,6 +278,11 @@ class _OrganizationPageState extends State<OrganizationPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
+        ),
+        // 边框画在内容之上（foregroundDecoration）：banner 图在圆角处的
+        // 抗锯齿溢出会被边框盖住，避免角上出现截断/锯齿
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: const Color(0xFFE8E6E1)),
         ),
         clipBehavior: Clip.antiAlias,
