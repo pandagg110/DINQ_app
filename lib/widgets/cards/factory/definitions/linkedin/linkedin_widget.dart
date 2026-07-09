@@ -43,30 +43,39 @@ class _LinkedInWidgetState extends State<LinkedInWidget> {
     late final Widget child;
     switch (widget.size) {
       case '2x2':
-        child = LinkedInLayouts.build2x2Layout(careerJourney: items);
+        child = LinkedInLayouts.build2x2Layout(
+          careerJourney: items,
+          onIconTap: _toggleDetails,
+        );
         break;
       case '2x4':
-        child = LinkedInLayouts.build2x4Layout(careerJourney: items);
+        child = LinkedInLayouts.build2x4Layout(
+          careerJourney: items,
+          onIconTap: _toggleDetails,
+        );
         break;
       case '4x2':
-        child = LinkedInLayouts.build4x2Layout(careerJourney: items);
+        child = LinkedInLayouts.build4x2Layout(
+          careerJourney: items,
+          onIconTap: _toggleDetails,
+        );
         break;
       case '4x4':
-        child = LinkedInLayouts.build4x4Layout(careerJourney: items);
+        child = LinkedInLayouts.build4x4Layout(
+          careerJourney: items,
+          onIconTap: _toggleDetails,
+        );
         break;
       default:
-        child = LinkedInLayouts.build4x4Layout(careerJourney: items);
+        child = LinkedInLayouts.build4x4Layout(
+          careerJourney: items,
+          onIconTap: _toggleDetails,
+        );
     }
-
-    final tapTarget = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _toggleDetails,
-      child: child,
-    );
 
     final hasPortal = context.findAncestorWidgetOfExactType<Portal>() != null;
     if (!hasPortal) {
-      return tapTarget;
+      return child;
     }
 
     return PortalTarget(
@@ -90,7 +99,7 @@ class _LinkedInWidgetState extends State<LinkedInWidget> {
           ),
         ),
       ),
-      child: tapTarget,
+      child: child,
     );
   }
 }

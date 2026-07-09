@@ -66,6 +66,17 @@ class _CardRendererState extends State<CardRenderer> {
     }
   }
 
+  /// 卡片内部自行处理点击（详情弹层等），外层不再参与手势竞争。
+  bool _cardHandlesOwnTap(String type) {
+    switch (type.toUpperCase()) {
+      case 'LINKEDIN':
+      case 'LINK':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   /// Print card JSON for datasource debugging.
   void _printCardJson() {
     if (_hasPrintedJson) return;
@@ -96,6 +107,18 @@ class _CardRendererState extends State<CardRenderer> {
     final isFailed = !showLoading && widget.card.data.status == 'FAILED';
     final viewMode = cardStore.viewMode;
     final jumpUrl = _getJumpUrl();
+    final VoidCallback? cardTapHandler;
+    if (widget.editable) {
+      cardTapHandler = () => cardStore.toggleCardSelection(widget.card.id);
+    } else if (!_cardHandlesOwnTap(widget.card.data.type)) {
+      cardTapHandler = () {
+        if (jumpUrl != null && jumpUrl.isNotEmpty) {
+          launchUrl(Uri.parse(jumpUrl), mode: LaunchMode.externalApplication);
+        }
+      };
+    } else {
+      cardTapHandler = null;
+    }
 
     // Check card selection.
     final isSelected =
@@ -268,18 +291,7 @@ class _CardRendererState extends State<CardRenderer> {
                               _isDrag = false;
                             });
                           },
-                          onTap: () {
-                            if (widget.editable) {
-                              cardStore.toggleCardSelection(widget.card.id);
-                            } else {
-                              if (jumpUrl != null && jumpUrl.isNotEmpty) {
-                                launchUrl(
-                                  Uri.parse(jumpUrl),
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              }
-                            }
-                          },
+                          onTap: cardTapHandler,
                           child: cardContent,
                         ),
                       ),
@@ -294,18 +306,7 @@ class _CardRendererState extends State<CardRenderer> {
                               _isDrag = false;
                             });
                           },
-                          onTap: () {
-                            if (widget.editable) {
-                              cardStore.toggleCardSelection(widget.card.id);
-                            } else {
-                              if (jumpUrl != null && jumpUrl.isNotEmpty) {
-                                launchUrl(
-                                  Uri.parse(jumpUrl),
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              }
-                            }
-                          },
+                          onTap: cardTapHandler,
                           child: cardContent,
                         ),
                       ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'linkedin_utils.dart';
 
 class LinkedInComponents {
   // Organization Logo component
@@ -318,6 +317,7 @@ class LinkedInComponents {
   // Career Chart for 4x4 layout using fl_chart
   static Widget buildCareerChart({
     required List<Map<String, dynamic>> careerJourney,
+    VoidCallback? onNodeTap,
   }) {
     if (careerJourney.isEmpty) {
       return const Center(child: Text('No career data'));
@@ -366,8 +366,9 @@ class LinkedInComponents {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              LineChart(
-                LineChartData(
+              IgnorePointer(
+                child: LineChart(
+                  LineChartData(
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: true,
@@ -455,35 +456,9 @@ class LinkedInComponents {
                       ),
                     ),
                   ],
-                  lineTouchData: LineTouchData(
-                    enabled: true,
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                        return touchedSpots.map((LineBarSpot touchedSpot) {
-                          final index = touchedSpot.x.toInt();
-                          if (index >= 0 && index < chartData.length) {
-                            final item = chartData[index];
-                            return LineTooltipItem(
-                              '${item['name']}\n${item['position'] != null && item['position'].toString().isNotEmpty ? '${item['position']}\n' : ''}${formatDuration(item['duration'].toString())}',
-                              const TextStyle(
-                                color: Color(0xFF111827),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            );
-                          }
-                          return null;
-                        }).toList();
-                      },
-                      tooltipRoundedRadius: 8,
-                      tooltipPadding: const EdgeInsets.all(12),
-                      tooltipBorder: const BorderSide(
-                        color: Color(0xFFE5E7EB),
-                        width: 1,
-                      ),
-                    ),
-                  ),
+                  lineTouchData: const LineTouchData(enabled: false),
                 ),
+              ),
               ),
               // Overlay company logos on chart dots
               ...chartData.asMap().entries.map((entry) {
@@ -505,39 +480,43 @@ class LinkedInComponents {
                 return Positioned(
                   left: xPos - 15, // Center the 30px logo
                   top: yPos - 15, // Center the 30px logo
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFF3F4F6),
-                      border: Border.all(
-                        color: const Color(0xFF171717),
-                        width: 1,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onNodeTap,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFF3F4F6),
+                        border: Border.all(
+                          color: const Color(0xFF171717),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    child: ClipOval(
-                      child: logo != null && logo.isNotEmpty
-                          ? Image.network(
-                              logo,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/defaultCompany.png',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(Icons.business, size: 16);
-                                  },
-                                );
-                              },
-                            )
-                          : Image.asset(
-                              'assets/images/defaultCompany.png',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(Icons.business, size: 16);
-                              },
-                            ),
+                      child: ClipOval(
+                        child: logo != null && logo.isNotEmpty
+                            ? Image.network(
+                                logo,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    'assets/images/defaultCompany.png',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(Icons.business, size: 16);
+                                    },
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                'assets/images/defaultCompany.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.business, size: 16);
+                                },
+                              ),
+                      ),
                     ),
                   ),
                 );
