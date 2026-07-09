@@ -118,6 +118,7 @@ class _GenerationPageState extends State<GenerationPage> {
   Timer? _redirectTimer;
   String? _onboardingReturnPath;
   bool _isStandaloneSocialsEntry = false;
+  bool _isRegenerateEntry = false;
   bool _queryStepApplied = false;
 
   // Confetti 控制器
@@ -136,6 +137,10 @@ class _GenerationPageState extends State<GenerationPage> {
     // 此时 domain 仍在，不能被弹回。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final query = GoRouterState.of(context).uri.queryParameters;
+      final isRegenerate =
+          query['regenerate'] == '1' || query['regenerate'] == 'true';
+      if (isRegenerate) return;
       final userStore = context.read<UserStore>();
       if (userStore.isInitialized && hasLiveDinqPage(userStore.myFlow)) {
         context.go('/admin/mydinq');
@@ -211,6 +216,7 @@ class _GenerationPageState extends State<GenerationPage> {
     GenerationStep current,
     GenerationStep fromFlow,
   ) {
+    if (_isRegenerateEntry) return false;
     if (current == GenerationStep.error) return false;
     if (current == GenerationStep.social && fromFlow == GenerationStep.resume) {
       return false;
@@ -242,37 +248,47 @@ class _GenerationPageState extends State<GenerationPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // 从 UserStore 获取 flow 状态
-    final userStore = context.read<UserStore>();
-    final myFlow = userStore.myFlow;
+    // 从 URL query 参数获取（须在 flow 同步之前，Regenerate 入口依赖此顺序）
+    final query = GoRouterState.of(context).uri.queryParameters;
+    _isRegenerateEntry =
+        query['regenerate'] == '1' || query['regenerate'] == 'true';
 
-    // 根据 flow.status 设置当前步骤
-    if (myFlow != null) {
-      final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
-      if (_shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
-        setState(() {
-          _currentStep = stepFromFlow;
-        });
+    if (_isRegenerateEntry) {
+      _redirectTimer?.cancel();
+      if (_currentStep != GenerationStep.start) {
+        setState(() => _currentStep = GenerationStep.start);
       }
+    } else {
+      // 从 UserStore 获取 flow 状态
+      final userStore = context.read<UserStore>();
+      final myFlow = userStore.myFlow;
 
-      // 注意：handle 输入框不做任何预填（后端 myFlow.domain 和前端 email/name
-      // 候选都不用）。产品要求创建主页地址时输入框默认为空、由用户手动输入，
-      // 否则会出现「上传别人的主页却预填成当前账号名(mark)」。
+      // 根据 flow.status 设置当前步骤
+      if (myFlow != null) {
+        final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
+        if (_shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
+          setState(() {
+            _currentStep = stepFromFlow;
+          });
+        }
 
-      // 加载社交链接（第三步）
-      if (_currentStep == GenerationStep.social && _socialLinks.isEmpty) {
-        _loadSocialLinksFromFlow(myFlow);
-      }
+        // 注意：handle 输入框不做任何预填（后端 myFlow.domain 和前端 email/name
+        // 候选都不用）。产品要求创建主页地址时输入框默认为空、由用户手动输入，
+        // 否则会出现「上传别人的主页却预填成当前账号名(mark)」。
 
-      // 启动倒计时（成功步骤）
-      if (_currentStep == GenerationStep.success) {
-        _redirectTimer?.cancel();
-        _startRedirectCountdown();
+        // 加载社交链接（第三步）
+        if (_currentStep == GenerationStep.social && _socialLinks.isEmpty) {
+          _loadSocialLinksFromFlow(myFlow);
+        }
+
+        // 启动倒计时（成功步骤）
+        if (_currentStep == GenerationStep.success) {
+          _redirectTimer?.cancel();
+          _startRedirectCountdown();
+        }
       }
     }
 
-    // 从 URL query 参数获取 domain / handle（优先级更高）
-    final query = GoRouterState.of(context).uri.queryParameters;
     if (!_queryStepApplied) {
       _queryStepApplied = true;
       final step = query['step']?.trim().toLowerCase();
@@ -355,7 +371,7 @@ class _GenerationPageState extends State<GenerationPage> {
     // 监听 UserStore 的 myFlow 变化，自动更新步骤
     final userStore = context.watch<UserStore>();
     final myFlow = userStore.myFlow;
-    if (myFlow != null) {
+    if (!_isRegenerateEntry && myFlow != null) {
       final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
       if (_shouldSyncStepFromFlow(_currentStep, stepFromFlow)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3302,7 +3318,6 @@ class _GenerationPageState extends State<GenerationPage> {
         return;
       }
       setState(() {
-        _welcomeFinalizeStarted = false;
         _welcomeShouldUploadAgain = _isOnboardingUploadSessionExpired(error);
         if (_welcomeShouldUploadAgain) {
           _hasResume = false;

@@ -140,7 +140,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
             description: 'Redirecting...',
           );
           final next = Uri.encodeComponent('/admin/mydinq');
-          context.go('/generation?next=$next');
+          context.go('/generation?regenerate=1&next=$next');
         }
       } catch (e) {
         if (mounted) {
