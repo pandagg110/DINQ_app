@@ -769,22 +769,34 @@ class _FormSelect extends StatelessWidget {
                 ),
               ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: dropdownValueOrNull(value, options),
-          decoration: _inputDecoration(placeholder),
-          icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9E9B93)),
-          items: options
-              .map(
-                (option) => DropdownMenuItem<String>(
-                  value: option,
-                  child: Text(
-                    option,
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF171717)),
+        Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              surface: Colors.white,
+              surfaceTint: Colors.transparent,
+            ),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: dropdownValueOrNull(value, options),
+            decoration: _inputDecoration(placeholder),
+            dropdownColor: Colors.white,
+            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9E9B93)),
+            items: options
+                .map(
+                  (option) => DropdownMenuItem<String>(
+                    value: option,
+                    child: Text(
+                      option,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF171717),
+                      ),
+                    ),
                   ),
-                ),
-              )
-              .toList(),
-          onChanged: (next) => onChanged(next ?? ''),
+                )
+                .toList(),
+            onChanged: (next) => onChanged(next ?? ''),
+          ),
         ),
       ],
     );

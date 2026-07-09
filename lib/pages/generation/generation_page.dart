@@ -121,6 +121,7 @@ class _GenerationPageState extends State<GenerationPage> {
   String? _onboardingReturnPath;
   bool _isStandaloneSocialsEntry = false;
   bool _isRegenerateEntry = false;
+  bool _regenerateEntryApplied = false;
   bool _queryStepApplied = false;
 
   // Confetti 控制器
@@ -257,8 +258,13 @@ class _GenerationPageState extends State<GenerationPage> {
 
     if (_isRegenerateEntry) {
       _redirectTimer?.cancel();
-      if (_currentStep != GenerationStep.start) {
-        setState(() => _currentStep = GenerationStep.start);
+      // 仅首次进入时锁定 start，避免每次 didChangeDependencies（如键盘弹起）
+      // 都把本地步骤打回第一步。
+      if (!_regenerateEntryApplied) {
+        _regenerateEntryApplied = true;
+        if (_currentStep != GenerationStep.start) {
+          setState(() => _currentStep = GenerationStep.start);
+        }
       }
     } else {
       // 从 UserStore 获取 flow 状态
