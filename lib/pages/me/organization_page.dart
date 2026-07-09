@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
@@ -991,8 +992,6 @@ class _OrganizationPageState extends State<OrganizationPage> {
                                                   padding: const EdgeInsets
                                                       .symmetric(
                                                       horizontal: 10),
-                                                  alignment:
-                                                      Alignment.center,
                                                   decoration: BoxDecoration(
                                                     color: const Color(
                                                         0x1A888888),
@@ -1000,14 +999,20 @@ class _OrganizationPageState extends State<OrganizationPage> {
                                                         BorderRadius
                                                             .circular(4),
                                                   ),
-                                                  child: Text(t,
-                                                      style: const TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight
-                                                                  .w500,
-                                                          color: Color(
-                                                              0xFF171717))),
+                                                  // 注意不能用 Container.alignment
+                                                  // （会撑满可用宽度）；chip 宽度
+                                                  // 须随内容自适应（web w-fit）
+                                                  child: Center(
+                                                    widthFactor: 1,
+                                                    child: Text(t,
+                                                        style: const TextStyle(
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w500,
+                                                            color: Color(
+                                                                0xFF171717))),
+                                                  ),
                                                 ),
                                             ],
                                           ),
@@ -1048,11 +1053,18 @@ class _OrganizationPageState extends State<OrganizationPage> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.link_rounded,
-                                    size: 14,
-                                    color: _copiedSlug == slug
+                                // web 的 DINQ 定制 slug 图标（page.tsx svg）
+                                SvgPicture.asset(
+                                  'assets/icons/dinq-slug.svg',
+                                  width: 14,
+                                  height: 14,
+                                  colorFilter: ColorFilter.mode(
+                                    _copiedSlug == slug
                                         ? const Color(0xFF2A5E52)
-                                        : const Color(0xFF9E9B93)),
+                                        : const Color(0xFF9E9B93),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   _copiedSlug == slug
