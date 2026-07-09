@@ -11,6 +11,16 @@ class AppTheme {
   static const Color brandGray = Color(0xFFF9F9F9);
   static const Color brandLightGray = Color(0xFFEDEDE5);
 
+  /// 全局系统栏样式：状态栏透明 + 底部导航栏与页面同色（Android edge-to-edge）。
+  static const SystemUiOverlayStyle pageSystemUiOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: brandPage,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarContrastEnforced: false,
+  );
+
   /// 用于可能包含 emoji 的文案，确保系统用 emoji 字体渲染
   static const List<String> emojiFontFallback = [
     'Segoe UI Emoji',
@@ -43,11 +53,7 @@ class AppTheme {
         centerTitle: true,
         // 带 AppBar 的页面会覆盖全局 SystemChrome 设置，这里同样保持
         // Android 状态栏透明+深色图标，与米白页面底色统一。
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
-        ),
+        systemOverlayStyle: pageSystemUiOverlayStyle,
         titleTextStyle: TextStyle(
           fontFamily: 'Geist',
           fontWeight: FontWeight.w600,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../theme/app_theme.dart';
 import '../../theme/dinq_tokens.dart';
 import '../common/dinq_nav_buttons.dart';
 import 'preview_edit_toggle.dart';
@@ -21,8 +21,7 @@ class MyDinqTopBar extends AppBar {
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: true,
-          systemOverlayStyle:
-              const SystemUiOverlayStyle(statusBarBrightness: Brightness.light),
+          systemOverlayStyle: AppTheme.pageSystemUiOverlayStyle,
           leadingWidth: 60,
           leading: Padding(
             padding: const EdgeInsets.only(left: 12),
