@@ -17,7 +17,6 @@ import 'package:provider/provider.dart';
 import '../../constants/app_constants.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
-import '../../utils/dinq_page_gate.dart';
 import '../../widgets/common/default_app_bar.dart';
 
 class SignInPage extends StatefulWidget {
@@ -590,14 +589,8 @@ class _SignInPageState extends State<SignInPage> {
       }
       return;
     }
-    // 已创建 dinq page（flow success 或 userData.domain 兜底）直接进 mydinq，
-    // 与冷启动 splash 分发保持一致
-    final userStore = context.read<UserStore>();
-    if (hasExistingDinqPage(userStore.myFlow, userStore.user?.userData)) {
-      context.go('/admin/mydinq');
-    } else {
-      context.go('/');
-    }
+    // 登录成功后默认进入 Search 页
+    context.go('/search');
     if (email != null) {
       _showInviteCodeDialog(email);
     }
