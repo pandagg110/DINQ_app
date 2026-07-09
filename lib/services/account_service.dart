@@ -164,6 +164,29 @@ class AccountService {
     return d is Map ? d['available'] == true : false;
   }
 
+  /// GET /orgs?keyword=&limit=&offset= — 分页 + 关键词搜索组织列表。
+  /// 对齐 web organizationApi.listAll(ListOrgsParams)（endpoints/organization.ts:128
+  /// + types/api/organization.ts:81），返回 {organizations, total}。
+  Future<Map<String, dynamic>> listOrgs(
+      {String? keyword, int limit = 24, int offset = 0}) async {
+    final resp = await _dio.get('/orgs', queryParameters: {
+      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
+      'limit': limit,
+      'offset': offset,
+    });
+    final d = resp.data;
+    if (d is Map) {
+      return {
+        'organizations': d['organizations'] is List
+            ? d['organizations'] as List
+            : const <dynamic>[],
+        'total': (d['total'] as num?)?.toInt() ?? 0,
+      };
+    }
+    if (d is List) return {'organizations': d, 'total': d.length};
+    return {'organizations': const <dynamic>[], 'total': 0};
+  }
+
   /// GET /orgs — 发现所有可加入组织（公开），支持 keyword。
   Future<List<dynamic>> discoverOrgs({String? keyword}) async {
     final resp = await _dio.get('/orgs',
