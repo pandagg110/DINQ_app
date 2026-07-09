@@ -149,10 +149,12 @@ class _InvitePageState extends State<InvitePage> {
   Widget _illustrationHeader() {
     return Column(
       children: [
+        // 设计提供的 128x96 容器版 svg（含内边距），按原始比例渲染，
+        // 内部信封实际约 84 宽，与旧尺寸视觉一致
         SvgPicture.asset(
           'assets/icons/invite-envelope.svg',
-          width: 84,
-          height: 67,
+          width: 128,
+          height: 96,
         ),
         const SizedBox(height: 16),
         const Text('Invite friends',
