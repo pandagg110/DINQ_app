@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
+import '../../utils/org_avatar.dart';
 import '../../widgets/common/default_app_bar.dart';
 
 /// My → Organization → 详情。对齐 web organization/[slug]：
@@ -21,6 +23,10 @@ class OrganizationDetailPage extends StatefulWidget {
 }
 
 class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
+  /// 无自定义封面时的默认 banner，对齐 web DEFAULT_ORG_BANNER
+  /// （OrgBrandingEditor.tsx: "/images/org-card.png"，401x120）。
+  static const kDefaultOrgBanner = 'assets/images/org-card.png';
+
   final _service = AccountService();
 
   late Map<String, dynamic> _org;
@@ -149,10 +155,26 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     }
   }
 
-  void _share() {
+  /// iOS（尤其 iPad）分享面板必须提供锚点矩形，否则 share_plus 会抛
+  /// PlatformException(sharePositionOrigin must be set...)。做法同
+  /// shortlist_page.dart 的 _shareOrigin()。
+  Rect? _shareOrigin() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  /// 右上分享：唤起系统分享面板（对齐 web ShareModal 的分享入口，移动端
+  /// 等价物是 system share sheet）。失败时兜底复制链接。
+  Future<void> _share() async {
     if (_slug.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: 'https://dinq.me/$_slug'));
-    _snack('Link copied');
+    final link = 'https://dinq.me/$_slug';
+    try {
+      await Share.share(link, sharePositionOrigin: _shareOrigin());
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: link));
+      _snack('Link copied');
+    }
   }
 
   String get _inviteLink => _inviteCode.isEmpty
@@ -214,19 +236,9 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
-      appBar: DefaultAppBar(
-        context,
-        titleString: '',
-        actions: [
-          IconButton(
-            tooltip: 'Share',
-            icon: const Icon(Icons.share_outlined,
-                size: 20, color: Color(0xFF6B6862)),
-            onPressed: _share,
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
+      // 分享入口移到封面右上（对齐 web OrgProfileHeader.tsx:194-204，
+      // share 按钮叠在 banner 上而不是页面顶栏）
+      appBar: DefaultAppBar(context, titleString: ''),
       body: _loading
           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
           : RefreshIndicator(
@@ -251,162 +263,253 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     );
   }
 
-  // ── 头部（封面 + logo + 信息 + CTA）───────────────────────────
+  // ── 头部（白底卡片：封面 + logo + 信息 + CTA + tags + 描述）─────
+  /// 对齐 web OrgProfileHeader.tsx:188-348：整体是一张白底圆角卡片
+  /// （rounded-2xl=16 + 边框 #E8E6E1 叠加在最上层），banner 在卡片顶部，
+  /// 分享按钮叠在 banner 右上；字段顺序为 名称 → 成员数 → 地点 → CTA →
+  /// tags → 描述。
   Widget _header() {
     final name = (_org['name'] ?? 'Organization').toString();
     final logoUrl = (_org['logo_url'] ?? '').toString();
     final backgroundUrl = (_org['background_url'] ?? '').toString();
     final location = (_org['location'] ?? '').toString();
     final description = (_org['description'] ?? '').toString();
-    final tags = (_org['tags'] as List?)?.map((e) => e.toString()).toList() ??
-        const <String>[];
+    final tags = _parseTags(_org['tags']);
     final memberCount =
         (_org['member_count'] as num?)?.toInt() ?? _members.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 封面（401:120，圆角16）
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: AspectRatio(
-            aspectRatio: 401 / 120,
-            child: backgroundUrl.isNotEmpty
-                ? Image.network(backgroundUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        Container(color: const Color(0xFFF8F7F4)))
-                : Container(color: const Color(0xFFF8F7F4)),
-          ),
-        ),
-        // logo 叠加封面下缘
-        Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: Transform.translate(
-            offset: const Offset(0, -50),
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F7F4),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFEEEDE9)),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: logoUrl.isNotEmpty
-                  ? Image.network(logoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _logoInitial(name))
-                  : _logoInitial(name),
-            ),
-          ),
-        ),
-        Transform.translate(
-          offset: const Offset(0, -36),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      // 边框画在内容之上（foregroundDecoration），防止 banner 在圆角处压线
+      // （对齐 web 的 absolute inset-0 border 叠层，OrgProfileHeader.tsx:344-347）
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E6E1)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 封面（401:120）。对齐 web：background_url 为空或加载失败时
+          // 回退默认 banner 素材，而不是灰底
+          Stack(
             children: [
-              Text(name,
-                  style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717))),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.people_outline,
-                      size: 18, color: Color(0xFF303030)),
-                  const SizedBox(width: 6),
-                  Text('$memberCount member${memberCount == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF171717))),
-                  if (location.isNotEmpty) ...[
-                    const SizedBox(width: 16),
-                    const Icon(Icons.place_outlined,
-                        size: 18, color: Color(0xFF303030)),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(location,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF171717))),
-                    ),
-                  ],
-                ],
+              AspectRatio(
+                aspectRatio: 401 / 120,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: backgroundUrl.isNotEmpty
+                      ? Image.network(backgroundUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Image.asset(
+                              kDefaultOrgBanner,
+                              fit: BoxFit.cover))
+                      : Image.asset(kDefaultOrgBanner, fit: BoxFit.cover),
+                ),
               ),
-              if (tags.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+              // 分享按钮（web OrgProfileHeader.tsx:194-204：banner 右上）
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _share,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    child: const Icon(Icons.ios_share_rounded,
+                        size: 16, color: Color(0xFF6B6862)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            // web px-5 pb-6（OrgProfileHeader.tsx:239）
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // logo 140、圆角24、上溢 70 叠在 banner 上，下方留 24
+                // （web -mt-[70px] mb-6，logoSize=140，rounded-3xl）
+                SizedBox(
+                  height: 94, // 140 - 70(上溢) + 24(mb-6)
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(top: -70, left: 0, child: _logo(logoUrl, name)),
+                    ],
+                  ),
+                ),
+                // 名称（web text-[32px] leading-[40px] font-semibold）
+                Text(name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 32,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF171717))),
+                const SizedBox(height: 4),
+                // 成员数（独立一行，web OrgProfileHeader.tsx:263-268）
+                Row(
                   children: [
-                    for (var i = 0; i < tags.length; i++)
-                      Container(
-                        height: 32,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: _tagPalette[i % _tagPalette.length],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(tags[i],
+                    const Icon(Icons.people_outline,
+                        size: 16, color: Color(0xA3303030)),
+                    const SizedBox(width: 6),
+                    Text('$memberCount member${memberCount == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF171717))),
+                  ],
+                ),
+                // 地点（独立一行，web OrgProfileHeader.tsx:271-291)
+                if (location.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.place_outlined,
+                          size: 16, color: Color(0xA3303030)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w500,
                                 color: Color(0xFF171717))),
                       ),
-                  ],
-                ),
-              ],
-              if (description.isNotEmpty) ...[
+                    ],
+                  ),
+                ],
+                // CTA 紧跟档案字段（web OrgProfileHeader.tsx:293-307，
+                // 在 tags/描述之前）
                 const SizedBox(height: 12),
-                Text(description,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        height: 1.5,
-                        color: Color(0xFF6B6862))),
+                _ctaButton(),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (var i = 0; i < tags.length; i++)
+                        Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: _tagPalette[i % _tagPalette.length],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(tags[i],
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF171717))),
+                        ),
+                    ],
+                  ),
+                ],
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  // web text-[16px] leading-[24px] text-[#171717]
+                  Text(description,
+                      style: const TextStyle(
+                          fontSize: 16,
+                          height: 1.5,
+                          color: Color(0xFF171717))),
+                ],
               ],
-              const SizedBox(height: 16),
-              _ctaButton(),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _logoInitial(String name) {
-    final initial =
-        name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+  /// 组织 logo（对齐 web OrgLogo，OrgProfileHeader.tsx:828-853）：
+  /// 140、rounded-3xl(24)；有图时带 #EEEDE9 边框；无图用
+  /// nameToAvatarColor 底色 + 双字母缩写（text-[3.5rem]=56）。
+  Widget _logo(String logoUrl, String name) {
     return Container(
-      color: const Color(0xFFEADFCE),
+      width: 140,
+      height: 140,
+      decoration: BoxDecoration(
+        color: logoUrl.isNotEmpty
+            ? const Color(0xFFF8F7F4)
+            : orgAvatarColor(name.isNotEmpty ? name : '?'),
+        borderRadius: BorderRadius.circular(24),
+        border: logoUrl.isNotEmpty
+            ? Border.all(color: const Color(0xFFEEEDE9))
+            : null,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: logoUrl.isNotEmpty
+          ? Image.network(logoUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _logoInitial(name))
+          : _logoInitial(name),
+    );
+  }
+
+  /// tags 容错解析：标准返回为 string[]（web Organization.tags），个别
+  /// 序列化会给逗号拼接字符串，统一拆成逐个 tag 渲染（与 web 一致），
+  /// 避免整串渲染成一个 chip 或 cast 崩溃。
+  static List<String> _parseTags(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    if (raw is String) {
+      return raw
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    return const <String>[];
+  }
+
+  Widget _logoInitial(String name) {
+    final safeName = name.isNotEmpty ? name : '?';
+    return Container(
+      color: orgAvatarColor(safeName),
       alignment: Alignment.center,
-      child: Text(initial,
+      // web text-[3.5rem]=56 font-semibold（OrgProfileHeader.tsx:850）
+      child: Text(orgInitials(safeName),
           style: const TextStyle(
-              fontSize: 40,
+              fontSize: 56,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1F1F1F))),
     );
   }
 
-  /// 加入按钮状态机（对齐 web MembershipCta）：
-  /// member→Chat；pending→Requested(禁用)；rejected→Request again；none→Join。
+  /// 加入按钮状态机（对齐 web MembershipCta，OrgProfileHeader.tsx:726-826）：
+  /// member→Invite（唤起邀请链接面板，web onInvite→InviteOrgModal）；
+  /// pending→Requested(禁用+边框)；rejected→Request again + 提示；none→Join。
   Widget _ctaButton() {
     final status = _joinStatus;
     String label;
+    IconData? icon;
     VoidCallback? onTap;
     bool disabled = false;
     switch (status) {
       case 'member':
-        label = 'Chat';
-        onTap = _openChat;
+        label = 'Invite';
+        icon = Icons.person_add_alt;
+        onTap = _showInviteSheet;
         break;
       case 'pending':
         label = 'Requested';
@@ -414,10 +517,12 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
         break;
       case 'rejected':
         label = 'Request again';
+        icon = Icons.person_add_alt;
         onTap = _requestJoin;
         break;
       default:
         label = 'Join';
+        icon = Icons.person_add_alt;
         onTap = _requestJoin;
     }
     return Column(
@@ -434,6 +539,10 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
               color:
                   disabled ? const Color(0xFFF6F5F2) : const Color(0xFF171717),
               borderRadius: BorderRadius.circular(12),
+              // web pending 态：border-[#EEEDE9] bg-[#F6F5F2]
+              border: disabled
+                  ? Border.all(color: const Color(0xFFEEEDE9))
+                  : null,
             ),
             child: _joining
                 ? const SizedBox(
@@ -442,13 +551,22 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white),
                   )
-                : Text(label,
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: disabled
-                            ? const Color(0xFF6B6862)
-                            : Colors.white)),
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 16, color: Colors.white),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(label,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: disabled
+                                  ? const Color(0xFF6B6862)
+                                  : Colors.white)),
+                    ],
+                  ),
           ),
         ),
         if (status == 'rejected')
@@ -458,6 +576,44 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
                 style: TextStyle(fontSize: 12, color: Color(0xFF9E9B93))),
           ),
       ],
+    );
+  }
+
+  /// 成员 CTA「Invite」：唤起邀请链接面板（web 打开 InviteOrgModal；
+  /// App 用底部弹层复用邀请链接卡片：复制 / 管理员可刷新）。
+  Future<void> _showInviteSheet() async {
+    if (_inviteCode.isEmpty) {
+      _snack('Invite link is not ready yet');
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: DinqTokens.bgPage,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Invite members',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF171717))),
+              const SizedBox(height: 6),
+              const Text('Share this link to invite people to join.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF9E9B93))),
+              const SizedBox(height: 14),
+              _inviteCard(),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -133,11 +133,7 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
                       _buildInfoRow(
                         label: 'Location /Timezone',
                         value: _formatLocation(userData),
-                        onTap: () => _showEditDialog(
-                          title: 'Location',
-                          initialValue: userData?.location ?? '',
-                          field: 'location',
-                        ),
+                        onTap: () => _showLocationPicker(userStore),
                       ),
                       _buildDivider(),
                       _buildInfoRow(
@@ -352,6 +348,18 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
 
     if ((result?.isNotEmpty ?? false) && result != initialValue) {
       await userStore.updateUserData({field: result});
+    }
+  }
+
+  Future<void> _showLocationPicker(UserStore userStore) async {
+    // 与 edit_profile_page 一致：调地区/时区选择组件，而非文本输入
+    final current = userStore.user?.userData.location ?? '';
+    final result = await ProfileFormPickers.showLocationTimezonePicker(
+      context: context,
+      currentValue: current,
+    );
+    if (result != null && result != current) {
+      await userStore.updateUserData({'location': result});
     }
   }
 
