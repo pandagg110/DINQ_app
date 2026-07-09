@@ -105,6 +105,8 @@ class _GenerationPageState extends State<GenerationPage> {
   String? _welcomeError;
   bool _welcomeShouldUploadAgain = false;
   bool _welcomeFinalizeStarted = false;
+  bool _isFinalizingOnboarding = false;
+  bool _successCelebrationPlayed = false;
   List<OnboardingAddedLink> _onboardingSocialLinks = [];
   Map<String, dynamic>? _domainCheckResult;
   Timer? _domainCheckTimer;
@@ -368,8 +370,14 @@ class _GenerationPageState extends State<GenerationPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 监听 UserStore 的 myFlow 变化，自动更新步骤
-    final userStore = context.watch<UserStore>();
+    // welcome / onboardingSocials 提交期间不 watch UserStore，避免 complete 后
+    // setMyFlow、getCurrentUser 等多次 notify 导致整页频繁重建闪动。
+    final watchUserStore =
+        _currentStep != GenerationStep.welcome &&
+        _currentStep != GenerationStep.onboardingSocials;
+    final userStore = watchUserStore
+        ? context.watch<UserStore>()
+        : context.read<UserStore>();
     final myFlow = userStore.myFlow;
     if (!_isRegenerateEntry && myFlow != null) {
       final stepFromFlow = _getStepFromFlowStatus(myFlow.status);
@@ -1598,15 +1606,16 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   Widget _buildSuccessStep(BuildContext context) {
-    // 确保倒计时启动并触发 confetti 动画
+    // 确保倒计时启动并触发 confetti 动画（仅首次进入 success 时）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _currentStep == GenerationStep.success) {
-        // 如果倒计时未启动或已结束，重新启动
         if (_redirectTimer == null) {
           _startRedirectCountdown();
         }
-        // 触发 confetti 动画
-        _confettiController.play();
+        if (!_successCelebrationPlayed) {
+          _successCelebrationPlayed = true;
+          _confettiController.play();
+        }
       }
     });
 
@@ -2948,6 +2957,7 @@ class _GenerationPageState extends State<GenerationPage> {
     _handleReservedUntil = null;
     _onboardingFinalized = false;
     _welcomeFinalizeStarted = false;
+    _isFinalizingOnboarding = false;
     if (clearDomain) {
       _domainController.clear();
       _domainCheckResult = null;
@@ -3101,6 +3111,7 @@ class _GenerationPageState extends State<GenerationPage> {
         _welcomeError = null;
         _welcomeShouldUploadAgain = false;
         _welcomeFinalizeStarted = false;
+        _isFinalizingOnboarding = false;
         _onboardingFinalized = false;
         _currentStep = GenerationStep.welcome;
       });
@@ -3242,7 +3253,7 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   Future<void> _finalizeOnboardingDraft() async {
-    if (_onboardingFinalized) return;
+    if (_onboardingFinalized || _isFinalizingOnboarding) return;
 
     final userStore = context.read<UserStore>();
     if (!userStore.isLoggedIn()) {
@@ -3286,6 +3297,7 @@ class _GenerationPageState extends State<GenerationPage> {
     }
 
     setState(() {
+      _isFinalizingOnboarding = true;
       _welcomeStatus = OnboardingWelcomeStatus.saving;
       _welcomeError = null;
       _welcomeShouldUploadAgain = false;
@@ -3303,12 +3315,13 @@ class _GenerationPageState extends State<GenerationPage> {
       if (flowData != null) {
         userStore.setMyFlow(UserFlow.fromJson(flowData));
       }
+      // complete 已返回最新 flow，无需再 getFlow()（会触发 isLoadingFlow 切换导致闪动）
       await userStore.getCurrentUser();
-      await userStore.getFlow();
 
       if (!mounted) return;
       setState(() {
         _onboardingFinalized = true;
+        _isFinalizingOnboarding = false;
         _welcomeStatus = OnboardingWelcomeStatus.ready;
       });
     } catch (error) {

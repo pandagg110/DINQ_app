@@ -68,7 +68,7 @@ class _AdminMyDinqPageState extends State<AdminMyDinqPage> {
     if (domain == null) {
       return const Scaffold(
         backgroundColor: Color(0xFFF7F6F2),
-        body: SizedBox.shrink(),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
