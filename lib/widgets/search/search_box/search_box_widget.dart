@@ -325,6 +325,11 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(widget.isMobile ? 28 : 16),
+          ),
+          // 边框画在内容之上（foregroundDecoration）：内部面板底色/分割线
+          // 在圆角处的抗锯齿边缘不再压住边框线
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.isMobile ? 28 : 16),
             border: Border.all(
               color: isGlass
                   ? (_isFocused ? const Color(0xFFC0C0C0) : const Color(0xFFD5D3CE))
