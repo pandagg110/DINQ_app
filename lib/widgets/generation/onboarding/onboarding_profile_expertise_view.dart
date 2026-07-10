@@ -181,33 +181,37 @@ class _OnboardingProfileExpertiseViewState
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: TextField(
-                controller: _customTagController,
-                maxLength: profileTagCharLimit,
-                enabled: tags.length < profileTagLimit,
-                decoration: InputDecoration(
-                  hintText: 'Add custom tag',
-                  counterText: '',
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
+              child: SizedBox(
+                height: 44,
+                child: TextField(
+                  controller: _customTagController,
+                  maxLength: profileTagCharLimit,
+                  enabled: tags.length < profileTagLimit,
+                  decoration: InputDecoration(
+                    hintText: 'Add custom tag',
+                    counterText: '',
+                    filled: true,
+                    fillColor: Colors.white,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF171717)),
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFEEEDE9)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF171717)),
-                  ),
+                  onSubmitted: (_) => _addCustomTag(),
                 ),
-                onSubmitted: (_) => _addCustomTag(),
               ),
             ),
             const SizedBox(width: 8),
@@ -224,6 +228,9 @@ class _OnboardingProfileExpertiseViewState
                   side: const BorderSide(color: Color(0xFFEEEDE9)),
                   foregroundColor: const Color(0xFF6B6862),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: const Text(
                   'Add',
