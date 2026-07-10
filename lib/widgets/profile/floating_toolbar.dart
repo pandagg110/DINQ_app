@@ -362,7 +362,7 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
       child:
           Container(
                 width: 268,
-                height: 162,
+                height: 120,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -385,14 +385,14 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildMoreMenuItem(
-                        iconPath: 'icons/more-btns/regenerate.png',
-                        label: 'Regenerate',
-                        onTap: () {
-                          _closeMenu();
-                          _showRegenerateDialog();
-                        },
-                      ),
+                      // _buildMoreMenuItem(
+                      //   iconPath: 'icons/more-btns/regenerate.png',
+                      //   label: 'Regenerate',
+                      //   onTap: () {
+                      //     _closeMenu();
+                      //     _showRegenerateDialog();
+                      //   },
+                      // ),
                       _buildMoreMenuItem(
                         iconPath: 'icons/more-btns/udpate.png',
                         label: 'Update',
