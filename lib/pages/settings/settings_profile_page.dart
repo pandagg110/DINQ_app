@@ -242,27 +242,38 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        height: 54,
+        constraints: const BoxConstraints(minHeight: 54),
+        alignment: Alignment.center,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               label,
               style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: ColorUtil.textColor),
             ),
-            Row(
-              children: [
-                Text(
-                  value.isNotEmpty ? value : 'Not set',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontFamily: 'Geist',
-                    color: value.isNotEmpty ? ColorUtil.sub1TextColor : ColorUtil.sub3TextColor,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      value.isNotEmpty ? value : 'Not set',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'Geist',
+                        color: value.isNotEmpty
+                            ? ColorUtil.sub1TextColor
+                            : ColorUtil.sub3TextColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                AssetImageView("gray_right", width: 20, height: 20),
-              ],
+                  const SizedBox(width: 4),
+                  AssetImageView("gray_right", width: 20, height: 20),
+                ],
+              ),
             ),
           ],
         ),
