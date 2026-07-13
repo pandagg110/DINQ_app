@@ -133,6 +133,8 @@ class _GenerationPageState extends State<GenerationPage> {
   bool _welcomeShouldUploadAgain = false;
   bool _welcomeFinalizeStarted = false;
   bool _isFinalizingOnboarding = false;
+  bool _welcomeAgreementPrompted = false;
+  bool _welcomeAgreementAgreed = false;
   bool _successCelebrationPlayed = false;
   List<OnboardingAddedLink> _onboardingSocialLinks = [];
   Map<String, dynamic>? _domainCheckResult;
@@ -581,6 +583,7 @@ class _GenerationPageState extends State<GenerationPage> {
           if (mounted) _finalizeOnboardingDraft();
         });
       }
+      _maybeShowWelcomeAgreement();
       final handle = _domainController.text.trim().isNotEmpty
           ? _domainController.text.trim()
           : (context.read<UserStore>().myFlow?.domain ?? '');
@@ -594,11 +597,21 @@ class _GenerationPageState extends State<GenerationPage> {
             shouldUploadAgain: _welcomeShouldUploadAgain,
             orgName: _orgContext?.orgName,
             onRetry: _handleWelcomeRetry,
-            onGoSocials: () => setState(() {
-              _currentStep = GenerationStep.onboardingSocials;
-            }),
-            onGoMydinq: _goToMydinq,
-            onGoOrg: _goToMydinq,
+            onGoSocials: () async {
+              if (!await _ensureWelcomeAgreement()) return;
+              if (!mounted) return;
+              setState(() => _currentStep = GenerationStep.onboardingSocials);
+            },
+            onGoMydinq: () async {
+              if (!await _ensureWelcomeAgreement()) return;
+              if (!mounted) return;
+              _goToMydinq();
+            },
+            onGoOrg: () async {
+              if (!await _ensureWelcomeAgreement()) return;
+              if (!mounted) return;
+              _goToMydinq();
+            },
           ),
         ),
       );
@@ -3351,6 +3364,8 @@ class _GenerationPageState extends State<GenerationPage> {
       _welcomeStatus = OnboardingWelcomeStatus.saving;
       _welcomeError = null;
       _welcomeShouldUploadAgain = false;
+      _welcomeAgreementPrompted = false;
+      _welcomeAgreementAgreed = false;
     });
 
     try {
@@ -3408,6 +3423,8 @@ class _GenerationPageState extends State<GenerationPage> {
         _welcomeFinalizeStarted = false;
         _welcomeShouldUploadAgain = false;
         _welcomeError = null;
+        _welcomeAgreementPrompted = false;
+        _welcomeAgreementAgreed = false;
         _currentStep = GenerationStep.upload;
       });
       return;
@@ -3415,6 +3432,8 @@ class _GenerationPageState extends State<GenerationPage> {
     setState(() {
       _welcomeFinalizeStarted = false;
       _welcomeStatus = OnboardingWelcomeStatus.saving;
+      _welcomeAgreementPrompted = false;
+      _welcomeAgreementAgreed = false;
     });
     _finalizeOnboardingDraft();
   }
@@ -3425,12 +3444,29 @@ class _GenerationPageState extends State<GenerationPage> {
     }
   }
 
-  Future<void> _finishOnboardingSocials(List<OnboardingAddedLink> links) async {
-    // 发布 DINQ Card 前必须先同意「Public Visibility」协议（对齐 web onboarding
-    // 最后一步；缺此协议会导致流程走不下去）。Agree 才继续，Cancel 则停留。
-    final agreed = await showAgreementProtocolConfirm(context);
-    if (!agreed || !mounted) return;
+  void _maybeShowWelcomeAgreement() {
+    if (_welcomeStatus != OnboardingWelcomeStatus.ready ||
+        _welcomeAgreementPrompted ||
+        !mounted) {
+      return;
+    }
+    _welcomeAgreementPrompted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await _ensureWelcomeAgreement();
+    });
+  }
 
+  Future<bool> _ensureWelcomeAgreement() async {
+    if (_welcomeAgreementAgreed) return true;
+    final agreed = await showAgreementProtocolConfirm(context);
+    if (agreed && mounted) {
+      setState(() => _welcomeAgreementAgreed = true);
+    }
+    return agreed;
+  }
+
+  Future<void> _finishOnboardingSocials(List<OnboardingAddedLink> links) async {
     final domain =
         context.read<UserStore>().myFlow?.domain ??
         _domainController.text.trim();
