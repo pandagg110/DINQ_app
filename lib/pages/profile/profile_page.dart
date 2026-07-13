@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_constants.dart';
 import '../../models/user_models.dart';
+import '../../services/analytics_service.dart';
 import '../../services/message_service.dart';
 import '../../services/profile_service.dart';
 import '../../utils/api_error.dart';
@@ -64,6 +65,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   /// true = 预览模式；My DINQ Page 标签下固定为 false（编辑态）
   bool _isPreviewMode = true;
+
+  /// 埋点：本次路由访问是否已报过 dinq_page_view（State 随路由访问创建，
+  /// 刷新/重建不重复上报）
+  bool _dinqPageViewTracked = false;
 
   @override
   void initState() {
@@ -135,6 +140,17 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       final currentUserDomain = userStore.user?.userData.domain;
       final userDataDomain = userData.domain;
       final isEditable = isLoggedIn && currentUserDomain == userDataDomain;
+
+      // 埋点：DINQ Page 首次完成展示（一次路由访问一次；域名/用户名不上报）
+      if (!_dinqPageViewTracked) {
+        _dinqPageViewTracked = true;
+        AnalyticsService.instance.track(
+          'dinq_page_view',
+          params: {'is_owner': isEditable ? 'true' : 'false'},
+          activationIntent: 'dinq_page',
+        );
+      }
+
       final myFlow = userStore.myFlow;
       final flowStatus = myFlow?.status;
       final nameIsEmpty = userData.name.isEmpty || userData.name.trim().isEmpty;

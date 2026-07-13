@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_models.dart';
+import '../../services/analytics_service.dart';
 import '../../services/flow_service.dart';
 import '../../services/onboarding_service.dart';
 import '../../services/upload_service.dart';
@@ -87,6 +88,32 @@ class _GenerationPageState extends State<GenerationPage> {
 
   static const int MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+  /// 埋点：本次进入创建流程是否已报过 dinq_create_method_select
+  bool _createMethodSelectTracked = false;
+
+  /// 埋点：当前创建方式 → create_method 枚举
+  String get _createMethodParam {
+    switch (_analyzeMode) {
+      case 'resume':
+        return 'resume_upload';
+      case 'url':
+        return 'linkedin_paste';
+      default:
+        return 'manual';
+    }
+  }
+
+  /// 埋点：用户首次确认创建方式（每次进入流程只报一次）
+  void _trackCreateMethodSelect() {
+    if (_createMethodSelectTracked) return;
+    _createMethodSelectTracked = true;
+    AnalyticsService.instance.track(
+      'dinq_create_method_select',
+      params: {'create_method': _createMethodParam},
+      activationIntent: 'dinq_page',
+    );
+  }
+
   String _formatFileSize(int bytes) {
     if (bytes < 1024 * 1024) {
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
@@ -143,11 +170,20 @@ class _GenerationPageState extends State<GenerationPage> {
       final query = GoRouterState.of(context).uri.queryParameters;
       final isRegenerate =
           query['regenerate'] == '1' || query['regenerate'] == 'true';
-      if (isRegenerate) return;
-      final userStore = context.read<UserStore>();
-      if (userStore.isInitialized && hasLiveDinqPage(userStore.myFlow)) {
-        context.go('/admin/mydinq');
+      if (!isRegenerate) {
+        final userStore = context.read<UserStore>();
+        if (userStore.isInitialized && hasLiveDinqPage(userStore.myFlow)) {
+          context.go('/admin/mydinq');
+          return;
+        }
       }
+      // 埋点：创建流程可操作界面首次展示（每次进入流程一次；被守卫
+      // 重定向回 mydinq 的不算进入流程）
+      AnalyticsService.instance.setActivationIntent('dinq_page');
+      AnalyticsService.instance.track(
+        'dinq_create_start',
+        activationIntent: 'dinq_page',
+      );
     });
   }
 
@@ -2847,6 +2883,7 @@ class _GenerationPageState extends State<GenerationPage> {
       _analyzeError = null;
       _currentStep = GenerationStep.analyze;
     });
+    _trackCreateMethodSelect();
     await _runAnalyze();
   }
 
@@ -2943,6 +2980,7 @@ class _GenerationPageState extends State<GenerationPage> {
       _useOnboardingHandle = true;
       _currentStep = GenerationStep.profileBasics;
     });
+    _trackCreateMethodSelect();
     _prefillProfileFromDraft();
   }
 
@@ -3121,6 +3159,12 @@ class _GenerationPageState extends State<GenerationPage> {
         _onboardingFinalized = false;
         _currentStep = GenerationStep.welcome;
       });
+      // 埋点：后端确认 handle 领取（预留）成功；不上报 handle 本身
+      AnalyticsService.instance.track(
+        'dinq_domain_claim_success',
+        params: {'create_method': _createMethodParam},
+        activationIntent: 'dinq_page',
+      );
     } catch (e) {
       if (!mounted) return;
       final message = e.toString().replaceAll('Exception: ', '');
@@ -3330,6 +3374,12 @@ class _GenerationPageState extends State<GenerationPage> {
         _isFinalizingOnboarding = false;
         _welcomeStatus = OnboardingWelcomeStatus.ready;
       });
+      // 埋点：后端确认 DINQ Page 创建成功（_onboardingFinalized 守卫防重复）
+      AnalyticsService.instance.track(
+        'dinq_create_success',
+        params: {'create_method': _createMethodParam},
+        activationIntent: 'dinq_page',
+      );
     } catch (error) {
       if (!mounted) return;
       if (_isOnboardingAccountConflict(error)) {

@@ -66,7 +66,7 @@ class SettingsPage extends StatelessWidget {
                 onTap: () {
                   // 清掉跨用户会残留的简历数据，避免新账号看到上一用户的简历
                   context.read<ResumeStore>().clear();
-                  userStore.logout();
+                  userStore.logout(userInitiated: true);
                   context.go('/signin');
                 },
                 child: Container(

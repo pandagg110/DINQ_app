@@ -111,7 +111,7 @@ class _AppHeaderState extends State<AppHeader> {
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'logout') {
-                userStore.logout();
+                userStore.logout(userInitiated: true);
                 context.go('/');
                 return;
               }
@@ -229,7 +229,7 @@ class _AppHeaderState extends State<AppHeader> {
             _MobileNavItem(
               label: 'Sign out',
               onTap: () {
-                context.read<UserStore>().logout();
+                context.read<UserStore>().logout(userInitiated: true);
                 _navigate(context, '/');
               },
             ),

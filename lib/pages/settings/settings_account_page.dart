@@ -251,7 +251,7 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
       height: 48,
       child: NormalButton(
         onTap: () {
-          userStore.logout();
+          userStore.logout(userInitiated: true);
           context.go('/');
         },
         child: Container(

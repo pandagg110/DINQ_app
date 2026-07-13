@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/card_models.dart';
+import '../services/analytics_service.dart';
 import '../services/card_service.dart';
 import '../services/datasource_service.dart';
 import '../utils/card_layout_utils.dart';
@@ -134,6 +135,17 @@ class CardStore extends ChangeNotifier {
         type: type,
         metadata: finalMetadata,
       );
+
+      // 埋点：社媒链接卡片保存成功（后端已确认）。非社媒链接类卡片
+      // socialPlatformForCardType 返回 null 不上报；URL 本身不上报。
+      final socialPlatform = AnalyticsService.socialPlatformForCardType(type);
+      if (socialPlatform != null) {
+        AnalyticsService.instance.track(
+          'dinq_social_add',
+          params: {'social_platform': socialPlatform},
+          activationIntent: 'dinq_page',
+        );
+      }
 
       // 对齐 Web：addCardToBoard 不保证返回正确 type，强制使用请求时的 type
       final createdWithType = CardItem(

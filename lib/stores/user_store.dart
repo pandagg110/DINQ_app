@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_models.dart';
+import '../services/analytics_service.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/push_service.dart';
@@ -94,6 +95,12 @@ class UserStore extends ChangeNotifier {
       try {
         await initialize();
       } catch (_) {}
+      // 埋点时序：先 setUserId，再报 login_success
+      await _setAnalyticsUser(result);
+      AnalyticsService.instance.track(
+        'login_success',
+        params: {'method': 'email'},
+      );
       isLoading = false;
       notifyListeners();
       return user;
@@ -119,6 +126,13 @@ class UserStore extends ChangeNotifier {
       ApiClient.instance.setAuthToken(authToken);
       await _persistToken();
       await initialize();
+      // 埋点时序：先 setUserId，再报 login_success。
+      // thirdPartyLogin 每次 OAuth 回调成功仅执行一次，天然只报一次。
+      await _setAnalyticsUser(result);
+      AnalyticsService.instance.track(
+        'login_success',
+        params: {'method': AnalyticsService.methodForProvider(provider)},
+      );
       isLoading = false;
       notifyListeners();
       return user;
@@ -147,6 +161,13 @@ class UserStore extends ChangeNotifier {
       authToken = result['token']?.toString();
       ApiClient.instance.setAuthToken(authToken);
       await _persistToken();
+      // 埋点时序：注册成功拿到用户 ID（response.data.user.id）后先 setUserId，
+      // 再报 sign_up_success。注册自动登录只报 sign_up_success，不报 login_success。
+      await _setAnalyticsUser(result);
+      AnalyticsService.instance.track(
+        'sign_up_success',
+        params: {'method': 'email'},
+      );
       await initialize();
     } finally {
       isLoading = false;
@@ -154,7 +175,15 @@ class UserStore extends ChangeNotifier {
     }
   }
 
-  void logout() {
+  /// [userInitiated] 为 true 表示用户主动登出（设置页/头像菜单），
+  /// 此时按时序报 logout（login_status 仍为 logged_in）→ clearUserId → 本地置 guest。
+  /// 401 会话过期走默认 false，只清用户态不报事件。
+  void logout({bool userInitiated = false}) {
+    if (userInitiated && isLoggedIn()) {
+      AnalyticsService.instance.track('logout');
+    }
+    AnalyticsService.instance.clearUserId();
+    AnalyticsService.instance.setLoginStatus(false);
     // 解绑推送 Token，避免给已登出用户继续推送（先于清 token，接口仍需鉴权）
     PushService.instance.unbindToken();
     user = null;
@@ -171,11 +200,33 @@ class UserStore extends ChangeNotifier {
     if (authToken == null || authToken!.isEmpty) return null;
     try {
       user = await _authService.getUserProfile();
+      // 登录态恢复（冷启动等）：只 setUserId，不报 login_success
+      final userId = user?.user.id;
+      if (userId != null && userId.isNotEmpty) {
+        await AnalyticsService.instance.setUserId(userId);
+        AnalyticsService.instance.setLoginStatus(true);
+      }
       notifyListeners();
       return user;
     } catch (_) {
       return null;
     }
+  }
+
+  /// 埋点：从 auth 接口返回（response.data.user.id）或已加载的 profile
+  /// 中取用户 ID，只走 setUserId，不进事件参数。
+  Future<void> _setAnalyticsUser(Map<String, dynamic> authResult) async {
+    String? userId;
+    final resultUser = authResult['user'];
+    if (resultUser is Map) {
+      final id = resultUser['id']?.toString();
+      if (id != null && id.isNotEmpty) userId = id;
+    }
+    userId ??= user?.user.id;
+    if (userId != null && userId.isNotEmpty) {
+      await AnalyticsService.instance.setUserId(userId);
+    }
+    AnalyticsService.instance.setLoginStatus(true);
   }
 
   Future<void> updateUserBase(Map<String, dynamic> payload) async {
@@ -282,6 +333,14 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
     try {
       subscription = await _paymentService.getSubscription();
+      // 埋点：本会话发起过 checkout 且后端确认为付费计划时报 subscription_success
+      // （签名去重，签名本身不上报）
+      final sub = subscription!;
+      AnalyticsService.instance.confirmPendingSubscription(
+        plan: sub.basePlan,
+        billingPeriod: sub.billingPeriod,
+        dedupKey: '${sub.plan}|${sub.currentPeriodEnd ?? ''}',
+      );
       return subscription;
     } catch (_) {
       subscription = Subscription(
