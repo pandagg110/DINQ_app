@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
+import '../../models/organization_share_models.dart';
 import '../../services/account_service.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../utils/org_avatar.dart';
 import '../../widgets/common/default_app_bar.dart';
+import '../../widgets/profile/share_organization_dialog.dart';
 
 /// My → Organization → 详情。对齐 web organization/[slug]：
 /// 封面头图 + 叠加 logo + 组织名/成员数/地点/tags/描述 + 加入按钮状态机
@@ -155,26 +156,33 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     }
   }
 
-  /// iOS（尤其 iPad）分享面板必须提供锚点矩形，否则 share_plus 会抛
-  /// PlatformException(sharePositionOrigin must be set...)。做法同
-  /// shortlist_page.dart 的 _shareOrigin()。
-  Rect? _shareOrigin() {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return null;
-    return box.localToGlobal(Offset.zero) & box.size;
+  OrganizationShareTarget _orgShareTarget() {
+    final name = (_org['name'] ?? 'Organization').toString();
+    final logoUrl = (_org['logo_url'] ?? '').toString();
+    final description = (_org['description'] ?? '').toString();
+    final location = (_org['location'] ?? '').toString();
+    final tags = _parseTags(_org['tags']);
+    final memberCount =
+        (_org['member_count'] as num?)?.toInt() ?? _members.length;
+    return OrganizationShareTarget(
+      slug: _slug,
+      name: name,
+      description: description.isNotEmpty ? description : null,
+      logoUrl: logoUrl.isNotEmpty ? logoUrl : null,
+      tags: tags,
+      location: location.isNotEmpty ? location : null,
+      memberCount: memberCount,
+    );
   }
 
-  /// 右上分享：唤起系统分享面板（对齐 web ShareModal 的分享入口，移动端
-  /// 等价物是 system share sheet）。失败时兜底复制链接。
+  /// 右上分享：打开组织专用 ShareOrganizationDialog。
   Future<void> _share() async {
     if (_slug.isEmpty) return;
-    final link = 'https://dinq.me/$_slug';
-    try {
-      await Share.share(link, sharePositionOrigin: _shareOrigin());
-    } catch (_) {
-      await Clipboard.setData(ClipboardData(text: link));
-      _snack('Link copied');
-    }
+    if (!mounted) return;
+    await ShareOrganizationDialog.show(
+      context: context,
+      organization: _orgShareTarget(),
+    );
   }
 
   String get _inviteLink => _inviteCode.isEmpty
