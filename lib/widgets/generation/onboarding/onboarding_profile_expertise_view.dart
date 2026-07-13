@@ -182,7 +182,7 @@ class _OnboardingProfileExpertiseViewState
           children: [
             Expanded(
               child: SizedBox(
-                height: 44,
+                height: 4
                 child: TextField(
                   controller: _customTagController,
                   maxLength: profileTagCharLimit,
