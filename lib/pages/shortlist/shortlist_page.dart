@@ -1172,8 +1172,6 @@ class _EnrichOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.paddingOf(context).bottom;
-
     return Positioned.fill(
       child: Material(
         color: Colors.white,
@@ -1202,20 +1200,13 @@ class _EnrichOverlay extends StatelessWidget {
             Expanded(
               child: entry == null
                   ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        16,
-                        24,
-                        16,
-                        24 + bottomPadding,
-                      ),
-                      child: EnrichProfileView(
-                        entry: entry!,
-                        isMobile: true,
-                        selectedRowId: selectedRowId,
-                        confidencePct: confidencePct,
-                        onRefresh: onRefresh,
-                      ),
+                  : EnrichProfileView(
+                      entry: entry!,
+                      isMobile: true,
+                      pinActionsToBottom: true,
+                      selectedRowId: selectedRowId,
+                      confidencePct: confidencePct,
+                      onRefresh: onRefresh,
                     ),
             ),
           ],
