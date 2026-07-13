@@ -869,10 +869,6 @@ class _ShortlistStatusChoicePill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFEAF1FF) : DinqTokens.bgCard,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? Colors.transparent : DinqTokens.borderL,
-            width: 0.5,
-          ),
           boxShadow: const [
             BoxShadow(
               color: DinqTokens.shadow,
