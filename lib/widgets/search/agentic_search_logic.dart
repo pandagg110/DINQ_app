@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../services/analytics_service.dart';
 import '../../services/search_service.dart';
 import '../../stores/search_store.dart';
 import '../../utils/parse_quick_replies.dart';
@@ -218,6 +219,23 @@ class AgenticSearchLogic extends ChangeNotifier {
   StreamSubscription? _streamSubscription;
   StreamSubscription? _analysisStreamSubscription;
   String? _activeSessionId;
+
+  /// 埋点：本会话内已提交搜索、尚未上报 search_result_view 的轮次
+  /// （groupId → search_type）。历史恢复的轮次不在其中，天然不会重复上报。
+  final Map<int, String> _pendingResultViewGroups = {};
+
+  /// 埋点：本轮首次出现有效结果时报 search_result_view（按 group id 去重，
+  /// 流式更新/重渲染/历史恢复不重复；空结果/失败不报）。
+  void _maybeTrackResultView(int groupId, {required bool hasResults}) {
+    if (!hasResults) return;
+    final searchType = _pendingResultViewGroups.remove(groupId);
+    if (searchType == null) return;
+    AnalyticsService.instance.track(
+      'search_result_view',
+      params: {'search_type': searchType},
+      activationIntent: 'search',
+    );
+  }
 
   String? get activeSessionId => _activeSessionId;
 
@@ -558,6 +576,7 @@ class AgenticSearchLogic extends ChangeNotifier {
               .toList();
           final merged = _mergeCandidates(g.candidates, newCandidates);
           g.candidates = merged;
+          _maybeTrackResultView(groupId, hasResults: merged.isNotEmpty);
           if (searchStore.openTabs.isEmpty) {
             searchStore.setTabsFromCandidates(merged);
           } else {
@@ -605,6 +624,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       contentBlocks: g.contentBlocks,
       onCandidatesChanged: (candidates) {
         g.candidates = candidates;
+        _maybeTrackResultView(groupId, hasResults: candidates.isNotEmpty);
         final tabCandidates = candidates
             .map(candidateRowToTabCandidate)
             .toList();
@@ -1246,6 +1266,24 @@ class AgenticSearchLogic extends ChangeNotifier {
 
     searchStore.setIsSearching(true);
     final groupId = DateTime.now().millisecondsSinceEpoch;
+
+    // 埋点：搜索请求正式发出。不采集搜索词/文件名，附件仅按扩展名映射类型。
+    final hasAttachment = attachment != null && attachment.isNotEmpty;
+    final searchTypeParam = simple ? 'quick_search' : 'deep_search';
+    AnalyticsService.instance.setActivationIntent('search');
+    AnalyticsService.instance.track(
+      'search_submit',
+      params: {
+        'search_type': searchTypeParam,
+        'has_attachment': hasAttachment ? 'true' : 'false',
+        'attachment_type': hasAttachment
+            ? AnalyticsService.attachmentTypeFor(attachmentName ?? attachment)
+            : 'none',
+      },
+      activationIntent: 'search',
+    );
+    _pendingResultViewGroups[groupId] = searchTypeParam;
+
     final group = AgenticMessageGroup(
       id: groupId,
       userQuery: trimmedQuery.isNotEmpty
@@ -1338,6 +1376,7 @@ class AgenticSearchLogic extends ChangeNotifier {
                     newCandidates,
                   );
                   messageGroups[idx].candidates = merged;
+                  _maybeTrackResultView(groupId, hasResults: merged.isNotEmpty);
                   if (searchStore.openTabs.isEmpty) {
                     searchStore.setTabsFromCandidates(merged);
                   } else {
@@ -1545,6 +1584,18 @@ class AgenticSearchLogic extends ChangeNotifier {
     if (query.trim().isEmpty) return;
 
     final groupId = DateTime.now().millisecondsSinceEpoch;
+    // 埋点：DINQ 用户搜索 = people_search，无附件；不采集搜索词
+    AnalyticsService.instance.setActivationIntent('search');
+    AnalyticsService.instance.track(
+      'search_submit',
+      params: {
+        'search_type': 'people_search',
+        'has_attachment': 'false',
+        'attachment_type': 'none',
+      },
+      activationIntent: 'search',
+    );
+    _pendingResultViewGroups[groupId] = 'people_search';
     final group = AgenticMessageGroup(
       id: groupId,
       userQuery: query.trim(),
@@ -1583,6 +1634,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         messageGroups[idx].loading = false;
         messageGroups[idx].dinqResults = list;
         messageGroups[idx].searchCompleted = true;
+        _maybeTrackResultView(groupId, hasResults: list.isNotEmpty);
       }
     } catch (_) {
       final idx = messageGroups.indexWhere((g) => g.id == groupId);

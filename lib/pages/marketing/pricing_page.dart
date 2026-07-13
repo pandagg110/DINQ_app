@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../services/analytics_service.dart';
 import '../../services/payment_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
@@ -270,10 +271,29 @@ class _PricingPageState extends State<PricingPage> {
 
       final url = response['url']?.toString();
       if (url != null && url.isNotEmpty && mounted) {
+        // 埋点：成功进入支付流程（App 内 web 收银台按方案记 stripe）。
+        // markCheckoutStarted 供订阅刷新时确认 subscription_success。
+        AnalyticsService.instance.track(
+          'subscription_checkout_start',
+          params: {
+            'target_plan': basePlan,
+            'billing_period': targetPeriod,
+            'payment_provider': 'stripe',
+          },
+          activationIntent: 'unknown',
+        );
+        AnalyticsService.instance.markCheckoutStarted(
+          targetPlan: basePlan,
+          billingPeriod: targetPeriod,
+          paymentProvider: 'stripe',
+        );
+        // 支付页关闭后刷新订阅，驱动 subscription_success 的后端确认上报
         context.push('/webview', extra: {
           'url': url,
           'navTitle': 'Checkout',
           'showAppBar': 'true',
+        }).then((_) {
+          if (mounted) context.read<UserStore>().refreshSubscription();
         });
       } else if (mounted) {
         TopToastUtil.showError(

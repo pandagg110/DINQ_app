@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/user_models.dart';
+import '../../services/analytics_service.dart';
 import '../../services/payment_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
@@ -462,7 +463,20 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
 
     try {
       final userStore = context.read<UserStore>();
+      // 埋点用：取消前的当前计划（取消后刷新可能变化）
+      final planBeforeToggle = userStore.subscription?.basePlan ?? 'free';
       await _paymentService.setAutoRenew(autoRenew: enable);
+      // 埋点：用户发起且后端确认取消（关闭自动续费）
+      if (!enable) {
+        AnalyticsService.instance.track(
+          'subscription_cancel',
+          params: {
+            'current_plan': planBeforeToggle,
+            'payment_provider': 'stripe',
+          },
+          activationIntent: 'unknown',
+        );
+      }
       await userStore.refreshSubscription();
 
       if (!mounted) return;
