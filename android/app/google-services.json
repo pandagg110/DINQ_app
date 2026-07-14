@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "dinq-placeholder",
-    "storage_bucket": "dinq-placeholder.appspot.com"
+    "project_number": "889216227743",
+    "project_id": "dinqme-57b73",
+    "storage_bucket": "dinqme-57b73.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:889216227743:android:041e7c236a13dc8c0305aa",
         "android_client_info": {
           "package_name": "me.dinq.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "PLACEHOLDER_REPLACE_WITH_REAL_GOOGLE_SERVICES_JSON"
+          "current_key": "AIzaSyAwJAIVsKZu-jE3wY_J7LaOoFUaq01NtD0"
         }
       ],
       "services": {
