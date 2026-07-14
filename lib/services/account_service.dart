@@ -128,9 +128,13 @@ class AccountService {
   }
 
   /// GET /orgs/{id}/team-recruits — 组队招募列表（仅成员可读）。
+  /// 响应形如 { team_recruits: TeamRecruitSummary[], total, limit, offset }
+  ///（对齐 web types/api/teamRecruit.ts ListOrgTeamRecruitsResponse）。
   Future<List<dynamic>> getOrgTeamRecruits(String id) async {
     final resp = await _dio.get('/orgs/$id/team-recruits');
     final d = resp.data;
+    if (d is Map && d['team_recruits'] is List) return d['team_recruits'] as List;
+    // 兼容旧字段名
     if (d is Map && d['recruits'] is List) return d['recruits'] as List;
     return const [];
   }

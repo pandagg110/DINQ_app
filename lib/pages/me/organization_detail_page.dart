@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/organization_share_models.dart';
 import '../../services/account_service.dart';
+import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../utils/org_avatar.dart';
@@ -982,57 +984,109 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     );
   }
 
+  /// 单条组队招募（对齐 web TeamRecruitSummaryCard 的 list 形态字段：
+  /// team_title / team_description / team_state / team_members /
+  /// team_max_members / spawned_conv_id）。已加入且已成团的可点击
+  /// 直接进入 team 子群会话（web onOpenTeam → PinnedTeamChat 的 App 对应物）。
   Widget _recruitRow(Map r) {
-    final title = (r['title'] ?? r['role'] ?? 'Team recruit').toString();
-    final desc = (r['description'] ?? '').toString();
-    final state = (r['state'] ?? r['status'] ?? '').toString();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: DinqTokens.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: DinqTokens.borderLL),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: ColorUtil.textColor)),
-              ),
-              if (state.isNotEmpty)
+    final title = (r['team_title'] ?? r['title'] ?? 'Team recruit').toString();
+    final desc = (r['team_description'] ?? r['description'] ?? '').toString();
+    final state = (r['team_state'] ?? r['state'] ?? '').toString();
+    final maxMembers =
+        (r['team_max_members'] is num) ? (r['team_max_members'] as num).toInt() : 0;
+    final memberIds = (r['team_members'] as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const <String>[];
+    final spawnedConvId = (r['spawned_conv_id'] ?? '').toString();
+    final currentUserId =
+        context.read<UserStore>().user?.user.id ?? '';
+    final hasJoined = memberIds.contains(currentUserId);
+    final canOpenTeamChat = spawnedConvId.isNotEmpty &&
+        hasJoined &&
+        (state == 'full' || state == 'closed');
+
+    // 状态徽章配色对齐 web：Full 绿 / Closed 灰 / open 蓝 x/y
+    String badgeText;
+    Color badgeBg;
+    Color badgeFg;
+    if (state == 'full') {
+      badgeText = 'Full';
+      badgeBg = const Color(0xFFF4F9F0);
+      badgeFg = const Color(0xFF5C8840);
+    } else if (state == 'closed') {
+      badgeText = 'Closed';
+      badgeBg = const Color(0xFFF7F6F2);
+      badgeFg = const Color(0xFF9E9B93);
+    } else {
+      badgeText = '${memberIds.length} / $maxMembers';
+      badgeBg = const Color(0xFFF0F4FB);
+      badgeFg = const Color(0xFF5E81AC);
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: canOpenTeamChat
+          ? () => context.push('/admin/inbox/$spawnedConvId')
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: DinqTokens.bgCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: DinqTokens.borderLL),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.outlined_flag,
+                    size: 16, color: Color(0xFF9E9B93)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: ColorUtil.textColor)),
+                ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: DinqTokens.bgSurface,
-                    borderRadius: BorderRadius.circular(999),
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(state,
-                      style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: DinqTokens.textSecondary)),
+                  child: Text(badgeText,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: badgeFg)),
                 ),
+              ],
+            ),
+            if (desc.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(desc,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF9E9B93))),
             ],
-          ),
-          if (desc.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(desc,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    const TextStyle(fontSize: 12, color: Color(0xFF9E9B93))),
+            if (canOpenTeamChat) ...[
+              const SizedBox(height: 8),
+              const Text('Open team chat ›',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF5E81AC))),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

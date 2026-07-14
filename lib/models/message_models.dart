@@ -55,14 +55,18 @@ class Message {
     );
   }
 
-  Message copyWith({MessageStatus? status, bool? isRecalled}) {
+  Message copyWith({
+    MessageStatus? status,
+    bool? isRecalled,
+    Map<String, dynamic>? metadata,
+  }) {
     return Message(
       id: id,
       conversationId: conversationId,
       senderId: senderId,
       messageType: messageType,
       content: content,
-      metadata: metadata,
+      metadata: metadata ?? this.metadata,
       status: status ?? this.status,
       isRecalled: isRecalled ?? this.isRecalled,
       replyToMessageId: replyToMessageId,
