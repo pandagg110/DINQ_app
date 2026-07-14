@@ -1,5 +1,6 @@
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../common/base_page.dart';
@@ -12,11 +13,16 @@ class MessageInput extends StatefulWidget {
     required this.onSendMessage,
     this.disabled = false,
     this.placeholder = 'Send a message...',
+    this.onTeamRecruit,
   });
 
   final ValueChanged<String> onSendMessage;
   final bool disabled;
   final String placeholder;
+
+  /// 「发起组队」入口（对齐 web ChatInput.tsx:168-181 的 Flag 按钮）。
+  /// 仅群聊会话传入；为 null 时不渲染按钮。
+  final VoidCallback? onTeamRecruit;
 
   @override
   State<MessageInput> createState() => _MessageInputState();
@@ -49,14 +55,17 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _toggleEmojiPicker() {
-    setState(() {
-      _showEmojiPicker = !_showEmojiPicker;
-      if (_showEmojiPicker) {
-        _focusNode.unfocus();
-      } else {
-        _focusNode.requestFocus();
-      }
-    });
+    final showPicker = !_showEmojiPicker;
+    setState(() => _showEmojiPicker = showPicker);
+    if (showPicker) {
+      _focusNode.unfocus();
+    } else {
+      // 切回键盘：requestFocus 在焦点未真正丢失时是 no-op，不会重新唤起 IME
+      //（表情面板打开→发送后点键盘 icon 切不回键盘的根因），
+      // 需要显式调用 TextInput.show 强制拉起软键盘。
+      _focusNode.requestFocus();
+      SystemChannels.textInput.invokeMethod('TextInput.show');
+    }
   }
 
   void _onEmojiSelected(String emoji) {
@@ -113,6 +122,32 @@ class _MessageInputState extends State<MessageInput> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  // 发起组队按钮（对齐 web ChatInput 的 Flag 按钮，位于输入框左侧）
+                  if (widget.onTeamRecruit != null) ...[
+                    GestureDetector(
+                      onTap: widget.disabled ? null : widget.onTeamRecruit,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0x12303030), width: 1),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.outlined_flag,
+                            size: 22,
+                            color: widget.disabled
+                                ? Colors.grey[300]
+                                : const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+
                   // 文本输入
                   Expanded(
                     child: ConstrainedBox(

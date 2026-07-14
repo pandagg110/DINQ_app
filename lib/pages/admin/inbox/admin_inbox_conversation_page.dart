@@ -10,6 +10,7 @@ import '../../../models/message_models.dart';
 import '../../../stores/messages_store.dart';
 import '../../../stores/user_store.dart';
 import '../../../widgets/common/base_page.dart';
+import '../../../widgets/inbox/create_team_recruit_sheet.dart';
 import '../../../widgets/inbox/delete_conversation_modal.dart';
 import '../../../widgets/inbox/message_bubble.dart';
 import '../../../widgets/inbox/message_input.dart';
@@ -123,6 +124,20 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     _scrollToBottom();
   }
 
+  /// 发起组队（对齐 web CreateTeamRecruitModal：提交成功后立即
+  /// 将返回的 team_recruit 消息入列，websocket 推送按 id 去重）。
+  Future<void> _openCreateTeamRecruit(String conversationId) async {
+    final store = context.read<MessagesStore>();
+    final message = await CreateTeamRecruitSheet.show(
+      context: context,
+      conversationId: conversationId,
+    );
+    if (message != null && message.id.isNotEmpty) {
+      store.addMessage(message);
+      _scrollToBottom();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<MessagesStore>();
@@ -181,11 +196,14 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     final display = getConversationDisplay(conversation, currentUserId);
     final otherMember = conversation.members.where((m) => m.userId != currentUserId).firstOrNull;
     final messages = store.messages;
+    final isGroup = conversation.conversationType == ConversationType.group;
 
-    // 判断输入框是否禁用：所有消息都是当前用户发送的（对方还未接受）
+    // 判断输入框是否禁用：所有消息都是当前用户发送的（对方还未接受）。
+    // 单条消息限制仅适用于私聊，群聊（组织群/组队子群）不受限
+    //（对齐 web inbox/[conversationId]/page.tsx:441-445 的 conversation_type === "private" 判断）
     final allFromCurrentUser =
         messages.isNotEmpty && messages.every((m) => m.senderId == currentUserId);
-    final isInputDisabled = !store.isWsConnected || allFromCurrentUser;
+    final isInputDisabled = !store.isWsConnected || (!isGroup && allFromCurrentUser);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -206,11 +224,13 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
                 : _buildMessageList(messages, currentUserId, conversation, store),
           ),
 
-          // 输入框
+          // 输入框（群聊提供「发起组队」入口，
+          // 对齐 web inbox/[conversationId]/page.tsx:456-458）
           MessageInput(
             onSendMessage: _handleSendMessage,
             disabled: isInputDisabled,
             placeholder: store.isWsConnected ? 'Send a message...' : 'Connecting...',
+            onTeamRecruit: isGroup ? () => _openCreateTeamRecruit(conversation.id) : null,
           ),
         ],
       ),
@@ -503,6 +523,7 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     MessagesStore store,
   ) {
     // 提前计算不变量，避免在 itemBuilder 中重复计算（O(n²) → O(n)）
+    final isPrivate = conversation.conversationType == ConversationType.private_;
     final showAvatar = conversation.conversationType == ConversationType.group;
     final otherMember = conversation.members.where((m) => m.userId != currentUserId).firstOrNull;
     final lastReadMsgIndex = otherMember?.lastReadMessageId != null
@@ -573,9 +594,10 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
         final showUnreadDivider =
             store.unreadMessageStartIndex != null && msgIndex == store.unreadMessageStartIndex;
 
-        // 消息限制警告
+        // 消息限制警告（仅私聊，对齐 web inbox 页 conversation_type === "private" 判断）
         final isLastMessage = msgIndex == messages.length - 1;
-        final showRestrictionWarning = isLastMessage && isOwnMessage && allFromCurrentUser;
+        final showRestrictionWarning =
+            isPrivate && isLastMessage && isOwnMessage && allFromCurrentUser;
 
         return Column(
           children: [

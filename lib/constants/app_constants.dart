@@ -44,4 +44,8 @@ class WsMessageType {
   static const String unreadCountUpdate = 'unread_count_update';
   static const String messageStatusUpdate = 'message_status_update';
   static const String recall = 'recall';
+  // Team Recruit 实时更新（对齐 web services/websocket.ts:255-286）
+  static const String teamRecruitUpdated = 'team_recruit_updated';
+  static const String teamRecruitClosed = 'team_recruit_closed';
+  static const String teamRecruitDeleted = 'team_recruit_deleted';
 }

@@ -128,6 +128,31 @@ class MessagesStore extends ChangeNotifier {
         loadConversations();
         break;
 
+      // Team Recruit 实时更新：其他成员 join/leave/close/delete 时刷新卡片
+      //（对齐 web services/websocket.ts:255-286）
+      case WsMessageType.teamRecruitUpdated:
+      case WsMessageType.teamRecruitClosed:
+        if (data != null) {
+          final messageId = data['message_id']?.toString() ?? '';
+          updateMessageMetadata(messageId, {
+            if (data.containsKey('team_members')) 'team_members': data['team_members'],
+            if (data.containsKey('team_members_info'))
+              'team_members_info': data['team_members_info'],
+            if (data.containsKey('team_state')) 'team_state': data['team_state'],
+            if (type == WsMessageType.teamRecruitClosed &&
+                data.containsKey('team_conv_id'))
+              'team_conv_id': data['team_conv_id'],
+          });
+        }
+        break;
+
+      case WsMessageType.teamRecruitDeleted:
+        if (data != null) {
+          final messageId = data['message_id']?.toString() ?? '';
+          markMessageRecalled(messageId);
+        }
+        break;
+
       case 'error':
         if (data != null) {
           final errorMessage = data['message']?.toString() ?? '';
@@ -332,6 +357,31 @@ class MessagesStore extends ChangeNotifier {
       messages = messages.map((m) => m.id == updated.id ? updated : m).toList();
       notifyListeners();
     }
+  }
+
+  /// 合并更新某条消息的 metadata（Team Recruit websocket 增量推送，
+  /// 对齐 web messagesStore.updateMessageMetadata）
+  void updateMessageMetadata(String messageId, Map<String, dynamic> partial) {
+    if (messageId.isEmpty || partial.isEmpty) return;
+    var changed = false;
+    messages = messages.map((m) {
+      if (m.id != messageId) return m;
+      changed = true;
+      return m.copyWith(metadata: {...?m.metadata, ...partial});
+    }).toList();
+    if (changed) notifyListeners();
+  }
+
+  /// 将某条消息标记为已撤回/删除（team_recruit_deleted 推送后隐藏卡片）
+  void markMessageRecalled(String messageId) {
+    if (messageId.isEmpty) return;
+    var changed = false;
+    messages = messages.map((m) {
+      if (m.id != messageId) return m;
+      changed = true;
+      return m.copyWith(isRecalled: true);
+    }).toList();
+    if (changed) notifyListeners();
   }
 
   /// 更新对话
