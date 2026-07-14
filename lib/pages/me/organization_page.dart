@@ -85,6 +85,31 @@ class _OrganizationPageState extends State<OrganizationPage> {
         .toList();
   }
 
+  /// 搜索态下 My Organization / Pending Approval 分区的本地关键词过滤。
+  /// /orgs?keyword= 的命中结果里凡是自己已加入/待审批的组织都会被
+  /// Recommended 的三分区排除吞掉，而 My/Pending 分区又原样展示全部组织，
+  /// 导致「搜索了但页面没任何变化」（QA：搜索筛选不可用、无反馈）。web
+  /// 桌面端因网格一屏可见没有这个问题；App 单列列表必须让搜索作用于
+  /// 全部分区。匹配字段与后端 keyword 命中口径保持宽松一致：
+  /// name/slug/description/location/org_type/tags。
+  bool _matchesKeyword(Map<String, dynamic> o) {
+    if (_keyword.isEmpty) return true;
+    final kw = _keyword.toLowerCase();
+    bool hit(dynamic v) =>
+        v != null && v.toString().toLowerCase().contains(kw);
+    if (hit(o['name']) ||
+        hit(o['slug']) ||
+        hit(o['description']) ||
+        hit(o['location']) ||
+        hit(o['org_type'])) {
+      return true;
+    }
+    final tags = o['tags'];
+    if (tags is List) return tags.any(hit);
+    if (tags is String) return hit(tags);
+    return false;
+  }
+
   bool get _hasMoreOrgs => _allOrgs.length < _total;
 
   /// 对齐 web getVisibleRecommendedCount（page.tsx:370-374）：还有更多时
@@ -375,6 +400,13 @@ class _OrganizationPageState extends State<OrganizationPage> {
 
     final visibleRecommended =
         _recommendedOrgs.take(_visibleRecommendedCount).toList();
+    // 搜索态：My/Pending 分区按关键词本地过滤（见 _matchesKeyword 注释）
+    final visibleMember = _keyword.isEmpty
+        ? _memberOrgs
+        : _memberOrgs.where(_matchesKeyword).toList();
+    final visiblePending = _keyword.isEmpty
+        ? _pendingOrgs
+        : _pendingOrgs.where(_matchesKeyword).toList();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -392,18 +424,26 @@ class _OrganizationPageState extends State<OrganizationPage> {
             ],
           ),
           const SizedBox(height: 24),
-          if (_memberOrgs.isNotEmpty)
-            _section('My Organization', _memberOrgs,
+          if (visibleMember.isNotEmpty)
+            _section('My Organization', visibleMember,
                 collapsed: _myCollapsed,
                 onToggleCollapse: () =>
                     setState(() => _myCollapsed = !_myCollapsed)),
-          if (_pendingOrgs.isNotEmpty)
-            _section('Pending Approval', _pendingOrgs,
-                count: _pendingOrgs.length),
+          if (visiblePending.isNotEmpty)
+            _section('Pending Approval', visiblePending,
+                count: visiblePending.length),
+          // 搜索命中已落在 My/Pending 分区且推荐区无内容时，整个
+          // Recommended 分区（含空占位）不再渲染，避免出现空标题。
           if (visibleRecommended.isNotEmpty ||
               _canLoadMoreOrgs ||
-              _keyword.isNotEmpty)
-            _recommendedSection(visibleRecommended),
+              (_keyword.isNotEmpty &&
+                  visibleMember.isEmpty &&
+                  visiblePending.isEmpty))
+            _recommendedSection(
+              visibleRecommended,
+              hasSectionMatches:
+                  visibleMember.isNotEmpty || visiblePending.isNotEmpty,
+            ),
         ],
       ),
     );
@@ -593,7 +633,8 @@ class _OrganizationPageState extends State<OrganizationPage> {
     );
   }
 
-  Widget _recommendedSection(List<Map<String, dynamic>> visible) {
+  Widget _recommendedSection(List<Map<String, dynamic>> visible,
+      {bool hasSectionMatches = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -607,11 +648,13 @@ class _OrganizationPageState extends State<OrganizationPage> {
               padding: EdgeInsets.only(bottom: _compact ? 12 : 20),
               child: _orgCard(o),
             ),
-          // 搜索无结果（对齐 page.tsx:321-328）
+          // 搜索无结果（对齐 page.tsx:321-328）。My/Pending 分区已有关键词
+          // 命中时不再显示占位框（命中卡片本身就是搜索反馈）。
           if (visible.isEmpty &&
               _keyword.isNotEmpty &&
               !_searching &&
-              !_canLoadMoreOrgs)
+              !_canLoadMoreOrgs &&
+              !hasSectionMatches)
             Container(
               width: double.infinity,
               padding:

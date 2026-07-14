@@ -42,6 +42,7 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   bool _loading = true;
   bool _joining = false;
   bool _refreshing = false;
+  bool _openingChat = false;
   int _tab = 0; // 0 Cards / 1 Members / 2 Chat / 3 Team
   late String _inviteCode;
 
@@ -226,10 +227,31 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     }
   }
 
-  void _openChat() {
-    final convId = (_org['main_conversation_id'] ?? '').toString();
+  /// 打开组织主群聊。新建组织后主群聊由后端异步创建（web
+  /// organizationApi.create 注释「后端会异步创建群聊」；OrgChatView.tsx
+  /// isPreparing 分支通过 refreshOrg 重拉 org profile 拿
+  /// main_conversation_id）。App 对应做法：本地没有 conv_id 时点击即重拉
+  /// 一次 /org/profile 再跳；仍拿不到则 toast 提示，不允许静默无反应。
+  Future<void> _openChat() async {
+    if (_openingChat) return;
+    var convId = (_org['main_conversation_id'] ?? '').toString();
+    if (convId.isEmpty && _slug.isNotEmpty) {
+      setState(() => _openingChat = true);
+      try {
+        final profile = await _service.getOrgProfile(_slug);
+        if (profile.isNotEmpty) {
+          _org = {..._org, ...profile};
+        }
+        convId = (_org['main_conversation_id'] ?? '').toString();
+      } catch (_) {
+        // 网络失败走下方统一的 toast 反馈
+      } finally {
+        if (mounted) setState(() => _openingChat = false);
+      }
+    }
+    if (!mounted) return;
     if (convId.isEmpty) {
-      _snack('Chat is not ready yet');
+      _snack('Chat is still being set up — please try again in a moment');
       return;
     }
     context.push('/admin/inbox/$convId');
@@ -954,11 +976,17 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
                 color: const Color(0xFF171717),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text('Open chat',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
+              child: _openingChat
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Open chat',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white)),
             ),
           ),
         ],
