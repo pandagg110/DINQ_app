@@ -19,15 +19,23 @@ class SearchExportException implements Exception {
 class SearchService {
   final _dio = ApiClient.instance.dio;
 
-  /// 解析 Dio ResponseBody SSE 流为 JSON 事件
+  /// 解析 Dio ResponseBody SSE 流为 JSON 事件。
+  ///
+  /// 必须用流式 UTF-8 解码（而不是逐 chunk `utf8.decode`）：网络分片会把
+  /// 多字节字符（中文/emoji）截断在 chunk 边界上，逐 chunk 解码会抛
+  /// FormatException 并中断整轮搜索（QA「搜索过程中出现 FormatException，
+  /// 时有时无」的根因）。`allowMalformed: true` 与 Web 端 TextDecoder 的
+  /// 默认非 fatal 行为一致：真正畸形的字节替换为 U+FFFD，不再抛异常；
+  /// 单条事件 JSON 解析失败由 [_normalizeStreamEvent] 跳过该条，不影响后续。
   Stream<Map<String, dynamic>> _parseSseStream(
     ResponseBody responseBody,
   ) async* {
-    final stream = responseBody.stream;
+    const decoder = Utf8Decoder(allowMalformed: true);
+    final textStream = decoder.bind(responseBody.stream);
     String buffer = '';
-    await for (final chunk in stream) {
-      buffer += utf8.decode(chunk);
-      if (!buffer.endsWith('\n')) continue;
+    await for (final text in textStream) {
+      buffer += text;
+      if (!buffer.contains('\n')) continue;
       final lines = buffer.split('\n');
       buffer = lines.removeLast();
       for (final line in lines) {

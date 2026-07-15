@@ -224,10 +224,24 @@ class AgenticSearchLogic extends ChangeNotifier {
   /// （groupId → search_type）。历史恢复的轮次不在其中，天然不会重复上报。
   final Map<int, String> _pendingResultViewGroups = {};
 
-  /// 埋点：本轮首次出现有效结果时报 search_result_view（按 group id 去重，
-  /// 流式更新/重渲染/历史恢复不重复；空结果/失败不报）。
+  /// 埋点：本轮首次成功展示有效结果时报 search_result_view（按 group id
+  /// 去重，流式更新/重渲染/历史恢复不重复）。只有「candidates 非空且该轮
+  /// 未失败/未中断」才算成功展示：搜索失败（解析异常/网络错误/credits
+  /// 不足）、空结果、用户中断的轮次一律不报。
   void _maybeTrackResultView(int groupId, {required bool hasResults}) {
     if (!hasResults) return;
+    if (!_pendingResultViewGroups.containsKey(groupId)) return;
+    final idx = messageGroups.indexWhere((g) => g.id == groupId);
+    if (idx < 0) {
+      _pendingResultViewGroups.remove(groupId);
+      return;
+    }
+    final status = messageGroups[idx].roundStatus;
+    if (status == DeepSearchRoundStatus.error ||
+        status == DeepSearchRoundStatus.interrupted) {
+      _pendingResultViewGroups.remove(groupId);
+      return;
+    }
     final searchType = _pendingResultViewGroups.remove(groupId);
     if (searchType == null) return;
     AnalyticsService.instance.track(
@@ -235,6 +249,11 @@ class AgenticSearchLogic extends ChangeNotifier {
       params: {'search_type': searchType},
       activationIntent: 'search',
     );
+  }
+
+  /// 埋点：该轮已失败/中断，撤销 pending 的 search_result_view（不再上报）。
+  void _cancelPendingResultView(int groupId) {
+    _pendingResultViewGroups.remove(groupId);
   }
 
   String? get activeSessionId => _activeSessionId;
@@ -450,6 +469,7 @@ class AgenticSearchLogic extends ChangeNotifier {
               .toList();
           if (_isRoundErrorLlmMessage(message)) {
             _applyRoundError(g, message!);
+            _cancelPendingResultView(groupId);
             notifyListeners();
             break;
           }
@@ -648,6 +668,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       onDurationMs: (ms) => g.deepSearchDurationMs = ms,
       onError: (message) {
         _applyRoundError(g, message);
+        _cancelPendingResultView(groupId);
       },
       onStatusChange: (status) {
         g.roundStatus = status;
@@ -665,6 +686,7 @@ class AgenticSearchLogic extends ChangeNotifier {
             g.searchCompleted = true;
             g.loading = false;
             g.assistantStreaming = false;
+            _cancelPendingResultView(groupId);
           case DeepSearchRoundStatus.idle:
             break;
         }
@@ -1233,6 +1255,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     _setSessionId(null);
     searchStore.setCurrentConversationId(null);
     messageGroups = [];
+    _pendingResultViewGroups.clear();
     loading = false;
     advisorLoading = false;
     advisorShuffleLoading = false;
@@ -1437,6 +1460,9 @@ class AgenticSearchLogic extends ChangeNotifier {
         final finalQuery = idx >= 0
             ? messageGroups[idx].userQuery
             : trimmedQuery;
+        // 流已结束：若本轮从未成功展示结果（空结果/失败），撤销 pending，
+        // 该轮不再有机会上报 search_result_view。
+        _cancelPendingResultView(groupId);
         onSearchComplete?.call(finalCandidates, finalQuery);
         searchStore.setIsSearching(false);
         notifyListeners();
@@ -1462,6 +1488,8 @@ class AgenticSearchLogic extends ChangeNotifier {
         if (idx >= 0) {
           _applyRoundError(messageGroups[idx], _deepSearchErrorMessage(e));
         }
+        // 流中断（解析异常/网络错误）的轮次不上报 search_result_view
+        _cancelPendingResultView(groupId);
         searchStore.setIsSearching(false);
         notifyListeners();
       },
@@ -1643,6 +1671,8 @@ class AgenticSearchLogic extends ChangeNotifier {
         messageGroups[idx].searchCompleted = true;
       }
     } finally {
+      // 成功上报时 pending 已被消费；失败/空结果时撤销，本轮不报。
+      _cancelPendingResultView(groupId);
       loading = false;
       notifyListeners();
       onScrollToBottom?.call();
@@ -2380,6 +2410,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     _streamSubscription = null;
     _analysisStreamSubscription?.cancel();
     _analysisStreamSubscription = null;
+    // 用户中断的轮次不上报 search_result_view
+    _pendingResultViewGroups.clear();
     searchStore.setIsSearching(false);
     loading = false;
     advisorLoading = false;

@@ -204,130 +204,162 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
   Widget build(BuildContext context) {
     final allEmails = parseEmails(widget.recipientEmail);
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E3DE),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _sent ? 'Message sent' : 'Send cold email',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF2A2826),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.recipientName,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF6B6862)),
-            ),
-            const SizedBox(height: 16),
-            if (allEmails.length > 1)
-              DropdownButtonFormField<String>(
-                value: _selectedEmail,
-                decoration: const InputDecoration(labelText: 'Recipient'),
-                items: allEmails
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedEmail = v);
-                },
-              )
-            else
-              Text(
-                _selectedEmail,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF9E9A94)),
-              ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
+    // QA: 弹窗整体高度固定、底部按钮固定在弹窗底部、只有中间内容区滚动
+    //（对齐 web ContactEmailModal：max-h-[90vh] flex flex-col +
+    // 固定 Header + flex-1 overflow-y-auto 内容区 + border-t 底部操作栏）。
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+      ),
+      child: Column(
+        children: [
+          // 固定标题区
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final opt in _toneOptions)
-                  ChoiceChip(
-                    label: Text(opt.label),
-                    selected: _tone == opt.value,
-                    onSelected: (_) => _generateMessage(opt.value),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _subjectController,
-              decoration: const InputDecoration(
-                labelText: 'Subject',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _contentController,
-              minLines: 8,
-              maxLines: 12,
-              decoration: InputDecoration(
-                labelText: 'Message',
-                border: const OutlineInputBorder(),
-                suffixIcon: _generating
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _sent || _sending ? null : _send,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D2B2A),
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E3DE),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    child: _sending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(_sent ? 'Sent' : 'Send'),
                   ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _sent ? 'Message sent' : 'Send cold email',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2A2826),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.recipientName,
+                  style:
+                      const TextStyle(fontSize: 14, color: Color(0xFF6B6862)),
                 ),
               ],
             ),
-          ],
-        );
-      },
+          ),
+          // 中间内容区：唯一可滚动区域
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (allEmails.length > 1)
+                    DropdownButtonFormField<String>(
+                      value: _selectedEmail,
+                      decoration: const InputDecoration(labelText: 'Recipient'),
+                      items: allEmails
+                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _selectedEmail = v);
+                      },
+                    )
+                  else
+                    Text(
+                      _selectedEmail,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF9E9A94),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final opt in _toneOptions)
+                        ChoiceChip(
+                          label: Text(opt.label),
+                          selected: _tone == opt.value,
+                          onSelected: (_) => _generateMessage(opt.value),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _subjectController,
+                    decoration: const InputDecoration(
+                      labelText: 'Subject',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _contentController,
+                    minLines: 8,
+                    maxLines: 12,
+                    decoration: InputDecoration(
+                      labelText: 'Message',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _generating
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 底部操作栏：固定在弹窗底部，不随内容滚动
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Color(0xFFF0EEEA))),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _sent || _sending ? null : _send,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D2B2A),
+                      ),
+                      child: _sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(_sent ? 'Sent' : 'Send'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
