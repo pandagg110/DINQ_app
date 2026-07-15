@@ -71,9 +71,13 @@ class ShortlistStore extends ChangeNotifier {
   List<FavoriteProject> get moveTargetProjects =>
       sortedProjects.where((p) => p.id != _activeProjectId).toList();
 
-  Future<void> loadProjects() async {
+  /// [force] 为 true 时忽略已加载缓存、强制重新拉取。
+  /// 收藏弹窗（shortlist_folder_modal）直接走 ShortlistService 新建文件夹/收藏，
+  /// 不经过本 store；且 ShortlistPage 被 KeepAlive 缓存只 init 一次 —— 若一直
+  /// 使用缓存，shortlist 页会永远停留在首次快照（只看到旧文件夹、看不到新收藏）。
+  Future<void> loadProjects({bool force = false}) async {
     if (_projectsLoading) return;
-    if (_projectsLoaded) return;
+    if (_projectsLoaded && !force) return;
     _projectsLoading = true;
     _projectsLoadError = null;
     notifyListeners();
@@ -330,6 +334,19 @@ class ShortlistStore extends ChangeNotifier {
     await loadProjects();
     if (_activeProjectId != null) {
       await loadFavorites(clear: true);
+    }
+  }
+
+  /// 每次进入 Shortlist tab 时调用：强制重取文件夹 + 当前文件夹收藏。
+  /// 对齐 web：shortlist 页每次进入路由都会重新挂载并重新拉取 favorites
+  ///（page.tsx:719 `loadFavorites({ clear: projectChanged })`），
+  /// 且 web 的收藏弹窗与页面共用同一 favoriteProjectStore（新建文件夹立即可见）；
+  /// App 侧收藏弹窗独立请求接口，因此进入 tab 时统一强刷来收敛数据。
+  Future<void> refreshAll() async {
+    final previousProjectId = _activeProjectId;
+    await loadProjects(force: true);
+    if (_activeProjectId != null) {
+      await loadFavorites(clear: _activeProjectId != previousProjectId);
     }
   }
 

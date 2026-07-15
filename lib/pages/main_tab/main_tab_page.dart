@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../stores/main_store.dart';
+import '../../stores/shortlist_store.dart';
 import '../../widgets/common/keep_alive_wrapper.dart';
 import 'main_tab_bottom_view.dart';
 import 'main_tab_model.dart';
@@ -60,6 +61,19 @@ class _MainTabPageState extends State<MainTabPage> {
     if (_currentTabType == tabType) return;
     setState(() => _currentTabType = tabType);
     _jumpToTabPage(tabType.pageIndex);
+    _refreshShortlistOnEnter(tabType);
+  }
+
+  /// QA: shortlist 数据丢失 —— ShortlistPage 被 KeepAlive 缓存，只在首次
+  /// 进入时拉一次数据；而收藏弹窗（Add to shortlist）新建的文件夹/收藏不经过
+  /// ShortlistStore，导致 shortlist 页永远停留在首次快照。对齐 web「每次进入
+  /// shortlist 路由都重新拉取」：每次切到该 tab 强制刷新。
+  void _refreshShortlistOnEnter(MainTabType tabType) {
+    if (tabType != MainTabType.shortlist) return;
+    final store = context.read<ShortlistStore>();
+    // 首次进入由 ShortlistPage.initState -> initialize() 负责，避免双拉。
+    if (!store.projectsLoaded) return;
+    store.refreshAll();
   }
 
   void _jumpToTabPage(int pageIndex) {

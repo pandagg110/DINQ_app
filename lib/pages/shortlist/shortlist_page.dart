@@ -866,16 +866,11 @@ class _ShortlistStatusChoicePill extends StatelessWidget {
         constraints: const BoxConstraints(minWidth: 60),
         padding: const EdgeInsets.symmetric(horizontal: 18),
         alignment: Alignment.center,
+        // QA 打回：tab 底部不能有淡淡的灰色 —— 去掉投影，纯平面 pill
+        // （对齐 web mobile 筛选控件：无 shadow）。
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFEAF1FF) : DinqTokens.bgCard,
           borderRadius: BorderRadius.circular(999),
-          boxShadow: const [
-            BoxShadow(
-              color: DinqTokens.shadow,
-              blurRadius: 16,
-              offset: Offset(0, 1),
-            ),
-          ],
         ),
         child: Text(
           label,

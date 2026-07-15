@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../constants/app_constants.dart';
 import '../../../models/message_models.dart';
+import '../../../pages/profile/profile_page.dart';
+import '../../../stores/card_store.dart';
 import '../../../stores/messages_store.dart';
 import '../../../stores/user_store.dart';
+import '../../../stores/viewer_card_store.dart';
 import '../../../widgets/common/base_page.dart';
 import '../../../widgets/inbox/create_team_recruit_sheet.dart';
 import '../../../widgets/inbox/delete_conversation_modal.dart';
@@ -237,12 +238,20 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
     );
   }
 
+  /// QA: 点头像/名字应打开 App 内原生个人主页，而不是跳外部浏览器。
+  /// 复用 dinq_results_view._openProfile 的模式：ViewerCardStore + ProfilePage。
   void _handleProfileClick(ConversationMember? otherMember) {
     final username = otherMember?.username?.trim() ?? '';
-    if (username.isNotEmpty) {
-      final url = Uri.parse('$appUrl/$username');
-      launchUrl(url, mode: LaunchMode.externalApplication);
-    }
+    if (username.isEmpty) return;
+    final viewerCardStore = context.read<ViewerCardStore>();
+    Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(
+        builder: (_) => ChangeNotifierProvider<CardStore>.value(
+          value: viewerCardStore,
+          child: ProfilePage(username: username, showAppBar: true),
+        ),
+      ),
+    );
   }
 
   Widget _buildHeader(
