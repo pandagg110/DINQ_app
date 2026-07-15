@@ -11,14 +11,18 @@ class AppTheme {
   static const Color brandGray = Color(0xFFF9F9F9);
   static const Color brandLightGray = Color(0xFFEDEDE5);
 
-  /// 全局系统栏样式：状态栏透明 + 底部导航栏与页面同色（Android edge-to-edge）。
+  /// 全局系统栏样式（Android edge-to-edge）。
+  ///
+  /// API 35+ 强制透明系统导航栏，`systemNavigationBarColor` 设实体色会被忽略，
+  /// 露出 window 黑底 → 「底部黑边」。导航栏必须透明，由页面 bgPage 自己铺到底。
   static const SystemUiOverlayStyle pageSystemUiOverlayStyle = SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
     statusBarBrightness: Brightness.light,
-    systemNavigationBarColor: brandPage,
+    systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.dark,
     systemNavigationBarContrastEnforced: false,
+    systemNavigationBarDividerColor: Colors.transparent,
   );
 
   /// 用于可能包含 emoji 的文案，确保系统用 emoji 字体渲染

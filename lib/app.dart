@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:provider/provider.dart';
 
@@ -60,12 +61,22 @@ class DinqApp extends StatelessWidget {
                 });
               }
 
+              final easyLoadingBuilder = EasyLoading.init();
               return MaterialApp.router(
                 title: 'DINQ',
                 routerConfig: _router,
                 theme: AppTheme.lightTheme,
                 debugShowCheckedModeBanner: false,
-                builder: EasyLoading.init(),
+                builder: (context, child) {
+                  // 路由/键盘变化后重新施加系统栏样式，避免被覆盖回默认黑底导航栏
+                  return AnnotatedRegion<SystemUiOverlayStyle>(
+                    value: AppTheme.pageSystemUiOverlayStyle,
+                    child: ColoredBox(
+                      color: AppTheme.brandPage,
+                      child: easyLoadingBuilder(context, child),
+                    ),
+                  );
+                },
               );
             },
           );

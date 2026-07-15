@@ -102,30 +102,33 @@ class _MainTabPageState extends State<MainTabPage> {
     if (pageController == null) {
       return const SizedBox.shrink();
     }
-    return Stack(
-      children: [
-        PageView(
-          physics: const NeverScrollableScrollPhysics(),
-          controller: pageController,
-          children: [
-            KeepAliveWrapper(child: SearchPage()),
-            KeepAliveWrapper(child: TalentRadarPage()),
-            KeepAliveWrapper(child: ShortlistPage()),
-            KeepAliveWrapper(child: AdminInboxPage()),
-            KeepAliveWrapper(child: MePage()),
-          ],
-        ),
-        if (mainStore.showBottomNav)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: MainTabBottomView(
-              currentTabType: _currentTabType,
-              onChanged: _selectTab,
-            ),
+    return ColoredBox(
+      color: const Color(0xFFFAF9F6),
+      child: Stack(
+        children: [
+          PageView(
+            physics: const NeverScrollableScrollPhysics(),
+            controller: pageController,
+            children: [
+              KeepAliveWrapper(child: SearchPage()),
+              KeepAliveWrapper(child: TalentRadarPage()),
+              KeepAliveWrapper(child: ShortlistPage()),
+              KeepAliveWrapper(child: AdminInboxPage()),
+              KeepAliveWrapper(child: MePage()),
+            ],
           ),
-      ],
+          if (mainStore.showBottomNav)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: MainTabBottomView(
+                currentTabType: _currentTabType,
+                onChanged: _selectTab,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
