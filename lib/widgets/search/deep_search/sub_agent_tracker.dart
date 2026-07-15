@@ -379,31 +379,37 @@ class _SingleAgentTreeState extends State<SingleAgentTree> {
                           padding: EdgeInsets.only(right: 12),
                           child: _SpiralSpinner(size: 16),
                         ),
-                      if (headerText != null)
-                        Text(
-                          headerText,
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 28 / 15,
-                            fontWeight: FontWeight.w500,
-                            color: isRunning
-                                ? const Color(0xFF6B6862)
-                                : const Color(0xFF171717),
-                          ),
-                        )
-                      else if (isSearching)
-                        _RotatingText(
-                          messages: searchingMessages,
-                          active: true,
-                          minMs: 5000,
-                          maxMs: 8000,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            height: 28 / 15,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF6B6862),
-                          ),
-                        ),
+                      // 标题自适应收缩，保证后面的 found/tools 不被挤出
+                      Expanded(
+                        child: headerText != null
+                            ? Text(
+                                headerText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  height: 28 / 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: isRunning
+                                      ? const Color(0xFF6B6862)
+                                      : const Color(0xFF171717),
+                                ),
+                              )
+                            : isSearching
+                                ? _RotatingText(
+                                    messages: searchingMessages,
+                                    active: true,
+                                    minMs: 5000,
+                                    maxMs: 8000,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      height: 28 / 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF6B6862),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                      ),
                       if (isSearching) const _PulsingDots(),
                       Padding(
                         padding: const EdgeInsets.only(left: 8),
@@ -1479,7 +1485,13 @@ class _RotatingTextState extends State<_RotatingText> {
   }
 
   @override
-  Widget build(BuildContext context) => Text(_text, style: widget.style);
+  Widget build(BuildContext context) => Text(
+        _text,
+        style: widget.style,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+      );
 }
 
 class _PulsingDots extends StatefulWidget {
