@@ -10,6 +10,7 @@ import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../utils/org_avatar.dart';
 import '../../widgets/common/default_app_bar.dart';
+import '../../widgets/inbox/create_team_recruit_sheet.dart';
 import '../../widgets/organization/invite_org_sheet.dart';
 import '../../widgets/organization/org_settings_sheet.dart';
 import '../../widgets/profile/share_organization_dialog.dart';
@@ -45,7 +46,11 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   bool _joining = false;
   bool _refreshing = false;
   bool _openingChat = false;
+  bool _creatingRecruit = false;
   int _tab = 0; // 0 Cards / 1 Members / 2 Chat / 3 Team
+  // Team tab 子筛选（对齐 web OrgTeamView TeamView "mine"/"all"）：
+  // 0 My Team / 1 All Teams；仅当用户参与了组队时展示切换。
+  int _teamView = 0;
   late String _inviteCode;
 
   static const _tabs = ['Cards', 'Members', 'Chat', 'Team'];
@@ -234,16 +239,14 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     }
   }
 
-  /// 打开组织主群聊。新建组织后主群聊由后端异步创建（web
+  /// 取组织主群聊 conv_id。新建组织后主群聊由后端异步创建（web
   /// organizationApi.create 注释「后端会异步创建群聊」；OrgChatView.tsx
   /// isPreparing 分支通过 refreshOrg 重拉 org profile 拿
-  /// main_conversation_id）。App 对应做法：本地没有 conv_id 时点击即重拉
-  /// 一次 /org/profile 再跳；仍拿不到则 toast 提示，不允许静默无反应。
-  Future<void> _openChat() async {
-    if (_openingChat) return;
+  /// main_conversation_id）。App 对应做法：本地没有 conv_id 时重拉一次
+  /// /org/profile；仍拿不到返回空串，由调用方 toast 提示。
+  Future<String> _resolveMainConversationId() async {
     var convId = (_org['main_conversation_id'] ?? '').toString();
     if (convId.isEmpty && _slug.isNotEmpty) {
-      setState(() => _openingChat = true);
       try {
         final profile = await _service.getOrgProfile(_slug);
         if (profile.isNotEmpty) {
@@ -251,10 +254,21 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
         }
         convId = (_org['main_conversation_id'] ?? '').toString();
       } catch (_) {
-        // 网络失败走下方统一的 toast 反馈
-      } finally {
-        if (mounted) setState(() => _openingChat = false);
+        // 网络失败走调用方统一的 toast 反馈
       }
+    }
+    return convId;
+  }
+
+  /// 打开组织主群聊；conv_id 拿不到时 toast 提示，不允许静默无反应。
+  Future<void> _openChat() async {
+    if (_openingChat) return;
+    setState(() => _openingChat = true);
+    String convId;
+    try {
+      convId = await _resolveMainConversationId();
+    } finally {
+      if (mounted) setState(() => _openingChat = false);
     }
     if (!mounted) return;
     if (convId.isEmpty) {
@@ -262,6 +276,37 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
       return;
     }
     context.push('/admin/inbox/$convId');
+  }
+
+  /// Team tab「+」发起组队（对齐 web layout.tsx:442-451 的
+  /// Start team recruit 按钮 → CreateTeamRecruitModal，目标会话为组织主
+  /// 群聊 main_conversation_id，layout.tsx:336-345）。创建成功后重拉
+  /// Team tab 列表并切回 My Team 子筛选（web 通过 teamRecruitsRefreshKey
+  /// 触发重拉；OrgTeamView.tsx:134-138 myTeam 出现后 view 自动回 mine）。
+  Future<void> _openCreateRecruit() async {
+    if (_creatingRecruit) return;
+    setState(() => _creatingRecruit = true);
+    String convId;
+    try {
+      convId = await _resolveMainConversationId();
+    } finally {
+      if (mounted) setState(() => _creatingRecruit = false);
+    }
+    if (!mounted) return;
+    if (convId.isEmpty) {
+      _snack('Chat is still being set up — please try again in a moment');
+      return;
+    }
+    final message = await CreateTeamRecruitSheet.show(
+      context: context,
+      conversationId: convId,
+    );
+    if (message == null || !mounted) return;
+    setState(() {
+      _teamView = 0;
+      _recruitsLoaded = false;
+    });
+    _loadTabData();
   }
 
   void _snack(String msg) {
@@ -1218,6 +1263,13 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   }
 
   // ── Team tab（成员）──────────────────────────────────────────
+  /// 结构对齐 web OrgTeamView.tsx：
+  /// 顶行 = My Team / All Teams 子筛选（仅当我参与了组队才显示，
+  /// tsx:210-212）+ 右侧「+」发起组队按钮（web 在 tab 行右侧，
+  /// layout.tsx:442-451；App 主 tab 为通栏分段控件，故与子筛选行同行
+  /// 居右，对应 QA 标注位置）。
+  /// My Team 视图 = 我参与的组队（tsx:224-238）；All Teams 视图 =
+  /// My Team 分区 + Other teams 分区（tsx:240-301）。
   Widget _teamTab() {
     if (!_recruitsLoaded) {
       return const Padding(
@@ -1225,13 +1277,191 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
-    if (_recruits.isEmpty) {
-      return _emptyState(Icons.group_add_outlined, 'No team recruits yet');
-    }
+    final myTeam = _myTeamRecruit();
+    final myTeamId = (myTeam?['message_id'] ?? '').toString();
+    final otherTeams = _recruits
+        .whereType<Map>()
+        .where((r) =>
+            myTeam == null || (r['message_id'] ?? '').toString() != myTeamId)
+        .toList();
+    // 未参与组队时强制 All Teams（web activeView 回退 "all"，tsx:147）
+    final view = myTeam == null ? 1 : _teamView;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final r in _recruits.whereType<Map>()) _recruitRow(r),
+        Row(
+          children: [
+            if (myTeam != null) _teamViewSwitch() else const Spacer(),
+            if (myTeam != null) const Spacer(),
+            _createRecruitButton(),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (view == 0 && myTeam != null) ...[
+          // My Team：未成团时带提示文案（web tsx:227-238 myTeamHint）
+          _teamSectionHeader('My Team',
+              hint: (myTeam['spawned_conv_id'] ?? '').toString().isEmpty
+                  ? 'Team chat will appear once this team is assembled'
+                  : null),
+          _recruitRow(myTeam),
+        ] else if (myTeam != null) ...[
+          // All Teams：My Team 分区 + Other teams 分区（web tsx:240-301）
+          _teamSectionHeader('My Team'),
+          _recruitRow(myTeam),
+          const SizedBox(height: 6),
+          _teamSectionHeader('Other teams',
+              hint: 'View only, leave your team first to join'),
+          if (otherTeams.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFD8D5CE)),
+              ),
+              child: const Text('No other teams yet.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Color(0xFF9E9B93))),
+            )
+          else
+            for (final r in otherTeams) _recruitRow(r),
+        ] else if (_recruits.isEmpty)
+          _emptyState(Icons.group_add_outlined, 'No team recruits yet')
+        else
+          for (final r in _recruits.whereType<Map>()) _recruitRow(r),
       ],
+    );
+  }
+
+  /// 我参与的组队（对齐 web OrgTeamView joinedTeam，tsx:102-109：
+  /// creator_id 为我或 team_members 含我，created_at 最新优先）。
+  /// 接口无参与方过滤参数（types/api/teamRecruit.ts 仅 state/limit/offset），
+  /// 与 web 一致走本地过滤。
+  Map<String, dynamic>? _myTeamRecruit() {
+    final uid = context.read<UserStore>().user?.user.id ?? '';
+    if (uid.isEmpty) return null;
+    Map<String, dynamic>? newest;
+    var newestAt = '';
+    for (final r in _recruits.whereType<Map>()) {
+      final creatorId = (r['creator_id'] ?? '').toString();
+      final memberIds =
+          (r['team_members'] as List?)?.map((e) => e.toString()) ??
+              const Iterable<String>.empty();
+      if (creatorId != uid && !memberIds.contains(uid)) continue;
+      final createdAt = (r['created_at'] ?? '').toString();
+      if (newest == null || createdAt.compareTo(newestAt) > 0) {
+        newest = Map<String, dynamic>.from(r);
+        newestAt = createdAt;
+      }
+    }
+    return newest;
+  }
+
+  /// My Team / All Teams 子筛选（对齐 web TeamViewSwitch，
+  /// OrgTeamView.tsx:326-364：SegmentedControl，选项带图标）。
+  Widget _teamViewSwitch() {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: DinqTokens.bgSurface,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _teamViewOption(0, Icons.chat_bubble_outline_rounded, 'My Team'),
+          _teamViewOption(1, Icons.people_outline, 'All Teams'),
+        ],
+      ),
+    );
+  }
+
+  Widget _teamViewOption(int value, IconData icon, String label) {
+    final active = _teamView == value;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _teamView = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 14,
+                color: active
+                    ? const Color(0xFF171717)
+                    : const Color(0xFF9E9B93)),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                    color: active
+                        ? const Color(0xFF171717)
+                        : const Color(0xFF9E9B93))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 「+」发起组队按钮（对齐 web layout.tsx:442-451：h-9 rounded-lg
+  /// border #EEEDE9 白底 + Plus 图标，移动端仅图标；可见性对齐 web
+  /// showCreateRecruit = isMember && active==="team"，layout.tsx:405 ——
+  /// 组织成员即可发起。main_conversation_id 缺失不隐藏按钮，点击时
+  /// 重拉 /org/profile 兜底，仍拿不到才 toast）。
+  Widget _createRecruitButton() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _openCreateRecruit,
+      child: Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFEEEDE9)),
+        ),
+        child: _creatingRecruit
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.add, size: 18, color: Color(0xFF171717)),
+      ),
+    );
+  }
+
+  /// 分区标题（对齐 web TeamListSection，OrgTeamView.tsx:366-384：
+  /// 标题 12 semibold #6b6862，hint 前置「—」11 #9e9b93）。
+  Widget _teamSectionHeader(String title, {String? hint}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 2,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B6862))),
+          if (hint != null)
+            Text('— $hint',
+                style:
+                    const TextStyle(fontSize: 11, color: Color(0xFF9E9B93))),
+        ],
+      ),
     );
   }
 
