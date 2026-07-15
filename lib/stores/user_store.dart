@@ -384,12 +384,13 @@ class UserStore extends ChangeNotifier {
     }
   }
 
-  /// 同意协议
+  /// 同意协议（写入服务端；失败时抛出，调用方勿仅标记本地已同意）
   Future<void> agreeToTerms() async {
     try {
       await _authService.agreeToTerms();
     } catch (error) {
       ToastUtil.show('Failed to agree to terms');
+      rethrow;
     }
   }
 }

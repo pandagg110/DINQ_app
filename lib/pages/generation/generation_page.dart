@@ -3458,12 +3458,33 @@ class _GenerationPageState extends State<GenerationPage> {
   }
 
   Future<bool> _ensureWelcomeAgreement() async {
-    if (_welcomeAgreementAgreed) return true;
-    final agreed = await showAgreementProtocolConfirm(context);
-    if (agreed && mounted) {
-      setState(() => _welcomeAgreementAgreed = true);
+    final userStore = context.read<UserStore>();
+
+    // 后端以 /user/privacy-consent 为准；仅本地弹窗不写接口会导致后续 card/generate 4012
+    try {
+      if (await userStore.checkAgreement()) {
+        if (mounted) setState(() => _welcomeAgreementAgreed = true);
+        return true;
+      }
+    } catch (_) {
+      // 查询失败时继续弹窗让用户确认
     }
-    return agreed;
+    if (!mounted) return false;
+
+    // 本地已点过 Agree 但服务端未记录时，不再弹窗，直接补写
+    if (!_welcomeAgreementAgreed) {
+      final agreed = await showAgreementProtocolConfirm(context);
+      if (!agreed || !mounted) return false;
+    }
+
+    try {
+      await userStore.agreeToTerms();
+    } catch (_) {
+      return false;
+    }
+    if (!mounted) return false;
+    setState(() => _welcomeAgreementAgreed = true);
+    return true;
   }
 
   Future<void> _finishOnboardingSocials(List<OnboardingAddedLink> links) async {
@@ -3475,6 +3496,11 @@ class _GenerationPageState extends State<GenerationPage> {
         if (domain.isEmpty) {
           throw Exception('DINQ Page is not ready yet');
         }
+        // card/generate 要求服务端 privacy consent；独立入口进 socials 时也可能未同意
+        if (!await _ensureWelcomeAgreement()) {
+          throw Exception('Privacy consent is required to add social links');
+        }
+        if (!mounted) return;
         final cardStore = context.read<CardStore>();
         await cardStore.loadCards(domain);
         for (final link in links) {
