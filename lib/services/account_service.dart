@@ -113,6 +113,23 @@ class AccountService {
     await _dio.delete('/orgs/$id/members/$uid');
   }
 
+  /// PUT /orgs/{id} — 更新组织（部分字段：name/description/location/tags/
+  /// logo_url/background_url 等）。需 admin/owner。对齐 web
+  /// organizationApi.update（endpoints/organization.ts:60-61）。
+  /// 注意：后端只回显提交的字段，调用方需本地合并（web updateField 同款做法）。
+  Future<Map<String, dynamic>> updateOrg(
+      String id, Map<String, dynamic> patch) async {
+    final resp = await _dio.put('/orgs/$id', data: patch);
+    final d = resp.data;
+    return d is Map ? Map<String, dynamic>.from(d) : <String, dynamic>{};
+  }
+
+  /// DELETE /orgs/{id} — 软删除组织。仅 owner。对齐 web
+  /// organizationApi.remove（endpoints/organization.ts:66）。
+  Future<void> deleteOrg(String id) async {
+    await _dio.delete('/orgs/$id');
+  }
+
   /// GET /org/profile?slug= — 组织公开档案（含 viewer 上下文：role/request_status）。
   Future<Map<String, dynamic>> getOrgProfile(String slug) async {
     final resp = await _dio.get('/org/profile', queryParameters: {'slug': slug});

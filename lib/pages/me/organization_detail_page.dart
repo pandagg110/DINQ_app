@@ -10,6 +10,8 @@ import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../utils/org_avatar.dart';
 import '../../widgets/common/default_app_bar.dart';
+import '../../widgets/organization/invite_org_sheet.dart';
+import '../../widgets/organization/org_settings_sheet.dart';
 import '../../widgets/profile/share_organization_dialog.dart';
 
 /// My → Organization → 详情。对齐 web organization/[slug]：
@@ -54,6 +56,10 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     Color(0xFFC6E2FF), Color(0xFFE2C6FF), Color(0xFFFFE4CC),
     Color(0xFFD4F4DD), Color(0xFFFFD6E8),
   ];
+
+  // 对齐 web MAX_TAGS / MAX_TAG_LENGTH（OrgProfileHeader.tsx:60-61）
+  static const _kMaxTags = 5;
+  static const _kMaxTagLength = 20;
 
   String get _id => (_org['id'] ?? '').toString();
   String get _slug => (_org['slug'] ?? '').toString();
@@ -188,9 +194,10 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     );
   }
 
-  String get _inviteLink => _inviteCode.isEmpty
-      ? ''
-      : 'https://dinq.me/invite/${_inviteCode.toUpperCase()}';
+  /// 邀请链接对齐 web InviteOrgModal.tsx:33-36：{origin}/join/{invite_code}，
+  /// 邀请码小写原样（此前误用 /invite/ 路径 + 大写，链接打不开）。
+  String get _inviteLink =>
+      _inviteCode.isEmpty ? '' : 'https://dinq.me/join/$_inviteCode';
 
   Future<void> _copyInvite() async {
     if (_inviteLink.isEmpty) return;
@@ -342,24 +349,37 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
                       : Image.asset(kDefaultOrgBanner, fit: BoxFit.cover),
                 ),
               ),
-              // 分享按钮（web OrgProfileHeader.tsx:194-204：banner 右上）
+              // banner 右上操作区（web OrgProfileHeader.tsx:194-236）：
+              // 分享 + 管理员更多菜单。icon 对齐 web：Share2（节点分享）/
+              // MoreHorizontal，h-8 w-8 rounded-lg 无底色、#6b6862。
               Positioned(
                 top: 12,
                 right: 12,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _share,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.white.withValues(alpha: 0.7),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _share,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.share_outlined,
+                            size: 16, color: Color(0xFF6B6862)),
+                      ),
                     ),
-                    child: const Icon(Icons.ios_share_rounded,
-                        size: 16, color: Color(0xFF6B6862)),
-                  ),
+                    // 更多菜单：仅 owner/admin（web canManage，
+                    // OrgProfileHeader.tsx:205-235）；Settings 两者可见，
+                    // Delete 仅 owner（web canDelete，layout.tsx:62-63）。
+                    if (_isManager) ...[
+                      const SizedBox(width: 4),
+                      _moreMenuButton(),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -428,29 +448,12 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
                 // 在 tags/描述之前）
                 const SizedBox(height: 12),
                 _ctaButton(),
-                if (tags.isNotEmpty) ...[
+                // Tags（web TagsSection，OrgProfileHeader.tsx:410-583）：
+                // 管理员即使 0 个 tag 也显示（有「+」添加入口）；
+                // 非管理员无 tag 时整块隐藏（tsx:430）。
+                if (tags.isNotEmpty || _isManager) ...[
                   const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (var i = 0; i < tags.length; i++)
-                        Container(
-                          height: 32,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: _tagPalette[i % _tagPalette.length],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(tags[i],
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF171717))),
-                        ),
-                    ],
-                  ),
+                  _tagsSection(tags),
                 ],
                 if (description.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -492,6 +495,244 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
               errorBuilder: (_, _, _) => _logoInitial(name))
           : _logoInitial(name),
     );
+  }
+
+  // ── 更多菜单 / 设置 / 删除（对齐 web OrgProfileHeader.tsx:205-235）──
+
+  /// banner 右上「…」菜单：Settings（owner/admin）+ Delete（仅 owner，红色，
+  /// 分隔线隔开），菜单宽 176（web w-44），入口按钮样式与分享一致。
+  Widget _moreMenuButton() {
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      position: PopupMenuPosition.under,
+      color: Colors.white,
+      padding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFEEEDE9)),
+      ),
+      constraints: const BoxConstraints.tightFor(width: 176),
+      onSelected: (v) {
+        if (v == 'settings') _openSettingsSheet();
+        if (v == 'delete') _confirmDeleteOrg();
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: 'settings',
+          height: 40,
+          child: Row(
+            children: [
+              Icon(Icons.settings_outlined, size: 14, color: Color(0xFF171717)),
+              SizedBox(width: 8),
+              Text('Settings',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF171717))),
+            ],
+          ),
+        ),
+        if (_role == 'owner') ...[
+          const PopupMenuDivider(height: 1),
+          const PopupMenuItem(
+            value: 'delete',
+            height: 40,
+            child: Row(
+              children: [
+                Icon(Icons.delete_outline, size: 14, color: Color(0xFFDC2626)),
+                SizedBox(width: 8),
+                Text('Delete',
+                    style: TextStyle(fontSize: 14, color: Color(0xFFDC2626))),
+              ],
+            ),
+          ),
+        ],
+      ],
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+        child: const Icon(Icons.more_horiz, size: 16, color: Color(0xFF6B6862)),
+      ),
+    );
+  }
+
+  /// Settings 弹层（web OrgSettingsModal：branding + danger zone；App 侧
+  /// 额外收敛 name/location/description——web 里这三个字段是 header 内联
+  /// 编辑，App 无内联编辑形态）。更新成功后本地合并刷新头部。
+  Future<void> _openSettingsSheet() async {
+    await OrgSettingsSheet.show(
+      context,
+      org: _org,
+      canDelete: _role == 'owner',
+      onPatched: (patch) {
+        if (mounted) setState(() => _org = {..._org, ...patch});
+      },
+      onDeleted: () {
+        if (mounted) Navigator.of(context).pop();
+      },
+    );
+  }
+
+  /// 删除组织（web handleDelete，OrgProfileHeader.tsx:129-149）：
+  /// 二次确认 → DELETE /orgs/{id} → toast「{name} deleted」→ 退出详情页。
+  Future<void> _confirmDeleteOrg() async {
+    final name = (_org['name'] ?? 'Organization').toString();
+    final ok = await showDeleteOrganizationConfirm(context, name);
+    if (!ok || !mounted) return;
+    try {
+      await _service.deleteOrg(_id);
+      if (!mounted) return;
+      _snack('$name deleted');
+      Navigator.of(context).pop();
+    } catch (e) {
+      _snack('Delete failed: $e');
+    }
+  }
+
+  // ── Tags（对齐 web TagsSection，OrgProfileHeader.tsx:410-583）────────
+
+  /// pastel chip 流式换行；管理员可点 chip 编辑、点 X 删除、点「+」新增
+  /// （上限 5、单个 ≤20 字符、大小写不敏感去重）。
+  Widget _tagsSection(List<String> tags) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (var i = 0; i < tags.length; i++) _tagChip(tags, i),
+        // 添加标签按钮（web tsx:545-580：h-8 w-8 rounded-lg bg #F0EEE8）
+        if (_isManager && tags.length < _kMaxTags)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _promptTag(tags),
+            child: Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EEE8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.add, size: 16, color: Color(0xFF6B6862)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 单个 tag chip。注意：不能给 Container 设 alignment —— 设了 alignment
+  /// 的 Container 会在 Wrap 的宽松约束下扩展成整行宽（此前「标签平铺」
+  /// bug 的根因），改用 min 尺寸 Row 让 chip 随内容收缩（web inline-flex）。
+  Widget _tagChip(List<String> tags, int i) {
+    final canEdit = _isManager;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: canEdit ? () => _promptTag(tags, editIndex: i) : null,
+      child: Container(
+        height: 32,
+        padding: EdgeInsets.only(left: 12, right: canEdit ? 4 : 12),
+        decoration: BoxDecoration(
+          color: _tagPalette[i % _tagPalette.length],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(tags[i],
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF171717))),
+            // 移动端 X 常驻（web isMobile 分支，tsx:502-529）
+            if (canEdit)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  final next = [...tags]..removeAt(i);
+                  _updateTags(next);
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child:
+                      Icon(Icons.close, size: 12, color: Color(0xFF171717)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 新增/编辑 tag（web 是内联 input；App 用对话框承载同一套规则：
+  /// ≤20 字符、过滤逗号、空值编辑=删除、大小写不敏感去重，tsx:432-461）。
+  Future<void> _promptTag(List<String> tags, {int? editIndex}) async {
+    final ctrl =
+        TextEditingController(text: editIndex != null ? tags[editIndex] : '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: Text(editIndex != null ? 'Edit tag' : 'Add tag',
+            style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF171717))),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: _kMaxTagLength,
+          inputFormatters: [FilteringTextInputFormatter.deny(RegExp(','))],
+          decoration: const InputDecoration(
+            hintText: 'New tag',
+            hintStyle: TextStyle(color: Color(0xFFA8A29E)),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Color(0xFF6B6862)))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text),
+              child: Text(editIndex != null ? 'Save' : 'Add',
+                  style: const TextStyle(
+                      color: Color(0xFF171717), fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+    if (result == null) return;
+    final trimmed = result.trim();
+    final next = [...tags];
+    if (editIndex != null) {
+      if (trimmed.isEmpty) {
+        // 空值编辑 = 删除（web commitEdit 约定）
+        next.removeAt(editIndex);
+      } else if (trimmed != tags[editIndex]) {
+        final dup = tags.asMap().entries.any((e) =>
+            e.key != editIndex &&
+            e.value.toLowerCase() == trimmed.toLowerCase());
+        if (dup) return;
+        next[editIndex] = trimmed;
+      } else {
+        return;
+      }
+    } else {
+      if (trimmed.isEmpty || next.length >= _kMaxTags) return;
+      final dup =
+          tags.any((t) => t.toLowerCase() == trimmed.toLowerCase());
+      if (dup) return;
+      next.add(trimmed);
+    }
+    await _updateTags(next);
+  }
+
+  /// 乐观更新 + PUT /orgs/{id} {tags}（web updateField，
+  /// OrgProfileHeader.tsx:120-127：失败保留乐观态，错误由 toast 提示）。
+  Future<void> _updateTags(List<String> next) async {
+    setState(() => _org = {..._org, 'tags': next});
+    try {
+      await _service.updateOrg(_id, {'tags': next});
+    } catch (e) {
+      _snack('Update failed: $e');
+    }
   }
 
   /// tags 容错解析：标准返回为 string[]（web Organization.tags），个别
@@ -611,41 +852,23 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
     );
   }
 
-  /// 成员 CTA「Invite」：唤起邀请链接面板（web 打开 InviteOrgModal；
-  /// App 用底部弹层复用邀请链接卡片：复制 / 管理员可刷新）。
+  /// 成员 CTA「Invite」：唤起邀请面板（对齐 web InviteOrgModal：QR 码 +
+  /// 邀请链接 + 复制 + Regenerate（仅 admin/owner，web canRefresh=canManage，
+  /// layout.tsx:311）+ Download PNG）。
   Future<void> _showInviteSheet() async {
     if (_inviteCode.isEmpty) {
       _snack('Invite link is not ready yet');
       return;
     }
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: DinqTokens.bgPage,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Invite members',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717))),
-              const SizedBox(height: 6),
-              const Text('Share this link to invite people to join.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF9E9B93))),
-              const SizedBox(height: 14),
-              _inviteCard(),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
+    await InviteOrgSheet.show(
+      context,
+      orgId: _id,
+      slug: _slug,
+      inviteCode: _inviteCode,
+      canRefresh: _isManager,
+      onInviteCodeChange: (code) {
+        if (mounted) setState(() => _inviteCode = code);
+      },
     );
   }
 
