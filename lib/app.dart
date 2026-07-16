@@ -12,6 +12,7 @@ import 'stores/main_store.dart';
 import 'stores/messages_store.dart';
 import 'stores/notifications_store.dart';
 import 'stores/deep_search_enrich_store.dart';
+import 'stores/privacy_consent_store.dart';
 import 'stores/quick_replies_store.dart';
 import 'stores/resume_store.dart';
 import 'stores/search_store.dart';
@@ -19,6 +20,7 @@ import 'stores/shortlist_store.dart';
 import 'stores/settings_store.dart';
 import 'stores/user_store.dart';
 import 'theme/app_theme.dart';
+import 'widgets/account/privacy_consent_gate.dart';
 import 'widgets/cards/placeholder/use_placeholders.dart';
 
 class DinqApp extends StatelessWidget {
@@ -48,6 +50,7 @@ class DinqApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => QuickRepliesStore()),
         ChangeNotifierProvider(create: (_) => ResumeStore()),
         ChangeNotifierProvider(create: (_) => DeepSearchEnrichStore()),
+        ChangeNotifierProvider(create: (_) => PrivacyConsentStore()),
       ],
       child: Builder(
         builder: (context) {
@@ -73,7 +76,14 @@ class DinqApp extends StatelessWidget {
                     value: AppTheme.pageSystemUiOverlayStyle,
                     child: ColoredBox(
                       color: AppTheme.brandPage,
-                      child: easyLoadingBuilder(context, child),
+                      child: easyLoadingBuilder(
+                        context,
+                        // 全局 privacy consent 弹窗（对齐 Web），覆盖所有路由
+                        PrivacyConsentGate(
+                          router: _router,
+                          child: child ?? const SizedBox.shrink(),
+                        ),
+                      ),
                     ),
                   );
                 },

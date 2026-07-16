@@ -2,7 +2,6 @@ import 'package:dinq_app/utils/api_error.dart';
 import 'package:dinq_app/utils/cache_manager.dart';
 import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dio/dio.dart';
-import 'package:dinq_app/widgets/account/agreement_protocol_modal.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:dinq_app/widgets/landing/invite_code_dialog.dart';
@@ -561,23 +560,13 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  void _handleLoginSuccess({String? email}) async {
-    // 先查询是否已经同意过协议
-    final isAgree = await context.read<UserStore>().checkAgreement();
-    if (!mounted) {
-      return;
-    }
-    if (!isAgree) {
-      showAgreementProtocolDialog(
-        context,
-        onContinue: () async {
-          await context.read<UserStore>().agreeToTerms();
-          _handleAgreementContinue(email: email);
-        },
-      );
-    } else {
-      _handleAgreementContinue(email: email);
-    }
+  void _handleLoginSuccess({String? email}) {
+    // 对齐 Web：登录后的 privacy consent 状态检查与「Public Visibility」
+    // 弹窗由全局 PrivacyConsentGate 统一处理（登录态变化时自动
+    // GET /user/privacy-consent/status，required 时在任意页面弹窗，
+    // Agree 才写入服务端）。此前本页 Cancel/关闭弹窗后用户会带着
+    // 未同意状态进入 App，导致后续 card/generate 全部 4012。
+    _handleAgreementContinue(email: email);
   }
 
   void _handleAgreementContinue({String? email}) {

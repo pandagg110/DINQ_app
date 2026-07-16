@@ -136,17 +136,6 @@ class CardStore extends ChangeNotifier {
         metadata: finalMetadata,
       );
 
-      // 埋点：社媒链接卡片保存成功（后端已确认）。非社媒链接类卡片
-      // socialPlatformForCardType 返回 null 不上报；URL 本身不上报。
-      final socialPlatform = AnalyticsService.socialPlatformForCardType(type);
-      if (socialPlatform != null) {
-        AnalyticsService.instance.track(
-          'dinq_social_add',
-          params: {'social_platform': socialPlatform},
-          activationIntent: 'dinq_page',
-        );
-      }
-
       // 对齐 Web：addCardToBoard 不保证返回正确 type，强制使用请求时的 type
       final createdWithType = CardItem(
         id: created.id,
@@ -220,6 +209,11 @@ class CardStore extends ChangeNotifier {
           }
         }
 
+        // 埋点：社媒链接卡片真正保存成功才上报——普通卡片以 addCardToBoard
+        // 成功为准，AI 卡（含全部社媒链接卡）还需 card/generate 被后端受理
+        // （privacy consent 4012 等失败会在上面 rethrow，不会走到这里）。
+        _trackSocialCardAdded(type, {...finalMetadata, ...?metadata});
+
         isAdding = false;
         notifyListeners();
         return cards[index];
@@ -256,6 +250,33 @@ class CardStore extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  /// 社媒链接卡保存成功的埋点（dinq_social_add）。
+  ///
+  /// - 非社媒链接类卡片 socialPlatformForCardType 返回 null，不上报；
+  /// - 同一链接重复提交只上报一次（QA 要求失败与重复提交均不触发）：
+  ///   以「平台 + 归一化 URL/用户名」为会话级去重键，键仅用于本地去重，
+  ///   URL 本身不进事件参数。
+  void _trackSocialCardAdded(String type, Map<String, dynamic> metadata) {
+    final socialPlatform = AnalyticsService.socialPlatformForCardType(type);
+    if (socialPlatform == null) return;
+
+    final rawIdentity =
+        (metadata['url'] ?? metadata['username'] ?? metadata['title'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+    final identity = rawIdentity.endsWith('/')
+        ? rawIdentity.substring(0, rawIdentity.length - 1)
+        : rawIdentity;
+
+    AnalyticsService.instance.trackOnce(
+      'dinq_social_add|${type.toUpperCase()}|$identity',
+      'dinq_social_add',
+      params: {'social_platform': socialPlatform},
+      activationIntent: 'dinq_page',
+    );
   }
 
   void removeCard(String cardId) {
