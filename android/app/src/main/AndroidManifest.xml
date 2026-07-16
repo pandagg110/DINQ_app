@@ -1,5 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="me.dinq.app">
+    <!-- 不使用广告 ID：移除依赖库合并进来的 AD_ID 权限（Google Play 广告 ID 声明为"否"） -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
     <!-- 网络权限 - 允许应用访问互联网 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 网络状态权限 - 允许应用检查网络连接状态 -->
