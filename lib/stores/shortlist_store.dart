@@ -4,14 +4,20 @@ import '../constants/shortlist_constants.dart';
 import '../models/shortlist_models.dart';
 import '../pages/shortlist/shortlist_strings.dart';
 import '../services/shortlist_service.dart';
+import 'user_store.dart';
 
 /// Shortlist 状态，对齐 Web `favoriteStore` + `favoriteProjectStore`。
 class ShortlistStore extends ChangeNotifier {
   ShortlistStore({ShortlistService? service})
-      : _service = service ?? ShortlistService();
+      : _service = service ?? ShortlistService() {
+    // 登出/删号/401 过期时清空，避免新账号看到上一账号的文件夹与收藏
+    //（对齐 ResumeStore 登出清理；本 store 是 app 级单例，不清即跨账号残留）。
+    UserStore.registerLogoutCleanup(clear);
+  }
 
   final ShortlistService _service;
   int _loadRequestId = 0;
+  int _projectsEpoch = 0;
 
   List<FavoriteProject> _projects = [];
   bool _projectsLoading = false;
@@ -81,8 +87,11 @@ class ShortlistStore extends ChangeNotifier {
     _projectsLoading = true;
     _projectsLoadError = null;
     notifyListeners();
+    // clear()（登出）后作废在途请求，防止老账号响应回填新账号视图
+    final epoch = _projectsEpoch;
     try {
       final list = await _service.listProjects();
+      if (epoch != _projectsEpoch) return;
       final activeExists =
           _activeProjectId != null && list.any((p) => p.id == _activeProjectId);
       final fallback =
@@ -93,11 +102,14 @@ class ShortlistStore extends ChangeNotifier {
       _projectsLoaded = true;
       _projectsLoadError = null;
     } catch (e) {
+      if (epoch != _projectsEpoch) return;
       _projectsLoaded = false;
       _projectsLoadError = e.toString();
     } finally {
-      _projectsLoading = false;
-      notifyListeners();
+      if (epoch == _projectsEpoch) {
+        _projectsLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -229,6 +241,8 @@ class ShortlistStore extends ChangeNotifier {
 
   Future<void> loadMore() async {
     if (_isLoading || !_hasMore || _activeProjectId == null) return;
+    // 与当前列表同代：clear()/新的 loadFavorites 之后丢弃在途分页结果
+    final requestId = _loadRequestId;
     _isLoading = true;
     notifyListeners();
     try {
@@ -239,13 +253,16 @@ class ShortlistStore extends ChangeNotifier {
         limit: shortlistPageSize,
         offset: _favorites.length,
       );
+      if (requestId != _loadRequestId) return;
       _favorites = [..._favorites, ...items];
       _hasMore = items.length == shortlistPageSize;
     } catch (_) {
       // keep current list
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestId == _loadRequestId) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -348,6 +365,34 @@ class ShortlistStore extends ChangeNotifier {
     if (_activeProjectId != null) {
       await loadFavorites(clear: _activeProjectId != previousProjectId);
     }
+  }
+
+  /// 登出/切换账号时清空全部用户态，避免跨账号残留（由 UserStore.logout 经
+  /// registerLogoutCleanup 触发，对齐 ResumeStore.clear 的登出清理语义）。
+  /// 同时递增请求代号，作废在途的 loadProjects/loadFavorites/loadMore，
+  /// 防止老账号的响应把数据回填进新账号视图。
+  void clear() {
+    _loadRequestId++;
+    _projectsEpoch++;
+    _projects = [];
+    _projectsLoading = false;
+    _projectsLoaded = false;
+    _projectsLoadError = null;
+    _activeProjectId = null;
+    _favorites = [];
+    _isLoading = false;
+    _hasMore = false;
+    _nameQuery = '';
+    _statusFilter = null;
+    _selectedIds.clear();
+    _selectionMode = false;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    UserStore.unregisterLogoutCleanup(clear);
+    super.dispose();
   }
 
   @Deprecated('Use initialize()')

@@ -175,6 +175,21 @@ class UserStore extends ChangeNotifier {
     }
   }
 
+  /// 登出清理钩子：持有用户态数据的 Store（如 ShortlistStore）注册自身的
+  /// clear()，保证所有登出路径（设置页 Sign out / 头像菜单 / 删号 / 401 过期）
+  /// 都能清掉跨账号残留（对齐 ResumeStore.clear 的登出清理语义；ResumeStore
+  /// 由 settings_page 登出点调用，但 app_header/401 等路径覆盖不到，故这里
+  /// 用注册制统一触达）。
+  static final Set<VoidCallback> _logoutCleanups = <VoidCallback>{};
+
+  static void registerLogoutCleanup(VoidCallback cleanup) {
+    _logoutCleanups.add(cleanup);
+  }
+
+  static void unregisterLogoutCleanup(VoidCallback cleanup) {
+    _logoutCleanups.remove(cleanup);
+  }
+
   /// [userInitiated] 为 true 表示用户主动登出（设置页/头像菜单），
   /// 此时按时序报 logout（login_status 仍为 logged_in）→ clearUserId → 本地置 guest。
   /// 401 会话过期走默认 false，只清用户态不报事件。
@@ -193,6 +208,10 @@ class UserStore extends ChangeNotifier {
     subscription = null;
     ApiClient.instance.setAuthToken(null);
     _persistToken();
+    // 清理各 Store 的跨账号用户态（新建账号看到上一账号 shortlist 老数据的根因）
+    for (final cleanup in List<VoidCallback>.of(_logoutCleanups)) {
+      cleanup();
+    }
     notifyListeners();
   }
 
