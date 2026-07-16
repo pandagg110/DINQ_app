@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -13,20 +14,23 @@ import '../../widgets/common/default_app_bar.dart';
 
 // ─── Plan 配置常量 ────────────────────────────────────────────────
 
-const List<String> kPlanOrder = ['free', 'basic', 'pro', 'plus'];
+// 对齐 web PUBLIC_PLAN_ORDER：线上只展示 free/basic/pro + Enterprise 共 4 档，
+// plus 不再单独售卖（仅存量用户，展示为 Pro）
+const List<String> kPlanOrder = ['free', 'basic', 'pro'];
 
 const Map<String, int> kPlanLevel = {
   'free': 0,
   'basic': 1,
   'pro': 2,
-  'plus': 3,
+  'plus': 3, // 存量 plus 订阅用户仍需比较档位
 };
 
+// 对齐 web PLAN_LABEL：plus 显示为 Pro
 const Map<String, String> kPlanLabel = {
   'free': 'Free',
   'basic': 'Basic',
   'pro': 'Pro',
-  'plus': 'Plus',
+  'plus': 'Pro',
 };
 
 class _PlanConfig {
@@ -43,13 +47,13 @@ class _PlanConfig {
   });
 }
 
+// 文案对齐 web messages/en/marketing.json pricing.plans
 const Map<String, _PlanConfig> kPlanConfig = {
   'free': _PlanConfig(
-    subtitle: 'Personal Experience',
+    subtitle: 'Trial Users / Light Personal Use',
     sectionHeader: 'Free includes:',
     creditsFormat: '{credits} Credits (One-time)',
   ),
-  // subtitle 对齐 web PricingModal PLAN_CONFIG
   'basic': _PlanConfig(
     subtitle: 'Individual Users / Beginners',
     sectionHeader: 'Everything in Free, plus:',
@@ -60,11 +64,6 @@ const Map<String, _PlanConfig> kPlanConfig = {
     sectionHeader: 'Everything in Basic, plus:',
     creditsFormat: '{credits} Credits /month',
     popular: true,
-  ),
-  'plus': _PlanConfig(
-    subtitle: 'HR/Recruiter',
-    sectionHeader: 'Everything in Pro, plus:',
-    creditsFormat: '{credits} Credits /month',
   ),
 };
 
@@ -166,9 +165,9 @@ class _PricingPageState extends State<PricingPage> {
     }
   }
 
-  // ─── 升级逻辑 ──────────────────────────────────────────────
+  // ─── 换购逻辑（对齐 web canChangePlan：升级/降级均放开）───────
 
-  bool _canUpgrade(String targetBasePlan) {
+  bool _canChangePlan(String targetBasePlan) {
     final userStore = context.read<UserStore>();
     if (!userStore.isLoggedIn()) return true;
 
@@ -179,9 +178,11 @@ class _PricingPageState extends State<PricingPage> {
     final targetLevel = kPlanLevel[targetBasePlan] ?? 0;
     final currentLevel = kPlanLevel[currentBasePlan] ?? 0;
 
-    if (targetLevel > currentLevel) return true;
+    // 升级或降级都允许
+    if (targetLevel != currentLevel) return true;
 
-    if (targetLevel == currentLevel && targetBasePlan != 'free') {
+    // 同级别付费计划：仅允许月付 → 年付
+    if (targetBasePlan != 'free') {
       return currentBillingPeriod == 'monthly' && _billingPeriod == 'yearly';
     }
 
@@ -201,35 +202,40 @@ class _PricingPageState extends State<PricingPage> {
     return basePlan == currentBasePlan && _billingPeriod == currentBillingPeriod;
   }
 
+  // 按钮文案对齐 web pricing.cta
   String _getButtonText(String basePlan) {
     final userStore = context.read<UserStore>();
 
     if (!userStore.isLoggedIn()) {
-      return basePlan == 'free' ? 'Sign up Free' : 'Upgrade Plan';
+      return basePlan == 'free' ? 'Get started' : 'Subscribe';
     }
 
-    if (_isCurrentPlan(basePlan)) return 'Current Plan';
+    if (_isCurrentPlan(basePlan)) return 'Current plan';
 
     final subscription = userStore.subscription;
+    final isCurrentPlanFree = subscription?.isFree ?? true;
     final currentBasePlan = subscription?.basePlan ?? 'free';
     final currentBillingPeriod = subscription?.billingPeriod;
+
+    if (basePlan == 'free') return 'Downgrade to Free';
+    if (isCurrentPlanFree) return 'Subscribe';
 
     if (basePlan == currentBasePlan &&
         currentBillingPeriod == 'yearly' &&
         _billingPeriod == 'monthly') {
-      return 'Yearly Subscriber';
+      return 'Yearly subscriber';
     }
 
-    if (!_canUpgrade(basePlan)) return 'Included';
-
-    return 'Upgrade Plan';
+    final targetLevel = kPlanLevel[basePlan] ?? 0;
+    final currentLevel = kPlanLevel[currentBasePlan] ?? 0;
+    return targetLevel < currentLevel ? 'Downgrade' : 'Upgrade';
   }
 
   bool _isButtonDisabled(String basePlan) {
     if (_processingPlan != null) return true;
     if (_isCurrentPlan(basePlan)) return true;
     final userStore = context.read<UserStore>();
-    if (userStore.isLoggedIn() && !_canUpgrade(basePlan)) return true;
+    if (userStore.isLoggedIn() && !_canChangePlan(basePlan)) return true;
     return false;
   }
 
@@ -237,11 +243,17 @@ class _PricingPageState extends State<PricingPage> {
     final userStore = context.read<UserStore>();
 
     if (_isCurrentPlan(basePlan)) return;
-    if (userStore.isLoggedIn() && !_canUpgrade(basePlan)) return;
+    if (userStore.isLoggedIn() && !_canChangePlan(basePlan)) return;
 
     // 未登录 → 跳转登录
     if (!userStore.isLoggedIn()) {
       context.push('/signin');
+      return;
+    }
+
+    // 降级到 Free：确认后关闭自动续费（对齐 web downgradeDialog + setAutoRenew）
+    if (basePlan == 'free') {
+      await _handleDowngradeToFree();
       return;
     }
 
@@ -296,23 +308,173 @@ class _PricingPageState extends State<PricingPage> {
           if (mounted) context.read<UserStore>().refreshSubscription();
         });
       } else if (mounted) {
+        if (!isCurrentPlanFree) {
+          // 换购无需跳转支付页（如降级排期到期后生效）→ 视为成功，对齐 web
+          await context.read<UserStore>().refreshSubscription();
+          if (mounted) {
+            TopToastUtil.showSuccess(
+              context: context,
+              title:
+                  response['message']?.toString() ?? 'Plan change scheduled',
+            );
+          }
+        } else {
+          TopToastUtil.showError(
+            context: context,
+            title: 'Unable to start checkout',
+            description: 'Please try again later.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        // 透出后端错误信息，便于定位支付失败原因（如月付 price 配置错误）
         TopToastUtil.showError(
           context: context,
           title: 'Unable to start checkout',
-          description: 'Please try again later.',
+          description: _checkoutErrorDescription(e),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _processingPlan = null);
+    }
+  }
+
+  /// 从 DioException 提取后端 message；无可用信息时回退通用提示
+  String _checkoutErrorDescription(Object error) {
+    if (error is DioException) {
+      final err = error.error;
+      if (err is String && err.isNotEmpty) return err;
+      final data = error.response?.data;
+      if (data is Map &&
+          data['message'] is String &&
+          (data['message'] as String).isNotEmpty) {
+        return data['message'] as String;
+      }
+    }
+    return 'Please try again later.';
+  }
+
+  /// 降级到 Free：确认弹窗 + 关闭自动续费（文案对齐 web pricing.downgradeDialog）
+  Future<void> _handleDowngradeToFree() async {
+    final userStore = context.read<UserStore>();
+    final accessUntil =
+        _formatFullDate(userStore.subscription?.currentPeriodEnd);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Downgrade to Free?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF171717),
+                  fontFamily: 'Geist',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Your paid plan will remain active until $accessUntil, '
+                'then switch to Free. You will not be charged again.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF525252),
+                  fontFamily: 'Geist',
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  NormalButton(
+                    onTap: () => Navigator.of(dialogContext).pop(false),
+                    child: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Text(
+                        'Keep plan',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B6862),
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  NormalButton(
+                    onTap: () => Navigator.of(dialogContext).pop(true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF171717),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Downgrade to Free',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _processingPlan = 'free');
+    try {
+      await _paymentService.setAutoRenew(autoRenew: false);
+      await userStore.refreshSubscription();
+      if (mounted) {
+        TopToastUtil.showSuccess(
+          context: context,
+          title: 'Free downgrade scheduled',
         );
       }
     } catch (_) {
       if (mounted) {
         TopToastUtil.showError(
           context: context,
-          title: 'Unable to start checkout',
+          title: 'Unable to update subscription',
           description: 'Please try again later.',
         );
       }
     } finally {
       if (mounted) setState(() => _processingPlan = null);
     }
+  }
+
+  /// ISO 日期 → "July 16, 2026"
+  String _formatFullDate(String? iso) {
+    final d = DateTime.tryParse(iso ?? '');
+    if (d == null) return 'the end of your billing period';
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
   void _handleContactSupport() async {
@@ -524,6 +686,18 @@ class _PricingPageState extends State<PricingPage> {
     final credits = (planData['monthly_credits'] as num?)?.toInt() ?? 0;
     final features = (planData['features'] as List<dynamic>?)?.cast<String>() ?? [];
 
+    // 年付时的原月价（划线价）与 You save 节省额（对齐 web yearlySavings）
+    final monthlyPlanData = plan != 'free'
+        ? (_pricing?[_getPricingKey(plan, 'monthly')] as Map<String, dynamic>?)
+        : null;
+    final fullMonthlyRate = monthlyPlanData != null
+        ? ((monthlyPlanData['price'] as num?)?.toInt() ?? 0) ~/ 100
+        : null;
+    final yearlySavings =
+        (plan != 'free' && _billingPeriod == 'yearly' && fullMonthlyRate != null)
+            ? fullMonthlyRate * 12 - displayPrice
+            : 0;
+
     final isPopular = config.popular;
     final isFocused = _currentPage == index;
 
@@ -537,7 +711,11 @@ class _PricingPageState extends State<PricingPage> {
           right: 6,
           bottom: 16,
         ),
-        child: isPopular ? _buildPopularCard(plan, config, monthlyDisplayPrice, displayPrice, credits, features) : _buildRegularCard(plan, config, monthlyDisplayPrice, displayPrice, credits, features),
+        child: isPopular
+            ? _buildPopularCard(plan, config, monthlyDisplayPrice, displayPrice,
+                credits, features, fullMonthlyRate, yearlySavings)
+            : _buildRegularCard(plan, config, monthlyDisplayPrice, displayPrice,
+                credits, features, fullMonthlyRate, yearlySavings),
       ),
     );
   }
@@ -549,6 +727,8 @@ class _PricingPageState extends State<PricingPage> {
     int yearlyPrice,
     int credits,
     List<String> features,
+    int? fullMonthlyRate,
+    int yearlySavings,
   ) {
     return Column(
       children: [
@@ -569,7 +749,7 @@ class _PricingPageState extends State<PricingPage> {
                   ),
                 ),
               ),
-              // "Most popular" 文字
+              // "Popular" 徽标文字
               Positioned(
                 top: 10,
                 left: 0,
@@ -582,7 +762,8 @@ class _PricingPageState extends State<PricingPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
-                      'Most popular',
+                      // 对齐 web pricing.badge.popular
+                      'Popular',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -607,7 +788,10 @@ class _PricingPageState extends State<PricingPage> {
                   ),
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
-                    child: _buildCardContent(plan, config, monthlyPrice, yearlyPrice, credits, features),
+                    child: _buildCardContent(plan, config, monthlyPrice,
+                        yearlyPrice, credits, features,
+                        fullMonthlyRate: fullMonthlyRate,
+                        yearlySavings: yearlySavings),
                   ),
                 ),
               ),
@@ -625,6 +809,8 @@ class _PricingPageState extends State<PricingPage> {
     int yearlyPrice,
     int credits,
     List<String> features,
+    int? fullMonthlyRate,
+    int yearlySavings,
   ) {
     return Container(
       decoration: BoxDecoration(
@@ -634,7 +820,9 @@ class _PricingPageState extends State<PricingPage> {
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: _buildCardContent(plan, config, monthlyPrice, yearlyPrice, credits, features),
+        child: _buildCardContent(plan, config, monthlyPrice, yearlyPrice,
+            credits, features,
+            fullMonthlyRate: fullMonthlyRate, yearlySavings: yearlySavings),
       ),
     );
   }
@@ -645,67 +833,95 @@ class _PricingPageState extends State<PricingPage> {
     int monthlyPrice,
     int yearlyPrice,
     int credits,
-    List<String> features,
-  ) {
+    List<String> features, {
+    int? fullMonthlyRate,
+    int yearlySavings = 0,
+  }) {
     final isFreePlan = plan == 'free';
+    final showYearlyExtras = !isFreePlan && _billingPeriod == 'yearly';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Plan header
+        // Plan header：标题 + You save 节省标签（对齐 web savingsLabel）
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  kPlanLabel[plan] ?? plan,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF171717),
-                    fontFamily: 'Geist',
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    kPlanLabel[plan] ?? plan,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF171717),
+                      fontFamily: 'Geist',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  config.subtitle,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF9CA3AF),
-                    fontFamily: 'Geist',
+                  const SizedBox(height: 4),
+                  Text(
+                    config.subtitle,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF9CA3AF),
+                      fontFamily: 'Geist',
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            if (config.popular)
+            if (showYearlyExtras && yearlySavings > 0)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1487FA),
-                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFFECFDF3),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'Most popular',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                    fontFamily: 'Geist',
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.sell_outlined,
+                        size: 14, color: Color(0xFF16A34A)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'You save \$${_formatNumber(yearlySavings)}/year',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF16A34A),
+                        fontFamily: 'Geist',
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
         ),
         const SizedBox(height: 20),
 
-        // Price
+        // Price：年付时先展示划线原月价（对齐 web）
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
+            if (showYearlyExtras && fullMonthlyRate != null) ...[
+              Text(
+                '\$$fullMonthlyRate',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF9E9B93),
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: Color(0xFF9E9B93),
+                  fontFamily: 'Geist',
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             Text(
               '\$$monthlyPrice',
               style: const TextStyle(
@@ -715,7 +931,7 @@ class _PricingPageState extends State<PricingPage> {
                 fontFamily: 'Geist',
               ),
             ),
-            if (!isFreePlan) ...[
+            if (!isFreePlan)
               const Text(
                 '/month',
                 style: TextStyle(
@@ -725,22 +941,33 @@ class _PricingPageState extends State<PricingPage> {
                   fontFamily: 'Geist',
                 ),
               ),
-              if (_billingPeriod == 'yearly') ...[
-                const SizedBox(width: 12),
-                Text(
-                  // 对齐 web："$1,008 /year"（无 total）
-                  '\$${_formatNumber(yearlyPrice)} /year',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFFBDBDBD),
-                    fontFamily: 'Geist',
-                  ),
-                ),
-              ],
-            ],
           ],
         ),
-        const SizedBox(height: 24),
+        if (showYearlyExtras) ...[
+          const SizedBox(height: 4),
+          Text(
+            // 对齐 web priceSuffix.perYearTotal："$1,008 /year"
+            '\$${_formatNumber(yearlyPrice)} /year',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0x4D303030),
+              fontFamily: 'Geist',
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+
+        // Section header（对齐 web："Free includes:" / "Everything in X, plus:"）
+        Text(
+          config.sectionHeader,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF171717),
+            fontFamily: 'Geist',
+          ),
+        ),
+        const SizedBox(height: 16),
 
         // Credits 独立展示卡（对齐 web：蓝框 Credits + "{N} Credits /month"，
         // features 里含 credits 的行被过滤，不再混在特性列表里）
@@ -777,11 +1004,7 @@ class _PricingPageState extends State<PricingPage> {
             ],
           ),
         ),
-        const SizedBox(height: 20),
-
-        // Divider
-        Container(height: 1, color: const Color(0xFFF0F0F0)),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
         // Features（对齐 web getFeatureList：credits 行已单独展示，此处过滤）
         ...features
@@ -820,7 +1043,7 @@ class _PricingPageState extends State<PricingPage> {
     return buffer.toString();
   }
 
-  // ─── Custom Enterprise Card ────────────────────────────────
+  // ─── Enterprise Card（对齐 web pricing.enterprise）─────────────
 
   Widget _buildCustomCard(int index) {
     final isFocused = _currentPage == index;
@@ -843,7 +1066,7 @@ class _PricingPageState extends State<PricingPage> {
               children: [
                 // Header
                 const Text(
-                  'Custom',
+                  'Enterprise',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
@@ -853,7 +1076,7 @@ class _PricingPageState extends State<PricingPage> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Large Enterprise/Organization',
+                  'Teams / Enterprise Customers',
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFF9CA3AF),
@@ -864,7 +1087,7 @@ class _PricingPageState extends State<PricingPage> {
 
                 // Price
                 const Text(
-                  'Custom pricing',
+                  'Contact us',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
@@ -872,17 +1095,13 @@ class _PricingPageState extends State<PricingPage> {
                     fontFamily: 'Geist',
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // Divider
-                Container(height: 1, color: const Color(0xFFF0F0F0)),
                 const SizedBox(height: 20),
 
                 // Section header
                 const Text(
-                  'Everything in Plus, plus:',
+                  'Custom Pricing and Contract',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFF171717),
                     fontFamily: 'Geist',
@@ -890,15 +1109,47 @@ class _PricingPageState extends State<PricingPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Features
+                // Credits 蓝框（对齐 web enterprise.customCredits）
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1487FA).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFCCE5FF)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Credits',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF171717),
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Custom Credits',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1487FA),
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Features（对齐 web ENTERPRISE_FEATURE_KEYS）
                 ...[
-                  'Network',
-                  'Onboarding and training',
-                  'Usage analytics',
-                  'Custom integrations',
-                  'Dedicated support',
-                  'SLA guarantee',
-                  'Custom SLA & Contract',
+                  'Custom Shortlist projects',
+                  'Custom Talent Radars',
+                  'Early access to new features',
+                  'Dedicated support + SLA',
                 ].map((feature) => Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Row(

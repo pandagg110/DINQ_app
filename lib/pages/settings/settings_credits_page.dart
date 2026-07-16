@@ -12,7 +12,8 @@ import '../marketing/pricing_page.dart' show kPlanLabel;
 
 /// My → Available Credits 进入的积分页。对齐 web SubscriptionCard 左图：
 /// {Plan} Plan + Upgrade/Get more credits + Available credits + 进度条 +
-/// Pay as you go(只读) + Membership/Referral 明细 + Usage/Billing 列表。
+/// Pay as you go + Membership/Referral 明细 + Usage/Billing 列表。
+/// Get more credits / PAYG 开关打开 Pay-as-you-go 管理弹层（对齐 web modal）。
 class SettingsCreditsPage extends StatefulWidget {
   const SettingsCreditsPage({super.key});
 
@@ -73,6 +74,22 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
     if (_tab == tab) return;
     setState(() => _tab = tab);
     _loadTab();
+  }
+
+  /// Get more credits / Pay as you go 开关 → PAYG 管理弹层
+  /// （对齐 web SubscriptionCard：getMoreCredits 按钮打开 Pay-as-you-go modal）
+  Future<void> _openPaygSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _PaygSheet(paymentService: _paymentService),
+    );
+    // 弹层内可能改动了 PAYG 状态，回来后刷新订阅
+    if (mounted) context.read<UserStore>().refreshSubscription();
   }
 
   String _formatDate(String? iso) {
@@ -144,7 +161,8 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                     _pillButton(
                       'Get more credits',
                       filled: true,
-                      onTap: () => context.push('/pricing'),
+                      // 对齐 web：打开 Pay-as-you-go 弹层（非跳转 pricing）
+                      onTap: _openPaygSheet,
                     ),
                   ],
                 ),
@@ -191,19 +209,12 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Pay as you go：启用/绑卡需 Stripe 网页流程，app 只读展示
+                // Pay as you go：点击打开 PAYG 管理弹层（绑卡/开关/月度上限）
                 Row(
                   children: [
                     Switch(
                       value: sub?.paygEnabled ?? false,
-                      onChanged: (_) {
-                        TopToastUtil.showError(
-                          context: context,
-                          title: 'Manage on web',
-                          description:
-                              'Pay-as-you-go setup is available on dinq.me.',
-                        );
-                      },
+                      onChanged: (_) => _openPaygSheet(),
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -474,6 +485,442 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
             ),
           ),
       ],
+    );
+  }
+}
+
+// ─── Pay-as-you-go 管理弹层 ─────────────────────────────────────────
+//
+// 对齐 web SubscriptionCard 的 Pay-as-you-go modal（settings.subscription.payg）：
+// 状态徽标 + 描述 + 绑卡/启用/停用按钮 + Monthly cap 输入 + Save limit。
+// 绑卡（Set up payment method）走 /payment/payg/setup 返回的 Stripe 页面。
+class _PaygSheet extends StatefulWidget {
+  const _PaygSheet({required this.paymentService});
+
+  final PaymentService paymentService;
+
+  @override
+  State<_PaygSheet> createState() => _PaygSheetState();
+}
+
+class _PaygSheetState extends State<_PaygSheet> {
+  static const int _defaultLimitCents = 4000; // 对齐 web DEFAULT_PAYG_LIMIT_CENTS
+
+  final TextEditingController _limitController = TextEditingController();
+
+  bool _loading = true;
+  bool _updating = false;
+  Map<String, dynamic>? _payg;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _limitController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await widget.paymentService.getPayg();
+      if (!mounted) return;
+      _payg = data;
+      final cents =
+          (data['monthly_limit_cents'] as num?)?.toInt() ?? _defaultLimitCents;
+      final amount = cents / 100;
+      _limitController.text = amount == amount.roundToDouble()
+          ? '${amount.round()}'
+          : amount.toStringAsFixed(2);
+    } catch (_) {
+      // 拉取失败保持默认值，仍可发起绑卡
+      _limitController.text = '${_defaultLimitCents ~/ 100}';
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  bool get _enabled => _payg?['enabled'] == true;
+  String get _status => (_payg?['status'] ?? 'inactive').toString();
+  bool get _hasPaymentMethod => _payg?['has_payment_method'] == true;
+
+  /// 无可用卡（未绑卡或上次扣款失败需重新绑卡）→ 走 Stripe setup
+  bool get _needsSetup => !_hasPaymentMethod || _status == 'payment_failed';
+
+  /// 对齐 web getPaygStatusKey
+  String get _statusLabel {
+    if (_enabled && _status == 'active') return 'Active';
+    if (_status == 'setup_pending') return 'Setup pending';
+    if (_status == 'payment_failed') return 'Payment failed';
+    return 'Inactive';
+  }
+
+  Color get _statusBg {
+    if (_enabled && _status == 'active') return const Color(0xFFF0FDF4);
+    if (_status == 'payment_failed') return const Color(0xFFFEF2F2);
+    return const Color(0xFFF5F4F0);
+  }
+
+  Color get _statusFg {
+    if (_enabled && _status == 'active') return const Color(0xFF16A34A);
+    if (_status == 'payment_failed') return const Color(0xFFDC2626);
+    return const Color(0xFF6B6862);
+  }
+
+  /// 解析月度上限（美元 → 分），非法返回 null（对齐 web parseLimitCents）
+  int? _parseLimitCents() {
+    final amount = double.tryParse(_limitController.text.trim());
+    if (amount == null || !amount.isFinite || amount <= 0) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Invalid monthly cap',
+        description: 'Enter a monthly limit greater than \$0.',
+      );
+      return null;
+    }
+    return (amount * 100).round();
+  }
+
+  /// 绑卡：跳 Stripe 页面，回来后刷新
+  Future<void> _handleSetup() async {
+    if (_updating) return;
+    final cents = _parseLimitCents();
+    if (cents == null) return;
+
+    setState(() => _updating = true);
+    try {
+      final res =
+          await widget.paymentService.setupPayg(monthlyLimitCents: cents);
+      final url = res['url']?.toString();
+      if (!mounted) return;
+      if (url != null && url.isNotEmpty) {
+        await context.push('/webview', extra: {
+          'url': url,
+          'navTitle': 'Pay-as-you-go',
+          'showAppBar': 'true',
+        });
+        if (mounted) await _load();
+      } else {
+        TopToastUtil.showError(
+          context: context,
+          title: 'Setup failed',
+          description: 'Unable to start pay-as-you-go setup.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        TopToastUtil.showError(
+          context: context,
+          title: 'Setup failed',
+          description: 'Unable to start pay-as-you-go setup.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  /// 更新开关/上限（对齐 web executePaygUpdate）
+  Future<void> _handleUpdate({required bool enabled}) async {
+    if (_updating) return;
+    final cents = _parseLimitCents();
+    if (cents == null) return;
+
+    // 想开启但没有可用卡 → 先绑卡
+    if (enabled && _needsSetup) {
+      await _handleSetup();
+      return;
+    }
+
+    setState(() => _updating = true);
+    try {
+      await widget.paymentService
+          .updatePayg(enabled: enabled, monthlyLimitCents: cents);
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      TopToastUtil.showSuccess(
+        context: context,
+        title: enabled ? 'Pay-as-you-go enabled' : 'Pay-as-you-go disabled',
+      );
+    } catch (_) {
+      if (mounted) {
+        TopToastUtil.showError(
+          context: context,
+          title: 'Update failed',
+          description: 'Failed to update pay-as-you-go.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  Future<void> _handleSaveLimit() async {
+    await _handleUpdate(enabled: _enabled);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 拖拽指示条
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD6D3CC),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // 标题 + 关闭
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Pay-as-you-go',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'Geist',
+                      color: Color(0xFF171717),
+                    ),
+                  ),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child:
+                          Icon(Icons.close, size: 22, color: Color(0xFF9E9B93)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child:
+                      Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                )
+              else ...[
+                // 状态徽标
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusBg,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _statusLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Geist',
+                      color: _statusFg,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Only applies after membership credits are used. '
+                  'Set a monthly cap before enabling.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Geist',
+                    color: Color(0xFF6B6862),
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 主操作：绑卡 / 启用 / 停用
+                SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _updating
+                        ? null
+                        : () => _needsSetup
+                            ? _handleSetup()
+                            : _handleUpdate(enabled: !_enabled),
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: _enabled && !_needsSetup
+                            ? Colors.white
+                            : const Color(0xFF171717),
+                        borderRadius: BorderRadius.circular(24),
+                        border: _enabled && !_needsSetup
+                            ? Border.all(color: const Color(0xFFE5E2DC))
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: _updating
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: _enabled && !_needsSetup
+                                    ? const Color(0xFF171717)
+                                    : Colors.white,
+                              ),
+                            )
+                          : Text(
+                              _needsSetup
+                                  ? (_status == 'payment_failed'
+                                      ? 'Update payment method'
+                                      : 'Set up payment method')
+                                  : (_enabled ? 'Disable' : 'Enable'),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Geist',
+                                color: _enabled && !_needsSetup
+                                    ? const Color(0xFF6B6862)
+                                    : Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(height: 1, color: const Color(0xFFE5E2DC)),
+                const SizedBox(height: 16),
+                // Monthly cap 输入 + Save limit
+                const Text(
+                  'Monthly cap',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Geist',
+                    color: Color(0xFF6B6862),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFAFAF8),
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFE5E2DC)),
+                          left: BorderSide(color: Color(0xFFE5E2DC)),
+                          bottom: BorderSide(color: Color(0xFFE5E2DC)),
+                        ),
+                        borderRadius: BorderRadius.horizontal(
+                          left: Radius.circular(8),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '\$',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'Geist',
+                          color: Color(0xFF9E9B93),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 120,
+                      height: 40,
+                      child: TextField(
+                        controller: _limitController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'Geist',
+                          color: Color(0xFF171717),
+                        ),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: const BorderRadius.horizontal(
+                              right: Radius.circular(8),
+                            ),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE5E2DC)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: const BorderRadius.horizontal(
+                              right: Radius.circular(8),
+                            ),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE5E2DC)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: const BorderRadius.horizontal(
+                              right: Radius.circular(8),
+                            ),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF171717)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: (_updating || _payg == null)
+                          ? null
+                          : _handleSaveLimit,
+                      child: Container(
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE5E2DC)),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Save limit',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Geist',
+                            color: (_updating || _payg == null)
+                                ? const Color(0xFFB8B5AE)
+                                : const Color(0xFF6B6862),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

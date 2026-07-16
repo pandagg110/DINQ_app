@@ -40,6 +40,37 @@ class PaymentService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Pay-as-you-go 设置（enabled/status/has_payment_method/monthly_limit_cents 等，
+  /// 对齐 web paymentApi.getPayg）
+  /// 需要认证
+  Future<Map<String, dynamic>> getPayg() async {
+    final response = await _dio.get('/payment/payg');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// 发起 Pay-as-you-go 绑卡（返回 Stripe 收银台 url，对齐 web setupPayg）
+  /// 需要认证
+  Future<Map<String, dynamic>> setupPayg({required int monthlyLimitCents}) async {
+    final response = await _dio.post(
+      '/payment/payg/setup',
+      data: {'monthly_limit_cents': monthlyLimitCents},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// 更新 Pay-as-you-go 开关/月度上限（对齐 web updatePayg）
+  /// 需要认证
+  Future<Map<String, dynamic>> updatePayg({
+    required bool enabled,
+    required int monthlyLimitCents,
+  }) async {
+    final response = await _dio.post(
+      '/payment/payg',
+      data: {'enabled': enabled, 'monthly_limit_cents': monthlyLimitCents},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   /// 积分流水列表（分页，Credits 页 Usage tab；对齐 web getCreditTransactions）
   /// 需要认证
   Future<Map<String, dynamic>> getCreditTransactions({
