@@ -27,12 +27,14 @@ class EnrichContactEmailModal extends StatefulWidget {
     required this.recipientName,
     this.recipientTitle,
     this.favoriteId,
+    this.loadInitialData = true,
   });
 
   final String recipientEmail;
   final String recipientName;
   final String? recipientTitle;
   final String? favoriteId;
+  final bool loadInitialData;
 
   static Future<void> show(
     BuildContext context, {
@@ -86,22 +88,24 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
   void initState() {
     super.initState();
     _selectedEmail = parseEmails(widget.recipientEmail).firstOrNull ?? '';
-    _loadAccounts();
-    _generateMessage('friendly');
+    if (widget.loadInitialData) {
+      _loadAccounts();
+      _generateMessage('friendly');
+    }
   }
 
   Future<void> _loadAccounts() async {
     try {
       final accounts = await _connector.getAccounts();
       final emailAccount = accounts.cast<ConnectorAccount?>().firstWhere(
-            (a) =>
-                a != null &&
-                a.status == 'active' &&
-                (a.platform == 'gmail' ||
-                    a.platform == 'microsoft' ||
-                    a.platform == 'imap'),
-            orElse: () => null,
-          );
+        (a) =>
+            a != null &&
+            a.status == 'active' &&
+            (a.platform == 'gmail' ||
+                a.platform == 'microsoft' ||
+                a.platform == 'imap'),
+        orElse: () => null,
+      );
       final settings = await _emailSettings.list();
       if (!mounted) return;
       EmailSetting? sender;
@@ -137,7 +141,10 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
           '${displayName != null ? 'My name is $displayName. ' : ''}'
           'I want to reach out to ${widget.recipientName}'
           '${title != null ? ', $title' : ''} (${widget.recipientEmail}).';
-      final res = await _outreach.generate(userContext: contextText, style: tone);
+      final res = await _outreach.generate(
+        userContext: contextText,
+        style: tone,
+      );
       if (!mounted) return;
       _contentController.text = res['body']?.toString() ?? '';
       _subjectController.text = res['subject']?.toString() ?? '';
@@ -155,9 +162,9 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
   Future<void> _send() async {
     final content = _contentController.text.trim();
     if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a message')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a message')));
       return;
     }
     setState(() => _sending = true);
@@ -184,9 +191,9 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
       );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to send message')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to send message')));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -241,8 +248,10 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
                 const SizedBox(height: 4),
                 Text(
                   widget.recipientName,
-                  style:
-                      const TextStyle(fontSize: 14, color: Color(0xFF6B6862)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF6B6862),
+                  ),
                 ),
               ],
             ),
@@ -259,7 +268,9 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
                       value: _selectedEmail,
                       decoration: const InputDecoration(labelText: 'Recipient'),
                       items: allEmails
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedEmail = v);
@@ -307,8 +318,9 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
                               child: SizedBox(
                                 width: 18,
                                 height: 18,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             )
                           : null,
@@ -320,6 +332,7 @@ class _EnrichContactEmailModalState extends State<EnrichContactEmailModal> {
           ),
           // 底部操作栏：固定在弹窗底部，不随内容滚动
           Container(
+            key: const Key('email-composer-actions'),
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             decoration: const BoxDecoration(
               color: Colors.white,
