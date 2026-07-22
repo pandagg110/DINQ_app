@@ -22,3 +22,5 @@ The app checks `GET /api/v1/app/version` on startup and whenever it returns to t
 - Google Play forced update: blocking prompt whose action opens the Play listing.
 
 The update endpoint fails open, so an unavailable backend does not lock users out. After opening the download/store page, the forced gate remains and checks again when the app resumes.
+
+The first update-enabled build is `0.1.1+6`. To force users of the previous `versionCode 5` development APK to upgrade, configure both `latest_version_code` and `minimum_version_code` as `6` for `official_apk`.
