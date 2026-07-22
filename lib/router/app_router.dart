@@ -97,9 +97,15 @@ class AppRouter {
     return false;
   }
 
-  static GoRouter create(UserStore userStore) {
+  static GoRouter create(
+    UserStore userStore, {
+    bool showFirstLaunchSplash = false,
+  }) {
+    var firstLaunchSplashPending = showFirstLaunchSplash;
     return GoRouter(
-      initialLocation: '/splash',
+      initialLocation: showFirstLaunchSplash
+          ? '/splash'
+          : (userStore.isLoggedIn() ? '/search' : '/signin'),
       errorBuilder: (context, state) => const NotFoundPage(),
       refreshListenable: userStore,
       redirect: (context, state) {
@@ -113,6 +119,7 @@ class AppRouter {
 
         // 初始化完成后，如果还在启动页，根据登录状态跳转
         if (location == '/splash') {
+          if (firstLaunchSplashPending) return null;
           if (!isLoggedIn) return '/signin';
           return '/search';
         }
@@ -135,7 +142,12 @@ class AppRouter {
       routes: [
         GoRoute(
           path: '/splash',
-          builder: (context, state) => const SplashPage(),
+          builder: (context, state) => SplashPage(
+            onComplete: () {
+              firstLaunchSplashPending = false;
+              context.go(userStore.isLoggedIn() ? '/search' : '/signin');
+            },
+          ),
         ),
         GoRoute(path: '/', builder: (context, state) => const MainTabPage()),
         GoRoute(path: '/me', builder: (context, state) => const MainTabPage()),

@@ -40,7 +40,6 @@ class AppleIapService {
   static const _productIdPrefix = 'me.dinq.app.';
   static const Set<String> _productIds = {
     'me.dinq.app.pro.monthly',
-    'me.dinq.app.pro.yearly',
     'me.dinq.app.basic.monthly',
     'me.dinq.app.basic.yearly',
   };

@@ -21,8 +21,10 @@ class UserStore extends ChangeNotifier {
     _flowService = FlowService();
     _paymentService = PaymentService();
     ApiClient.instance.setUnauthorizedHandler(logout);
-    _loadToken();
+    ready = _loadToken();
   }
+
+  late final Future<void> ready;
 
   late final AuthService _authService;
   late final ProfileService _profileService;
@@ -62,10 +64,19 @@ class UserStore extends ChangeNotifier {
   }
 
   Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    authToken = prefs.getString('user.authToken');
-    ApiClient.instance.setAuthToken(authToken);
-    await initialize();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      authToken = prefs.getString('user.authToken');
+      ApiClient.instance.setAuthToken(authToken);
+      await initialize();
+    } catch (_) {
+      // 启动阶段的用户/订阅接口失败不应阻止 App 进入主界面；各页面会自行重试。
+    } finally {
+      if (!isInitialized) {
+        isInitialized = true;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> _persistToken() async {

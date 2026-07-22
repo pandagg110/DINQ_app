@@ -12,15 +12,16 @@ void main() {
         'me.dinq.app.pro.monthly',
       );
       expect(AppleIapService.isSupportedPlan('basic_yearly'), isTrue);
+      expect(AppleIapService.isSupportedPlan('pro_yearly'), isFalse);
       expect(AppleIapService.isSupportedPlan('plus_monthly'), isFalse);
     });
 
     test('returns the localized App Store price for a plan', () {
       final products = [
         ProductDetails(
-          id: 'me.dinq.app.pro.yearly',
+          id: 'me.dinq.app.pro.monthly',
           title: 'DINQ Pro',
-          description: 'Yearly subscription',
+          description: 'Monthly subscription',
           price: '¥988',
           rawPrice: 988,
           currencyCode: 'CNY',
@@ -28,7 +29,7 @@ void main() {
       ];
 
       expect(
-        AppleIapService.localizedPriceForPlan('pro_yearly', products),
+        AppleIapService.localizedPriceForPlan('pro_monthly', products),
         '¥988',
       );
       expect(
@@ -80,17 +81,17 @@ void main() {
     test('starts a purchase with the DINQ user UUID', () async {
       await service.init();
 
-      expect(service.supportsPlan('pro_yearly'), isTrue);
-      expect(await service.buy('pro_yearly'), isTrue);
+      expect(service.supportsPlan('pro_monthly'), isTrue);
+      expect(await service.buy('pro_monthly'), isTrue);
       expect(
         platform.lastPurchaseParam?.applicationUserName,
         '4a476859-2929-43ef-9a38-2e80eb7e7bb0',
       );
       expect(
         platform.lastPurchaseParam?.productDetails.id,
-        'me.dinq.app.pro.yearly',
+        'me.dinq.app.pro.monthly',
       );
-      expect(service.priceForPlan('pro_yearly'), '¥988');
+      expect(service.priceForPlan('pro_monthly'), '¥988');
       expect(await service.buy('basic_monthly'), isFalse);
     });
 
@@ -104,14 +105,14 @@ void main() {
 
       platform.queryBlock!.complete();
       await Future.wait([first, second]);
-      expect(service.priceForPlan('pro_yearly'), '¥988');
+      expect(service.priceForPlan('pro_monthly'), '¥988');
       expect(platform.queryCount, 1);
     });
 
     test('rejects purchase and restore without a valid DINQ user', () async {
       service.setUserIdProvider(() => null);
 
-      expect(await service.buy('pro_yearly'), isFalse);
+      expect(await service.buy('pro_monthly'), isFalse);
       expect(await service.restorePurchases(), AppleRestoreResult.unavailable);
       await service.retryPendingTransactions();
     });
@@ -129,7 +130,7 @@ void main() {
       expect(verifiedPayloads, [
         {
           'jws': 'signed-jws',
-          'product_id': 'me.dinq.app.pro.yearly',
+          'product_id': 'me.dinq.app.pro.monthly',
           'transaction_id': 'transaction-1',
         },
       ]);
@@ -240,7 +241,7 @@ void main() {
 PurchaseDetails _purchase(PurchaseStatus status) {
   final purchase = PurchaseDetails(
     purchaseID: 'transaction-1',
-    productID: 'me.dinq.app.pro.yearly',
+    productID: 'me.dinq.app.pro.monthly',
     verificationData: PurchaseVerificationData(
       localVerificationData: '',
       serverVerificationData: 'signed-jws',
@@ -281,16 +282,16 @@ class _FakeIapPlatform extends InAppPurchasePlatform {
     return ProductDetailsResponse(
       productDetails: [
         ProductDetails(
-          id: 'me.dinq.app.pro.yearly',
+          id: 'me.dinq.app.pro.monthly',
           title: 'DINQ Pro',
-          description: 'Yearly subscription',
+          description: 'Monthly subscription',
           price: '¥988',
           rawPrice: 988,
           currencyCode: 'CNY',
         ),
       ],
       notFoundIDs: identifiers
-          .where((id) => id != 'me.dinq.app.pro.yearly')
+          .where((id) => id != 'me.dinq.app.pro.monthly')
           .toList(),
     );
   }

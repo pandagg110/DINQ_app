@@ -520,34 +520,16 @@ class _PricingPageState extends State<PricingPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  NormalButton(
-                    onTap: () => Navigator.of(dialogContext).pop(false),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      child: Text(
-                        'Keep plan',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF6B6862),
-                          fontFamily: 'Geist',
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   NormalButton(
                     onTap: () => Navigator.of(dialogContext).pop(true),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      alignment: Alignment.center,
+                      padding: EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 10,
+                        vertical: 12,
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF171717),
@@ -559,6 +541,26 @@ class _PricingPageState extends State<PricingPage> {
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  NormalButton(
+                    onTap: () => Navigator.of(dialogContext).pop(false),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        'Keep plan',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B6862),
                           fontFamily: 'Geist',
                         ),
                       ),

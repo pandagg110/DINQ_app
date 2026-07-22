@@ -26,7 +26,11 @@ import 'widgets/app_update/app_update_gate.dart';
 import 'widgets/cards/placeholder/use_placeholders.dart';
 
 class DinqApp extends StatelessWidget {
-  DinqApp({super.key}) : _userStore = UserStore() {
+  DinqApp({
+    super.key,
+    required UserStore userStore,
+    this.showFirstLaunchSplash = false,
+  }) : _userStore = userStore {
     // 推送点击跳转 → 交给 go_router
     PushService.instance.onNavigate = (route) => _router.go(route);
     AppleIapService.instance.onSubscriptionChanged =
@@ -36,7 +40,11 @@ class DinqApp extends StatelessWidget {
   }
 
   final UserStore _userStore;
-  late final _router = AppRouter.create(_userStore);
+  final bool showFirstLaunchSplash;
+  late final _router = AppRouter.create(
+    _userStore,
+    showFirstLaunchSplash: showFirstLaunchSplash,
+  );
 
   @override
   Widget build(BuildContext context) {

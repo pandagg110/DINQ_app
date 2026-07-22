@@ -217,7 +217,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
               TextButton(
                 onPressed: () {
                   widget.onClose?.call();
-                  context.push('/settings/subscription');
+                  context.push('/settings/credits');
                 },
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 4),

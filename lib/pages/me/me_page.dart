@@ -114,35 +114,40 @@ class _MePageState extends State<MePage> {
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 24),
                     // 头像区域
                     _buildAvatarSection(user?.userData.avatarUrl ?? ''),
                     const SizedBox(height: 16),
                     // 用户名 + 编辑
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          user?.userData.name ?? '',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Geist',
-                            color: ColorUtil.textColor,
+                    if ((user?.userData.name ?? '').trim().isNotEmpty)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user!.userData.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Geist',
+                                color: ColorUtil.textColor,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => context.push('/settings/profile'),
-                          child: Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: ColorUtil.sub1TextColor,
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => context.push('/settings/profile'),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: ColorUtil.sub1TextColor,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     const SizedBox(height: 4),
                     // 域名
                     Text(
