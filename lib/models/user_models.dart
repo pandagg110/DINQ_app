@@ -300,4 +300,6 @@ class Subscription {
   bool get isFree => plan == 'free';
 
   bool get isAppleChannel => channel == 'apple';
+
+  bool get isGooglePlayChannel => channel == 'google_play';
 }

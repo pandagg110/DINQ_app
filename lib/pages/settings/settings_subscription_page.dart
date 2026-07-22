@@ -149,6 +149,12 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
                       onTap: _handleRequestRefund,
                     ),
                   ] else if (subscription != null &&
+                      subscription.isGooglePlayChannel) ...[
+                    _buildAppleActionButton(
+                      label: 'Manage Subscription',
+                      onTap: _handleManageGooglePlaySubscription,
+                    ),
+                  ] else if (subscription != null &&
                       !subscription.isFree &&
                       !subscription.cancelAtPeriodEnd)
                     _buildCancelSubscriptionButton(),
@@ -583,6 +589,16 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
+    }
+    if (mounted) await context.read<UserStore>().refreshSubscription();
+  }
+
+  Future<void> _handleManageGooglePlaySubscription() async {
+    final uri = Uri.parse(
+      'https://play.google.com/store/account/subscriptions?package=me.dinq.app',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
     if (mounted) await context.read<UserStore>().refreshSubscription();
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -6,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'router/app_router.dart';
 import 'services/push_service.dart';
 import 'services/apple_iap_service.dart';
+import 'services/google_play_iap_service.dart';
 import 'stores/card_store.dart';
 import 'stores/viewer_card_store.dart';
 import 'stores/chat_history_store.dart';
@@ -36,7 +39,13 @@ class DinqApp extends StatelessWidget {
     AppleIapService.instance.onSubscriptionChanged =
         _userStore.refreshSubscription;
     AppleIapService.instance.setUserIdProvider(() => _userStore.user?.user.id);
-    AppleIapService.instance.init();
+    unawaited(AppleIapService.instance.retryPendingTransactions());
+    GooglePlayIapService.instance.onSubscriptionChanged =
+        _userStore.refreshSubscription;
+    GooglePlayIapService.instance.setUserIdProvider(
+      () => _userStore.user?.user.id,
+    );
+    unawaited(GooglePlayIapService.instance.retryPendingTransactions());
   }
 
   final UserStore _userStore;

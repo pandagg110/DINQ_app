@@ -7,6 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/analytics_service.dart';
 import '../../services/apple_iap_service.dart';
+import '../../services/app_update_service.dart';
+import '../../services/google_play_iap_service.dart';
+import '../../services/payment_channel.dart';
 import '../../services/payment_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
@@ -133,6 +136,16 @@ class _PricingPageState extends State<PricingPage> {
   int _currentPage = 2; // 默认聚焦 Pro
 
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  SubscriptionPaymentChannel get _paymentChannel =>
+      resolveSubscriptionPaymentChannel(
+        isWeb: kIsWeb,
+        platform: defaultTargetPlatform,
+        distributionChannel: distributionChannel,
+      );
+  bool get _usesAppleIap => _paymentChannel == SubscriptionPaymentChannel.apple;
+  bool get _usesGooglePlay =>
+      _paymentChannel == SubscriptionPaymentChannel.googlePlay;
+  bool get _usesStoreBilling => _usesAppleIap || _usesGooglePlay;
 
   @override
   void initState() {
@@ -144,12 +157,17 @@ class _PricingPageState extends State<PricingPage> {
     _fetchPricing();
     if (_isIOS) {
       AppleIapService.instance.onPurchaseFinished = _onIapPurchaseFinished;
+    } else if (_usesGooglePlay) {
+      GooglePlayIapService.instance.onPurchaseFinished = _onIapPurchaseFinished;
     }
   }
 
   @override
   void dispose() {
     if (_isIOS) AppleIapService.instance.onPurchaseFinished = null;
+    if (_usesGooglePlay) {
+      GooglePlayIapService.instance.onPurchaseFinished = null;
+    }
     _pageController.dispose();
     super.dispose();
   }
@@ -179,7 +197,8 @@ class _PricingPageState extends State<PricingPage> {
     });
     try {
       final data = await _paymentService.getPricing();
-      if (_isIOS) await AppleIapService.instance.init();
+      if (_usesAppleIap) await AppleIapService.instance.init();
+      if (_usesGooglePlay) await GooglePlayIapService.instance.init();
       if (mounted) {
         setState(() {
           _pricing = data;
@@ -265,10 +284,19 @@ class _PricingPageState extends State<PricingPage> {
 
   bool _isButtonDisabled(String basePlan) {
     if (_processingPlan != null) return true;
+    if (!_isPlanAvailable(basePlan)) return true;
     if (_isCurrentPlan(basePlan)) return true;
     final userStore = context.read<UserStore>();
     if (userStore.isLoggedIn() && !_canChangePlan(basePlan)) return true;
     return false;
+  }
+
+  bool _isPlanAvailable(String basePlan) {
+    if (basePlan == 'free' || !_usesStoreBilling) return true;
+    final fullPlan = '${basePlan}_$_billingPeriod';
+    return _usesAppleIap
+        ? AppleIapService.instance.supportsPlan(fullPlan)
+        : GooglePlayIapService.instance.supportsPlan(fullPlan);
   }
 
   Future<void> _handleSelectPlan(String basePlan) async {
@@ -296,6 +324,11 @@ class _PricingPageState extends State<PricingPage> {
         }
         return;
       }
+      if (_usesGooglePlay &&
+          userStore.subscription?.isGooglePlayChannel == true) {
+        await _openGooglePlaySubscriptions();
+        return;
+      }
       await _handleDowngradeToFree();
       return;
     }
@@ -314,8 +347,24 @@ class _PricingPageState extends State<PricingPage> {
 
     final fullPlan = '${basePlan}_$targetPeriod';
 
-    if (_isIOS) {
+    if (_usesAppleIap) {
       await _handleAppleCheckout(fullPlan, basePlan);
+      return;
+    }
+    if (_usesGooglePlay) {
+      await _handleGooglePlayCheckout(fullPlan, basePlan);
+      return;
+    }
+
+    if (!isCurrentPlanFree &&
+        (subscription?.isAppleChannel == true ||
+            subscription?.isGooglePlayChannel == true)) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Subscription managed elsewhere',
+        description:
+            'Manage this subscription through the store where you purchased it.',
+      );
       return;
     }
 
@@ -440,7 +489,97 @@ class _PricingPageState extends State<PricingPage> {
     }
   }
 
+  Future<void> _handleGooglePlayCheckout(
+    String fullPlan,
+    String basePlan,
+  ) async {
+    final subscription = context.read<UserStore>().subscription;
+    final isCurrentPlanFree = subscription?.isFree ?? true;
+    if (!isCurrentPlanFree && !(subscription?.isGooglePlayChannel ?? false)) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Subscription managed elsewhere',
+        description:
+            'Your current plan was purchased outside Google Play. Manage it where you subscribed.',
+      );
+      return;
+    }
+    if (!GooglePlayIapService.instance.supportsPlan(fullPlan)) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Plan unavailable',
+        description: 'This plan is not available on Google Play.',
+      );
+      return;
+    }
+
+    setState(() => _processingPlan = basePlan);
+    final started = await GooglePlayIapService.instance.buy(fullPlan);
+    if (!started && mounted) {
+      setState(() => _processingPlan = null);
+      TopToastUtil.showError(
+        context: context,
+        title: 'Unable to start purchase',
+        description: 'Please try again later.',
+      );
+      return;
+    }
+    if (started) {
+      final billingPeriod = fullPlan.endsWith('_yearly') ? 'yearly' : 'monthly';
+      AnalyticsService.instance.track(
+        'subscription_checkout_start',
+        params: {
+          'target_plan': basePlan,
+          'billing_period': billingPeriod,
+          'payment_provider': 'google_play',
+        },
+        activationIntent: 'unknown',
+      );
+      AnalyticsService.instance.markCheckoutStarted(
+        targetPlan: basePlan,
+        billingPeriod: billingPeriod,
+        paymentProvider: 'google_play',
+      );
+    }
+  }
+
+  Future<void> _openGooglePlaySubscriptions() async {
+    final uri = Uri.parse(
+      'https://play.google.com/store/account/subscriptions?package=me.dinq.app',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    if (mounted) await context.read<UserStore>().refreshSubscription();
+  }
+
   Future<void> _handleRestorePurchases() async {
+    if (_usesGooglePlay) {
+      final result = await GooglePlayIapService.instance.restorePurchases();
+      if (!mounted) return;
+      switch (result) {
+        case GooglePlayRestoreResult.restored:
+          TopToastUtil.showSuccess(
+            context: context,
+            title: 'Purchases restored',
+            description: 'Your subscription has been refreshed.',
+          );
+        case GooglePlayRestoreResult.noPurchases:
+          TopToastUtil.showInfo(
+            context: context,
+            title: 'No purchases found',
+            description: 'No active Google Play subscription was found.',
+          );
+        case GooglePlayRestoreResult.unavailable:
+        case GooglePlayRestoreResult.failed:
+          TopToastUtil.showError(
+            context: context,
+            title: 'Unable to restore purchases',
+            description: 'Please check your Google Play account and try again.',
+          );
+      }
+      return;
+    }
     final result = await AppleIapService.instance.restorePurchases();
     if (!mounted) return;
     switch (result) {
@@ -1025,13 +1164,17 @@ class _PricingPageState extends State<PricingPage> {
     int yearlySavings = 0,
   }) {
     final isFreePlan = plan == 'free';
-    final appStorePrice = !isFreePlan && _isIOS
-        ? AppleIapService.instance.priceForPlan('${plan}_$_billingPeriod')
+    final storePrice = !isFreePlan && _usesStoreBilling
+        ? (_usesAppleIap
+              ? AppleIapService.instance.priceForPlan('${plan}_$_billingPeriod')
+              : GooglePlayIapService.instance.priceForPlan(
+                  '${plan}_$_billingPeriod',
+                ))
         : null;
     final showYearlyExtras =
-        !isFreePlan && !_isIOS && _billingPeriod == 'yearly';
-    final displayedPrice = _isIOS && !isFreePlan
-        ? (appStorePrice ?? 'Unavailable')
+        !isFreePlan && !_usesStoreBilling && _billingPeriod == 'yearly';
+    final displayedPrice = _usesStoreBilling && !isFreePlan
+        ? (storePrice ?? 'Unavailable')
         : '\$$monthlyPrice';
 
     return Column(
@@ -1127,9 +1270,9 @@ class _PricingPageState extends State<PricingPage> {
                 fontFamily: 'Geist',
               ),
             ),
-            if (!isFreePlan && (!_isIOS || appStorePrice != null))
+            if (!isFreePlan && (!_usesStoreBilling || storePrice != null))
               Text(
-                _isIOS
+                _usesStoreBilling
                     ? (_billingPeriod == 'yearly' ? '/year' : '/month')
                     : '/month',
                 style: const TextStyle(
@@ -1413,6 +1556,7 @@ class _PricingPageState extends State<PricingPage> {
               width: double.infinity,
               child: NormalButton(
                 onTap: () {
+                  if (_getBottomButtonDisabled()) return;
                   if (isCustom) {
                     _handleContactSupport();
                   } else if (currentPlan != null) {
@@ -1479,7 +1623,7 @@ class _PricingPageState extends State<PricingPage> {
                 ),
               ],
             ),
-            if (_isIOS) ...[
+            if (_usesStoreBilling) ...[
               const SizedBox(height: 8),
               NormalButton(
                 onTap: _handleRestorePurchases,
@@ -1503,6 +1647,7 @@ class _PricingPageState extends State<PricingPage> {
   String _getBottomButtonText() {
     if (_currentPage >= kPlanOrder.length) return 'Contact Sales';
     final plan = kPlanOrder[_currentPage];
+    if (!_isPlanAvailable(plan)) return 'Unavailable';
     return _getButtonText(plan);
   }
 

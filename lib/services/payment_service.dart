@@ -53,6 +53,14 @@ class PaymentService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Verify a Google Play purchase token and grant the authenticated user.
+  Future<Map<String, dynamic>> verifyGooglePlayPurchase(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dio.post('/payment/google/verify', data: data);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   /// Pay-as-you-go 设置（enabled/status/has_payment_method/monthly_limit_cents 等，
   /// 对齐 web paymentApi.getPayg）
   /// 需要认证

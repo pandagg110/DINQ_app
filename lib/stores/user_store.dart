@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_models.dart';
 import '../services/analytics_service.dart';
 import '../services/apple_iap_service.dart';
+import '../services/google_play_iap_service.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/push_service.dart';
@@ -57,6 +58,7 @@ class UserStore extends ChangeNotifier {
     isInitialized = true;
     notifyListeners();
     unawaited(AppleIapService.instance.retryPendingTransactions());
+    unawaited(GooglePlayIapService.instance.retryPendingTransactions());
     await loadVerifications();
     await loadUserAccounts();
     // 登录态就绪后注册推送设备 Token（真机生效，其余环境内部跳过）

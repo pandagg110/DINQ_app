@@ -14,6 +14,13 @@ flutter build appbundle --release \
   --dart-define=GATEWAY_URL=https://api.dinq.me
 ```
 
+The same channel define also selects the subscription provider:
+
+- `official_apk`: Stripe checkout for all four Web/APK plans.
+- `google_play`: Google Play Billing for Basic monthly, Basic yearly, and Pro monthly. Pro yearly is unavailable.
+
+Do not upload a bundle built without `DISTRIBUTION_CHANNEL=google_play` to Play Console. It would route subscription purchases to the official APK checkout path.
+
 The app checks `GET /api/v1/app/version` on startup and whenever it returns to the foreground.
 
 - Official APK optional update: DINQ prompt with Later and Update now.
