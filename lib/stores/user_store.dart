@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dinq_app/utils/toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_models.dart';
 import '../services/analytics_service.dart';
+import '../services/apple_iap_service.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/push_service.dart';
@@ -51,6 +54,7 @@ class UserStore extends ChangeNotifier {
     await Future.wait([getCurrentUser(), getFlow(), loadSubscription()]);
     isInitialized = true;
     notifyListeners();
+    unawaited(AppleIapService.instance.retryPendingTransactions());
     await loadVerifications();
     await loadUserAccounts();
     // 登录态就绪后注册推送设备 Token（真机生效，其余环境内部跳过）
@@ -383,12 +387,8 @@ class UserStore extends ChangeNotifier {
 
   void deductCredit([int amount = 1]) {
     if (subscription == null) return;
-    subscription = Subscription(
-      plan: subscription!.plan,
-      status: subscription!.status,
+    subscription = subscription!.copyWith(
       creditsBalance: (subscription!.creditsBalance - amount).clamp(0, 999999),
-      monthlyCredits: subscription!.monthlyCredits,
-      cancelAtPeriodEnd: subscription!.cancelAtPeriodEnd,
     );
     notifyListeners();
   }

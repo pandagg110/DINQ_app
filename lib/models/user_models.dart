@@ -21,11 +21,11 @@ class User {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'name': name,
-        'has_password': hasPassword,
-      };
+    'id': id,
+    'email': email,
+    'name': name,
+    'has_password': hasPassword,
+  };
 }
 
 /// 分享卡片主题配置，对应 Web UserData.theme
@@ -40,11 +40,14 @@ class ShareCardTheme {
 
   /// classic | card
   final String mode;
+
   /// default | colorful
   final String color;
   final String? logo;
+
   /// LINKEDIN | GITHUB | SCHOLAR | BIO
   final String? leftCard;
+
   /// ACHIEVEMENT_NETWORK | CAREER_TRAJECTORY
   final String? rightCard;
 
@@ -55,17 +58,18 @@ class ShareCardTheme {
       color: json['color']?.toString() ?? 'default',
       logo: json['logo']?.toString(),
       leftCard: json['left_card']?.toString() ?? json['leftCard']?.toString(),
-      rightCard: json['right_card']?.toString() ?? json['rightCard']?.toString(),
+      rightCard:
+          json['right_card']?.toString() ?? json['rightCard']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'mode': mode,
-        'color': color,
-        if (logo != null && logo!.isNotEmpty) 'logo': logo,
-        if (leftCard != null && leftCard!.isNotEmpty) 'left_card': leftCard,
-        if (rightCard != null && rightCard!.isNotEmpty) 'right_card': rightCard,
-      };
+    'mode': mode,
+    'color': color,
+    if (logo != null && logo!.isNotEmpty) 'logo': logo,
+    if (leftCard != null && leftCard!.isNotEmpty) 'left_card': leftCard,
+    if (rightCard != null && rightCard!.isNotEmpty) 'right_card': rightCard,
+  };
 
   ShareCardTheme copyWith({
     String? mode,
@@ -73,14 +77,13 @@ class ShareCardTheme {
     String? logo,
     String? leftCard,
     String? rightCard,
-  }) =>
-      ShareCardTheme(
-        mode: mode ?? this.mode,
-        color: color ?? this.color,
-        logo: logo ?? this.logo,
-        leftCard: leftCard ?? this.leftCard,
-        rightCard: rightCard ?? this.rightCard,
-      );
+  }) => ShareCardTheme(
+    mode: mode ?? this.mode,
+    color: color ?? this.color,
+    logo: logo ?? this.logo,
+    leftCard: leftCard ?? this.leftCard,
+    rightCard: rightCard ?? this.rightCard,
+  );
 }
 
 class UserData {
@@ -106,6 +109,7 @@ class UserData {
   final String avatarUrl;
   final String bio;
   final String domain;
+
   /// 该主页所属用户的 user_id（私信 receiver_id 用）。注意区别于 user-data 记录自身的 `id`。
   final String userId;
   final String email;
@@ -114,15 +118,18 @@ class UserData {
   final String location;
   final String? timezone;
   final String tags;
-  final String? jobStatus; // "Hiring" | "Open_to_work" | "Internship" | "Freelance" | "Hidden"
+  final String?
+  jobStatus; // "Hiring" | "Open_to_work" | "Internship" | "Freelance" | "Hidden"
   final ShareCardTheme? theme;
   final String? dateOfBirth; // 生日，格式: "YYYY-MM-DD"
-  final String? gender; // "Male" | "Female" | "Non-binary" | "Prefer not to say"
+  final String?
+  gender; // "Male" | "Female" | "Non-binary" | "Prefer not to say"
 
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
       name: json['name']?.toString() ?? '',
-      avatarUrl: json['avatar_url']?.toString() ?? json['avatarUrl']?.toString() ?? '',
+      avatarUrl:
+          json['avatar_url']?.toString() ?? json['avatarUrl']?.toString() ?? '',
       bio: json['bio']?.toString() ?? '',
       domain: json['domain']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? json['userId']?.toString() ?? '',
@@ -140,21 +147,21 @@ class UserData {
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'avatar_url': avatarUrl,
-        'bio': bio,
-        'domain': domain,
-        if (email.isNotEmpty) 'email': email,
-        if (fullPosition.isNotEmpty) 'full_position': fullPosition,
-        if (fullDegree.isNotEmpty) 'full_degree': fullDegree,
-        if (location.isNotEmpty) 'location': location,
-        if (timezone != null) 'timezone': timezone,
-        if (tags.isNotEmpty) 'tags': tags,
-        if (jobStatus != null) 'job_status': jobStatus,
-        if (theme != null) 'theme': theme!.toJson(),
-        if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
-        if (gender != null) 'gender': gender,
-      };
+    'name': name,
+    'avatar_url': avatarUrl,
+    'bio': bio,
+    'domain': domain,
+    if (email.isNotEmpty) 'email': email,
+    if (fullPosition.isNotEmpty) 'full_position': fullPosition,
+    if (fullDegree.isNotEmpty) 'full_degree': fullDegree,
+    if (location.isNotEmpty) 'location': location,
+    if (timezone != null) 'timezone': timezone,
+    if (tags.isNotEmpty) 'tags': tags,
+    if (jobStatus != null) 'job_status': jobStatus,
+    if (theme != null) 'theme': theme!.toJson(),
+    if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+    if (gender != null) 'gender': gender,
+  };
 }
 
 class UserProfile {
@@ -171,16 +178,13 @@ class UserProfile {
   }
 
   Map<String, dynamic> toJson() => {
-        'user': user.toJson(),
-        'user_data': userData.toJson(),
-      };
+    'user': user.toJson(),
+    'user_data': userData.toJson(),
+  };
 }
 
 class UserFlow {
-  UserFlow({
-    required this.status,
-    required this.domain,
-  });
+  UserFlow({required this.status, required this.domain});
 
   final String status;
   final String domain;
@@ -192,10 +196,7 @@ class UserFlow {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'status': status,
-        'domain': domain,
-      };
+  Map<String, dynamic> toJson() => {'status': status, 'domain': domain};
 }
 
 class Subscription {
@@ -209,6 +210,7 @@ class Subscription {
     this.paygEnabled = false,
     this.paygStatus,
     this.currentPeriodEnd,
+    this.channel,
   });
 
   final String plan;
@@ -224,6 +226,7 @@ class Subscription {
   final bool paygEnabled;
   final String? paygStatus;
   final String? currentPeriodEnd; // ISO 8601 日期字符串，如 "2026-12-25T00:00:00Z"
+  final String? channel;
 
   static int _asInt(dynamic v) =>
       v is int ? v : int.tryParse(v?.toString() ?? '0') ?? 0;
@@ -240,18 +243,44 @@ class Subscription {
       paygEnabled: payg is Map && payg['enabled'] == true,
       paygStatus: payg is Map ? payg['status']?.toString() : null,
       currentPeriodEnd: json['current_period_end']?.toString(),
+      channel: json['channel']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'plan': plan,
-        'status': status,
-        'credits_balance': creditsBalance,
-        'monthly_credits': monthlyCredits,
-        'referral_credits': referralCredits,
-        'cancel_at_period_end': cancelAtPeriodEnd,
-        if (currentPeriodEnd != null) 'current_period_end': currentPeriodEnd,
-      };
+    'plan': plan,
+    'status': status,
+    'credits_balance': creditsBalance,
+    'monthly_credits': monthlyCredits,
+    'referral_credits': referralCredits,
+    'cancel_at_period_end': cancelAtPeriodEnd,
+    if (currentPeriodEnd != null) 'current_period_end': currentPeriodEnd,
+    if (channel != null) 'channel': channel,
+  };
+
+  Subscription copyWith({
+    String? plan,
+    String? status,
+    int? creditsBalance,
+    int? monthlyCredits,
+    bool? cancelAtPeriodEnd,
+    int? referralCredits,
+    bool? paygEnabled,
+    String? paygStatus,
+    String? currentPeriodEnd,
+    String? channel,
+  }) => Subscription(
+    plan: plan ?? this.plan,
+    status: status ?? this.status,
+    creditsBalance: creditsBalance ?? this.creditsBalance,
+    monthlyCredits: monthlyCredits ?? this.monthlyCredits,
+    cancelAtPeriodEnd: cancelAtPeriodEnd ?? this.cancelAtPeriodEnd,
+    referralCredits: referralCredits ?? this.referralCredits,
+    paygEnabled: paygEnabled ?? this.paygEnabled,
+    paygStatus: paygStatus ?? this.paygStatus,
+    currentPeriodEnd: currentPeriodEnd ?? this.currentPeriodEnd,
+    channel: channel ?? this.channel,
+  );
 
   /// 从完整 plan 类型中提取基础 plan（不含周期）
   String get basePlan {
@@ -269,6 +298,6 @@ class Subscription {
 
   /// 是否是免费计划
   bool get isFree => plan == 'free';
+
+  bool get isAppleChannel => channel == 'apple';
 }
-
-

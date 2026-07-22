@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'router/app_router.dart';
 import 'services/push_service.dart';
+import 'services/apple_iap_service.dart';
 import 'stores/card_store.dart';
 import 'stores/viewer_card_store.dart';
 import 'stores/chat_history_store.dart';
@@ -28,6 +29,10 @@ class DinqApp extends StatelessWidget {
   DinqApp({super.key}) : _userStore = UserStore() {
     // 推送点击跳转 → 交给 go_router
     PushService.instance.onNavigate = (route) => _router.go(route);
+    AppleIapService.instance.onSubscriptionChanged =
+        _userStore.refreshSubscription;
+    AppleIapService.instance.setUserIdProvider(() => _userStore.user?.user.id);
+    AppleIapService.instance.init();
   }
 
   final UserStore _userStore;
