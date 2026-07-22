@@ -1,4 +1,5 @@
 import Flutter
+import StoreKit
 import UIKit
 
 @main
@@ -19,6 +20,86 @@ import UIKit
     }
     #endif
     GeneratedPluginRegistrant.register(with: self)
+    if let controller = window?.rootViewController as? FlutterViewController {
+      StoreKitBridge.register(with: controller)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+enum StoreKitBridge {
+  static let channelName = "me.dinq.app/storekit"
+
+  static func register(with controller: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: channelName, binaryMessenger: controller.binaryMessenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "showManageSubscriptions":
+        showManageSubscriptions(result: result)
+      case "beginRefundRequest":
+        let args = call.arguments as? [String: Any]
+        beginRefundRequest(productId: args?["productId"] as? String, result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func foregroundScene() -> UIWindowScene? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+  }
+
+  private static func showManageSubscriptions(result: @escaping FlutterResult) {
+    guard #available(iOS 15.0, *) else {
+      result(FlutterError(code: "unsupported", message: "Requires iOS 15+", details: nil))
+      return
+    }
+    guard let scene = foregroundScene() else {
+      result(FlutterError(code: "no_scene", message: "No active window scene", details: nil))
+      return
+    }
+    Task { @MainActor in
+      do {
+        try await AppStore.showManageSubscriptions(in: scene)
+        result(nil)
+      } catch {
+        result(FlutterError(code: "failed", message: error.localizedDescription, details: nil))
+      }
+    }
+  }
+
+  private static func beginRefundRequest(productId: String?, result: @escaping FlutterResult) {
+    guard #available(iOS 15.0, *) else {
+      result(FlutterError(code: "unsupported", message: "Requires iOS 15+", details: nil))
+      return
+    }
+    guard let productId, !productId.isEmpty else {
+      result(FlutterError(code: "bad_args", message: "productId is required", details: nil))
+      return
+    }
+    guard let scene = foregroundScene() else {
+      result(FlutterError(code: "no_scene", message: "No active window scene", details: nil))
+      return
+    }
+    Task { @MainActor in
+      do {
+        guard let verification = await Transaction.latest(for: productId),
+          case .verified(let transaction) = verification
+        else {
+          result(FlutterError(code: "no_transaction", message: "No verified purchase found", details: nil))
+          return
+        }
+        let status = try await transaction.beginRefundRequest(in: scene)
+        switch status {
+        case .success: result("success")
+        case .userCancelled: result("userCancelled")
+        @unknown default: result("unknown")
+        }
+      } catch {
+        result(FlutterError(code: "failed", message: error.localizedDescription, details: nil))
+      }
+    }
   }
 }
