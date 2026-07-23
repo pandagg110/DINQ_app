@@ -98,8 +98,6 @@ class ShortlistCandidateCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          ShortlistStatusBadge(status: item.status),
                         ],
                       ),
                       if (metaLine.isNotEmpty) ...[
@@ -213,10 +211,7 @@ class _CandidateAvatar extends StatelessWidget {
       width: size,
       height: size,
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: avatarColor,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: avatarColor, shape: BoxShape.circle),
       child: avatarUrl == null
           ? Center(
               child: Text(

@@ -1,52 +1,38 @@
 import 'dart:typed_data';
 import 'package:dinq_app/utils/top_toast_util.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/upload_service.dart';
 import '../stores/card_store.dart';
-import '../utils/toast_util.dart';
-import '../widgets/common/read_bytes_from_path_stub.dart'
-    if (dart.library.io) '../widgets/common/read_bytes_from_path_io.dart'
-    as path_reader;
+import 'image_utils.dart';
 
 /// 选择图片 → 上传（getUploadUrl）→ 创建 IMAGE 卡片。
 /// 返回 true 表示成功创建，false 表示用户取消或失败。
+///
+/// QA：底部 bar「添加图片」应调起本地相册而不是文件夹视图 —— 原实现走
+/// file_picker（系统文件浏览器），改为复用 [ImageUtils.pickSinglePicture]
+///（image_picker 相册，与 settings_profile_page 头像上传同一入口），
+/// 后续上传/创建卡片链路保持不变。
 Future<bool> addImageCard(BuildContext context) async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-  );
-  if (result == null || result.files.isEmpty) return false;
-  final file = result.files.first;
+  final picked = await ImageUtils.pickSinglePicture(context);
+  if (picked == null) return false;
 
   Uint8List bytes;
-  if (file.bytes != null) {
-    bytes = file.bytes!;
-  } else if (!kIsWeb && file.path != null && file.path!.isNotEmpty) {
-    try {
-      bytes = await path_reader.readBytesFromPath(file.path!);
-    } catch (e) {
-      if (context.mounted) {
-        TopToastUtil.showError(
-          context: context,
-          title: '读取文件失败',
-          description: e.toString(),
-        );
-      }
-      return false;
-    }
-  } else {
+  try {
+    bytes = await picked.readAsBytes();
+  } catch (e) {
     if (context.mounted) {
       TopToastUtil.showError(
         context: context,
-        title: '无法读取图片',
-        description: '请重试或换一张图片',
+        title: '读取文件失败',
+        description: e.toString(),
       );
     }
     return false;
   }
+
+  final filename = picked.path.split('/').last;
+  final ext = filename.contains('.') ? filename.split('.').last : 'jpg';
 
   String contentType(String ext) {
     switch (ext.toLowerCase()) {
@@ -91,8 +77,8 @@ Future<bool> addImageCard(BuildContext context) async {
   try {
     final fileUrl = await UploadService().uploadFile(
       bytes: bytes,
-      filename: file.name,
-      contentType: contentType(file.extension ?? 'jpg'),
+      filename: filename,
+      contentType: contentType(ext),
     );
     if (!context.mounted) return false;
     Navigator.of(context).pop(); // 关闭 loading

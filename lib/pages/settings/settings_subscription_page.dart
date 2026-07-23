@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/user_models.dart';
 import '../../services/analytics_service.dart';
+import '../../services/apple_iap_service.dart';
 import '../../services/payment_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
@@ -19,7 +21,11 @@ class PlanStyle {
   final Color textColor;
   final String? icon;
 
-  const PlanStyle({required this.backgroundColor, required this.textColor, this.icon});
+  const PlanStyle({
+    required this.backgroundColor,
+    required this.textColor,
+    this.icon,
+  });
 }
 
 /// 获取计划显示名称
@@ -44,7 +50,10 @@ String getPlanLabel(String basePlan) {
 PlanStyle getPlanStyle(String basePlan) {
   switch (basePlan) {
     case 'free':
-      return const PlanStyle(backgroundColor: Colors.white, textColor: Color(0xFF171717));
+      return const PlanStyle(
+        backgroundColor: Colors.white,
+        textColor: Color(0xFF171717),
+      );
     case 'basic':
       return const PlanStyle(
         backgroundColor: Color(0xFFFAF5EB), // 浅棕/奶油色
@@ -70,7 +79,10 @@ PlanStyle getPlanStyle(String basePlan) {
         icon: '⭐',
       );
     default:
-      return const PlanStyle(backgroundColor: Colors.white, textColor: Color(0xFF171717));
+      return const PlanStyle(
+        backgroundColor: Colors.white,
+        textColor: Color(0xFF171717),
+      );
   }
 }
 
@@ -78,12 +90,15 @@ class SettingsSubscriptionPage extends StatefulWidget {
   const SettingsSubscriptionPage({super.key});
 
   @override
-  State<SettingsSubscriptionPage> createState() => _SettingsSubscriptionPageState();
+  State<SettingsSubscriptionPage> createState() =>
+      _SettingsSubscriptionPageState();
 }
 
 class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
   final PaymentService _paymentService = PaymentService();
   bool _isLoadingAutoRenew = false;
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void initState() {
@@ -121,8 +136,25 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
                   _buildCreditsCard(subscription),
                   const SizedBox(height: 12),
 
-                  // Cancel Subscription 按钮（非 Free 且未设置取消时显示）
-                  if (subscription != null &&
+                  if (_isIOS &&
+                      subscription != null &&
+                      subscription.isAppleChannel) ...[
+                    _buildAppleActionButton(
+                      label: 'Manage Subscription',
+                      onTap: _handleManageAppleSubscription,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAppleActionButton(
+                      label: 'Request a Refund',
+                      onTap: _handleRequestRefund,
+                    ),
+                  ] else if (subscription != null &&
+                      subscription.isGooglePlayChannel) ...[
+                    _buildAppleActionButton(
+                      label: 'Manage Subscription',
+                      onTap: _handleManageGooglePlaySubscription,
+                    ),
+                  ] else if (subscription != null &&
                       !subscription.isFree &&
                       !subscription.cancelAtPeriodEnd)
                     _buildCancelSubscriptionButton(),
@@ -179,7 +211,10 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
                       Row(
                         children: [
                           if (planStyle.icon != null) ...[
-                            Text(planStyle.icon!, style: const TextStyle(fontSize: 18)),
+                            Text(
+                              planStyle.icon!,
+                              style: const TextStyle(fontSize: 18),
+                            ),
                             const SizedBox(width: 6),
                           ],
                           Text(
@@ -194,7 +229,9 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
                           if (billingPeriod != null) ...[
                             const SizedBox(width: 12),
                             Text(
-                              billingPeriod == 'yearly' ? 'Billed annually' : 'Billed monthly',
+                              billingPeriod == 'yearly'
+                                  ? 'Billed annually'
+                                  : 'Billed monthly',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: planStyle.textColor.withOpacity(0.5),
@@ -268,7 +305,11 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.bolt, size: 16, color: isDarkBg ? const Color(0xFF171717) : Colors.white),
+            Icon(
+              Icons.bolt,
+              size: 16,
+              color: isDarkBg ? const Color(0xFF171717) : Colors.white,
+            ),
             const SizedBox(width: 6),
             Text(
               isFree ? 'Upgrade Plan' : 'Change Plan',
@@ -289,7 +330,9 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
   Widget _buildCreditsCard(Subscription? subscription) {
     final creditBalance = subscription?.creditsBalance ?? 0;
     final monthlyCredits = subscription?.monthlyCredits ?? 3;
-    final progressPercent = monthlyCredits > 0 ? (creditBalance / monthlyCredits) : 0.0;
+    final progressPercent = monthlyCredits > 0
+        ? (creditBalance / monthlyCredits)
+        : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -307,7 +350,11 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
             children: [
               Text(
                 'Credits this month',
-                style: TextStyle(fontSize: 14, color: ColorUtil.textColor, fontFamily: 'Geist'),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: ColorUtil.textColor,
+                  fontFamily: 'Geist',
+                ),
               ),
               Text(
                 '$creditBalance / $monthlyCredits remaining',
@@ -345,7 +392,11 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
           // 提示文字
           Text(
             'Credits reset monthly',
-            style: TextStyle(fontSize: 12, color: ColorUtil.sub3TextColor, fontFamily: 'Geist'),
+            style: TextStyle(
+              fontSize: 12,
+              color: ColorUtil.sub3TextColor,
+              fontFamily: 'Geist',
+            ),
           ),
         ],
       ),
@@ -353,6 +404,34 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
   }
 
   /// 构建取消订阅按钮
+  Widget _buildAppleActionButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return NormalButton(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E5E5)),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: ColorUtil.sub3TextColor,
+              fontFamily: 'Geist',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildCancelSubscriptionButton() {
     return NormalButton(
       onTap: _isLoadingAutoRenew ? () {} : _handleCancelSubscription,
@@ -391,7 +470,11 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
       children: [
         Text(
           'Need help? ',
-          style: TextStyle(fontSize: 12, color: ColorUtil.sub3TextColor, fontFamily: 'Geist'),
+          style: TextStyle(
+            fontSize: 12,
+            color: ColorUtil.sub3TextColor,
+            fontFamily: 'Geist',
+          ),
         ),
         NormalButton(
           onTap: _handleContactSupport,
@@ -498,6 +581,51 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
     }
   }
 
+  Future<void> _handleManageAppleSubscription() async {
+    try {
+      await AppleIapService.instance.showManageSubscriptions();
+    } catch (_) {
+      final uri = Uri.parse('https://apps.apple.com/account/subscriptions');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+    if (mounted) await context.read<UserStore>().refreshSubscription();
+  }
+
+  Future<void> _handleManageGooglePlaySubscription() async {
+    final uri = Uri.parse(
+      'https://play.google.com/store/account/subscriptions?package=me.dinq.app',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    if (mounted) await context.read<UserStore>().refreshSubscription();
+  }
+
+  Future<void> _handleRequestRefund() async {
+    final plan = context.read<UserStore>().subscription?.plan;
+    if (plan == null) return;
+    try {
+      final status = await AppleIapService.instance.beginRefundRequest(plan);
+      if (status == 'success' && mounted) {
+        TopToastUtil.showInfo(
+          context: context,
+          title: 'Refund request submitted',
+          description: 'Apple will notify you of the result.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        TopToastUtil.showError(
+          context: context,
+          title: 'Unable to open refund request',
+          description: 'Please try again later.',
+        );
+      }
+    }
+  }
+
   /// 联系支持
   void _handleContactSupport() async {
     final uri = Uri.parse('mailto:support@dinqlabs.com');
@@ -527,7 +655,10 @@ class _CancelSubscriptionDialog extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 32),
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -536,7 +667,11 @@ class _CancelSubscriptionDialog extends StatelessWidget {
               alignment: Alignment.topRight,
               child: NormalButton(
                 onTap: onKeepSubscription,
-                child: const Icon(Icons.close, size: 24, color: Color(0xFF9CA3AF)),
+                child: const Icon(
+                  Icons.close,
+                  size: 24,
+                  color: Color(0xFF9CA3AF),
+                ),
               ),
             ),
 

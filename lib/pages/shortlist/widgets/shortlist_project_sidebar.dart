@@ -27,7 +27,8 @@ class ShortlistProjectSidebar extends StatefulWidget {
 
 enum ShortlistProjectSidebarVariant { desktop, mobile }
 
-class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar> {
+class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar>
+    with WidgetsBindingObserver {
   String? _editingId;
   String _editingValue = '';
   String? _deletingId;
@@ -38,13 +39,41 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar> {
   final _createFocus = FocusNode();
   final _editFocus = FocusNode();
   final _editController = TextEditingController();
+  final _createFieldKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _createFocus.dispose();
     _editFocus.dispose();
     _editController.dispose();
     super.dispose();
+  }
+
+  /// 键盘弹起/收起（viewInsets 变化）时，把新建文件夹输入框滚回可视区。
+  /// 输入框位于文件夹列表末尾，文件夹抽屉不随键盘 resize，键盘会直接盖住
+  /// 列表底部 —— 配合 build 里 ListView 的 viewInsets 底部留白一起生效。
+  @override
+  void didChangeMetrics() {
+    if (!_creating || !_createFocus.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureCreateVisible());
+  }
+
+  void _ensureCreateVisible() {
+    if (!mounted) return;
+    final fieldContext = _createFieldKey.currentContext;
+    if (fieldContext == null) return;
+    Scrollable.ensureVisible(
+      fieldContext,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 120),
+    );
   }
 
   String _displayName(FavoriteProject project) =>
@@ -72,6 +101,8 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _createFocus.requestFocus();
+      // 先把输入框滚到可见位置；键盘随后弹起时由 didChangeMetrics 再校正
+      _ensureCreateVisible();
     });
   }
 
@@ -196,7 +227,15 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar> {
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              // 底部叠加键盘高度：文件夹抽屉（showGeneralDialog）不随键盘
+              // resize，新建文件夹输入框在列表末尾会被键盘盖住；留白后配合
+              // ensureVisible 让输入框始终可见（QA: 键盘挡住输入框）。
+              padding: EdgeInsets.fromLTRB(
+                12,
+                12,
+                12,
+                12 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
               children: [
                 if (!store.projectsLoaded && store.projectsLoading)
                   Padding(
@@ -402,6 +441,7 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar> {
 
   Widget _buildCreateInput(ShortlistStore store) {
     return Padding(
+      key: _createFieldKey,
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
         focusNode: _createFocus,

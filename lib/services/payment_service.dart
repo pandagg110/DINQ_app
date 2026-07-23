@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import '../models/user_models.dart';
 import 'api_client.dart';
 
@@ -16,7 +16,9 @@ class PaymentService {
   /// 需要认证
   Future<Subscription> getSubscription() async {
     final response = await _dio.get('/payment/subscription');
-    return Subscription.fromJson(Map<String, dynamic>.from(response.data as Map));
+    return Subscription.fromJson(
+      Map<String, dynamic>.from(response.data as Map),
+    );
   }
 
   /// 新用户订阅（跳转 Airwallex 支付页）
@@ -36,7 +38,59 @@ class PaymentService {
   /// 取消/恢复自动续费
   /// 需要认证
   Future<Map<String, dynamic>> setAutoRenew({required bool autoRenew}) async {
-    final response = await _dio.post('/payment/auto-renew', data: {'auto_renew': autoRenew});
+    final response = await _dio.post(
+      '/payment/auto-renew',
+      data: {'auto_renew': autoRenew},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Verify a StoreKit 2 transaction JWS and grant the authenticated user's entitlement.
+  Future<Map<String, dynamic>> verifyAppleTransaction(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dio.post('/payment/apple/verify', data: data);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Verify a Google Play purchase token and grant the authenticated user.
+  Future<Map<String, dynamic>> verifyGooglePlayPurchase(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dio.post('/payment/google/verify', data: data);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Pay-as-you-go 设置（enabled/status/has_payment_method/monthly_limit_cents 等，
+  /// 对齐 web paymentApi.getPayg）
+  /// 需要认证
+  Future<Map<String, dynamic>> getPayg() async {
+    final response = await _dio.get('/payment/payg');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// 发起 Pay-as-you-go 绑卡（返回 Stripe 收银台 url，对齐 web setupPayg）
+  /// 需要认证
+  Future<Map<String, dynamic>> setupPayg({
+    required int monthlyLimitCents,
+  }) async {
+    final response = await _dio.post(
+      '/payment/payg/setup',
+      data: {'monthly_limit_cents': monthlyLimitCents},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// 更新 Pay-as-you-go 开关/月度上限（对齐 web updatePayg）
+  /// 需要认证
+  Future<Map<String, dynamic>> updatePayg({
+    required bool enabled,
+    required int monthlyLimitCents,
+  }) async {
+    final response = await _dio.post(
+      '/payment/payg',
+      data: {'enabled': enabled, 'monthly_limit_cents': monthlyLimitCents},
+    );
     return Map<String, dynamic>.from(response.data as Map);
   }
 
@@ -55,7 +109,10 @@ class PaymentService {
 
   /// 支付订单列表（分页，Credits 页 Billing tab；对齐 web getOrders）
   /// 需要认证
-  Future<Map<String, dynamic>> getOrders({int page = 1, int pageSize = 20}) async {
+  Future<Map<String, dynamic>> getOrders({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     final response = await _dio.get(
       '/payment/orders',
       queryParameters: {'page': page, 'page_size': pageSize},
@@ -63,5 +120,3 @@ class PaymentService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 }
-
-

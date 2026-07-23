@@ -371,7 +371,9 @@ class _SearchBoxWidgetState extends State<SearchBoxWidget> {
                               textAlignVertical: TextAlignVertical.top,
                               scrollPhysics: const ClampingScrollPhysics(),
                               decoration: searchBoxInputDecoration(
-                                hintText: widget.isMobile ? 'Ask' : 'Ask DINQ',
+                                hintText: widget.isMobile
+                                    ? 'Search for talent'
+                                    : 'Ask DINQ',
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                               ),
                               style: const TextStyle(

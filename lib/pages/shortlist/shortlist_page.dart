@@ -344,6 +344,36 @@ class _ShortlistPageState extends State<ShortlistPage> {
     );
   }
 
+  FavoriteItem? _favoriteForRow(ShortlistStore store, String? rowId) {
+    if (rowId == null) return null;
+    for (final item in store.favorites) {
+      if ((item.rowId ?? item.id) == rowId) return item;
+    }
+    return null;
+  }
+
+  Future<void> _removeOpenFavorite(FavoriteItem item) async {
+    final removed = await context.read<ShortlistStore>().removeFavorite(
+      item.id,
+    );
+    if (!mounted) return;
+    if (!removed) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Unable to remove from shortlist',
+        description: 'Please try again later.',
+      );
+      return;
+    }
+    _enrichController?.close();
+    _syncBottomNav();
+    TopToastUtil.showSuccess(
+      context: context,
+      title: 'Removed from shortlist',
+      description: '',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ShortlistStore>();
@@ -357,83 +387,95 @@ class _ShortlistPageState extends State<ShortlistPage> {
     final visibleIds = store.favorites.map((item) => item.id);
     final allVisibleSelected =
         visibleIds.isNotEmpty && visibleIds.every(store.selectedIds.contains);
+    final selectedFavorite = _favoriteForRow(store, enrichStore.selectedRowId);
 
-    return Scaffold(
-      backgroundColor: DinqTokens.bgPage,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                _ShortlistHeader(
-                  selectionMode: store.selectionMode,
-                  selectedCount: store.selectedIds.length,
-                  folderName: store.activeProjectName,
-                  isExporting: _isExporting,
-                  allVisibleSelected: allVisibleSelected,
-                  onFolderTap: () => showShortlistFoldersDrawer(context),
-                  onExport: () => _openExportSheet(),
-                  onEnterSelection: store.enterSelectionMode,
-                  onCloseSelection: store.exitSelectionMode,
-                  onToggleSelectAll: () =>
-                      store.toggleSelectAllVisible(visibleIds),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  child: Column(
-                    children: [
-                      _ShortlistSearchField(
-                        controller: _searchController,
-                        onChanged: _onSearchChanged,
-                      ),
-                      const SizedBox(height: 12),
-                      _ShortlistStatusPillFilter(
-                        statusFilter: store.statusFilter,
-                        onStatusChanged: (status) {
-                          if (status == store.statusFilter) return;
-                          store.setStatusFilter(status);
-                          store.loadFavorites(clear: true);
-                        },
-                      ),
-                    ],
+    return PopScope(
+      canPop: !enrichStore.isOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || !enrichStore.isOpen) return;
+        _enrichController?.close();
+        _syncBottomNav();
+      },
+      child: Scaffold(
+        backgroundColor: DinqTokens.bgPage,
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  _ShortlistHeader(
+                    selectionMode: store.selectionMode,
+                    selectedCount: store.selectedIds.length,
+                    folderName: store.activeProjectName,
+                    isExporting: _isExporting,
+                    allVisibleSelected: allVisibleSelected,
+                    onFolderTap: () => showShortlistFoldersDrawer(context),
+                    onExport: () => _openExportSheet(),
+                    onEnterSelection: store.enterSelectionMode,
+                    onCloseSelection: store.exitSelectionMode,
+                    onToggleSelectAll: () =>
+                        store.toggleSelectAllVisible(visibleIds),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Column(
+                      children: [
+                        _ShortlistSearchField(
+                          controller: _searchController,
+                          onChanged: _onSearchChanged,
+                        ),
+                        const SizedBox(height: 12),
+                        _ShortlistStatusPillFilter(
+                          statusFilter: store.statusFilter,
+                          onStatusChanged: (status) {
+                            if (status == store.statusFilter) return;
+                            store.setStatusFilter(status);
+                            store.loadFavorites(clear: true);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildBody(
+                      store,
+                      waitingForProject: waitingForProject,
+                      hasSearchOrStatus: hasSearchOrStatus,
+                    ),
+                  ),
+                ],
+              ),
+              if (store.selectedIds.isNotEmpty)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 18,
+                  child: _ShortlistBatchBar(
+                    onMove: _openMoveSheet,
+                    onExport: () => _openExportSheet(selectedOnly: true),
+                    onRemove: _openBulkDeleteConfirm,
                   ),
                 ),
-                Expanded(
-                  child: _buildBody(
-                    store,
-                    waitingForProject: waitingForProject,
-                    hasSearchOrStatus: hasSearchOrStatus,
+              if (enrichStore.isOpen)
+                _EnrichOverlay(
+                  entry: enrichStore.selectedEntry,
+                  selectedRowId: enrichStore.selectedRowId,
+                  confidencePct: enrichStore.confidenceFor(
+                    enrichStore.selectedRowId,
                   ),
+                  onClose: () {
+                    _enrichController?.close();
+                    _syncBottomNav();
+                  },
+                  onRefresh: () =>
+                      _enrichController?.refreshEnrich() ?? Future.value(),
+                  onRemove: selectedFavorite == null
+                      ? null
+                      : () => _removeOpenFavorite(selectedFavorite),
                 ),
-              ],
-            ),
-            if (store.selectedIds.isNotEmpty)
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 18,
-                child: _ShortlistBatchBar(
-                  onMove: _openMoveSheet,
-                  onExport: () => _openExportSheet(selectedOnly: true),
-                  onRemove: _openBulkDeleteConfirm,
-                ),
-              ),
-            if (enrichStore.isOpen)
-              _EnrichOverlay(
-                entry: enrichStore.selectedEntry,
-                selectedRowId: enrichStore.selectedRowId,
-                confidencePct: enrichStore.confidenceFor(
-                  enrichStore.selectedRowId,
-                ),
-                onClose: () {
-                  _enrichController?.close();
-                  _syncBottomNav();
-                },
-                onRefresh: () =>
-                    _enrichController?.refreshEnrich() ?? Future.value(),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1153,6 +1195,7 @@ class _EnrichOverlay extends StatelessWidget {
     required this.confidencePct,
     required this.onClose,
     required this.onRefresh,
+    this.onRemove,
   });
 
   final EnrichEntry? entry;
@@ -1160,6 +1203,7 @@ class _EnrichOverlay extends StatelessWidget {
   final int? confidencePct;
   final VoidCallback onClose;
   final Future<void> Function() onRefresh;
+  final Future<void> Function()? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -1184,6 +1228,29 @@ class _EnrichOverlay extends StatelessWidget {
                       color: const Color(0xFF171717),
                       tooltip: 'Back',
                     ),
+                    const Spacer(),
+                    PopupMenuButton<String>(
+                      tooltip: 'More actions',
+                      icon: const Icon(Icons.more_horiz, size: 22),
+                      onSelected: (value) {
+                        if (value == 'refresh') {
+                          onRefresh();
+                        } else if (value == 'remove') {
+                          onRemove?.call();
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'refresh',
+                          child: Text('Search again'),
+                        ),
+                        if (onRemove != null)
+                          const PopupMenuItem(
+                            value: 'remove',
+                            child: Text('Remove from shortlist'),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -1198,6 +1265,7 @@ class _EnrichOverlay extends StatelessWidget {
                       selectedRowId: selectedRowId,
                       confidencePct: confidencePct,
                       onRefresh: onRefresh,
+                      shortlistMode: true,
                     ),
             ),
           ],

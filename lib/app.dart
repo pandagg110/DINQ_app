@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -5,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import 'router/app_router.dart';
 import 'services/push_service.dart';
+import 'services/apple_iap_service.dart';
+import 'services/google_play_iap_service.dart';
 import 'stores/card_store.dart';
 import 'stores/viewer_card_store.dart';
 import 'stores/chat_history_store.dart';
@@ -12,6 +16,7 @@ import 'stores/main_store.dart';
 import 'stores/messages_store.dart';
 import 'stores/notifications_store.dart';
 import 'stores/deep_search_enrich_store.dart';
+import 'stores/privacy_consent_store.dart';
 import 'stores/quick_replies_store.dart';
 import 'stores/resume_store.dart';
 import 'stores/search_store.dart';
@@ -19,16 +24,36 @@ import 'stores/shortlist_store.dart';
 import 'stores/settings_store.dart';
 import 'stores/user_store.dart';
 import 'theme/app_theme.dart';
+import 'widgets/account/privacy_consent_gate.dart';
+import 'widgets/app_update/app_update_gate.dart';
 import 'widgets/cards/placeholder/use_placeholders.dart';
 
 class DinqApp extends StatelessWidget {
-  DinqApp({super.key}) : _userStore = UserStore() {
+  DinqApp({
+    super.key,
+    required UserStore userStore,
+    this.showFirstLaunchSplash = false,
+  }) : _userStore = userStore {
     // 推送点击跳转 → 交给 go_router
     PushService.instance.onNavigate = (route) => _router.go(route);
+    AppleIapService.instance.onSubscriptionChanged =
+        _userStore.refreshSubscription;
+    AppleIapService.instance.setUserIdProvider(() => _userStore.user?.user.id);
+    unawaited(AppleIapService.instance.retryPendingTransactions());
+    GooglePlayIapService.instance.onSubscriptionChanged =
+        _userStore.refreshSubscription;
+    GooglePlayIapService.instance.setUserIdProvider(
+      () => _userStore.user?.user.id,
+    );
+    unawaited(GooglePlayIapService.instance.retryPendingTransactions());
   }
 
   final UserStore _userStore;
-  late final _router = AppRouter.create(_userStore);
+  final bool showFirstLaunchSplash;
+  late final _router = AppRouter.create(
+    _userStore,
+    showFirstLaunchSplash: showFirstLaunchSplash,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +73,7 @@ class DinqApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => QuickRepliesStore()),
         ChangeNotifierProvider(create: (_) => ResumeStore()),
         ChangeNotifierProvider(create: (_) => DeepSearchEnrichStore()),
+        ChangeNotifierProvider(create: (_) => PrivacyConsentStore()),
       ],
       child: Builder(
         builder: (context) {
@@ -73,7 +99,16 @@ class DinqApp extends StatelessWidget {
                     value: AppTheme.pageSystemUiOverlayStyle,
                     child: ColoredBox(
                       color: AppTheme.brandPage,
-                      child: easyLoadingBuilder(context, child),
+                      child: easyLoadingBuilder(
+                        context,
+                        // 全局 privacy consent 弹窗（对齐 Web），覆盖所有路由
+                        AppUpdateGate(
+                          child: PrivacyConsentGate(
+                            router: _router,
+                            child: child ?? const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },

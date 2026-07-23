@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../../utils/icon_mapping.dart';
 import '../social_image_upload_preview.dart';
 
 class LinkLayouts {
@@ -58,7 +59,7 @@ class LinkLayouts {
             ? EdgeInsets.all(dimension * 0.15)
             : EdgeInsets.zero,
         child: specialIcon != null
-            ? SvgPicture.asset('assets/$iconSrc', fit: BoxFit.contain)
+            ? _buildSpecialIconAsset(specialIcon)
             : Image.network(
                 iconSrc,
                 fit: BoxFit.contain,
@@ -78,6 +79,22 @@ class LinkLayouts {
       ),
       child: const Icon(Icons.link, color: Colors.black),
     );
+  }
+
+  /// 渲染映射表命中的本地图标（QA 三轮打回：OpenReview 卡 logo 缺失）。
+  /// `icons/social-icons/*.svg` 实为 `<pattern>` 包 base64 位图的“伪矢量”，
+  /// flutter_svg/vector_graphics 编译后没有任何绘制指令（产物仅 14 字节头），
+  /// SvgPicture 会渲染成空白 —— 与 AssetIcon/add_page 一致，统一经
+  /// [mapSvgToPng] 换成 assets/icons/logo 下的 PNG 用 Image.asset 渲染；
+  /// 真矢量（如 dinq-black.svg）仍走 SvgPicture。
+  static Widget _buildSpecialIconAsset(String specialIcon) {
+    final asset = specialIcon.contains('icons/social-icons/')
+        ? mapSvgToPng(specialIcon)
+        : specialIcon;
+    if (asset.toLowerCase().endsWith('.svg')) {
+      return SvgPicture.asset('assets/$asset', fit: BoxFit.contain);
+    }
+    return Image.asset('assets/$asset', fit: BoxFit.contain);
   }
 
   static String cleanUrl(String url) {

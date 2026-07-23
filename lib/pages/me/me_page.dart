@@ -10,6 +10,7 @@ import '../../utils/color_util.dart';
 import '../../utils/image_utils.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/base_page.dart';
+import '../marketing/pricing_page.dart' show kPlanLabel;
 
 class MePage extends StatefulWidget {
   const MePage({super.key});
@@ -94,7 +95,8 @@ class _MePageState extends State<MePage> {
     final user = userStore.user;
     final subscription = userStore.subscription;
     final credits = subscription?.creditsBalance ?? 0;
-    final plan = subscription?.plan ?? 'free';
+    // 用 basePlan（去掉 _monthly/_yearly 周期后缀），显示逻辑对齐 web PLAN_LABEL
+    final basePlan = subscription?.basePlan ?? 'free';
 
     return Scaffold(
       backgroundColor: ColorUtil.pageBgColor,
@@ -112,35 +114,40 @@ class _MePageState extends State<MePage> {
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 24),
                     // 头像区域
                     _buildAvatarSection(user?.userData.avatarUrl ?? ''),
                     const SizedBox(height: 16),
                     // 用户名 + 编辑
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          user?.userData.name ?? '',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Geist',
-                            color: ColorUtil.textColor,
+                    if ((user?.userData.name ?? '').trim().isNotEmpty)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user!.userData.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Geist',
+                                color: ColorUtil.textColor,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => context.push('/settings/profile'),
-                          child: Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: ColorUtil.sub1TextColor,
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => context.push('/settings/profile'),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: ColorUtil.sub1TextColor,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     const SizedBox(height: 4),
                     // 域名
                     Text(
@@ -153,7 +160,7 @@ class _MePageState extends State<MePage> {
                     ),
                     const SizedBox(height: 24),
                     // 套餐卡（Free/Upgrade + Available Credits + Invite friends）
-                    _buildSubscriptionCard(plan, credits),
+                    _buildSubscriptionCard(basePlan, credits),
                     const SizedBox(height: 16),
                     // 菜单分组卡
                     _menuCard([
@@ -258,9 +265,11 @@ class _MePageState extends State<MePage> {
     );
   }
 
-  Widget _buildSubscriptionCard(String plan, int credits) {
-    final isPro = plan.toLowerCase() != 'free';
-    final displayPlan = isPro ? 'Pro' : 'Free';
+  Widget _buildSubscriptionCard(String basePlan, int credits) {
+    // 按实际订阅档位显示（web PLAN_LABEL：free/basic/pro，plus 显示为 Pro），
+    // 修复所有付费档位都显示成 "Pro" 的问题
+    final isFree = basePlan == 'free';
+    final displayPlan = kPlanLabel[basePlan] ?? basePlan;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -289,7 +298,7 @@ class _MePageState extends State<MePage> {
                     color: ColorUtil.textColor,
                   ),
                 ),
-                if (!isPro)
+                if (isFree)
                   NormalButton(
                     onTap: () => context.push('/pricing'),
                     child: Container(

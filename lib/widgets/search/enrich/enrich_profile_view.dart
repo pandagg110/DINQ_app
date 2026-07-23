@@ -175,6 +175,7 @@ class EnrichProfileView extends StatefulWidget {
     this.onRefresh,
     this.confidencePct,
     this.selectedRowId,
+    this.shortlistMode = false,
   });
 
   final EnrichEntry entry;
@@ -186,6 +187,7 @@ class EnrichProfileView extends StatefulWidget {
   final Future<void> Function()? onRefresh;
   final int? confidencePct;
   final String? selectedRowId;
+  final bool shortlistMode;
 
   @override
   State<EnrichProfileView> createState() => _EnrichProfileViewState();
@@ -242,7 +244,8 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
         !isStreamingStatus &&
         !_refreshing;
 
-    final logSection = hasLogs
+    final shouldShowLogs = hasLogs && (!widget.shortlistMode || !isDone);
+    final logSection = shouldShowLogs
         ? SizedBox(
             width: double.infinity,
             child: Container(
@@ -408,7 +411,8 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
       confidencePct: widget.confidencePct,
       selectedRowId: widget.selectedRowId,
       pinActions: pinActions,
-      pinnedHeader: pinActions && hasLogs ? logSection : null,
+      pinnedHeader: pinActions && shouldShowLogs ? logSection : null,
+      shortlistMode: widget.shortlistMode,
     );
 
     if (pinActions) {
@@ -421,7 +425,7 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           logSection,
-          if (hasLogs) const SizedBox(height: 16),
+          if (shouldShowLogs) const SizedBox(height: 16),
           profile,
         ],
       );
@@ -448,6 +452,7 @@ class _ProfileSection extends StatefulWidget {
     this.selectedRowId,
     this.pinActions = false,
     this.pinnedHeader,
+    this.shortlistMode = false,
   });
 
   final EnrichEntry entry;
@@ -460,6 +465,7 @@ class _ProfileSection extends StatefulWidget {
 
   /// pinActions 模式下插入滚动区顶部的组件（如工具日志区）
   final Widget? pinnedHeader;
+  final bool shortlistMode;
 
   @override
   State<_ProfileSection> createState() => _ProfileSectionState();
@@ -643,55 +649,84 @@ class _ProfileSectionState extends State<_ProfileSection> {
         : emailRevealed
         ? 'not-found'
         : 'get';
+    final dinqDomain = _dinqDomain(person.personalHomepage);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _EmailActionButton(
-                state: revealState,
-                onPressed: (isRevealing || revealState == 'not-found')
-                    ? null
-                    : () {
-                        if (revealState == 'send') {
-                          if (_emailConnected) {
-                            EnrichContactEmailModal.show(
-                              context,
-                              recipientEmail: revealedEmail!,
-                              recipientName: person.name,
-                              favoriteId: favoriteId,
-                              recipientTitle: [person.position, person.location]
-                                  .whereType<String>()
-                                  .map(stripBold)
-                                  .join(' • '),
-                            );
+        if (widget.shortlistMode)
+          _EmailActionButton(
+            state: revealState,
+            onPressed: (isRevealing || revealState == 'not-found')
+                ? null
+                : () {
+                    if (revealState == 'send') {
+                      if (_emailConnected) {
+                        EnrichContactEmailModal.show(
+                          context,
+                          recipientEmail: revealedEmail!,
+                          recipientName: person.name,
+                          favoriteId: favoriteId,
+                          recipientTitle: [
+                            person.position,
+                            person.location,
+                          ].whereType<String>().map(stripBold).join(' • '),
+                        );
+                      } else {
+                        _showConnectPrompt();
+                      }
+                    } else {
+                      _handleRevealEmail();
+                    }
+                  },
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: _EmailActionButton(
+                  state: revealState,
+                  onPressed: (isRevealing || revealState == 'not-found')
+                      ? null
+                      : () {
+                          if (revealState == 'send') {
+                            if (_emailConnected) {
+                              EnrichContactEmailModal.show(
+                                context,
+                                recipientEmail: revealedEmail!,
+                                recipientName: person.name,
+                                favoriteId: favoriteId,
+                                recipientTitle:
+                                    [person.position, person.location]
+                                        .whereType<String>()
+                                        .map(stripBold)
+                                        .join(' • '),
+                              );
+                            } else {
+                              _showConnectPrompt();
+                            }
                           } else {
-                            _showConnectPrompt();
+                            _handleRevealEmail();
                           }
-                        } else {
-                          _handleRevealEmail();
-                        }
-                      },
+                        },
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ShortlistButton(
-                isFavorited: isFavorited,
-                onPressed: () => _handleBookmark(rowId, person, favoriteId),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ShortlistButton(
+                  isFavorited: isFavorited,
+                  onPressed: () => _handleBookmark(rowId, person, favoriteId),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         // 站内私信：仅对「在 dinq 注册且有主页」的用户展示（personalHomepage
         // 指向 dinq.me/<domain>）。对齐 web ProfileSection 私信入口。
-        if (_dinqDomain(person.personalHomepage) case final domain?) ...[
+        if (!widget.shortlistMode && dinqDomain != null) ...[
           const SizedBox(height: 8),
           _MessageButton(
             loading: _isStartingChat,
-            onPressed: _isStartingChat ? null : () => _startChat(domain),
+            onPressed: _isStartingChat ? null : () => _startChat(dinqDomain),
           ),
         ],
       ],
@@ -861,7 +896,11 @@ class _ProfileSectionState extends State<_ProfileSection> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SectionHeader(title: 'Match context'),
+              _SectionHeader(
+                title: widget.shortlistMode
+                    ? 'Candidate summary'
+                    : 'Match context',
+              ),
               if (oneLiner != null)
                 Container(
                   width: double.infinity,
@@ -876,7 +915,9 @@ class _ProfileSectionState extends State<_ProfileSection> {
                   ),
                   child: renderMatchContextBlock(
                     text: oneLiner,
-                    matchPct: widget.confidencePct,
+                    matchPct: widget.shortlistMode
+                        ? null
+                        : widget.confidencePct,
                   ),
                 ),
               if (isStreaming) const _SkeletonBlock(),
@@ -1048,8 +1089,9 @@ class _ProfileSectionState extends State<_ProfileSection> {
 
   String? _dinqDomain(String? homepage) {
     if (homepage == null || homepage.isEmpty) return null;
-    final normalized =
-        homepage.startsWith('http') ? homepage : 'https://$homepage';
+    final normalized = homepage.startsWith('http')
+        ? homepage
+        : 'https://$homepage';
     final uri = Uri.tryParse(normalized);
     if (uri == null) return null;
     if (!uri.host.toLowerCase().endsWith('dinq.me')) return null;
@@ -1076,13 +1118,14 @@ class _ProfileSectionState extends State<_ProfileSection> {
         if (mounted) _snack('This user cannot be messaged');
         return;
       }
-      final resp =
-          await _messageService.createPrivateConversation(userData.userId);
+      final resp = await _messageService.createPrivateConversation(
+        userData.userId,
+      );
       final conv = resp['conversation'];
       final convId =
           (conv is Map ? (conv['id'] ?? conv['conversation_id']) : resp['id'])
-                  ?.toString() ??
-              '';
+              ?.toString() ??
+          '';
       if (!mounted) return;
       if (convId.isNotEmpty) {
         context.push('/admin/inbox/$convId');

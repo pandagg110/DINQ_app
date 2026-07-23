@@ -50,6 +50,19 @@ class AppTheme {
         color: brandWhite,
         surfaceTintColor: Colors.transparent,
       ),
+      // Switch：M3 默认用紫色系（未选中轨道 surfaceContainerHighest 是薰衣草紫，
+      // QA 反馈"开关紫色"的根因）。对齐 web 开关配色：开=黑(#171717/#2a2826)、
+      // 关=浅灰(#d6d3cc)、圆钮白色。
+      switchTheme: SwitchThemeData(
+        thumbColor: const WidgetStatePropertyAll<Color>(brandWhite),
+        trackColor: WidgetStateProperty.resolveWith<Color>(
+          (states) => states.contains(WidgetState.selected)
+              ? brandBlack
+              : const Color(0xFFD6D3CC),
+        ),
+        trackOutlineColor:
+            const WidgetStatePropertyAll<Color>(Colors.transparent),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: brandPage,
         foregroundColor: brandBlack,
