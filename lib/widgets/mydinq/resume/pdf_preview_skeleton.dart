@@ -29,29 +29,35 @@ class PdfPreviewSkeleton extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final height = maxHeight ?? constraints.maxHeight;
-        final mainH = height.isFinite
-            ? math.max(0.0, height - vPadTop - vPadBottom)
-            : height;
+        final maxH = maxHeight ?? constraints.maxHeight;
+        final mainH = maxH.isFinite
+            ? math.max(0.0, maxH - vPadTop - vPadBottom)
+            : maxH;
 
-        return ColoredBox(
-          color: DinqTokens.bgPage,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (showThumbSidebar) _ThumbSidebar(),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(hPad, vPadTop, hPad, vPadBottom),
-                  child: Center(
-                    child: PdfPageSkeleton(
-                      maxWidth: 794,
-                      maxHeight: mainH,
+        // 严格限制在父级可用高度内；内容不足时可居中，超出时由子级裁剪。
+        return SizedBox(
+          height: maxH.isFinite ? maxH : null,
+          width: constraints.maxWidth.isFinite ? constraints.maxWidth : null,
+          child: ColoredBox(
+            color: DinqTokens.bgPage,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showThumbSidebar) _ThumbSidebar(),
+                Expanded(
+                  child: Padding(
+                    padding:
+                        EdgeInsets.fromLTRB(hPad, vPadTop, hPad, vPadBottom),
+                    child: Center(
+                      child: PdfPageSkeleton(
+                        maxWidth: 794,
+                        maxHeight: mainH,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -140,10 +146,12 @@ class PdfPageSkeleton extends StatelessWidget {
             : (availableH.isFinite && availableH > 0
                 ? availableH
                 : width / math.sqrt2);
+        final pageHeight = height.isFinite ? math.max(0.0, height) : height;
 
+        // 固定页面高度；内部 Column 可高于视口，超出部分裁剪（允许显示不完整）。
         return SizedBox(
           width: width,
-          height: height.isFinite ? height : null,
+          height: pageHeight.isFinite ? pageHeight : null,
           child: SkeletonPulse(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(2),
@@ -158,10 +166,9 @@ class PdfPageSkeleton extends StatelessWidget {
                     ),
                   ],
                 ),
-                // Fixed page height + fixed bars used to overflow (~42px on
-                // mobile). Scroll+clip keeps layout valid; excess is hidden.
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
+                  clipBehavior: Clip.hardEdge,
                   child: Padding(
                     padding: EdgeInsets.all(innerPad),
                     child: Column(
