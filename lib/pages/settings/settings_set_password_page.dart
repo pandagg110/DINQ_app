@@ -268,26 +268,29 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
       children: [
         SizedBox(
           height: 48,
-          child: TextField(
-            controller: controller,
-            obscureText: !showPassword,
-            style: TextStyle(fontSize: 14, color: ColorUtil.textColor, fontFamily: 'Geist'),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(
-                fontSize: 14,
-                color: ColorUtil.sub2TextColor,
-                fontFamily: 'Geist',
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              border: InputBorder.none,
-              suffixIcon: NormalButton(
-                onTap: onToggleVisibility,
-                padding: EdgeInsets.only(top: 12, bottom: 12),
-                child: AssetImageView(
-                  showPassword ? 'password_show' : 'password_hide',
-                  width: 24,
-                  height: 24,
+          child: IgnoreKeyboardDismiss(
+            child: TextField(
+              controller: controller,
+              obscureText: !showPassword,
+              enableInteractiveSelection: true,
+              style: TextStyle(fontSize: 14, color: ColorUtil.textColor, fontFamily: 'Geist'),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  color: ColorUtil.sub2TextColor,
+                  fontFamily: 'Geist',
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                border: InputBorder.none,
+                suffixIcon: NormalButton(
+                  onTap: onToggleVisibility,
+                  padding: EdgeInsets.only(top: 12, bottom: 12),
+                  child: AssetImageView(
+                    showPassword ? 'password_show' : 'password_hide',
+                    width: 24,
+                    height: 24,
+                  ),
                 ),
               ),
             ),

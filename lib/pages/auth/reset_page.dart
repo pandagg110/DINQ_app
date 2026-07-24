@@ -98,15 +98,20 @@ class _ResetPageState extends State<ResetPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
-                          borderRadius: BorderRadius.circular(8),
+                    IgnoreKeyboardDismiss(
+                      child: TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.done,
+                        enableInteractiveSelection: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          hintText: 'Enter your email',
+                          hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
                         ),
-                        hintText: 'Enter your email',
-                        hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
                       ),
                     ),
                     const SizedBox(height: 12),

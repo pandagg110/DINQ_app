@@ -108,20 +108,25 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: TextField(
-                          controller: _emailController,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: ColorUtil.textColor,
-                                width: 1,
+                        child: IgnoreKeyboardDismiss(
+                          child: TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            enableInteractiveSelection: true,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: ColorUtil.textColor,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            hintText: 'name@example.com',
-                            hintStyle: TextStyle(
-                              color: Color(0x66303030),
-                              fontSize: 14,
+                              hintText: 'name@example.com',
+                              hintStyle: TextStyle(
+                                color: Color(0x66303030),
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         ),
@@ -141,30 +146,34 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: TextField(
-                          controller: _passwordController,
-                          obscureText: !_showPassword,
-                          decoration: InputDecoration(
-                            hintText: 'At least 8 characters',
-                            hintStyle: TextStyle(
-                              color: Color(0x66303030),
-                              fontSize: 14,
-                            ),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: ColorUtil.textColor,
-                                width: 1,
+                        child: IgnoreKeyboardDismiss(
+                          child: TextField(
+                            controller: _passwordController,
+                            obscureText: !_showPassword,
+                            textInputAction: TextInputAction.next,
+                            enableInteractiveSelection: true,
+                            decoration: InputDecoration(
+                              hintText: 'At least 8 characters',
+                              hintStyle: TextStyle(
+                                color: Color(0x66303030),
+                                fontSize: 14,
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _showPassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: ColorUtil.textColor,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              onPressed: () => setState(
-                                () => _showPassword = !_showPassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _showPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () => setState(
+                                  () => _showPassword = !_showPassword,
+                                ),
                               ),
                             ),
                           ),
@@ -185,31 +194,35 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: TextField(
-                          controller: _confirmPasswordController,
-                          obscureText: !_showConfirmPassword,
-                          decoration: InputDecoration(
-                            hintText: 'At least 8 characters',
-                            hintStyle: TextStyle(
-                              color: Color(0x66303030),
-                              fontSize: 14,
-                            ),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: ColorUtil.textColor,
-                                width: 1,
+                        child: IgnoreKeyboardDismiss(
+                          child: TextField(
+                            controller: _confirmPasswordController,
+                            obscureText: !_showConfirmPassword,
+                            textInputAction: TextInputAction.done,
+                            enableInteractiveSelection: true,
+                            decoration: InputDecoration(
+                              hintText: 'At least 8 characters',
+                              hintStyle: TextStyle(
+                                color: Color(0x66303030),
+                                fontSize: 14,
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _showConfirmPassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: ColorUtil.textColor,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              onPressed: () => setState(
-                                () => _showConfirmPassword =
-                                    !_showConfirmPassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _showConfirmPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () => setState(
+                                  () => _showConfirmPassword =
+                                      !_showConfirmPassword,
+                                ),
                               ),
                             ),
                           ),

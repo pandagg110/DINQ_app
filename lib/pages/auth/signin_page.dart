@@ -113,13 +113,19 @@ class _SignInPageState extends State<SignInPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: TextField(
-                          controller: _emailController,
-                          decoration: InputDecoration(
-                            hintText: 'Enter your email',
-                            hintStyle: TextStyle(
-                              color: Color(0x66303030),
-                              fontSize: 14,
+                        // 避免 KeyboardDismissOnTap 在 pointerUp 时抢焦点，导致系统长按粘贴菜单被关掉
+                        child: IgnoreKeyboardDismiss(
+                          child: TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            enableInteractiveSelection: true,
+                            decoration: InputDecoration(
+                              hintText: 'Enter your email',
+                              hintStyle: TextStyle(
+                                color: Color(0x66303030),
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         ),
@@ -157,30 +163,34 @@ class _SignInPageState extends State<SignInPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: TextField(
-                          controller: _passwordController,
-                          obscureText: !_showPassword,
-                          decoration: InputDecoration(
-                            hintText: 'Enter your password',
-                            hintStyle: TextStyle(
-                              color: Color(0x66303030),
-                              fontSize: 14,
-                            ),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: ColorUtil.textColor,
-                                width: 1,
+                        child: IgnoreKeyboardDismiss(
+                          child: TextField(
+                            controller: _passwordController,
+                            obscureText: !_showPassword,
+                            textInputAction: TextInputAction.done,
+                            enableInteractiveSelection: true,
+                            decoration: InputDecoration(
+                              hintText: 'Enter your password',
+                              hintStyle: TextStyle(
+                                color: Color(0x66303030),
+                                fontSize: 14,
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _showPassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: ColorUtil.textColor,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              onPressed: () => setState(
-                                () => _showPassword = !_showPassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _showPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () => setState(
+                                  () => _showPassword = !_showPassword,
+                                ),
                               ),
                             ),
                           ),

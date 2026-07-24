@@ -40,6 +40,7 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar>
   final _editFocus = FocusNode();
   final _editController = TextEditingController();
   final _createFieldKey = GlobalKey();
+  final _listScrollController = ScrollController();
 
   @override
   void initState() {
@@ -53,27 +54,45 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar>
     _createFocus.dispose();
     _editFocus.dispose();
     _editController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
-  /// 键盘弹起/收起（viewInsets 变化）时，把新建文件夹输入框滚回可视区。
-  /// 输入框位于文件夹列表末尾，文件夹抽屉不随键盘 resize，键盘会直接盖住
-  /// 列表底部 —— 配合 build 里 ListView 的 viewInsets 底部留白一起生效。
+  /// 键盘弹起/收起（viewInsets 变化）时，列表滚到底部，保证新建输入框可见。
+  /// 文件夹抽屉不随键盘 resize，输入框在列表末尾会被盖住 —— 配合 ListView
+  /// 的 viewInsets 底部留白一起生效。
   @override
   void didChangeMetrics() {
     if (!_creating || !_createFocus.hasFocus) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureCreateVisible());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollListToBottom());
   }
 
-  void _ensureCreateVisible() {
-    if (!mounted) return;
-    final fieldContext = _createFieldKey.currentContext;
-    if (fieldContext == null) return;
-    Scrollable.ensureVisible(
-      fieldContext,
-      alignment: 0.5,
-      duration: const Duration(milliseconds: 120),
-    );
+  void _scrollListToBottom({bool animate = true}) {
+    if (!mounted || !_listScrollController.hasClients) return;
+    final position = _listScrollController.position;
+    final target = position.maxScrollExtent;
+    if (animate) {
+      _listScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _listScrollController.jumpTo(target);
+    }
+  }
+
+  /// 新建行刚插入 + 键盘 insets 变化后，分帧滚到底，避免 maxScrollExtent 尚未更新。
+  void _scheduleScrollCreateIntoView() {
+    void schedule(int frame, {required bool animate}) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_creating) return;
+        _scrollListToBottom(animate: animate);
+        if (frame > 0) schedule(frame - 1, animate: true);
+      });
+    }
+
+    schedule(2, animate: false);
   }
 
   String _displayName(FavoriteProject project) =>
@@ -100,9 +119,10 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar>
       _creatingValue = '';
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _createFocus.requestFocus();
-      // 先把输入框滚到可见位置；键盘随后弹起时由 didChangeMetrics 再校正
-      _ensureCreateVisible();
+      // 列表默认滚到底：新建输入在末尾，键盘顶起后由 didChangeMetrics 再校正
+      _scheduleScrollCreateIntoView();
     });
   }
 
@@ -227,9 +247,10 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar>
           ),
           Expanded(
             child: ListView(
+              controller: _listScrollController,
               // 底部叠加键盘高度：文件夹抽屉（showGeneralDialog）不随键盘
               // resize，新建文件夹输入框在列表末尾会被键盘盖住；留白后配合
-              // ensureVisible 让输入框始终可见（QA: 键盘挡住输入框）。
+              // scrollToBottom 让输入框始终可见（QA: 键盘挡住输入框）。
               padding: EdgeInsets.fromLTRB(
                 12,
                 12,
