@@ -276,10 +276,21 @@ class UserStore extends ChangeNotifier {
 
   Future<void> updateUserData(Map<String, dynamic> payload) async {
     if (user == null) return;
+    final updated = UserData.fromJson({
+      ...user!.userData.toJson(),
+      ...payload,
+    });
     user = UserProfile(
       user: user!.user,
-      userData: UserData.fromJson({...user!.userData.toJson(), ...payload}),
+      userData: updated,
     );
+    // Keep profile/share owner in sync when editing own page.
+    if (cardOwner != null && cardOwner!.domain == updated.domain) {
+      cardOwner = UserData.fromJson({
+        ...cardOwner!.toJson(),
+        ...payload,
+      });
+    }
     notifyListeners();
     await _profileService.updateUserData(payload);
   }

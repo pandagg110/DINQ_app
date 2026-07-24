@@ -6,6 +6,7 @@ import '../../models/user_models.dart';
 import '../../services/profile_service.dart';
 import '../../stores/card_store.dart';
 import '../../stores/main_store.dart';
+import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../widgets/profile/mydinq_top_bar.dart';
 import '../../widgets/profile/share_profile_dialog.dart';
@@ -71,8 +72,20 @@ class _MyDinqPageState extends State<MyDinqPage> {
     setState(() => _tab = isPageTab ? MyDinqTab.page : MyDinqTab.resume);
   }
 
+  /// Prefer live UserStore / cardOwner so avatar edits on the embedded
+  /// ProfilePage are reflected; [_userData] is only loaded once on enter.
+  UserData? _shareUserData() {
+    final userStore = context.read<UserStore>();
+    final domain = widget.username;
+    final owner = userStore.cardOwner;
+    if (owner != null && owner.domain == domain) return owner;
+    final own = userStore.user?.userData;
+    if (own != null && own.domain == domain) return own;
+    return _userData;
+  }
+
   void _openShare() {
-    final userData = _userData;
+    final userData = _shareUserData();
     if (userData == null) return;
     ShareProfileDialog.show(
       context: context,

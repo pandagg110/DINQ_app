@@ -82,25 +82,34 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
     };
   }
 
-  String get _shareTitle {
-    return _isSelf
-        ? '${widget.userData.name} here.'
-        : 'Came across ${widget.userData.name}\'s personal profile.';
+  /// Live profile for self (avatar/name edits), else the snapshot passed in.
+  UserData _resolveUserData(UserStore userStore) {
+    final domain = widget.userData.domain;
+    final own = userStore.user?.userData;
+    if (own != null && own.domain == domain) return own;
+    final owner = userStore.cardOwner;
+    if (owner != null && owner.domain == domain) return owner;
+    return widget.userData;
   }
 
-  bool get _isSelf {
-    final userStore = context.read<UserStore>();
+  String _shareTitle(UserData userData, bool isSelf) {
+    return isSelf
+        ? '${userData.name} here.'
+        : 'Came across ${userData.name}\'s personal profile.';
+  }
+
+  bool _isSelf(UserStore userStore) {
     return userStore.user?.userData.domain == widget.userData.domain;
   }
 
-  String get _shareContent {
-    final bio = widget.userData.bio;
-    return '$_shareTitle\n${widget.profileUrl}\n\n$bio';
+  String _shareContent(UserData userData, bool isSelf) {
+    final bio = userData.bio;
+    return '${_shareTitle(userData, isSelf)}\n${widget.profileUrl}\n\n$bio';
   }
 
-  String get _shareContent2 {
-    final bio = widget.userData.bio;
-    return '$_shareTitle\n\n$bio\n';
+  String _shareContent2(UserData userData, bool isSelf) {
+    final bio = userData.bio;
+    return '${_shareTitle(userData, isSelf)}\n\n$bio\n';
   }
 
   Future<void> _copyLink() async {
@@ -124,19 +133,29 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   }
 
   void _shareWhatsApp() {
-    final url = 'https://wa.me/?text=${Uri.encodeComponent(_shareContent)}';
+    final userStore = context.read<UserStore>();
+    final userData = _resolveUserData(userStore);
+    final isSelf = _isSelf(userStore);
+    final url =
+        'https://wa.me/?text=${Uri.encodeComponent(_shareContent(userData, isSelf))}';
     _openShareUrl(url);
   }
 
   void _shareLinkedIn() {
+    final userStore = context.read<UserStore>();
+    final userData = _resolveUserData(userStore);
+    final isSelf = _isSelf(userStore);
     final url =
-        'https://www.linkedin.com/sharing/share-offsite/?url=${Uri.encodeComponent(widget.profileUrl)}&title=${Uri.encodeComponent(_shareContent)}';
+        'https://www.linkedin.com/sharing/share-offsite/?url=${Uri.encodeComponent(widget.profileUrl)}&title=${Uri.encodeComponent(_shareContent(userData, isSelf))}';
     _openShareUrl(url);
   }
 
   void _shareTwitter() {
+    final userStore = context.read<UserStore>();
+    final userData = _resolveUserData(userStore);
+    final isSelf = _isSelf(userStore);
     final url =
-        'https://twitter.com/intent/tweet?text=${Uri.encodeComponent(_shareContent2)}&url=${Uri.encodeComponent(widget.profileUrl)}';
+        'https://twitter.com/intent/tweet?text=${Uri.encodeComponent(_shareContent2(userData, isSelf))}&url=${Uri.encodeComponent(widget.profileUrl)}';
     _openShareUrl(url);
   }
 
@@ -270,10 +289,13 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final userStore = context.watch<UserStore>();
+    final userData = _resolveUserData(userStore);
+    final isSelf = _isSelf(userStore);
     final mediaSize = MediaQuery.of(context).size;
     final maxHeight = mediaSize.height * 0.9;
     final cardScale = (mediaSize.width - 48) / 600;
-    final cardPreviewHeight = (315 * cardScale) + (_isSelf ? 64 : 0);
+    final cardPreviewHeight = (315 * cardScale) + (isSelf ? 64 : 0);
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: const BoxDecoration(
@@ -370,10 +392,10 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                             builder: (context) {
                               final cardStore = context.watch<CardStore>();
                               return ExportCardPreview(
-                                userData: widget.userData,
+                                userData: userData,
                                 cards: cardStore.cards,
                                 height: cardPreviewHeight,
-                                isEditable: _isSelf,
+                                isEditable: isSelf,
                                 theme: _shareTheme,
                                 onThemeChange: _handleShareThemeChange,
                               );
@@ -384,7 +406,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                             child: FittedBox(
                               fit: BoxFit.contain,
                               child: ExportQrCard(
-                                userInfo: widget.userData,
+                                userInfo: userData,
                                 username: widget.username,
                                 profileUrl: widget.profileUrl,
                                 forExport: false,
