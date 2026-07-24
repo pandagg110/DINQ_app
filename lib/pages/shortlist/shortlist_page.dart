@@ -1275,12 +1275,35 @@ class _EnrichOverlay extends StatelessWidget {
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'refresh',
-                          child: Text('Search again'),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.refresh,
+                                size: 16,
+                                color: Color(0xFF171717),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Search again'),
+                            ],
+                          ),
                         ),
                         if (onRemove != null)
                           const PopupMenuItem(
                             value: 'remove',
-                            child: Text('Remove from shortlist'),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.delete_outline,
+                                  size: 16,
+                                  color: Color(0xFFA04444),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Remove from shortlist',
+                                  style: TextStyle(color: Color(0xFFA04444)),
+                                ),
+                              ],
+                            ),
                           ),
                       ],
                     ),
