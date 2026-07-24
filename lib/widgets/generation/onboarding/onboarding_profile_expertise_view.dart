@@ -162,20 +162,38 @@ class _OnboardingProfileExpertiseViewState
           ),
         ),
         const SizedBox(height: 12),
+        // 未选建议标签池（选中后移到下方单独一行，对齐 Web 图2）
         Wrap(
           spacing: 8,
           runSpacing: 8,
           alignment: WrapAlignment.start,
           children: [
             for (final tag in _suggestedTags)
-              _SuggestedTagChip(
-                label: tag,
-                active: tags.contains(tag),
-                disabled: !tags.contains(tag) && tags.length >= profileTagLimit,
-                onTap: () => _toggleTag(tag),
-              ),
+              if (!tags.contains(tag))
+                _SuggestedTagChip(
+                  label: tag,
+                  active: false,
+                  disabled: tags.length >= profileTagLimit,
+                  onTap: () => _toggleTag(tag),
+                ),
           ],
         ),
+        // 已选标签（含自定义）单独一行展示，黑底 + × 移除
+        if (tags.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.start,
+            children: [
+              for (final tag in tags)
+                _SelectedTagChip(
+                  label: tag,
+                  onRemove: () => _toggleTag(tag),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -357,7 +375,7 @@ class _OnboardingProfileExpertiseViewState
   }
 }
 
-/// 对齐 Web `flex flex-wrap gap-2` 药丸标签，宽度随内容收缩。
+/// 未选建议标签：白底灰边，宽度随内容收缩。
 class _SuggestedTagChip extends StatelessWidget {
   const _SuggestedTagChip({
     required this.label,
@@ -401,6 +419,54 @@ class _SuggestedTagChip extends StatelessWidget {
                   color: active ? Colors.white : const Color(0xFF6B6862),
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 已选标签（含自定义）：黑底白字，右侧 × 可移除。
+class _SelectedTagChip extends StatelessWidget {
+  const _SelectedTagChip({
+    required this.label,
+    required this.onRemove,
+  });
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onRemove,
+        borderRadius: BorderRadius.circular(999),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFF171717),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0xFF171717)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: 'Geist',
+                    fontSize: 14,
+                    height: 1.2,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.close, size: 14, color: Colors.white),
+              ],
             ),
           ),
         ),
