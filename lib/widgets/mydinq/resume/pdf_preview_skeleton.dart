@@ -24,7 +24,8 @@ class PdfPreviewSkeleton extends StatelessWidget {
     final showThumbSidebar = showSidebar && !isMobile;
     final hPad = isMobile ? 12.0 : 32.0;
     final vPadTop = isMobile ? 16.0 : 32.0;
-    const vPadBottom = 80.0;
+    // Loading 态无底部 zoom 控件，移动端少留空白避免骨架被压矮后溢出。
+    final vPadBottom = isMobile ? 16.0 : 80.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -129,13 +130,20 @@ class PdfPageSkeleton extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = math.min(maxWidth, constraints.maxWidth);
+        // Prefer the parent budget; fall back to A4 aspect only when unbounded.
+        final availableH = constraints.maxHeight;
         final height = maxHeight != null && maxHeight!.isFinite && maxHeight! > 0
-            ? math.min(maxHeight!, constraints.maxHeight)
-            : width / math.sqrt2;
+            ? math.min(
+                maxHeight!,
+                availableH.isFinite ? availableH : maxHeight!,
+              )
+            : (availableH.isFinite && availableH > 0
+                ? availableH
+                : width / math.sqrt2);
 
         return SizedBox(
           width: width,
-          height: height,
+          height: height.isFinite ? height : null,
           child: SkeletonPulse(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(2),
@@ -150,36 +158,53 @@ class PdfPageSkeleton extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Padding(
-                padding: EdgeInsets.all(innerPad),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _bar(width: width * 0.5, height: 28, color: const Color(0xFFEEEDE9)),
-                    const SizedBox(height: 12),
-                    _bar(width: width * 0.75, height: 12, color: const Color(0xFFF1F0EC)),
-                    const SizedBox(height: 8),
-                    _bar(width: width * 0.66, height: 12, color: const Color(0xFFF1F0EC)),
-                    const SizedBox(height: 20),
-                    _section(
-                      contentWidth: width - innerPad * 2,
-                      titleFraction: 1 / 3,
-                      titleHeight: 16,
-                      lineCount: 9,
-                      lineWidthFactor: (i) => (92 - (i % 4) * 9) / 100,
+                // Fixed page height + fixed bars used to overflow (~42px on
+                // mobile). Scroll+clip keeps layout valid; excess is hidden.
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: EdgeInsets.all(innerPad),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _bar(
+                          width: width * 0.5,
+                          height: 28,
+                          color: const Color(0xFFEEEDE9),
+                        ),
+                        const SizedBox(height: 12),
+                        _bar(
+                          width: width * 0.75,
+                          height: 12,
+                          color: const Color(0xFFF1F0EC),
+                        ),
+                        const SizedBox(height: 8),
+                        _bar(
+                          width: width * 0.66,
+                          height: 12,
+                          color: const Color(0xFFF1F0EC),
+                        ),
+                        const SizedBox(height: 20),
+                        _section(
+                          contentWidth: width - innerPad * 2,
+                          titleFraction: 1 / 3,
+                          titleHeight: 16,
+                          lineCount: 9,
+                          lineWidthFactor: (i) => (92 - (i % 4) * 9) / 100,
+                        ),
+                        const SizedBox(height: 20),
+                        _section(
+                          contentWidth: width - innerPad * 2,
+                          titleFraction: 2 / 5,
+                          titleHeight: 16,
+                          lineCount: 7,
+                          lineWidthFactor: (i) => (88 - (i % 3) * 12) / 100,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    _section(
-                      contentWidth: width - innerPad * 2,
-                      titleFraction: 2 / 5,
-                      titleHeight: 16,
-                      lineCount: 7,
-                      lineWidthFactor: (i) => (88 - (i % 3) * 12) / 100,
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
             ),
           ),
         );
