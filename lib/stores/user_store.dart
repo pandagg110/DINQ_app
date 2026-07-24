@@ -59,7 +59,7 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
     unawaited(AppleIapService.instance.retryPendingTransactions());
     unawaited(GooglePlayIapService.instance.retryPendingTransactions());
-    // 验证概览 / 绑定账号 / 推送注册互不依赖，并行缩短冷启动等待
+    // 验证概览 / 绑定账号 / 推送注册不挡进主界面，后台拉取即可
     await Future.wait([
       loadVerifications(),
       loadUserAccounts(),

@@ -598,7 +598,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
                     FilledButton(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        context.push('/integration');
+                        context.push('/me/integration');
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: _C.textPrimary,
