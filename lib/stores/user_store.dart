@@ -59,10 +59,13 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
     unawaited(AppleIapService.instance.retryPendingTransactions());
     unawaited(GooglePlayIapService.instance.retryPendingTransactions());
-    await loadVerifications();
-    await loadUserAccounts();
-    // 登录态就绪后注册推送设备 Token（真机生效，其余环境内部跳过）
-    PushService.instance.registerToken();
+    // 验证概览 / 绑定账号 / 推送注册互不依赖，并行缩短冷启动等待
+    await Future.wait([
+      loadVerifications(),
+      loadUserAccounts(),
+      // 登录态就绪后注册推送设备 Token（真机生效，其余环境内部跳过）
+      PushService.instance.registerToken(),
+    ]);
   }
 
   Future<void> _loadToken() async {
