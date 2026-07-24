@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,31 +27,13 @@ class CardRenderer extends StatefulWidget {
 }
 
 class _CardRendererState extends State<CardRenderer> {
-  bool _hasPrintedJson = false;
   bool _isDrag = false;
   Timer? _dragEndTimer; // Tracks delayed drag reset after pointer release.
-  @override
-  void initState() {
-    super.initState();
-    _printCardJson();
-  }
 
   @override
   void dispose() {
     _dragEndTimer?.cancel();
     super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(CardRenderer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Reprint card JSON when the card identity or state changes.
-    if (oldWidget.card.id != widget.card.id ||
-        oldWidget.card.data.type != widget.card.data.type ||
-        oldWidget.card.data.status != widget.card.data.status) {
-      _hasPrintedJson = false;
-      _printCardJson();
-    }
   }
 
   /// Resolve the URL to open when the card is tapped.
@@ -74,23 +55,6 @@ class _CardRendererState extends State<CardRenderer> {
         return true;
       default:
         return false;
-    }
-  }
-
-  /// Print card JSON for datasource debugging.
-  void _printCardJson() {
-    if (_hasPrintedJson) return;
-    _hasPrintedJson = true;
-
-    try {
-      final jsonMap = widget.card.toJson();
-      final jsonString = const JsonEncoder.withIndent('  ').convert(jsonMap);
-      assert(() {
-        debugPrint(jsonString);
-        return true;
-      }());
-    } catch (e) {
-      // Debug logging must not break card rendering.
     }
   }
 
