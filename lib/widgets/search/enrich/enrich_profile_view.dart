@@ -244,7 +244,8 @@ class _EnrichProfileViewState extends State<EnrichProfileView> {
         !isStreamingStatus &&
         !_refreshing;
 
-    final shouldShowLogs = hasLogs && (!widget.shortlistMode || !isDone);
+    // Search 详情与 shortlist 一致：completed 后隐藏顶部 Searching 条。
+    final shouldShowLogs = hasLogs && !isDone;
     final logSection = shouldShowLogs
         ? SizedBox(
             width: double.infinity,
