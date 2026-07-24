@@ -39,6 +39,7 @@ class ShortlistPage extends StatefulWidget {
 
 class _ShortlistPageState extends State<ShortlistPage> {
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   final _scrollController = ScrollController();
   Timer? _debounce;
   EnrichStreamController? _enrichController;
@@ -72,12 +73,19 @@ class _ShortlistPageState extends State<ShortlistPage> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchFocusNode.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     context.read<DeepSearchEnrichStore>().removeListener(_syncBottomNav);
     context.read<ShortlistStore>().removeListener(_syncBottomNav);
     _enrichController?.close();
     super.dispose();
+  }
+
+  void _dismissSearchFocus() {
+    if (_searchFocusNode.hasFocus) {
+      _searchFocusNode.unfocus();
+    }
   }
 
   void _syncBottomNav() {
@@ -113,6 +121,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
   }
 
   void _onScroll() {
+    _dismissSearchFocus();
     if (!_scrollController.hasClients) return;
     final store = context.read<ShortlistStore>();
     if (_scrollController.position.pixels >=
@@ -410,9 +419,18 @@ class _ShortlistPageState extends State<ShortlistPage> {
                     folderName: store.activeProjectName,
                     isExporting: _isExporting,
                     allVisibleSelected: allVisibleSelected,
-                    onFolderTap: () => showShortlistFoldersDrawer(context),
-                    onExport: () => _openExportSheet(),
-                    onEnterSelection: store.enterSelectionMode,
+                    onFolderTap: () {
+                      _dismissSearchFocus();
+                      showShortlistFoldersDrawer(context);
+                    },
+                    onExport: () {
+                      _dismissSearchFocus();
+                      _openExportSheet();
+                    },
+                    onEnterSelection: () {
+                      _dismissSearchFocus();
+                      store.enterSelectionMode();
+                    },
                     onCloseSelection: store.exitSelectionMode,
                     onToggleSelectAll: () =>
                         store.toggleSelectAllVisible(visibleIds),
@@ -423,6 +441,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
                       children: [
                         _ShortlistSearchField(
                           controller: _searchController,
+                          focusNode: _searchFocusNode,
                           onChanged: _onSearchChanged,
                         ),
                         const SizedBox(height: 12),
@@ -430,6 +449,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
                           statusFilter: store.statusFilter,
                           onStatusChanged: (status) {
                             if (status == store.statusFilter) return;
+                            _dismissSearchFocus();
                             store.setStatusFilter(status);
                             store.loadFavorites(clear: true);
                           },
@@ -511,6 +531,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
           actionLabel: ShortlistStrings.emptyNoMatchesReset,
           onAction: () {
             _searchController.clear();
+            _dismissSearchFocus();
             setState(() => _searchQuery = '');
             store.clearFilters();
             store.loadFavorites(clear: true);
@@ -526,6 +547,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
     return ListView.separated(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.fromLTRB(
         16,
         0,
@@ -795,10 +817,12 @@ class _ShortlistFolderPill extends StatelessWidget {
 class _ShortlistSearchField extends StatelessWidget {
   const _ShortlistSearchField({
     required this.controller,
+    required this.focusNode,
     required this.onChanged,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final ValueChanged<String> onChanged;
 
   @override
@@ -819,26 +843,35 @@ class _ShortlistSearchField extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              decoration: const InputDecoration(
-                hintText: ShortlistStrings.searchPlaceholder,
-                hintStyle: TextStyle(
-                  color: DinqTokens.textTertiary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                isDense: true,
-              ),
-              style: const TextStyle(
-                color: DinqTokens.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+            child: ListenableBuilder(
+              listenable: focusNode,
+              builder: (context, _) {
+                final focused = focusNode.hasFocus;
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  onChanged: onChanged,
+                  // 未聚焦时不显示光标（空闲态只有 placeholder）。
+                  showCursor: focused,
+                  decoration: const InputDecoration(
+                    hintText: ShortlistStrings.searchPlaceholder,
+                    hintStyle: TextStyle(
+                      color: DinqTokens.textTertiary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                  ),
+                  style: const TextStyle(
+                    color: DinqTokens.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                );
+              },
             ),
           ),
         ],

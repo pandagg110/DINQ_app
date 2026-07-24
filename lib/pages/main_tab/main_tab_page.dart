@@ -59,6 +59,9 @@ class _MainTabPageState extends State<MainTabPage> {
 
   void _selectTab(MainTabType tabType) {
     if (_currentTabType == tabType) return;
+    // KeepAlive 会保留子页 TextField 焦点，切 tab 时若不收起，
+    // 再进 Shortlist 等页会突然弹出键盘并露出光标。
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _currentTabType = tabType);
     _jumpToTabPage(tabType.pageIndex);
     _refreshShortlistOnEnter(tabType);
