@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,15 +17,26 @@ Future<void> main() async {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   // 初始化卡片注册表
   initializeCardRegistry();
-  // 初始化消息推送（未配置 Firebase 或非真机时内部安全跳过）
-  await PushService.instance.init();
+
+  // 推送 / 用户初始化放到后台，失败也不阻塞首帧（真机无 GMS / 网络慢时避免白屏）
+  unawaited(_initPushInBackground());
   final userStore = UserStore();
-  await userStore.ready;
-  final preferences = await SharedPreferences.getInstance();
-  final showFirstLaunchSplash =
-      !(preferences.getBool('startup.has_launched') ?? false);
-  await preferences.setBool('startup.has_launched', true);
+
+  var showFirstLaunchSplash = false;
+  try {
+    final preferences = await SharedPreferences.getInstance();
+    showFirstLaunchSplash =
+        !(preferences.getBool('startup.has_launched') ?? false);
+    await preferences.setBool('startup.has_launched', true);
+  } catch (_) {}
+
   runApp(
     DinqApp(userStore: userStore, showFirstLaunchSplash: showFirstLaunchSplash),
   );
+}
+
+Future<void> _initPushInBackground() async {
+  try {
+    await PushService.instance.init();
+  } catch (_) {}
 }
