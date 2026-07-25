@@ -29,7 +29,12 @@ class SignInPage extends StatefulWidget {
 class _SignInPageState extends State<SignInPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
+  /// 上一持焦输入框：用于判断邮箱↔密码（普通键盘↔安全键盘）互切。
+  FocusNode? _lastFocusedField;
+  /// 互切 hide→show 窗口期内，忽略 onTap 的立刻 show，避免抢跑。
+  bool _suppressTapShow = false;
   bool _showPassword = false;
   String? _error;
   bool _isButtonEnabled = false;
@@ -42,7 +47,10 @@ class _SignInPageState extends State<SignInPage> {
     super.initState();
     _emailController.addListener(_updateButtonState);
     _passwordController.addListener(_updateButtonState);
-    _passwordFocusNode.addListener(_onPasswordFocusChange);
+    _emailFocusNode.addListener(() => _onFieldFocusChange(_emailFocusNode));
+    _passwordFocusNode.addListener(
+      () => _onFieldFocusChange(_passwordFocusNode),
+    );
   }
 
   void _updateButtonState() {
@@ -54,19 +62,44 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  void _onPasswordFocusChange() {
-    if (!_passwordFocusNode.hasFocus) return;
-    schedulePasswordSoftKeyboardRetries(_passwordFocusNode);
+  void _onFieldFocusChange(FocusNode node) {
+    if (!node.hasFocus) {
+      // 两框都失焦（点空白收起）时清空，避免下次误判为互切
+      if (!_emailFocusNode.hasFocus && !_passwordFocusNode.hasFocus) {
+        _lastFocusedField = null;
+      }
+      return;
+    }
+    final previous = _lastFocusedField;
+    final switched =
+        previous != null && !identical(previous, node);
+    _lastFocusedField = node;
+    if (switched) {
+      // 邮箱(普通) ↔ 密码(安全) 互切：先 hide 再延后 show
+      _suppressTapShow = true;
+      scheduleImeSwitchSoftKeyboard(node);
+      Future<void>.delayed(const Duration(milliseconds: 700), () {
+        _suppressTapShow = false;
+      });
+    } else {
+      scheduleSoftKeyboardRetries(node);
+    }
+  }
+
+  /// 已获焦再点：focus 不变，listener 不会触发，需补弹。
+  void _onFieldTap(FocusNode node) {
+    if (_suppressTapShow) return;
+    ensureSoftKeyboardVisible(node);
   }
 
   @override
   void dispose() {
     _emailController.removeListener(_updateButtonState);
     _passwordController.removeListener(_updateButtonState);
-    _passwordFocusNode.removeListener(_onPasswordFocusChange);
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -120,10 +153,12 @@ class _SignInPageState extends State<SignInPage> {
                         height: 48,
                         child: TextField(
                             controller: _emailController,
+                            focusNode: _emailFocusNode,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             enableInteractiveSelection: true,
                             onTapOutside: unfocusOnTapOutside,
+                            onTap: () => _onFieldTap(_emailFocusNode),
                             decoration: InputDecoration(
                               hintText: 'Enter your email',
                               hintStyle: TextStyle(
@@ -176,10 +211,8 @@ class _SignInPageState extends State<SignInPage> {
                             textInputAction: TextInputAction.done,
                             enableInteractiveSelection: true,
                             onTapOutside: unfocusOnTapOutside,
-                            // 小米安全键盘：首次 showSoftInput 常被丢弃，onTap 再补一次
-                            onTap: () => ensurePasswordSoftKeyboardVisible(
-                              _passwordFocusNode,
-                            ),
+                            // 小米：安全键盘↔普通键盘互切由 focus listener 处理；已获焦再点由此补弹
+                            onTap: () => _onFieldTap(_passwordFocusNode),
                             decoration: InputDecoration(
                               hintText: 'Enter your password',
                               hintStyle: TextStyle(

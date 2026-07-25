@@ -25,8 +25,13 @@ class _SignUpPageState extends State<SignUpPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _confirmPasswordFocusNode = FocusNode();
+  /// 上一持焦输入框：用于判断普通键盘↔安全键盘互切。
+  FocusNode? _lastFocusedField;
+  /// 互切 hide→show 窗口期内，忽略 onTap 的立刻 show，避免抢跑。
+  bool _suppressTapShow = false;
   bool _showPassword = false;
   bool _showConfirmPassword = false;
 
@@ -41,11 +46,12 @@ class _SignUpPageState extends State<SignUpPage> {
     _emailController.addListener(_updateButtonState);
     _passwordController.addListener(_updateButtonState);
     _confirmPasswordController.addListener(_updateButtonState);
+    _emailFocusNode.addListener(() => _onFieldFocusChange(_emailFocusNode));
     _passwordFocusNode.addListener(
-      () => _onPasswordFocusChange(_passwordFocusNode),
+      () => _onFieldFocusChange(_passwordFocusNode),
     );
     _confirmPasswordFocusNode.addListener(
-      () => _onPasswordFocusChange(_confirmPasswordFocusNode),
+      () => _onFieldFocusChange(_confirmPasswordFocusNode),
     );
   }
 
@@ -59,9 +65,33 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  void _onPasswordFocusChange(FocusNode node) {
-    if (!node.hasFocus) return;
-    schedulePasswordSoftKeyboardRetries(node);
+  void _onFieldFocusChange(FocusNode node) {
+    if (!node.hasFocus) {
+      if (!_emailFocusNode.hasFocus &&
+          !_passwordFocusNode.hasFocus &&
+          !_confirmPasswordFocusNode.hasFocus) {
+        _lastFocusedField = null;
+      }
+      return;
+    }
+    final previous = _lastFocusedField;
+    final switched =
+        previous != null && !identical(previous, node);
+    _lastFocusedField = node;
+    if (switched) {
+      _suppressTapShow = true;
+      scheduleImeSwitchSoftKeyboard(node);
+      Future<void>.delayed(const Duration(milliseconds: 700), () {
+        _suppressTapShow = false;
+      });
+    } else {
+      scheduleSoftKeyboardRetries(node);
+    }
+  }
+
+  void _onFieldTap(FocusNode node) {
+    if (_suppressTapShow) return;
+    ensureSoftKeyboardVisible(node);
   }
 
   @override
@@ -72,6 +102,7 @@ class _SignUpPageState extends State<SignUpPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     super.dispose();
@@ -121,10 +152,12 @@ class _SignUpPageState extends State<SignUpPage> {
                         height: 48,
                         child: TextField(
                             controller: _emailController,
+                            focusNode: _emailFocusNode,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             enableInteractiveSelection: true,
                             onTapOutside: unfocusOnTapOutside,
+                            onTap: () => _onFieldTap(_emailFocusNode),
                             decoration: InputDecoration(
                               border: OutlineInputBorder(
                                 borderSide: BorderSide(
@@ -166,9 +199,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             textInputAction: TextInputAction.next,
                             enableInteractiveSelection: true,
                             onTapOutside: unfocusOnTapOutside,
-                            onTap: () => ensurePasswordSoftKeyboardVisible(
-                              _passwordFocusNode,
-                            ),
+                            onTap: () => _onFieldTap(_passwordFocusNode),
                             decoration: InputDecoration(
                               hintText: 'At least 8 characters',
                               hintStyle: TextStyle(
@@ -220,9 +251,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             textInputAction: TextInputAction.done,
                             enableInteractiveSelection: true,
                             onTapOutside: unfocusOnTapOutside,
-                            onTap: () => ensurePasswordSoftKeyboardVisible(
-                              _confirmPasswordFocusNode,
-                            ),
+                            onTap: () => _onFieldTap(_confirmPasswordFocusNode),
                             decoration: InputDecoration(
                               hintText: 'At least 8 characters',
                               hintStyle: TextStyle(
