@@ -491,11 +491,13 @@ class _SignInPageState extends State<SignInPage> {
 
     try {
       await ToastUtil.showLoading();
-      if (!mounted) return;
+      if (!mounted) {
+        await ToastUtil.dismiss();
+        return;
+      }
       await context.read<UserStore>().login(email: email, password: password);
       await ToastUtil.dismiss();
       if (!mounted) return;
-
       _handleLoginSuccess();
     } catch (error) {
       await ToastUtil.dismiss();
@@ -523,14 +525,16 @@ class _SignInPageState extends State<SignInPage> {
       String platformAccessToken = googleSignInAuthentication.idToken ?? "";
       try {
         await ToastUtil.showLoading();
-        if (!mounted) return;
+        if (!mounted) {
+          await ToastUtil.dismiss();
+          return;
+        }
         await context.read<UserStore>().thirdPartyLogin(
           provider: 'google',
           idToken: platformAccessToken,
         );
         await ToastUtil.dismiss();
         if (!mounted) return;
-
         _handleLoginSuccess();
       } catch (error) {
         await ToastUtil.dismiss();
@@ -555,14 +559,16 @@ class _SignInPageState extends State<SignInPage> {
 
         try {
           await ToastUtil.showLoading();
-          if (!mounted) return;
+          if (!mounted) {
+            await ToastUtil.dismiss();
+            return;
+          }
           await context.read<UserStore>().thirdPartyLogin(
             provider: 'github',
             idToken: result.token ?? '',
           );
           await ToastUtil.dismiss();
           if (!mounted) return;
-
           _handleLoginSuccess();
         } catch (error) {
           await ToastUtil.dismiss();

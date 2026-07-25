@@ -109,17 +109,22 @@ class PushService {
     if (!_ready) await init();
     if (!_ready) return;
     try {
-      final settings = await FirebaseMessaging.instance.requestPermission();
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        return;
-      }
-      if (_isIOS) {
-        // iOS 需先拿到 APNs token，否则 getToken 可能为空
-        await FirebaseMessaging.instance.getAPNSToken();
-      }
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null) await _uploadToken(token);
-    } catch (e) {}
+      // 无 GMS / 权限弹窗卡住时，限制等待，避免拖死登录 loading。
+      await _registerTokenBody().timeout(const Duration(seconds: 8));
+    } catch (_) {}
+  }
+
+  Future<void> _registerTokenBody() async {
+    final settings = await FirebaseMessaging.instance.requestPermission();
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      return;
+    }
+    if (_isIOS) {
+      // iOS 需先拿到 APNs token，否则 getToken 可能为空
+      await FirebaseMessaging.instance.getAPNSToken();
+    }
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token != null) await _uploadToken(token);
   }
 
   Future<void> _uploadToken(String token) async {

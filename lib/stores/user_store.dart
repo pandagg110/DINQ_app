@@ -59,13 +59,13 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
     unawaited(AppleIapService.instance.retryPendingTransactions());
     unawaited(GooglePlayIapService.instance.retryPendingTransactions());
-    // 验证概览 / 绑定账号 / 推送注册不挡进主界面，后台拉取即可
-    await Future.wait([
+    // 验证概览 / 绑定账号 / 推送注册不挡登录与进主界面（FCM 在无 GMS
+    // 真机上可能一直挂起，await 会导致 ToastUtil loading 永不 dismiss）。
+    unawaited(Future.wait([
       loadVerifications(),
       loadUserAccounts(),
-      // 登录态就绪后注册推送设备 Token（真机生效，其余环境内部跳过）
       PushService.instance.registerToken(),
-    ]);
+    ]));
   }
 
   Future<void> _loadToken() async {
