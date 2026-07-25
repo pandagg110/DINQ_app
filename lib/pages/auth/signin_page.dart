@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import '../../constants/app_constants.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
+import '../../utils/password_field_keyboard.dart';
 import '../../widgets/common/default_app_bar.dart';
 
 class SignInPage extends StatefulWidget {
@@ -28,6 +29,7 @@ class SignInPage extends StatefulWidget {
 class _SignInPageState extends State<SignInPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _showPassword = false;
   String? _error;
   bool _isButtonEnabled = false;
@@ -40,6 +42,7 @@ class _SignInPageState extends State<SignInPage> {
     super.initState();
     _emailController.addListener(_updateButtonState);
     _passwordController.addListener(_updateButtonState);
+    _passwordFocusNode.addListener(_onPasswordFocusChange);
   }
 
   void _updateButtonState() {
@@ -51,12 +54,19 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
+  void _onPasswordFocusChange() {
+    if (!_passwordFocusNode.hasFocus) return;
+    schedulePasswordSoftKeyboardRetries(_passwordFocusNode);
+  }
+
   @override
   void dispose() {
     _emailController.removeListener(_updateButtonState);
     _passwordController.removeListener(_updateButtonState);
+    _passwordFocusNode.removeListener(_onPasswordFocusChange);
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -166,9 +176,17 @@ class _SignInPageState extends State<SignInPage> {
                         child: IgnoreKeyboardDismiss(
                           child: TextField(
                             controller: _passwordController,
+                            focusNode: _passwordFocusNode,
                             obscureText: !_showPassword,
+                            keyboardType: kPasswordKeyboardType,
+                            enableSuggestions: false,
+                            autocorrect: false,
                             textInputAction: TextInputAction.done,
                             enableInteractiveSelection: true,
+                            // 小米安全键盘：首次 showSoftInput 常被丢弃，onTap 再补一次
+                            onTap: () => ensurePasswordSoftKeyboardVisible(
+                              _passwordFocusNode,
+                            ),
                             decoration: InputDecoration(
                               hintText: 'Enter your password',
                               hintStyle: TextStyle(

@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
+import '../../utils/password_field_keyboard.dart';
 import '../../widgets/common/base_page.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -24,6 +25,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
   bool _showPassword = false;
   bool _showConfirmPassword = false;
 
@@ -38,6 +41,12 @@ class _SignUpPageState extends State<SignUpPage> {
     _emailController.addListener(_updateButtonState);
     _passwordController.addListener(_updateButtonState);
     _confirmPasswordController.addListener(_updateButtonState);
+    _passwordFocusNode.addListener(
+      () => _onPasswordFocusChange(_passwordFocusNode),
+    );
+    _confirmPasswordFocusNode.addListener(
+      () => _onPasswordFocusChange(_confirmPasswordFocusNode),
+    );
   }
 
   void _updateButtonState() {
@@ -50,6 +59,11 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
+  void _onPasswordFocusChange(FocusNode node) {
+    if (!node.hasFocus) return;
+    schedulePasswordSoftKeyboardRetries(node);
+  }
+
   @override
   void dispose() {
     _emailController.removeListener(_updateButtonState);
@@ -58,6 +72,8 @@ class _SignUpPageState extends State<SignUpPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -149,9 +165,16 @@ class _SignUpPageState extends State<SignUpPage> {
                         child: IgnoreKeyboardDismiss(
                           child: TextField(
                             controller: _passwordController,
+                            focusNode: _passwordFocusNode,
                             obscureText: !_showPassword,
+                            keyboardType: kPasswordKeyboardType,
+                            enableSuggestions: false,
+                            autocorrect: false,
                             textInputAction: TextInputAction.next,
                             enableInteractiveSelection: true,
+                            onTap: () => ensurePasswordSoftKeyboardVisible(
+                              _passwordFocusNode,
+                            ),
                             decoration: InputDecoration(
                               hintText: 'At least 8 characters',
                               hintStyle: TextStyle(
@@ -197,9 +220,16 @@ class _SignUpPageState extends State<SignUpPage> {
                         child: IgnoreKeyboardDismiss(
                           child: TextField(
                             controller: _confirmPasswordController,
+                            focusNode: _confirmPasswordFocusNode,
                             obscureText: !_showConfirmPassword,
+                            keyboardType: kPasswordKeyboardType,
+                            enableSuggestions: false,
+                            autocorrect: false,
                             textInputAction: TextInputAction.done,
                             enableInteractiveSelection: true,
+                            onTap: () => ensurePasswordSoftKeyboardVisible(
+                              _confirmPasswordFocusNode,
+                            ),
                             decoration: InputDecoration(
                               hintText: 'At least 8 characters',
                               hintStyle: TextStyle(
