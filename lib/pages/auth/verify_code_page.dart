@@ -1,7 +1,6 @@
 import 'package:dinq_app/utils/top_toast_util.dart';
 import '../../utils/api_error.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -75,11 +74,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
 
   @override
   Widget build(BuildContext context) {
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Scaffold(
+    return Scaffold(
         appBar: DefaultAppBar(context),
         body: Padding(
           padding: const EdgeInsets.all(24),
@@ -213,8 +208,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   /// 发送邮箱验证码

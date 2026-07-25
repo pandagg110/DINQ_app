@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
+import '../../utils/unfocus_on_tap_outside.dart';
 import '../../widgets/common/base_page.dart';
 import '../../widgets/common/default_app_bar.dart';
 import '../../widgets/profile/profile_form_helpers.dart';
@@ -97,11 +97,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: ColorUtil.pageBgColor,
         appBar: DefaultAppBar(
           context,
@@ -164,8 +160,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildHintBanner() {
@@ -225,6 +220,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
       child: TextField(
         controller: controller,
+        onTapOutside: unfocusOnTapOutside,
         style: TextStyle(fontSize: 14, fontFamily: 'Geist', color: ColorUtil.textColor),
         decoration: InputDecoration(
           hintText: hintText,

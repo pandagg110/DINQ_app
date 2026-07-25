@@ -7,7 +7,6 @@ import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:dinq_app/widgets/landing/invite_code_dialog.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:github_oauth_signin/github_oauth_signin.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -17,6 +16,7 @@ import '../../constants/app_constants.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/password_field_keyboard.dart';
+import '../../utils/unfocus_on_tap_outside.dart';
 import '../../widgets/common/default_app_bar.dart';
 
 class SignInPage extends StatefulWidget {
@@ -74,12 +74,7 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     final userStore = context.watch<UserStore>();
     final isLoading = userStore.isLoading;
-
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Scaffold(
+    return Scaffold(
         // 登录页不需要返回按钮，避免用户误返回到空白或历史页
         appBar: DefaultAppBar(context, isShowBack: false),
         resizeToAvoidBottomInset: false,
@@ -123,13 +118,12 @@ class _SignInPageState extends State<SignInPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        // 避免 KeyboardDismissOnTap 在 pointerUp 时抢焦点，导致系统长按粘贴菜单被关掉
-                        child: IgnoreKeyboardDismiss(
-                          child: TextField(
+                        child: TextField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             enableInteractiveSelection: true,
+                            onTapOutside: unfocusOnTapOutside,
                             decoration: InputDecoration(
                               hintText: 'Enter your email',
                               hintStyle: TextStyle(
@@ -138,7 +132,6 @@ class _SignInPageState extends State<SignInPage> {
                               ),
                             ),
                           ),
-                        ),
                       ),
                       const SizedBox(height: 10),
                       Align(
@@ -173,8 +166,7 @@ class _SignInPageState extends State<SignInPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: IgnoreKeyboardDismiss(
-                          child: TextField(
+                        child: TextField(
                             controller: _passwordController,
                             focusNode: _passwordFocusNode,
                             obscureText: !_showPassword,
@@ -183,6 +175,7 @@ class _SignInPageState extends State<SignInPage> {
                             autocorrect: false,
                             textInputAction: TextInputAction.done,
                             enableInteractiveSelection: true,
+                            onTapOutside: unfocusOnTapOutside,
                             // 小米安全键盘：首次 showSoftInput 常被丢弃，onTap 再补一次
                             onTap: () => ensurePasswordSoftKeyboardVisible(
                               _passwordFocusNode,
@@ -212,7 +205,6 @@ class _SignInPageState extends State<SignInPage> {
                               ),
                             ),
                           ),
-                        ),
                       ),
                       const SizedBox(height: 12),
                       if (_error != null)
@@ -484,8 +476,7 @@ class _SignInPageState extends State<SignInPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Future<void> _handleSignIn() async {

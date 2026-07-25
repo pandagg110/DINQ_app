@@ -3,11 +3,11 @@ import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
+import '../../utils/unfocus_on_tap_outside.dart';
 
 class SettingsSetPasswordPage extends StatefulWidget {
   final bool hasPassword;
@@ -147,11 +147,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Scaffold(
+    return Scaffold(
         appBar: DefaultAppBar(context, titleString: 'Password'),
         body: Column(
           children: [
@@ -244,8 +240,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildLabel(String text) {
@@ -268,11 +263,11 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
       children: [
         SizedBox(
           height: 48,
-          child: IgnoreKeyboardDismiss(
-            child: TextField(
+          child: TextField(
               controller: controller,
               obscureText: !showPassword,
               enableInteractiveSelection: true,
+              onTapOutside: unfocusOnTapOutside,
               style: TextStyle(fontSize: 14, color: ColorUtil.textColor, fontFamily: 'Geist'),
               decoration: InputDecoration(
                 hintText: hint,
@@ -294,7 +289,6 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
                 ),
               ),
             ),
-          ),
         ),
         if (hasError) ...[
           const SizedBox(height: 4),

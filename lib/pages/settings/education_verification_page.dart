@@ -8,12 +8,12 @@ import 'package:dinq_app/services/profile_service.dart';
 import 'package:dinq_app/services/upload_service.dart';
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:dinq_app/utils/top_toast_util.dart';
+import 'package:dinq_app/utils/unfocus_on_tap_outside.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -107,12 +107,7 @@ class _EducationVerificationPageState extends State<EducationVerificationPage> {
   @override
   Widget build(BuildContext context) {
     final status = _existingData?['status']?.toString();
-
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Scaffold(
+    return Scaffold(
         appBar: DefaultAppBar(
           context,
           titleString: "Education Verification",
@@ -150,8 +145,7 @@ class _EducationVerificationPageState extends State<EducationVerificationPage> {
             _buildSubmitButton(),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildPendingBanner() {
@@ -413,6 +407,7 @@ class _EducationVerificationPageState extends State<EducationVerificationPage> {
         controller: TextEditingController(text: value)
           ..selection = TextSelection.collapsed(offset: value.length),
         onChanged: onChanged,
+        onTapOutside: unfocusOnTapOutside,
         style: TextStyle(
           fontSize: 14,
           color: ColorUtil.textColor,
@@ -587,6 +582,7 @@ class _EducationVerificationPageState extends State<EducationVerificationPage> {
                   ),
                   child: TextField(
                     onChanged: (v) => setState(() => _verificationEmail = v),
+                    onTapOutside: unfocusOnTapOutside,
                     style: TextStyle(
                       fontSize: 14,
                       color: ColorUtil.textColor,
@@ -1412,6 +1408,7 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
                         child: TextField(
                           controller: _codeController,
                           keyboardType: TextInputType.number,
+                          onTapOutside: unfocusOnTapOutside,
                           style: TextStyle(
                             fontSize: 16,
                             color: ColorUtil.textColor,
@@ -1658,6 +1655,7 @@ class _SearchablePickerModalState extends State<_SearchablePickerModal> {
               child: TextField(
                 controller: _searchController,
                 onChanged: _onSearchChanged,
+                onTapOutside: unfocusOnTapOutside,
                 style: TextStyle(
                   fontSize: 14,
                   color: ColorUtil.textColor,

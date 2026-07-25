@@ -5,13 +5,13 @@ import 'package:dinq_app/widgets/account/agreement_protocol_modal.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
 import '../../utils/password_field_keyboard.dart';
+import '../../utils/unfocus_on_tap_outside.dart';
 import '../../widgets/common/base_page.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -81,12 +81,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     // final userStore = context.watch<UserStore>();
     // final isLoading = userStore.isLoading;
-
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Scaffold(
+    return Scaffold(
         appBar: DefaultAppBar(context),
         resizeToAvoidBottomInset: false,
         body: SafeArea(
@@ -124,12 +119,12 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: IgnoreKeyboardDismiss(
-                          child: TextField(
+                        child: TextField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             enableInteractiveSelection: true,
+                            onTapOutside: unfocusOnTapOutside,
                             decoration: InputDecoration(
                               border: OutlineInputBorder(
                                 borderSide: BorderSide(
@@ -145,7 +140,6 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                             ),
                           ),
-                        ),
                       ),
                       const SizedBox(height: 10),
                       Align(
@@ -162,8 +156,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: IgnoreKeyboardDismiss(
-                          child: TextField(
+                        child: TextField(
                             controller: _passwordController,
                             focusNode: _passwordFocusNode,
                             obscureText: !_showPassword,
@@ -172,6 +165,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             autocorrect: false,
                             textInputAction: TextInputAction.next,
                             enableInteractiveSelection: true,
+                            onTapOutside: unfocusOnTapOutside,
                             onTap: () => ensurePasswordSoftKeyboardVisible(
                               _passwordFocusNode,
                             ),
@@ -200,7 +194,6 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                             ),
                           ),
-                        ),
                       ),
                       const SizedBox(height: 10),
                       Align(
@@ -217,8 +210,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 48,
-                        child: IgnoreKeyboardDismiss(
-                          child: TextField(
+                        child: TextField(
                             controller: _confirmPasswordController,
                             focusNode: _confirmPasswordFocusNode,
                             obscureText: !_showConfirmPassword,
@@ -227,6 +219,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             autocorrect: false,
                             textInputAction: TextInputAction.done,
                             enableInteractiveSelection: true,
+                            onTapOutside: unfocusOnTapOutside,
                             onTap: () => ensurePasswordSoftKeyboardVisible(
                               _confirmPasswordFocusNode,
                             ),
@@ -256,7 +249,6 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                             ),
                           ),
-                        ),
                       ),
                       const SizedBox(height: 12),
                       if (_error != null)
@@ -421,8 +413,7 @@ class _SignUpPageState extends State<SignUpPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Future<void> _handleSignUp(BuildContext context) async {

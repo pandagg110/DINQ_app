@@ -1,13 +1,13 @@
 ﻿import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import '../../utils/api_error.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
 import '../../utils/toast_util.dart';
+import '../../utils/unfocus_on_tap_outside.dart';
 import '../../widgets/common/base_page.dart';
 
 class ResetPage extends StatefulWidget {
@@ -48,11 +48,7 @@ class _ResetPageState extends State<ResetPage> {
 
   @override
   Widget build(BuildContext context) {
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Scaffold(
+    return Scaffold(
         appBar: DefaultAppBar(context),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -98,12 +94,12 @@ class _ResetPageState extends State<ResetPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    IgnoreKeyboardDismiss(
-                      child: TextField(
+                    TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.done,
                         enableInteractiveSelection: true,
+                        onTapOutside: unfocusOnTapOutside,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                             borderSide: BorderSide(color: ColorUtil.textColor, width: 1),
@@ -113,7 +109,6 @@ class _ResetPageState extends State<ResetPage> {
                           hintStyle: TextStyle(color: Color(0x66303030), fontSize: 14),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 12),
                     if (_message != null)
                       Row(
@@ -193,8 +188,7 @@ class _ResetPageState extends State<ResetPage> {
                   ],
                 ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildSentView() {

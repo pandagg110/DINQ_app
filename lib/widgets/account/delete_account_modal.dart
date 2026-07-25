@@ -1,8 +1,8 @@
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:dinq_app/utils/top_toast_util.dart';
+import 'package:dinq_app/utils/unfocus_on_tap_outside.dart';
 import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:go_router/go_router.dart';
 
 import '../common/base_page.dart';
@@ -302,11 +302,7 @@ class _DeleteAccountConfirmModalState extends State<DeleteAccountConfirmModal> {
 
   @override
   Widget build(BuildContext context) {
-    // dismissOnCapturedTaps: 用 Listener(onPointerUp) 收起键盘，不参与手势竞技场，
-    // 避免裸 GestureDetector 抢走 TextField 的首次点击（首次激活弹不出键盘、需点两次）。
-    return KeyboardDismissOnTap(
-      dismissOnCapturedTaps: true,
-      child: Container(
+    return Container(
         height: MediaQuery.of(context).size.height * 0.9,
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -407,6 +403,7 @@ class _DeleteAccountConfirmModalState extends State<DeleteAccountConfirmModal> {
                       child: TextField(
                         controller: _confirmController,
                         textCapitalization: TextCapitalization.characters,
+                        onTapOutside: unfocusOnTapOutside,
                         style: TextStyle(
                           fontSize: 14,
                           color: ColorUtil.textColor,
@@ -496,7 +493,6 @@ class _DeleteAccountConfirmModalState extends State<DeleteAccountConfirmModal> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

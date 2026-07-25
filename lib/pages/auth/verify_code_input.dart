@@ -1,4 +1,5 @@
 import 'package:dinq_app/utils/color_util.dart';
+import 'package:dinq_app/utils/unfocus_on_tap_outside.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -97,6 +98,7 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
               maxLength: widget.maxLength,
               keyboardType: TextInputType.number,
               autofocus: true,
+              onTapOutside: unfocusOnTapOutside,
               decoration: InputDecoration(
                 counterText: "",
                 border: OutlineInputBorder(borderSide: BorderSide.none),
