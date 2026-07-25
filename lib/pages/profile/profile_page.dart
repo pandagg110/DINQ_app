@@ -614,6 +614,8 @@ class _ProfileFooter extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      // 安全区由 sheet 内部白底自行铺满，避免透明区透出黑边。
+      useSafeArea: false,
       builder: (_) => _ViewsStatsBottomSheet(
         username: username,
         initialTotalViews: totalViews,
@@ -829,38 +831,42 @@ class _ViewsStatsBottomSheetState extends State<_ViewsStatsBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomPadding),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 560),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.circular(999),
-                ),
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom;
+    final bottomSafe = media.padding.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        constraints: BoxConstraints(
+          // 含底部安全区，避免内容被系统导航条挡住。
+          maxHeight: 560 + bottomSafe,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        // 白底延伸进系统导航区；内容再垫 SafeArea，避免黑边。
+        padding: EdgeInsets.only(bottom: bottomSafe),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE5E7EB),
+                borderRadius: BorderRadius.circular(999),
               ),
-              Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _error != null
-                    ? _ViewsError(message: _error!, onRetry: _loadViewers)
-                    : _buildVisitorsContent(),
-              ),
-            ],
-          ),
+            ),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? _ViewsError(message: _error!, onRetry: _loadViewers)
+                  : _buildVisitorsContent(),
+            ),
+          ],
         ),
       ),
     );
