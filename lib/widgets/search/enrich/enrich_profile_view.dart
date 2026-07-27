@@ -16,8 +16,11 @@ import '../../../stores/deep_search_enrich_store.dart';
 import '../../../stores/search_store.dart';
 import '../../../stores/user_store.dart';
 import '../../../utils/api_error.dart';
+import '../../../utils/credit_feedback.dart';
+import '../../../utils/top_toast_util.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import '../../common/asset_icon.dart';
+import 'credits_exhausted_dialog.dart';
 import 'enrich_contact_email_modal.dart';
 import 'enrich_icons.dart';
 import 'enrich_tool_log_timeline.dart';
@@ -59,6 +62,35 @@ String parseUniversity(String raw) {
     if (val != null && val.isNotEmpty) fields.add(val);
   }
   return fields.isNotEmpty ? fields.join(', ') : raw;
+}
+
+/// 对齐 Web `EnrichProfileView.tsx` isMaskedEmail / usableEmails。
+bool isMaskedEmail(String email) {
+  final local = email.split('@').first;
+  return local.isNotEmpty && RegExp(r'^\*+$').hasMatch(local);
+}
+
+List<String> usableEmails(String raw) =>
+    parseEmails(raw).where((e) => !isMaskedEmail(e)).toList();
+
+const _maxRevealedEmails = 5;
+
+/// 对齐 Web `pickDiverse`：按来源轮询取邮箱，避免单一来源占满列表。
+List<String> pickDiverseEmails(Map<String, List<String>> bySource, int max) {
+  final buckets = bySource.values.toList();
+  final out = <String>[];
+  for (var round = 0; out.length < max; round++) {
+    var added = false;
+    for (final bucket in buckets) {
+      if (round < bucket.length) {
+        out.add(bucket[round]);
+        added = true;
+        if (out.length >= max) break;
+      }
+    }
+    if (!added) break;
+  }
+  return out;
 }
 
 String _socialLabel(String type) {
@@ -523,10 +555,30 @@ class _ProfileSectionState extends State<_ProfileSection> {
     final rowId = widget.selectedRowId;
     if (person == null || rowId == null) return;
     final store = context.read<DeepSearchEnrichStore>();
+    final entry = store.entryFor(rowId);
+    if (entry != null &&
+        entry.emailRevealAttempted &&
+        usableEmails(entry.revealedEmail ?? '').isNotEmpty) {
+      return;
+    }
     store.startEmailReveal(rowId);
     try {
       final sessionId = context.read<SearchStore>().deepSearchSessionId ?? '';
-      final emails = await _searchService.profileEmail(
+      final bySource = <String, List<String>>{};
+      final seen = <String>{};
+
+      void addEmails(String source, List<dynamic>? emails) {
+        for (final raw in emails ?? const <dynamic>[]) {
+          final email = raw.toString();
+          if (email.isEmpty || isMaskedEmail(email) || seen.contains(email)) {
+            continue;
+          }
+          seen.add(email);
+          bySource.putIfAbsent(source, () => []).add(email);
+        }
+      }
+
+      await for (final event in _searchService.profileEmailStream(
         name: stripBold(person.name),
         sessionId: sessionId,
         company: person.company != null ? stripBold(person.company!) : null,
@@ -534,13 +586,53 @@ class _ProfileSectionState extends State<_ProfileSection> {
         sources: person.socialLinks
             ?.map((l) => {'url': l.url, 'description': l.type})
             .toList(),
-      );
+      )) {
+        final type = event['type']?.toString();
+        if (type == 'error') {
+          throw Exception(event['message']?.toString() ?? 'stream error');
+        }
+        if (type == 'result') {
+          final emails = event['emails'];
+          addEmails(
+            event['source']?.toString() ?? '',
+            emails is List ? emails : null,
+          );
+        }
+        if (type == 'done') {
+          final emails = event['emails'];
+          addEmails('verified', emails is List ? emails : null);
+        }
+      }
+
+      final finalEmails = pickDiverseEmails(bySource, _maxRevealedEmails);
       store.completeEmailReveal(
         rowId,
-        emails.isNotEmpty ? emails.join(', ') : null,
+        finalEmails.isNotEmpty ? finalEmails.join(', ') : null,
       );
-    } catch (_) {
+      if (!mounted) return;
+      if (finalEmails.isNotEmpty) {
+        TopToastUtil.showSuccess(
+          context: context,
+          title: '邮箱获取成功',
+          description: '积分已扣除',
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      if (isInsufficientCreditsError(error)) {
+        await showCreditsExhaustedDialog(context, reason: 'email');
+      } else {
+        TopToastUtil.showError(
+          context: context,
+          title: '未找到邮箱，请重试',
+          description: '',
+        );
+      }
       store.failEmailReveal(rowId);
+    } finally {
+      if (mounted) {
+        refreshCreditsAfterMutation(context.read<UserStore>());
+      }
     }
   }
 
@@ -641,9 +733,13 @@ class _ProfileSectionState extends State<_ProfileSection> {
     final emailRevealed = entry.emailRevealAttempted;
     final revealedEmail = entry.revealedEmail;
     final emailRevealError = entry.emailRevealError;
+    final revealedEmails = revealedEmail == null
+        ? const <String>[]
+        : usableEmails(revealedEmail);
+    final hasEmails = revealedEmails.isNotEmpty;
     final revealState = isRevealing
         ? 'loading'
-        : emailRevealed && revealedEmail != null
+        : emailRevealed && hasEmails
         ? 'send'
         : emailRevealed && emailRevealError
         ? 'retry'
@@ -665,7 +761,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
                       if (_emailConnected) {
                         EnrichContactEmailModal.show(
                           context,
-                          recipientEmail: revealedEmail!,
+                          recipientEmail: revealedEmails.join(', '),
                           recipientName: person.name,
                           favoriteId: favoriteId,
                           recipientTitle: [
@@ -694,7 +790,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
                             if (_emailConnected) {
                               EnrichContactEmailModal.show(
                                 context,
-                                recipientEmail: revealedEmail!,
+                                recipientEmail: revealedEmails.join(', '),
                                 recipientName: person.name,
                                 favoriteId: favoriteId,
                                 recipientTitle:
@@ -876,9 +972,10 @@ class _ProfileSectionState extends State<_ProfileSection> {
               ),
             ],
             // 获取 email 后展示邮箱列表（每行可复制，>2 折叠），对齐设计稿
-            if (revealedEmail != null) ...[
+            if (revealedEmail != null &&
+                usableEmails(revealedEmail).isNotEmpty) ...[
               const SizedBox(height: 16),
-              _EmailListCard(emails: parseEmails(revealedEmail)),
+              _EmailListCard(emails: usableEmails(revealedEmail)),
             ],
             // pinActions 模式下按钮移到页面底部常驻栏，不再内联
             if (!widget.pinActions)
@@ -1277,7 +1374,7 @@ class _EmailActionButton extends StatelessWidget {
                 EnrichSvgIcon(EnrichIcons.mail, size: 14, color: fg),
                 const SizedBox(width: 6),
                 Text(
-                  'Send cold email',
+                  'Send email',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1288,15 +1385,13 @@ class _EmailActionButton extends StatelessWidget {
                 EnrichSvgIcon(EnrichIcons.mail, size: 14, color: fg),
                 const SizedBox(width: 6),
                 Text(
-                  'Get email -10',
+                  'Get email',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: fg,
                   ),
                 ),
-                const SizedBox(width: 4),
-                EnrichSvgIcon(EnrichIcons.zap, size: 14, color: fg),
               ],
             ],
           ),

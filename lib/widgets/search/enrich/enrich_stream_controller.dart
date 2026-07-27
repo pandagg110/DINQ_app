@@ -11,13 +11,16 @@ class EnrichStreamController {
     required DeepSearchEnrichStore enrichStore,
     required SearchService searchService,
     required String? Function() sessionIdProvider,
+    required String? Function() ownerIdProvider,
   })  : _enrichStore = enrichStore,
         _searchService = searchService,
-        _sessionIdProvider = sessionIdProvider;
+        _sessionIdProvider = sessionIdProvider,
+        _ownerIdProvider = ownerIdProvider;
 
   final DeepSearchEnrichStore _enrichStore;
   final SearchService _searchService;
   final String? Function() _sessionIdProvider;
+  final String? Function() _ownerIdProvider;
 
   CancelToken? _cancelToken;
 
@@ -33,8 +36,10 @@ class EnrichStreamController {
     final rowId = row['row_id']?.toString();
     if (rowId == null || rowId.isEmpty) return;
 
+    await _enrichStore.ensureHydrated(_ownerIdProvider());
+
     final cached = _enrichStore.cache[rowId];
-    if (cached?.status == EnrichStatus.done) {
+    if (cached?.status == EnrichStatus.done && cached!.emailRevealAttempted) {
       _enrichStore.selectRow(rowId);
       return;
     }

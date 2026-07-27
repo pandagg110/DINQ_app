@@ -5,6 +5,7 @@ import '../../services/search_service.dart';
 import '../../stores/deep_search_enrich_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/settings_store.dart';
+import '../../stores/user_store.dart';
 import 'agentic_chat_widget.dart';
 import '../../models/deep_search_enrich_models.dart';
 import 'enrich/enrich_header.dart';
@@ -49,6 +50,7 @@ class _AgenticSearchContentWidgetState
       searchService: SearchService(),
       sessionIdProvider: () =>
           context.read<SearchStore>().deepSearchSessionId ?? '',
+      ownerIdProvider: () => context.read<UserStore>().user?.user.id,
     );
   }
 

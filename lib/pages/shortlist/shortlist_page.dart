@@ -64,6 +64,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
       searchService: SearchService(),
       sessionIdProvider: () =>
           context.read<SearchStore>().deepSearchSessionId ?? '',
+      ownerIdProvider: () => context.read<UserStore>().user?.user.id,
     );
     context.read<DeepSearchEnrichStore>().addListener(_syncBottomNav);
     context.read<ShortlistStore>().addListener(_syncBottomNav);

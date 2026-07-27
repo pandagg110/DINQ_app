@@ -332,7 +332,7 @@ class SearchService {
     yield* _parseSseStream(responseBody);
   }
 
-  /// POST /scholar/deep-search/profile-email — 揭示候选人邮箱
+  /// POST /scholar/deep-search/profile-email — 揭示候选人邮箱（一次性，遗留）
   Future<List<String>> profileEmail({
     required String name,
     required String sessionId,
@@ -356,6 +356,38 @@ class SearchService {
     final emails = data['emails'];
     if (emails is! List) return const [];
     return emails.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+  }
+
+  /// POST /scholar/deep-search/profile-email/stream — 对齐 Web `profileEmailStream`
+  Stream<Map<String, dynamic>> profileEmailStream({
+    required String name,
+    required String sessionId,
+    String? company,
+    String? personalHomepage,
+    List<Map<String, String>>? sources,
+    CancelToken? cancelToken,
+  }) async* {
+    final body = <String, dynamic>{
+      'name': name,
+      'session_id': sessionId,
+      if (company != null && company.isNotEmpty) 'company': company,
+      if (personalHomepage != null && personalHomepage.isNotEmpty)
+        'personal_homepage': personalHomepage,
+      if (sources != null && sources.isNotEmpty) 'sources': sources,
+    };
+
+    final response = await _dio.post<ResponseBody>(
+      '/scholar/deep-search/profile-email/stream',
+      data: body,
+      cancelToken: cancelToken,
+      options: Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(minutes: 8),
+      ),
+    );
+    final responseBody = response.data;
+    if (responseBody is! ResponseBody) return;
+    yield* _parseSseStream(responseBody);
   }
 
   // ============== 站内用户搜索 ==============

@@ -1,11 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/deep_search_enrich_models.dart';
+import 'deep_search_enrich_persistence.dart';
+import 'user_store.dart';
 
 /// 对齐 Web `deepSearchEnrichStore.ts`。
 class DeepSearchEnrichStore extends ChangeNotifier {
+  DeepSearchEnrichStore() {
+    UserStore.registerLogoutCleanup(clearForLogout);
+  }
+
   String? _selectedRowId;
   final Map<String, EnrichEntry> _cache = {};
+  String? _ownerId;
+  String? _hydratedForOwnerId;
+  int _persistGeneration = 0;
 
   String? get selectedRowId => _selectedRowId;
   Map<String, EnrichEntry> get cache => Map.unmodifiable(_cache);
@@ -31,6 +42,36 @@ class DeepSearchEnrichStore extends ChangeNotifier {
 
   bool get isOpen => _selectedRowId != null;
 
+  Future<void> ensureHydrated(String? ownerId) async {
+    _ownerId = ownerId;
+    if (ownerId == null || ownerId.isEmpty) return;
+    if (_hydratedForOwnerId == ownerId) return;
+    _hydratedForOwnerId = ownerId;
+
+    final loaded = await DeepSearchEnrichPersistence.load(ownerId);
+    if (loaded.isEmpty) return;
+
+    for (final entry in loaded.entries) {
+      final current = _cache[entry.key];
+      if (current == null) {
+        _cache[entry.key] = entry.value;
+        continue;
+      }
+      _mergePersistedEntry(current, entry.value);
+    }
+    notifyListeners();
+  }
+
+  void clearForLogout() {
+    _cache.clear();
+    _selectedRowId = null;
+    _ownerId = null;
+    _hydratedForOwnerId = null;
+    _confidenceByRowId.clear();
+    unawaited(DeepSearchEnrichPersistence.clear());
+    notifyListeners();
+  }
+
   void selectRow(String rowId) {
     _selectedRowId = rowId;
     // 立即占位，避免面板打开到 resetEntry 之间 entry 为 null、骨架屏不渲染。
@@ -53,11 +94,14 @@ class DeepSearchEnrichStore extends ChangeNotifier {
   }
 
   void resetEntry(String rowId, EnrichStreamRequest? requestParams) {
-    _cache[rowId] = EnrichEntry(
+    final previous = _cache[rowId];
+    final entry = EnrichEntry(
       status: EnrichStatus.streaming,
       personJson: {},
       requestParams: requestParams,
     );
+    _preserveEmailRevealState(entry, previous);
+    _cache[rowId] = entry;
     notifyListeners();
   }
 
@@ -82,8 +126,10 @@ class DeepSearchEnrichStore extends ChangeNotifier {
     entry.emailRevealAttempted = true;
     entry.revealedEmail = email;
     entry.emailRevealError = false;
+    entry.savedAt = DateTime.now().millisecondsSinceEpoch;
     _cache[rowId] = entry;
     notifyListeners();
+    _schedulePersist();
   }
 
   void failEmailReveal(String rowId) {
@@ -92,28 +138,36 @@ class DeepSearchEnrichStore extends ChangeNotifier {
     entry.emailRevealAttempted = true;
     entry.revealedEmail = null;
     entry.emailRevealError = true;
+    entry.savedAt = DateTime.now().millisecondsSinceEpoch;
     _cache[rowId] = entry;
     notifyListeners();
+    _schedulePersist();
   }
 
   void handleStreamEvent(String rowId, Map<String, dynamic> event) {
     final type = event['type']?.toString();
+    var shouldPersist = false;
     switch (type) {
       case 'start':
-        _cache[rowId] = EnrichEntry(
-          status: EnrichStatus.streaming,
-          personJson: {},
-          toolLogs: [
-            EnrichToolLog(
-              tool: 'start',
-              message: 'Enriching ${event['name'] ?? ''}',
-              status: 'done',
-              startedAt: DateTime.now().millisecondsSinceEpoch,
-              endedAt: DateTime.now().millisecondsSinceEpoch,
-            ),
-          ],
-          requestParams: _cache[rowId]?.requestParams,
-        );
+        {
+          final previous = _cache[rowId];
+          final entry = EnrichEntry(
+            status: EnrichStatus.streaming,
+            personJson: {},
+            toolLogs: [
+              EnrichToolLog(
+                tool: 'start',
+                message: 'Enriching ${event['name'] ?? ''}',
+                status: 'done',
+                startedAt: DateTime.now().millisecondsSinceEpoch,
+                endedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            ],
+            requestParams: previous?.requestParams,
+          );
+          _preserveEmailRevealState(entry, previous);
+          _cache[rowId] = entry;
+        }
         break;
 
       case 'tool_start':
@@ -154,7 +208,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
           final data = event['data'];
           if (data is Map) {
             final personData = data['data'];
-            final email = data['email']?.toString();
+            final email = _extractCacheEmail(Map<String, dynamic>.from(data));
             if (personData is Map) {
               _mergePersonIntoEntry(
                 entry,
@@ -167,6 +221,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
                 entry.emailRevealAttempted = true;
                 entry.revealedEmail = email;
                 entry.emailRevealError = false;
+                shouldPersist = true;
               }
             }
           }
@@ -211,6 +266,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
               .toList();
           entry.savedAt = DateTime.now().millisecondsSinceEpoch;
           _cache[rowId] = entry;
+          shouldPersist = true;
         }
         break;
 
@@ -224,6 +280,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
         break;
     }
     notifyListeners();
+    if (shouldPersist) _schedulePersist();
   }
 
   int _lastRunningLogIndex(List<EnrichToolLog> logs) {
@@ -231,6 +288,71 @@ class DeepSearchEnrichStore extends ChangeNotifier {
       if (logs[i].status == 'running') return i;
     }
     return -1;
+  }
+
+  void _mergePersistedEntry(EnrichEntry target, EnrichEntry persisted) {
+    _preserveEmailRevealState(target, persisted);
+
+    if (persisted.person != null &&
+        (target.person == null || target.status != EnrichStatus.done)) {
+      target.person = persisted.person;
+      target.personJson = persisted.personJson;
+      target.status = persisted.status;
+      target.fromCache = persisted.fromCache;
+      target.savedAt = persisted.savedAt;
+      target.requestParams ??= persisted.requestParams;
+    }
+  }
+
+  void _preserveEmailRevealState(EnrichEntry target, EnrichEntry? source) {
+    if (source == null) return;
+    final revealedEmail = source.revealedEmail?.trim();
+    if (source.emailRevealAttempted &&
+        revealedEmail != null &&
+        revealedEmail.isNotEmpty) {
+      target.emailRevealAttempted = true;
+      target.revealedEmail = revealedEmail;
+      target.emailRevealError = false;
+      target.savedAt ??= source.savedAt;
+    } else if (source.emailRevealAttempted && source.emailRevealError) {
+      target.emailRevealAttempted = true;
+      target.emailRevealError = true;
+      target.revealedEmail = null;
+      target.savedAt ??= source.savedAt;
+    } else if (source.emailRevealAttempted) {
+      target.emailRevealAttempted = true;
+      target.emailRevealError = false;
+      target.revealedEmail = null;
+      target.savedAt ??= source.savedAt;
+    }
+  }
+
+  String? _extractCacheEmail(Map<String, dynamic> data) {
+    final direct = data['email']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final emails = data['emails'];
+    if (emails is List) {
+      final parts = emails
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      if (parts.isNotEmpty) return parts.join(', ');
+    }
+    if (emails is String && emails.trim().isNotEmpty) {
+      return emails.trim();
+    }
+    return null;
+  }
+
+  void _schedulePersist() {
+    final ownerId = _ownerId;
+    if (ownerId == null || ownerId.isEmpty) return;
+    final generation = ++_persistGeneration;
+    Future<void>(() async {
+      if (generation != _persistGeneration) return;
+      await DeepSearchEnrichPersistence.save(ownerId, _cache);
+    });
   }
 
   void _mergePersonIntoEntry(EnrichEntry entry, Map<String, dynamic> patch) {
