@@ -41,6 +41,7 @@ class _MainTabPageState extends State<MainTabPage> {
 
   MainTabType _tabTypeForRoute(String path) {
     if (path == '/me') return MainTabType.me;
+    if (path == '/shortlist') return MainTabType.shortlist;
     if (path == '/' || path.startsWith('/search')) return MainTabType.search;
     return _currentTabType;
   }
@@ -54,6 +55,8 @@ class _MainTabPageState extends State<MainTabPage> {
       _selectTab(MainTabType.search);
     } else if (path == '/me') {
       _selectTab(MainTabType.me);
+    } else if (path == '/shortlist') {
+      _selectTab(MainTabType.shortlist);
     }
   }
 

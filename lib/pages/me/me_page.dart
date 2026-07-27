@@ -9,7 +9,10 @@ import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/image_utils.dart';
 import '../../utils/top_toast_util.dart';
+import '../../theme/dinq_tokens.dart';
+import '../../theme/me_icons.dart';
 import '../../widgets/common/base_page.dart';
+import '../../widgets/common/dinq_svg_icon.dart';
 import '../marketing/pricing_page.dart' show kPlanLabel;
 
 class MePage extends StatefulWidget {
@@ -162,42 +165,43 @@ class _MePageState extends State<MePage> {
                     // 套餐卡（Free/Upgrade + Available Credits + Invite friends）
                     _buildSubscriptionCard(basePlan, credits),
                     const SizedBox(height: 16),
-                    // 菜单分组卡
+                    // 菜单分组卡（对齐 web my/page.tsx menuItems）
                     _menuCard([
                       _menuItem(
-                        Icons.badge_outlined,
+                        MeIcons.myDinq,
                         'My DINQ',
                         () => context.push('/admin/mydinq'),
                       ),
-                      _menuDivider(),
                       _menuItem(
-                        Icons.business_outlined,
+                        MeIcons.organization,
                         'Organization',
                         () => context.push('/me/organization'),
                       ),
-                      _menuDivider(),
                       _menuItem(
-                        Icons.code_rounded,
+                        MeIcons.shortlist,
+                        'Shortlist',
+                        () => context.go('/shortlist'),
+                      ),
+                      _menuItem(
+                        MeIcons.apiPlayground,
                         'API Playground',
                         () => context.push('/me/api-keys'),
                       ),
-                      _menuDivider(),
                       _menuItem(
-                        Icons.description_outlined,
+                        MeIcons.resume,
                         'Resume',
                         () => context.push('/admin/mydinq/resume'),
                       ),
-                      _menuDivider(),
                       _menuItem(
-                        Icons.hub_outlined,
-                        'Integrations',
+                        MeIcons.integration,
+                        'Integration',
                         () => context.push('/me/integration'),
                       ),
-                      _menuDivider(),
                       _menuItem(
-                        Icons.settings_outlined,
+                        MeIcons.settings,
                         'Settings',
                         () => context.push('/settings'),
+                        showDivider: false,
                       ),
                     ]),
                   ],
@@ -395,45 +399,81 @@ class _MePageState extends State<MePage> {
     );
   }
 
-  // 菜单分组卡（对齐设计：单卡 + 分割线）
+  // 菜单分组卡（对齐 web my/page.tsx：圆角 18 + 描边 + 图标底）
   Widget _menuCard(List<Widget> children) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEEEDE9)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08101828),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(children: children),
     );
   }
 
-  Widget _menuDivider() => const Divider(
-    height: 1,
-    thickness: 1,
-    color: Color(0xFFF3F2EF),
-    indent: 16,
-    endIndent: 16,
-  );
+  Widget _menuItem(
+    String iconAsset,
+    String label,
+    VoidCallback onTap, {
+    bool showDivider = true,
+  }) {
+    const iconInk = Color(0xFF2A2826);
+    const chevron = Color(0xFF9E9B93);
 
-  Widget _menuItem(IconData icon, String label, VoidCallback onTap) {
     return NormalButton(
       onTap: onTap,
       child: Container(
-        height: 54,
+        decoration: BoxDecoration(
+          border: showDivider
+              ? const Border(bottom: BorderSide(color: Color(0xFFF1EFEA)))
+              : null,
+        ),
+        height: 56,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            Icon(icon, size: 22, color: ColorUtil.textColor),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                fontFamily: 'Geist',
-                color: ColorUtil.textColor,
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: DinqTokens.bgSurface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DinqSvgIcon(
+                assetName: iconAsset,
+                size: 18,
+                color: iconInk,
               ),
             ),
-            const Spacer(),
-            AssetImageView("gray_right", width: 20, height: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 20 / 15,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Geist',
+                  color: Color(0xFF171717),
+                ),
+              ),
+            ),
+            const DinqSvgIcon(
+              assetName: MeIcons.chevronRight,
+              size: 18,
+              color: chevron,
+            ),
           ],
         ),
       ),

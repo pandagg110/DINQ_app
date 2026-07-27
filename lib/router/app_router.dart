@@ -151,6 +151,7 @@ class AppRouter {
         ),
         GoRoute(path: '/', builder: (context, state) => const MainTabPage()),
         GoRoute(path: '/me', builder: (context, state) => const MainTabPage()),
+        GoRoute(path: '/shortlist', builder: (context, state) => const MainTabPage()),
         GoRoute(
           path: '/landing',
           builder: (context, state) => const LandingPage(),
