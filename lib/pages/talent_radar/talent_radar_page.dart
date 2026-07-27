@@ -95,6 +95,17 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
           ),
           SizedBox(height: 24 * s),
           _ComingSoonButton(scale: s, height: 56 * s, fontSize: 16 * s),
+          SizedBox(height: 10 * s),
+          Text(
+            'Please use Talent Radar on the web.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14 * s,
+              height: 20 / 14,
+              fontWeight: FontWeight.w400,
+              color: DinqTokens.textSecondary,
+            ),
+          ),
           SizedBox(height: 20 * s),
           _StepCard(scale: s, step: '1', title: 'Describe', subtitle: 'Describe the role in plain language.'),
           SizedBox(height: 12 * s),
@@ -107,7 +118,7 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
   }
 }
 
-/// Radar 首页创建入口暂时置灰为「Coming Soon」（功能未发布，禁用点击）。
+/// Radar 首页创建入口：置灰不可用（功能未发布，禁用点击）。
 class _ComingSoonButton extends StatelessWidget {
   const _ComingSoonButton({
     required this.scale,
@@ -119,6 +130,8 @@ class _ComingSoonButton extends StatelessWidget {
   final double height;
   final double fontSize;
 
+  static const Color _buttonBg = Color(0xFFC4C0BA);
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -126,16 +139,16 @@ class _ComingSoonButton extends StatelessWidget {
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: DinqTokens.bgSurface,
+        color: _buttonBg,
         borderRadius: BorderRadius.circular(12 * scale),
-        border: Border.all(color: DinqTokens.borderL),
       ),
       child: Text(
-        'Coming Soon',
+        'Not available in the app',
         style: TextStyle(
           fontSize: fontSize,
+          height: 22 / 16,
           fontWeight: FontWeight.w600,
-          color: DinqTokens.textTertiary,
+          color: Colors.white,
         ),
       ),
     );
