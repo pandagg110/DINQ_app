@@ -199,6 +199,69 @@ class UserFlow {
   Map<String, dynamic> toJson() => {'status': status, 'domain': domain};
 }
 
+/// Pay-as-you-go 设置，对齐 Web `PaygSettings`。
+class PaygSettings {
+  const PaygSettings({
+    this.enabled = false,
+    this.status = 'inactive',
+    this.hasPaymentMethod = false,
+    this.monthlyLimitCents = 0,
+    this.usageAmountCents = 0,
+  });
+
+  final bool enabled;
+  final String status;
+  final bool hasPaymentMethod;
+  final int monthlyLimitCents;
+  final int usageAmountCents;
+
+  factory PaygSettings.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const PaygSettings();
+    return PaygSettings(
+      enabled: json['enabled'] == true,
+      status: json['status']?.toString() ?? 'inactive',
+      hasPaymentMethod: json['has_payment_method'] == true,
+      monthlyLimitCents: Subscription._asInt(json['monthly_limit_cents']),
+      usageAmountCents: Subscription._asInt(json['usage_amount_cents']),
+    );
+  }
+
+  bool get isLimitReached {
+    if (!enabled || status != 'active') return false;
+    if (monthlyLimitCents <= 0) return false;
+    return usageAmountCents >= monthlyLimitCents;
+  }
+}
+
+enum CreditsPlanAudience { free, basic, pro, enterprise }
+
+enum PaygAction {
+  bindCard,
+  enable,
+  updatePaymentMethod,
+  increaseLimit,
+  manage,
+}
+
+CreditsPlanAudience creditsPlanAudience(String? plan) {
+  final raw = (plan ?? 'free').toLowerCase();
+  if (raw.contains('enterprise')) return CreditsPlanAudience.enterprise;
+  if (raw.startsWith('basic')) return CreditsPlanAudience.basic;
+  if (raw.startsWith('pro') || raw.startsWith('plus')) {
+    return CreditsPlanAudience.pro;
+  }
+  return CreditsPlanAudience.free;
+}
+
+PaygAction resolvePaygAction(PaygSettings? payg) {
+  if (payg == null) return PaygAction.bindCard;
+  if (payg.status == 'payment_failed') return PaygAction.updatePaymentMethod;
+  if (!payg.hasPaymentMethod) return PaygAction.bindCard;
+  if (payg.isLimitReached) return PaygAction.increaseLimit;
+  if (!payg.enabled) return PaygAction.enable;
+  return PaygAction.manage;
+}
+
 class Subscription {
   Subscription({
     required this.plan,
@@ -207,6 +270,7 @@ class Subscription {
     required this.monthlyCredits,
     required this.cancelAtPeriodEnd,
     this.referralCredits = 0,
+    this.payg,
     this.paygEnabled = false,
     this.paygStatus,
     this.currentPeriodEnd,
@@ -222,7 +286,10 @@ class Subscription {
   /// 邀请奖励积分总额（对齐 web SubscriptionResponse.referral_credits）。
   final int referralCredits;
 
-  /// Pay-as-you-go 状态（web SubscriptionResponse.payg），app 端只读展示。
+  /// Pay-as-you-go 状态（web SubscriptionResponse.payg）。
+  final PaygSettings? payg;
+
+  /// 兼容旧字段：是否开启 PAYG。
   final bool paygEnabled;
   final String? paygStatus;
   final String? currentPeriodEnd; // ISO 8601 日期字符串，如 "2026-12-25T00:00:00Z"
@@ -232,7 +299,12 @@ class Subscription {
       v is int ? v : int.tryParse(v?.toString() ?? '0') ?? 0;
 
   factory Subscription.fromJson(Map<String, dynamic> json) {
-    final payg = json['payg'];
+    final paygMap = json['payg'];
+    final paygSettings = paygMap is Map<String, dynamic>
+        ? PaygSettings.fromJson(paygMap)
+        : paygMap is Map
+        ? PaygSettings.fromJson(Map<String, dynamic>.from(paygMap))
+        : null;
     return Subscription(
       plan: json['plan']?.toString() ?? 'free',
       status: json['status']?.toString() ?? 'active',
@@ -240,8 +312,9 @@ class Subscription {
       monthlyCredits: _asInt(json['monthly_credits']),
       referralCredits: _asInt(json['referral_credits']),
       cancelAtPeriodEnd: json['cancel_at_period_end'] == true,
-      paygEnabled: payg is Map && payg['enabled'] == true,
-      paygStatus: payg is Map ? payg['status']?.toString() : null,
+      payg: paygSettings,
+      paygEnabled: paygSettings?.enabled ?? (paygMap is Map && paygMap['enabled'] == true),
+      paygStatus: paygSettings?.status ?? (paygMap is Map ? paygMap['status']?.toString() : null),
       currentPeriodEnd: json['current_period_end']?.toString(),
       channel: json['channel']?.toString(),
     );
@@ -265,6 +338,7 @@ class Subscription {
     int? monthlyCredits,
     bool? cancelAtPeriodEnd,
     int? referralCredits,
+    PaygSettings? payg,
     bool? paygEnabled,
     String? paygStatus,
     String? currentPeriodEnd,
@@ -276,6 +350,7 @@ class Subscription {
     monthlyCredits: monthlyCredits ?? this.monthlyCredits,
     cancelAtPeriodEnd: cancelAtPeriodEnd ?? this.cancelAtPeriodEnd,
     referralCredits: referralCredits ?? this.referralCredits,
+    payg: payg ?? this.payg,
     paygEnabled: paygEnabled ?? this.paygEnabled,
     paygStatus: paygStatus ?? this.paygStatus,
     currentPeriodEnd: currentPeriodEnd ?? this.currentPeriodEnd,

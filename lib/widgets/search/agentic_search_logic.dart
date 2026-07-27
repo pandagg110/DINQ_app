@@ -198,6 +198,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     this.resolveUserId,
     this.onSearchComplete,
     this.onScrollToBottom,
+    this.onCreditsExhausted,
   });
 
   final SearchService searchService;
@@ -208,6 +209,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   final void Function(List<Map<String, dynamic>> candidates, String query)?
   onSearchComplete;
   final VoidCallback? onScrollToBottom;
+  final VoidCallback? onCreditsExhausted;
 
   List<AgenticMessageGroup> messageGroups = [];
   bool loading = false;
@@ -219,10 +221,18 @@ class AgenticSearchLogic extends ChangeNotifier {
   StreamSubscription? _streamSubscription;
   StreamSubscription? _analysisStreamSubscription;
   String? _activeSessionId;
+  bool _creditsExhaustedNotified = false;
 
   /// 埋点：本会话内已提交搜索、尚未上报 search_result_view 的轮次
   /// （groupId → search_type）。历史恢复的轮次不在其中，天然不会重复上报。
   final Map<int, String> _pendingResultViewGroups = {};
+
+  void _notifyCreditsExhaustedIfNeeded(String? message) {
+    if (_creditsExhaustedNotified) return;
+    if (message == null || !isInsufficientCredits(message)) return;
+    _creditsExhaustedNotified = true;
+    onCreditsExhausted?.call();
+  }
 
   /// 埋点：本轮首次成功展示有效结果时报 search_result_view（按 group id
   /// 去重，流式更新/重渲染/历史恢复不重复）。只有「candidates 非空且该轮
@@ -468,6 +478,7 @@ class AgenticSearchLogic extends ChangeNotifier {
               )
               .toList();
           if (_isRoundErrorLlmMessage(message)) {
+            _notifyCreditsExhaustedIfNeeded(message);
             _applyRoundError(g, message!);
             _cancelPendingResultView(groupId);
             notifyListeners();
@@ -667,6 +678,7 @@ class AgenticSearchLogic extends ChangeNotifier {
       },
       onDurationMs: (ms) => g.deepSearchDurationMs = ms,
       onError: (message) {
+        _notifyCreditsExhaustedIfNeeded(message);
         _applyRoundError(g, message);
         _cancelPendingResultView(groupId);
       },
@@ -1280,6 +1292,8 @@ class AgenticSearchLogic extends ChangeNotifier {
       return;
     }
 
+    _creditsExhaustedNotified = false;
+
     if (_activeSessionId == null) {
       final existing = searchStore.deepSearchSessionId;
       if (existing != null && existing.isNotEmpty) {
@@ -1485,8 +1499,10 @@ class AgenticSearchLogic extends ChangeNotifier {
       onError: (e, st) {
         loading = false;
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
+        final message = _deepSearchErrorMessage(e);
+        _notifyCreditsExhaustedIfNeeded(message);
         if (idx >= 0) {
-          _applyRoundError(messageGroups[idx], _deepSearchErrorMessage(e));
+          _applyRoundError(messageGroups[idx], message);
         }
         // 流中断（解析异常/网络错误）的轮次不上报 search_result_view
         _cancelPendingResultView(groupId);

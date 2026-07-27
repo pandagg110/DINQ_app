@@ -12,6 +12,7 @@ import '../../stores/chat_history_store.dart';
 import '../../stores/quick_replies_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/settings_store.dart';
+import '../credits/credits_exhausted_sheet.dart';
 import '../../stores/user_store.dart';
 import 'message_group/dinq_logo.dart';
 import 'prompt_template_grid_widget.dart';
@@ -101,6 +102,13 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         resolveUserId: () => context.read<UserStore>().user?.user.id,
         onSearchComplete: widget.onSearchComplete,
         onScrollToBottom: _scrollToBottom,
+        onCreditsExhausted: () {
+          if (!mounted) return;
+          showCreditsExhaustedSheet(
+            context,
+            reason: CreditsExhaustedReason.search,
+          );
+        },
       );
       _logic!.addListener(_onLogicUpdate);
       _loadModelChannels();

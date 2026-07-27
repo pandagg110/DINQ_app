@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../stores/quick_replies_store.dart';
 import '../../../stores/search_store.dart';
 import '../../../utils/parse_quick_replies.dart';
+import '../../credits/credits_exhausted_sheet.dart';
 import '../agentic_search_logic.dart';
 import '../deep_search/deep_search_models.dart';
 import '../deep_search/deep_search_results.dart';
@@ -209,7 +210,10 @@ class _RoundSectionState extends State<RoundSection> {
           message: normalizeRoundErrorMessage(group.errorMessage!),
           isCreditsError: isInsufficientCredits(group.errorMessage!),
           toolType: toolType,
-          onUpgrade: () => context.push('/pricing'),
+          onUpgrade: () => showCreditsExhaustedSheet(
+            context,
+            reason: CreditsExhaustedReason.search,
+          ),
           onRetry: () => context.go('/search'),
         ),
       );

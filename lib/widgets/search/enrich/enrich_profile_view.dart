@@ -20,7 +20,7 @@ import '../../../utils/credit_feedback.dart';
 import '../../../utils/top_toast_util.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import '../../common/asset_icon.dart';
-import 'credits_exhausted_dialog.dart';
+import '../../credits/credits_exhausted_sheet.dart';
 import 'enrich_contact_email_modal.dart';
 import 'enrich_icons.dart';
 import 'enrich_tool_log_timeline.dart';
@@ -620,7 +620,10 @@ class _ProfileSectionState extends State<_ProfileSection> {
     } catch (error) {
       if (!mounted) return;
       if (isInsufficientCreditsError(error)) {
-        await showCreditsExhaustedDialog(context, reason: 'email');
+        await showCreditsExhaustedSheet(
+          context,
+          reason: CreditsExhaustedReason.email,
+        );
       } else {
         TopToastUtil.showError(
           context: context,

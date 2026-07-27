@@ -80,6 +80,7 @@ flutter:
     - assets/icons/line-icons/
     - assets/icons/logo/
     - assets/icons/lucide/
+    - assets/icons/credits/
     - assets/icons/me/
     - assets/icons/search/
     - assets/icons/search/progress/
