@@ -90,6 +90,39 @@ class EnrichEducationHistory {
   }
 }
 
+class EnrichDinqCard {
+  const EnrichDinqCard({
+    required this.type,
+    required this.url,
+    this.status,
+    this.metadata,
+  });
+
+  final String type;
+  final String url;
+  final String? status;
+  final Map<String, dynamic>? metadata;
+
+  factory EnrichDinqCard.fromJson(Map<String, dynamic> json) {
+    final metadata = json['metadata'];
+    return EnrichDinqCard(
+      type: (json['type'] ?? '').toString(),
+      url: (json['url'] ?? '').toString(),
+      status: json['status']?.toString(),
+      metadata: metadata is Map
+          ? Map<String, dynamic>.from(metadata)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'url': url,
+        if (status != null) 'status': status,
+        if (metadata != null) 'metadata': metadata,
+      };
+}
+
 class EnrichWorkExperience {
   const EnrichWorkExperience({
     required this.organization,
@@ -311,6 +344,7 @@ class EnrichEntry {
     Map<String, dynamic>? personJson,
     this.status = EnrichStatus.idle,
     List<EnrichToolLog>? toolLogs,
+    List<EnrichDinqCard>? dinqCards,
     this.errorMessage,
     Set<String>? seenUrls,
     this.fromCache = false,
@@ -322,12 +356,14 @@ class EnrichEntry {
     this.requestParams,
   })  : personJson = personJson ?? {},
         toolLogs = toolLogs ?? [],
+        dinqCards = dinqCards ?? [],
         seenUrls = seenUrls ?? {};
 
   EnrichResultPerson? person;
   Map<String, dynamic> personJson;
   EnrichStatus status;
   List<EnrichToolLog> toolLogs;
+  List<EnrichDinqCard> dinqCards;
   String? errorMessage;
   Set<String> seenUrls;
   bool fromCache;

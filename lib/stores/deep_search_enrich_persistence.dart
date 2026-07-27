@@ -55,6 +55,7 @@ class DeepSearchEnrichPersistence {
           person: EnrichResultPerson.fromJson(personMap),
           personJson: personMap,
           status: status,
+          dinqCards: _decodeDinqCards(map['dinqCards']),
           fromCache: map['fromCache'] == true,
           emailRevealAttempted: map['emailRevealAttempted'] == true,
           revealedEmail: map['revealedEmail']?.toString(),
@@ -100,6 +101,7 @@ class DeepSearchEnrichPersistence {
         for (final entry in kept)
           entry.key: {
             'personJson': entry.value.personJson,
+            'dinqCards': entry.value.dinqCards.map((c) => c.toJson()).toList(),
             'status': entry.value.status.name,
             'fromCache': entry.value.fromCache,
             'emailRevealAttempted': entry.value.emailRevealAttempted,
@@ -118,6 +120,14 @@ class DeepSearchEnrichPersistence {
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_storageKey);
+  }
+
+  static List<EnrichDinqCard> _decodeDinqCards(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => EnrichDinqCard.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   static EnrichStreamRequest? _decodeRequestParams(dynamic raw) {

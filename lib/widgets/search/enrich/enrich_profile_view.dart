@@ -22,6 +22,7 @@ import '../deep_search/deep_search_results_helpers.dart';
 import '../../common/asset_icon.dart';
 import '../../credits/credits_exhausted_sheet.dart';
 import 'enrich_contact_email_modal.dart';
+import 'enrich_dinq_cards_section.dart';
 import 'enrich_icons.dart';
 import 'enrich_tool_log_timeline.dart';
 import 'shortlist_folder_modal.dart';
@@ -844,6 +845,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
         entry.status != EnrichStatus.done &&
         entry.status != EnrichStatus.error;
     final isStreaming = entry.status == EnrichStatus.streaming;
+    final isUpdatingLatest = isStreaming && hasPerson;
     bool sectionSkeleton(bool hasData) => !hasData && isStreaming;
     final revealedEmail = entry.revealedEmail;
     final oneLiner = person?.oneLiner;
@@ -1082,6 +1084,11 @@ class _ProfileSectionState extends State<_ProfileSection> {
           _WorkSection(items: person.workExperience!)
         else if (sectionSkeleton(person?.workExperience?.isNotEmpty != true))
           const _WorkSkeleton(),
+
+        EnrichDinqCardsSection(
+          cards: entry.dinqCards,
+          loading: isUpdatingLatest || sectionSkeleton(entry.dinqCards.isNotEmpty),
+        ),
 
         if (person?.keyPublications != null &&
             person!.keyPublications!.isNotEmpty)

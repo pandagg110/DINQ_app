@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -244,6 +245,26 @@ class DeepSearchEnrichStore extends ChangeNotifier {
         }
         break;
 
+      case 'dinq_cards':
+        {
+          final entry = _cache[rowId] ?? EnrichEntry();
+          final data = event['data'];
+          if (data is List) {
+            entry.dinqCards = _mergeDinqCards(
+              entry.dinqCards,
+              data
+                  .whereType<Map>()
+                  .map((e) => EnrichDinqCard.fromJson(
+                        Map<String, dynamic>.from(e),
+                      ))
+                  .toList(),
+            );
+            entry.savedAt = DateTime.now().millisecondsSinceEpoch;
+          }
+          _cache[rowId] = entry;
+        }
+        break;
+
       case 'done':
         {
           final entry = _cache[rowId] ?? EnrichEntry();
@@ -252,6 +273,18 @@ class DeepSearchEnrichStore extends ChangeNotifier {
             final personMap = Map<String, dynamic>.from(data);
             entry.personJson = personMap;
             entry.person = EnrichResultPerson.fromJson(personMap);
+            final cards = personMap['dinq_cards'];
+            if (cards is List) {
+              entry.dinqCards = _mergeDinqCards(
+                entry.dinqCards,
+                cards
+                    .whereType<Map>()
+                    .map((e) => EnrichDinqCard.fromJson(
+                          Map<String, dynamic>.from(e),
+                        ))
+                    .toList(),
+              );
+            }
           }
           entry.status = EnrichStatus.done;
           entry.toolLogs = entry.toolLogs
@@ -297,6 +330,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
         (target.person == null || target.status != EnrichStatus.done)) {
       target.person = persisted.person;
       target.personJson = persisted.personJson;
+      target.dinqCards = persisted.dinqCards;
       target.status = persisted.status;
       target.fromCache = persisted.fromCache;
       target.savedAt = persisted.savedAt;
@@ -358,6 +392,17 @@ class DeepSearchEnrichStore extends ChangeNotifier {
   void _mergePersonIntoEntry(EnrichEntry entry, Map<String, dynamic> patch) {
     entry.personJson = mergePersonJson(entry.personJson, patch);
     entry.person = EnrichResultPerson.fromJson(entry.personJson);
+
+    final incomingCards = patch['dinq_cards'];
+    if (incomingCards is List) {
+      entry.dinqCards = _mergeDinqCards(
+        entry.dinqCards,
+        incomingCards
+            .whereType<Map>()
+            .map((e) => EnrichDinqCard.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+      );
+    }
 
     final person = entry.person!;
     final allUrls = _extractUrls(person);
@@ -422,5 +467,22 @@ class DeepSearchEnrichStore extends ChangeNotifier {
     } catch (_) {
       return url;
     }
+  }
+
+  String _dinqCardKey(EnrichDinqCard card) {
+    final metadataKey = card.metadata == null ? '' : jsonEncode(card.metadata);
+    return '${card.type}:${card.url.isNotEmpty ? card.url : metadataKey}';
+  }
+
+  List<EnrichDinqCard> _mergeDinqCards(
+    List<EnrichDinqCard> existing,
+    List<EnrichDinqCard> incoming,
+  ) {
+    if (incoming.isEmpty) return existing;
+    final byKey = {for (final card in existing) _dinqCardKey(card): card};
+    for (final card in incoming) {
+      byKey[_dinqCardKey(card)] = card;
+    }
+    return byKey.values.toList();
   }
 }
