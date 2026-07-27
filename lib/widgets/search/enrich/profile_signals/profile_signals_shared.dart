@@ -66,59 +66,142 @@ class ProfileSignalFrame extends StatelessWidget {
 class ProfileSignalSkeleton extends StatelessWidget {
   const ProfileSignalSkeleton({super.key});
 
+  static const _borderColor = Color(0xFFEBE8E2);
+  static const _buttonBorderColor = Color(0xFFD8D5CF);
+  static const _fillColor = Color(0xFFF5F4F0);
+  static const _summaryBg = Color(0xFFF6F6F6);
+
   @override
   Widget build(BuildContext context) {
     return ProfileSignalFrame(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F4F0),
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 148,
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                physics: const NeverScrollableScrollPhysics(),
-                children: List.generate(
-                  4,
-                  (_) => DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFEBE8E2)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final side = constraints.maxWidth.isFinite && constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : 320.0;
+
+          return SizedBox(
+            height: side,
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _skeletonBar(width: 40, height: 40, radius: 12),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(child: _metricTile()),
+                              const SizedBox(width: 8),
+                              Expanded(child: _metricTile()),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(child: _metricTile()),
+                              const SizedBox(width: 8),
+                              Expanded(child: _metricTile()),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _summaryBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _skeletonBar(height: 16),
+                        const SizedBox(height: 8),
+                        _skeletonBar(height: 16, widthFactor: 0.86),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _buttonBorderColor, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _skeletonBar(width: 16, height: 16, radius: 4),
+                        const SizedBox(width: 8),
+                        _skeletonBar(width: 64, height: 16),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            Container(
-              height: 56,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6F6F6),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFD8D5CF)),
-              ),
-            ),
-          ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _metricTile() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _borderColor, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _skeletonBar(width: 80, height: 12),
+          const SizedBox(height: 8),
+          _skeletonBar(width: 40, height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _skeletonBar({
+    double? width,
+    double height = 12,
+    double widthFactor = 1,
+    double radius = 4,
+  }) {
+    if (width != null) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: _fillColor,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      );
+    }
+
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: _fillColor,
+          borderRadius: BorderRadius.circular(radius),
         ),
       ),
     );
