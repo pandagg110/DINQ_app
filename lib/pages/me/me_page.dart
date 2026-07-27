@@ -367,29 +367,39 @@ class _MePageState extends State<MePage> {
             ),
           ),
           DashedLine(color: Color(0xFFECECEC)),
-          // 邀请赚积分
+          // 邀请赚积分（对齐 web：16px 图标 + gap-2，无额外占位）
           NormalButton(
             onTap: () => context.push('/me/invite'),
             child: SizedBox(
               height: 54,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.card_giftcard_outlined,
-                    size: 20,
-                    color: Color(0xFF636363),
+                  const DinqSvgIcon(
+                    assetName: MeIcons.gift,
+                    size: 16,
+                    color: Color(0xFF6B6862),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Invite friends, earn credits',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontFamily: 'Geist',
-                      color: ColorUtil.textColor,
+                  const Expanded(
+                    child: Text(
+                      'Invite friends, earn credits',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 20 / 14,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Geist',
+                        color: Color(0xFF6B6862),
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  AssetImageView("gray_right", width: 20, height: 20),
+                  const DinqSvgIcon(
+                    assetName: MeIcons.chevronRight,
+                    size: 16,
+                    color: Color(0xFF8A8880),
+                  ),
                 ],
               ),
             ),
