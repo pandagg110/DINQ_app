@@ -14,6 +14,7 @@ import '../../stores/search_store.dart';
 import '../../stores/settings_store.dart';
 import '../credits/credits_exhausted_sheet.dart';
 import '../../stores/user_store.dart';
+import '../../utils/top_toast_util.dart';
 import 'message_group/dinq_logo.dart';
 import 'prompt_template_grid_widget.dart';
 import 'agentic_search_logic.dart';
@@ -107,6 +108,15 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
           showCreditsExhaustedSheet(
             context,
             reason: CreditsExhaustedReason.search,
+          );
+        },
+        onRoundError: (message) {
+          if (!mounted) return;
+          if (!isNetworkErrorMessage(message)) return;
+          TopToastUtil.showError(
+            context: context,
+            title: 'Network unavailable',
+            description: 'Please check your connection and try again.',
           );
         },
       );
@@ -564,6 +574,16 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                       onAdvisorShuffle: logic.shuffleAdvisors,
                                       advisorShuffleLoading:
                                           logic.advisorShuffleLoading,
+                                      onRetryRound: (group) {
+                                        logic.retryFailedRound(
+                                          group,
+                                          modelProvider:
+                                              searchStore.modelProvider ??
+                                              ModelChannelsCache
+                                                  .instance
+                                                  .defaultProvider,
+                                        );
+                                      },
                                       bottomInset: widget.embeddedInMainTab
                                           ? 20
                                           : 12,

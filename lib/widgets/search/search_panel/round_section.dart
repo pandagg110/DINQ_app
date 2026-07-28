@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../stores/quick_replies_store.dart';
@@ -77,6 +76,7 @@ class RoundSection extends StatefulWidget {
     this.resultEntryMode = ResultEntryMode.desktop,
     this.onOpenResultsRound,
     this.activeResultsRoundId,
+    this.onRetry,
   });
 
   final AgenticMessageGroup group;
@@ -93,6 +93,7 @@ class RoundSection extends StatefulWidget {
   final ResultEntryMode resultEntryMode;
   final void Function(int roundId)? onOpenResultsRound;
   final int? activeResultsRoundId;
+  final VoidCallback? onRetry;
 
   @override
   State<RoundSection> createState() => _RoundSectionState();
@@ -214,7 +215,7 @@ class _RoundSectionState extends State<RoundSection> {
             context,
             reason: CreditsExhaustedReason.search,
           ),
-          onRetry: () => context.go('/search'),
+          onRetry: () => widget.onRetry?.call(),
         ),
       );
     }

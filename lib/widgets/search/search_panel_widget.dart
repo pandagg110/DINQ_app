@@ -33,6 +33,7 @@ class SearchPanelWidget extends StatefulWidget {
     this.resultEntryMode = ResultEntryMode.desktop,
     this.onOpenResultsRound,
     this.activeResultsRoundId,
+    this.onRetryRound,
   });
 
   final List<AgenticMessageGroup> messageGroups;
@@ -53,6 +54,7 @@ class SearchPanelWidget extends StatefulWidget {
   final ResultEntryMode resultEntryMode;
   final void Function(int roundId)? onOpenResultsRound;
   final int? activeResultsRoundId;
+  final void Function(AgenticMessageGroup group)? onRetryRound;
 
   @override
   State<SearchPanelWidget> createState() => _SearchPanelWidgetState();
@@ -306,6 +308,9 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                             resultEntryMode: widget.resultEntryMode,
                             onOpenResultsRound: widget.onOpenResultsRound,
                             activeResultsRoundId: widget.activeResultsRoundId,
+                            onRetry: widget.onRetryRound == null
+                                ? null
+                                : () => widget.onRetryRound!(groups[i]),
                           ),
                         ),
                       ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../services/analytics_service.dart';
 import '../../services/search_service.dart';
@@ -34,7 +35,34 @@ String normalizeRoundErrorMessage(String message) {
   return text.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
+const _networkErrorUserMessage =
+    'Network error. Please check your connection.';
+
+bool isNetworkErrorMessage(String message) {
+  return RegExp(
+    r'network\s*error|check your connection|failed to fetch|load failed|fetch failed|socketexception|connection\s*(refused|reset|closed|error)|failed host lookup|network is unreachable|software caused connection abort|timed?\s*out',
+    caseSensitive: false,
+  ).hasMatch(message);
+}
+
 String _deepSearchErrorMessage(Object error) {
+  if (error is DioException) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.sendTimeout:
+        return 'Network timeout. Please try again.';
+      case DioExceptionType.connectionError:
+        return _networkErrorUserMessage;
+      default:
+        break;
+    }
+    final nested = error.error;
+    if (nested != null && isNetworkErrorMessage(nested.toString())) {
+      return _networkErrorUserMessage;
+    }
+  }
+
   if (error is! Exception && error is! String) {
     return 'Search failed';
   }
@@ -43,11 +71,8 @@ String _deepSearchErrorMessage(Object error) {
     message = message.substring('Exception: '.length).trim();
   }
   if (message.isEmpty) return 'Search failed';
-  if (RegExp(
-    r'failed to fetch|network\s*error|load failed|fetch failed',
-    caseSensitive: false,
-  ).hasMatch(message)) {
-    return 'Network error';
+  if (isNetworkErrorMessage(message)) {
+    return _networkErrorUserMessage;
   }
   return message;
 }
@@ -199,6 +224,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     this.onSearchComplete,
     this.onScrollToBottom,
     this.onCreditsExhausted,
+    this.onRoundError,
   });
 
   final SearchService searchService;
@@ -210,6 +236,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   onSearchComplete;
   final VoidCallback? onScrollToBottom;
   final VoidCallback? onCreditsExhausted;
+  final void Function(String message)? onRoundError;
 
   List<AgenticMessageGroup> messageGroups = [];
   bool loading = false;
@@ -678,9 +705,13 @@ class AgenticSearchLogic extends ChangeNotifier {
       },
       onDurationMs: (ms) => g.deepSearchDurationMs = ms,
       onError: (message) {
-        _notifyCreditsExhaustedIfNeeded(message);
-        _applyRoundError(g, message);
+        final finalMessage = isNetworkErrorMessage(message)
+            ? _networkErrorUserMessage
+            : message;
+        _notifyCreditsExhaustedIfNeeded(finalMessage);
+        _applyRoundError(g, finalMessage);
         _cancelPendingResultView(groupId);
+        onRoundError?.call(normalizeRoundErrorMessage(finalMessage));
       },
       onStatusChange: (status) {
         g.roundStatus = status;
@@ -1508,7 +1539,39 @@ class AgenticSearchLogic extends ChangeNotifier {
         _cancelPendingResultView(groupId);
         searchStore.setIsSearching(false);
         notifyListeners();
+        onRoundError?.call(message);
       },
+    );
+  }
+
+  /// 错误轮次「Try again」：留在当前会话页，用原 query/附件重新发起搜索。
+  void retryFailedRound(
+    AgenticMessageGroup group, {
+    String? modelProvider,
+  }) {
+    if (group.roundStatus != DeepSearchRoundStatus.error) return;
+    if (group.toolType != null) return;
+
+    final query = group.userQuery;
+    final displayQuery = group.displayQuery;
+    final attachmentUrl = group.pdfAttachment?['url']?.toString();
+    final attachmentName = group.pdfAttachment?['name']?.toString();
+    final provider = modelProvider ??
+        searchStore.modelProvider ??
+        'anthropic-hao';
+
+    messageGroups = [
+      for (final g in messageGroups)
+        if (g.id != group.id) g,
+    ];
+    notifyListeners();
+
+    handleSearch(
+      query: query,
+      displayQuery: displayQuery,
+      attachmentUrl: attachmentUrl,
+      attachmentName: attachmentName,
+      modelProvider: provider,
     );
   }
 
