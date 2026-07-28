@@ -143,7 +143,7 @@ class _ComingSoonButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12 * scale),
       ),
       child: Text(
-        'Not available in the app',
+        'Go to Web',
         style: TextStyle(
           fontSize: fontSize,
           height: 22 / 16,
