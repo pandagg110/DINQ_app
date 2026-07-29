@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../models/deep_search_enrich_models.dart';
+import '../utils/email_parse_util.dart';
 import 'deep_search_enrich_persistence.dart';
 import 'user_store.dart';
 
@@ -362,21 +363,7 @@ class DeepSearchEnrichStore extends ChangeNotifier {
   }
 
   String? _extractCacheEmail(Map<String, dynamic> data) {
-    final direct = data['email']?.toString().trim();
-    if (direct != null && direct.isNotEmpty) return direct;
-
-    final emails = data['emails'];
-    if (emails is List) {
-      final parts = emails
-          .map((e) => e.toString().trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-      if (parts.isNotEmpty) return parts.join(', ');
-    }
-    if (emails is String && emails.trim().isNotEmpty) {
-      return emails.trim();
-    }
-    return null;
+    return joinEmails(data['email']) ?? joinEmails(data['emails']);
   }
 
   void _schedulePersist() {

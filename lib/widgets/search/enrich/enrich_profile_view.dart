@@ -18,6 +18,7 @@ import '../../../stores/messages_store.dart';
 import '../../../stores/search_store.dart';
 import '../../../stores/user_store.dart';
 import '../../../models/message_models.dart';
+import '../../../utils/email_parse_util.dart';
 import '../../../utils/api_error.dart';
 import '../../../utils/credit_feedback.dart';
 import '../../../utils/top_toast_util.dart';
@@ -589,9 +590,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
       final bySource = <String, List<String>>{};
       final seen = <String>{};
 
-      void addEmails(String source, List<dynamic>? emails) {
-        for (final raw in emails ?? const <dynamic>[]) {
-          final email = raw.toString();
+      void addEmails(String source, dynamic emails) {
+        for (final email in flattenEmailValues(emails)) {
           if (email.isEmpty || isMaskedEmail(email) || seen.contains(email)) {
             continue;
           }
@@ -617,12 +617,12 @@ class _ProfileSectionState extends State<_ProfileSection> {
           final emails = event['emails'];
           addEmails(
             event['source']?.toString() ?? '',
-            emails is List ? emails : null,
+            emails,
           );
         }
         if (type == 'done') {
           final emails = event['emails'];
-          addEmails('verified', emails is List ? emails : null);
+          addEmails('verified', emails);
         }
       }
 

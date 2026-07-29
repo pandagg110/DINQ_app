@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../services/connector_service.dart';
 import '../../../services/outreach_service.dart';
+import '../../../utils/email_parse_util.dart';
 
 typedef MessageTone = String; // friendly | professional | concise
 
@@ -19,14 +20,6 @@ const _cBorder = Color(0xFFF0EEEA);
 const _cToneBar = Color(0xFFF5F4F0);
 const _cPlaceholder = Color(0xFFC5C2BC);
 const _cChipBorder = Color(0xFFE5E2DC);
-
-List<String> parseEmails(String raw) {
-  return raw
-      .split(RegExp(r'[,;\s]+'))
-      .map((e) => e.trim())
-      .where((e) => e.isNotEmpty)
-      .toList();
-}
 
 /// 对齐 Web `ContactEmailModal`（EnrichProfileView.tsx）。
 class EnrichContactEmailModal extends StatefulWidget {
