@@ -6,6 +6,16 @@ import 'api_client.dart';
 class AuthService {
   final Dio _dio = ApiClient.instance.dio;
 
+  /// POST /api/v1/auth/web-login-ticket
+  /// 返回一次性 ticket，用于 Web 页面在 60 秒内换取正式 token。
+  ///
+  /// 依赖：当前用户已登录，ApiClient 会在请求拦截器里自动带上
+  /// Authorization: Bearer <当前 App JWT>。
+  Future<Map<String, dynamic>> webLoginTicket() async {
+    final response = await _dio.post<Map<String, dynamic>>('/auth/web-login-ticket');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<Map<String, dynamic>> login({required String email, required String password}) async {
     final response = await _dio.post('/auth/login', data: {'email': email, 'password': password});
     return Map<String, dynamic>.from(response.data as Map);

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../constants/app_constants.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../stores/user_store.dart';
+import '../../../../utils/top_toast_util.dart';
 import '../../analysis/analysis_theme.dart';
 
 /// 对齐 Web `analysisAction.tsx`。
@@ -35,20 +39,42 @@ String? getProfileSignalAnalysisUserId(
 }
 
 Future<bool> openProfileSignalAnalysisPage(
+  BuildContext context,
   String platform,
   String? url, {
   String? fallbackId,
 }) async {
+  final userStore = context.read<UserStore>();
+  if (!userStore.isLoggedIn()) return false;
+
   final userId = getProfileSignalAnalysisUserId(
     platform,
     url,
     fallbackId: fallbackId,
   );
   if (userId == null) return false;
-  final uri = Uri.parse(
-    '$analysisBaseUrl/$platform?user=${Uri.encodeComponent(userId)}',
-  );
-  return launchUrl(uri, mode: LaunchMode.externalApplication);
+
+  try {
+    final ticketRes = await AuthService().webLoginTicket();
+    final ticket = ticketRes['ticket']?.toString();
+    if (ticket == null || ticket.isEmpty) return false;
+
+    final uri = Uri.parse('$analysisBaseUrl/$platform').replace(
+      queryParameters: {
+        'user': userId,
+        'ticket': ticket,
+      },
+    );
+    debugPrint('Analysis web uri: $uri');
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
+  } catch (e) {
+    if (!context.mounted) return false;
+    TopToastUtil.showError(
+      context: context,
+      title: 'Failed to open analysis. Please try again.',
+    );
+    return false;
+  }
 }
 
 class ProfileSignalAnalysisButton extends StatelessWidget {
@@ -79,6 +105,7 @@ class ProfileSignalAnalysisButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: () => openProfileSignalAnalysisPage(
+          context,
           platform,
           url,
           fallbackId: fallbackId,
