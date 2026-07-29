@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -13,8 +14,10 @@ import '../../../services/profile_service.dart';
 import '../../../services/search_service.dart';
 import '../../../services/shortlist_service.dart';
 import '../../../stores/deep_search_enrich_store.dart';
+import '../../../stores/messages_store.dart';
 import '../../../stores/search_store.dart';
 import '../../../stores/user_store.dart';
+import '../../../models/message_models.dart';
 import '../../../utils/api_error.dart';
 import '../../../utils/credit_feedback.dart';
 import '../../../utils/top_toast_util.dart';
@@ -1254,13 +1257,29 @@ class _ProfileSectionState extends State<_ProfileSection> {
       final resp = await _messageService.createPrivateConversation(
         userData.userId,
       );
-      final conv = resp['conversation'];
+      final convRaw = resp['conversation'];
+      final convMap = convRaw is Map
+          ? Map<String, dynamic>.from(convRaw)
+          : null;
       final convId =
-          (conv is Map ? (conv['id'] ?? conv['conversation_id']) : resp['id'])
+          (convMap?['id'] ?? convMap?['conversation_id'] ?? resp['id'])
               ?.toString() ??
           '';
       if (!mounted) return;
       if (convId.isNotEmpty) {
+        final messagesStore = context.read<MessagesStore>();
+        if (convMap != null && convMap.isNotEmpty) {
+          try {
+            messagesStore.setCurrentConversation(
+              Conversation.fromJson(convMap),
+            );
+          } catch (_) {
+            // 解析失败时会话页会按 id 从列表 resolve
+          }
+        }
+        // 删除后再次建联：确保 WS 已连接，空会话可发首条；
+        // 首条发出后输入框会因 allFromCurrentUser 禁用，直到对方回复。
+        unawaited(messagesStore.connectWebSocket());
         context.push('/admin/inbox/$convId');
       } else {
         _snack('Failed to open conversation');

@@ -491,18 +491,25 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
                   borderRadius: BorderRadius.circular(12),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    onTap: () {
+                    onTap: () async {
                       Navigator.of(dialogContext).pop();
                       setState(() => _showMenu = false);
-                      DeleteConversationModal.show(
+                      final deleted = await DeleteConversationModal.show(
                         context: context,
                         conversationName: convName,
                         onConfirm: () async {
                           final store = context.read<MessagesStore>();
-                          await store.deleteConversation(widget.conversationId);
-                          if (mounted) context.pop();
+                          // 先不 clear current，避免弹窗还开着时页面闪「not found」
+                          await store.deleteConversation(
+                            widget.conversationId,
+                            clearCurrent: false,
+                          );
                         },
                       );
+                      if (!mounted || !deleted) return;
+                      context.read<MessagesStore>().clearCurrentConversation();
+                      // 返回搜索结果里的个人详情（enrich）
+                      if (mounted) context.pop();
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

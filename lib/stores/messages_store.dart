@@ -469,14 +469,34 @@ class MessagesStore extends ChangeNotifier {
     });
   }
 
-  /// 删除对话
-  Future<void> deleteConversation(String conversationId) async {
+  /// 删除对话。
+  /// [clearCurrent] 为 false 时仅从列表移除并调 API，不立刻清空当前会话，
+  /// 便于会话页先关闭弹窗再 pop 返回详情，避免闪「Conversation not found」。
+  Future<void> deleteConversation(
+    String conversationId, {
+    bool clearCurrent = true,
+  }) async {
     await _messageService.hideConversation(conversationId);
-    if (currentConversation?.id == conversationId) {
+    conversations =
+        conversations.where((c) => c.id != conversationId).toList();
+    totalUnreadCount = conversations.fold(
+      0,
+      (sum, conv) => sum + conv.unreadCount,
+    );
+    if (clearCurrent && currentConversation?.id == conversationId) {
       currentConversation = null;
       messages = [];
     }
-    await loadConversations();
+    notifyListeners();
+  }
+
+  /// 清空当前会话（删除后离开会话页时调用）。
+  void clearCurrentConversation() {
+    if (currentConversation == null && messages.isEmpty) return;
+    currentConversation = null;
+    messages = [];
+    unreadMessageStartIndex = null;
+    notifyListeners();
   }
 
   @override

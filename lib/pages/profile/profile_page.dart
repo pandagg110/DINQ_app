@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_constants.dart';
+import '../../models/message_models.dart';
 import '../../models/user_models.dart';
 import '../../services/analytics_service.dart';
 import '../../services/message_service.dart';
@@ -12,6 +15,7 @@ import '../../services/profile_service.dart';
 import '../../utils/api_error.dart';
 import '../../stores/card_store.dart';
 import '../../stores/main_store.dart';
+import '../../stores/messages_store.dart';
 import '../../stores/user_store.dart';
 import '../../stores/viewer_card_store.dart';
 import '../../utils/add_image_card.dart';
@@ -529,13 +533,25 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       final resp = await _messageService.createPrivateConversation(
         owner.userId,
       );
-      final conv = resp['conversation'];
+      final convRaw = resp['conversation'];
+      final convMap = convRaw is Map
+          ? Map<String, dynamic>.from(convRaw)
+          : null;
       final convId =
-          (conv is Map ? (conv['id'] ?? conv['conversation_id']) : resp['id'])
+          (convMap?['id'] ?? convMap?['conversation_id'] ?? resp['id'])
               ?.toString() ??
           '';
       if (!mounted) return;
       if (convId.isNotEmpty) {
+        final messagesStore = context.read<MessagesStore>();
+        if (convMap != null && convMap.isNotEmpty) {
+          try {
+            messagesStore.setCurrentConversation(
+              Conversation.fromJson(convMap),
+            );
+          } catch (_) {}
+        }
+        unawaited(messagesStore.connectWebSocket());
         context.push('/admin/inbox/$convId');
       } else {
         _snack('Failed to open conversation');
