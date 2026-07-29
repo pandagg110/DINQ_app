@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'credits_exhausted_sheet.dart';
+import '../../credits/credits_exhausted_sheet.dart';
 
-export 'credits_exhausted_sheet.dart'
+export '../../credits/credits_exhausted_sheet.dart'
     show CreditsExhaustedReason, showCreditsExhaustedSheet;
 
 /// 兼容旧调用：转发至 Bottom Sheet 卡点弹窗。
