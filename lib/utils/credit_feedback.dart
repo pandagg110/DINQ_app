@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 
 import '../stores/user_store.dart';
+import 'top_toast_util.dart';
 
 const _creditRefreshRetryMs = 1000;
+
+/// Get email 扣费额度。
+const kProfileEmailCreditCost = 20;
 
 /// 与 TSX SearchPanel / useDeepSearch isInsufficientCredits 一致。
 bool isInsufficientCredits(String message) {
@@ -43,5 +48,16 @@ void refreshCreditsAfterMutation(UserStore userStore) {
   Future<void>.delayed(
     const Duration(milliseconds: _creditRefreshRetryMs),
     () => userStore.refreshSubscription(),
+  );
+}
+
+/// Get email 成功提示，复用项目 `TopToastUtil` 风格。
+void showEmailFoundCreditToast({
+  required BuildContext context,
+  int amount = kProfileEmailCreditCost,
+}) {
+  TopToastUtil.showSuccess(
+    context: context,
+    title: 'Email found. $amount credits deducted.',
   );
 }

@@ -612,11 +612,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
       );
       if (!mounted) return;
       if (finalEmails.isNotEmpty) {
-        TopToastUtil.showSuccess(
-          context: context,
-          title: '邮箱获取成功',
-          description: '积分已扣除',
-        );
+        showEmailFoundCreditToast(context: context);
       }
     } catch (error) {
       if (!mounted) return;
