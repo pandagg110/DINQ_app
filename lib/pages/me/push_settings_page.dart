@@ -116,10 +116,9 @@ class _PushSettingsPageState extends State<PushSettingsPage> {
               ],
             ),
           ),
-          Switch.adaptive(
+          Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: ColorUtil.textColor,
           ),
         ],
       ),
