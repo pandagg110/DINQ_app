@@ -59,10 +59,13 @@ Future<bool> openProfileSignalAnalysisPage(
     final ticket = ticketRes['ticket']?.toString();
     if (ticket == null || ticket.isEmpty) return false;
 
-    final uri = Uri.parse('$analysisBaseUrl/$platform').replace(
+    // 对齐 app-web-login.md：
+    // https://analysis.dinq.me/auth/app-login?ticket=<ticket>&next=<编码后的站内路径>
+    final nextPath = '/$platform?user=$userId';
+    final uri = Uri.parse('$analysisBaseUrl/auth/app-login').replace(
       queryParameters: {
-        'user': userId,
         'ticket': ticket,
+        'next': nextPath,
       },
     );
     debugPrint('Analysis web uri: $uri');
