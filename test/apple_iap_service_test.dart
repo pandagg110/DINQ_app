@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dinq_app/services/apple_iap_service.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
 
@@ -160,6 +161,31 @@ void main() {
         expect(failureMessage, contains('retried automatically'));
       },
     );
+
+    test('shows a safe backend reason when activation fails', () async {
+      service = AppleIapService.forTesting(
+        platform: platform,
+        transactionVerifier: (_) async => throw DioException(
+          requestOptions: RequestOptions(path: '/payment/apple/verify'),
+          error: 'This App Store product is not configured.',
+        ),
+      );
+      service.setUserIdProvider(() => '4a476859-2929-43ef-9a38-2e80eb7e7bb0');
+      String? failureMessage;
+      service.onPurchaseFinished = (success, message) {
+        if (!success) failureMessage = message;
+      };
+      await service.init();
+
+      platform.emit(_purchase(PurchaseStatus.purchased));
+      await _flushEvents();
+
+      expect(
+        failureMessage,
+        'This App Store product is not configured. Please contact support.',
+      );
+      expect(platform.completedPurchases, isEmpty);
+    });
 
     test('reports restore failure when the server rejects its JWS', () async {
       service = AppleIapService.forTesting(

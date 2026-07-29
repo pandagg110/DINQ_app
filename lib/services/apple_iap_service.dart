@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
@@ -269,12 +270,27 @@ class AppleIapService {
     } catch (error) {
       debugPrint('IAP server verify failed: $error');
       if (notifyPurchaseFinished) {
-        onPurchaseFinished?.call(
-          false,
-          'Purchase completed but activation failed. It will be retried automatically.',
-        );
+        onPurchaseFinished?.call(false, _activationFailureMessage(error));
       }
       return false;
+    }
+  }
+
+  static String _activationFailureMessage(Object error) {
+    final backendMessage = error is DioException
+        ? error.error?.toString()
+        : null;
+    switch (backendMessage) {
+      case 'This App Store product is not configured.':
+        return '$backendMessage Please contact support.';
+      case 'This purchase belongs to another DINQ account.':
+        return '$backendMessage Sign in with the account used for this purchase.';
+      case 'This App Store subscription is no longer active.':
+      case 'The App Store transaction could not be verified.':
+      case 'subscription is managed by another payment channel':
+        return backendMessage!;
+      default:
+        return 'Purchase completed but activation failed. It will be retried automatically.';
     }
   }
 
