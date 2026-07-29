@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -59,6 +61,38 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
       if (_messagesStore!.conversations.isEmpty) {
         _messagesStore!.loadConversations();
       }
+
+      // 关键修复：当从 enrich 直接 push 到会话页时，原本不会经过
+      // AdminInboxPage（那边才会 connectWebSocket），因此此页需要补上连接。
+      unawaited(_messagesStore!.connectWebSocket());
+
+      // 设置 WebSocket 错误回调，便于排查/提示。
+      _messagesStore!.onWsError = (message) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text(
+              'Inbox Warning',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Geist',
+              ),
+            ),
+            content: Text(
+              message,
+              style: const TextStyle(fontSize: 15, fontFamily: 'Geist'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      };
 
       // 监听 messages 变化，处理滚动和已读
       _messagesStore!.addListener(_onStoreChanged);
