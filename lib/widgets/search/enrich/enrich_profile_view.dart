@@ -106,6 +106,24 @@ String _socialLabel(String type) {
   return map[type] ?? type.replaceAll('_', ' ');
 }
 
+/// 对齐 Web `EnrichProfileView.tsx` dedupeSocialLinks：同 url / 同 type 只保留第一条。
+List<EnrichSocialLink> dedupeSocialLinks(List<EnrichSocialLink> links) {
+  final seenUrls = <String>{};
+  final seenTypes = <String>{};
+  final out = <EnrichSocialLink>[];
+  for (final link in links) {
+    final url = link.url.trim();
+    final type = link.type.toLowerCase();
+    if (url.isEmpty || seenUrls.contains(url) || seenTypes.contains(type)) {
+      continue;
+    }
+    seenUrls.add(url);
+    seenTypes.add(type);
+    out.add(link);
+  }
+  return out;
+}
+
 String _hostnameFromUrl(String url) {
   try {
     return Uri.parse(url).host.replaceFirst(RegExp(r'^www\.'), '');
@@ -957,19 +975,30 @@ class _ProfileSectionState extends State<_ProfileSection> {
             if ((person?.socialLinks?.isNotEmpty ?? false) ||
                 (person?.personalHomepage?.isNotEmpty ?? false)) ...[
               const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final link in person?.socialLinks ?? const [])
-                    _SocialChip(type: link.type, url: link.url),
-                  if (person?.personalHomepage != null &&
-                      person!.personalHomepage!.isNotEmpty)
-                    _SocialChip(
-                      type: 'homepage',
-                      url: person.personalHomepage!,
-                    ),
-                ],
+              Builder(
+                builder: (context) {
+                  final socialLinks =
+                      dedupeSocialLinks(person?.socialLinks ?? const []);
+                  final personalHomepage = person?.personalHomepage?.trim();
+                  final showPersonalHomepage = personalHomepage != null &&
+                      personalHomepage.isNotEmpty &&
+                      !socialLinks.any(
+                        (link) => link.url.trim() == personalHomepage,
+                      );
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final link in socialLinks)
+                        _SocialChip(type: link.type, url: link.url),
+                      if (showPersonalHomepage)
+                        _SocialChip(
+                          type: 'homepage',
+                          url: personalHomepage,
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
             // 获取 email 后展示邮箱列表（每行可复制，>2 折叠），对齐设计稿
