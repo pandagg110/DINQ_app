@@ -1,6 +1,7 @@
 import Flutter
 import StoreKit
 import UIKit
+import WebKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -22,8 +23,51 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       StoreKitBridge.register(with: controller)
+      GitHubOAuthCookieBridge.register(with: controller)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+enum GitHubOAuthCookieBridge {
+  static let channelName = "me.dinq.app/github_oauth"
+
+  static func register(with controller: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: channelName, binaryMessenger: controller.binaryMessenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "clearGitHubCookies":
+        clearGitHubCookies(result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func clearGitHubCookies(result: @escaping FlutterResult) {
+    let cookieStore = WKWebsiteDataStore.default().httpCookieStore
+    cookieStore.getAllCookies { cookies in
+      let githubCookies = cookies.filter { cookie in
+        let domain = cookie.domain.lowercased()
+        return domain == "github.com" || domain.hasSuffix(".github.com")
+      }
+      guard !githubCookies.isEmpty else {
+        result(nil)
+        return
+      }
+
+      let group = DispatchGroup()
+      for cookie in githubCookies {
+        group.enter()
+        cookieStore.delete(cookie) {
+          group.leave()
+        }
+      }
+      group.notify(queue: .main) {
+        result(nil)
+      }
+    }
   }
 }
 

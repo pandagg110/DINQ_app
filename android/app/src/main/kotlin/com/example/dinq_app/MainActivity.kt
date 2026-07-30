@@ -3,9 +3,11 @@ package me.dinq.app
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
+import android.webkit.CookieManager
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.atomic.AtomicInteger
 
 class MainActivity : FlutterActivity() {
     private var neteasePlayer: MediaPlayer? = null
@@ -29,6 +31,49 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "me.dinq.app/github_oauth"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "clearGitHubCookies" -> clearGitHubCookies(result)
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun clearGitHubCookies(result: MethodChannel.Result) {
+        val cookieManager = CookieManager.getInstance()
+        val cookieNames = cookieManager.getCookie("https://github.com/")
+            .orEmpty()
+            .split(';')
+            .mapNotNull { cookie ->
+                cookie.trim().substringBefore('=').takeIf { it.isNotBlank() }
+            }
+            .distinct()
+
+        if (cookieNames.isEmpty()) {
+            result.success(null)
+            return
+        }
+
+        val expiredCookies = cookieNames.flatMap { name ->
+            listOf(
+                "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; Secure",
+                "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=github.com; Path=/; Secure",
+                "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.github.com; Path=/; Secure",
+            )
+        }
+        val remaining = AtomicInteger(expiredCookies.size)
+        expiredCookies.forEach { expiredCookie ->
+            cookieManager.setCookie("https://github.com/", expiredCookie) {
+                if (remaining.decrementAndGet() == 0) {
+                    cookieManager.flush()
+                    result.success(null)
+                }
             }
         }
     }

@@ -1,6 +1,24 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/services.dart';
+
+const MethodChannel _githubOAuthChannel = MethodChannel(
+  'me.dinq.app/github_oauth',
+);
+
+Future<void> clearGitHubWebViewCookies() async {
+  await _githubOAuthChannel.invokeMethod<void>('clearGitHubCookies');
+}
+
+Future<void> prepareGitHubAccountSelection({
+  required Future<void> Function() clearGitHubCookies,
+  required Future<void> Function() loadAuthorizationPage,
+}) async {
+  await clearGitHubCookies();
+  await loadAuthorizationPage();
+}
+
 class GitHubOAuthException implements Exception {
   const GitHubOAuthException(this.message);
 

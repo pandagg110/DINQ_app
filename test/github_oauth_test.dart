@@ -8,6 +8,21 @@ void main() {
     'https://api.dinq.me/auth/oauth/github/callback/app',
   );
 
+  test('clears only the GitHub WebView session before loading OAuth', () async {
+    final calls = <String>[];
+
+    await prepareGitHubAccountSelection(
+      clearGitHubCookies: () async {
+        calls.add('clearGitHubCookies');
+      },
+      loadAuthorizationPage: () async {
+        calls.add('loadAuthorizationPage');
+      },
+    );
+
+    expect(calls, ['clearGitHubCookies', 'loadAuthorizationPage']);
+  });
+
   test('builds GitHub authorization URL with callback, scope, and state', () {
     final uri = GitHubOAuth.buildAuthorizationUri(
       clientId: clientId,

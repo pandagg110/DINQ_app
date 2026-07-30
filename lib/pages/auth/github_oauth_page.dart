@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -26,6 +27,7 @@ class _GitHubOAuthPageState extends State<GitHubOAuthPage> {
   late final String _state;
   double _progress = 0;
   bool _finished = false;
+  bool _authorizationStarted = false;
 
   static final String _userAgent = !kIsWeb && Platform.isAndroid
       ? 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -75,6 +77,25 @@ class _GitHubOAuthPageState extends State<GitHubOAuthPage> {
     return NavigationDecision.prevent;
   }
 
+  Future<void> _prepareAuthorizationPage(Uri authorizationUri) async {
+    try {
+      await prepareGitHubAccountSelection(
+        clearGitHubCookies: clearGitHubWebViewCookies,
+        loadAuthorizationPage: () async {
+          if (!mounted) return;
+          setState(() => _authorizationStarted = true);
+          await _controller.loadRequest(authorizationUri);
+        },
+      );
+    } catch (_) {
+      _complete(
+        const GitHubOAuthResult.failure(
+          'Unable to open GitHub login. Please try again.',
+        ),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -104,8 +125,8 @@ class _GitHubOAuthPageState extends State<GitHubOAuthPage> {
             }
           },
         ),
-      )
-      ..loadRequest(authorizationUri);
+      );
+    unawaited(_prepareAuthorizationPage(authorizationUri));
   }
 
   @override
@@ -132,7 +153,9 @@ class _GitHubOAuthPageState extends State<GitHubOAuthPage> {
       ),
       body: SafeArea(
         bottom: false,
-        child: WebViewWidget(controller: _controller),
+        child: _authorizationStarted
+            ? WebViewWidget(controller: _controller)
+            : const Center(child: CircularProgressIndicator()),
       ),
     );
   }
