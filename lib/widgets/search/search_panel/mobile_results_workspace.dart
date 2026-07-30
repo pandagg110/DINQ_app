@@ -77,7 +77,11 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _rows => widget.candidates;
+  List<Map<String, dynamic>> get _rows => sortCandidateRows(
+        widget.candidates,
+        column: DeepSearchResultsSortColumn.confidence,
+        ascending: false,
+      );
 
   List<String> get _visibleIds => _rows
       .map((r) => r['row_id']?.toString() ?? '')
