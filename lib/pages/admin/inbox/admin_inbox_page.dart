@@ -11,6 +11,7 @@ import '../../../stores/messages_store.dart';
 import '../../../stores/notifications_store.dart';
 import '../../../stores/user_store.dart';
 import '../../../widgets/inbox/delete_conversation_modal.dart';
+import '../../../widgets/inbox/org_chat_badge.dart';
 import '../../../widgets/common/base_page.dart';
 
 /// Inbox 主页面 - 对话列表
@@ -424,6 +425,11 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
                                 ),
                               ),
                             ),
+                            // 组织群聊标识（对齐 web org_id → Building2 + Org）
+                            if (conv.isOrgChat) ...[
+                              const SizedBox(width: 8),
+                              const OrgChatBadge(),
+                            ],
                             // 标签
                             if (conv.tags != null && conv.tags!.isNotEmpty) ...[
                               const SizedBox(width: 8),

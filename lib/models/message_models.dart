@@ -198,6 +198,8 @@ class Conversation {
   final String id;
   final ConversationType conversationType;
   final String? groupName;
+  /// 组织群聊 ID；非空时为组织主群（对齐 web `org_id`）。
+  final String? orgId;
   final String createdAt;
   final String updatedAt;
   final String? lastMessageAt;
@@ -213,6 +215,7 @@ class Conversation {
     required this.id,
     required this.conversationType,
     this.groupName,
+    this.orgId,
     required this.createdAt,
     required this.updatedAt,
     this.lastMessageAt,
@@ -225,9 +228,13 @@ class Conversation {
     this.tags,
   });
 
+  /// 是否组织群聊（需展示 Org 标识）。
+  bool get isOrgChat => orgId != null && orgId!.isNotEmpty;
+
   factory Conversation.fromJson(Map<String, dynamic> json) {
     final membersJson = json['members'] as List<dynamic>? ?? [];
     final tagsJson = json['tags'] as List<dynamic>?;
+    final rawOrgId = json['org_id']?.toString();
 
     Map<String, bool>? onlineStatus;
     if (json['online_status'] is Map) {
@@ -244,6 +251,7 @@ class Conversation {
           ? ConversationType.group
           : ConversationType.private_,
       groupName: json['group_name']?.toString(),
+      orgId: (rawOrgId != null && rawOrgId.isNotEmpty) ? rawOrgId : null,
       createdAt: json['created_at']?.toString() ?? '',
       updatedAt: json['updated_at']?.toString() ?? '',
       lastMessageAt: json['last_message_at']?.toString(),
@@ -270,6 +278,7 @@ class Conversation {
       id: id,
       conversationType: conversationType,
       groupName: groupName,
+      orgId: orgId,
       createdAt: createdAt,
       updatedAt: updatedAt,
       lastMessageAt: lastMessageAt,

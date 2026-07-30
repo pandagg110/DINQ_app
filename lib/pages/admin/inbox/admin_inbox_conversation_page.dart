@@ -17,6 +17,7 @@ import '../../../widgets/inbox/create_team_recruit_sheet.dart';
 import '../../../widgets/inbox/delete_conversation_modal.dart';
 import '../../../widgets/inbox/message_bubble.dart';
 import '../../../widgets/inbox/message_input.dart';
+import '../../../widgets/inbox/org_chat_badge.dart';
 import '../../../widgets/inbox/team_recruit_card.dart';
 
 /// 对话详情页面
@@ -362,6 +363,10 @@ class _AdminInboxConversationPageState extends State<AdminInboxConversationPage>
                         ),
                       ),
                     ),
+                    if (conversation.isOrgChat) ...[
+                      const SizedBox(width: 8),
+                      const OrgChatBadge(),
+                    ],
                     if (conversation.tags != null && conversation.tags!.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       ...conversation.tags!.map(
