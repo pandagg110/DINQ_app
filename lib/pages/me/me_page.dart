@@ -178,11 +178,6 @@ class _MePageState extends State<MePage> {
                         () => context.push('/me/organization'),
                       ),
                       _menuItem(
-                        MeIcons.shortlist,
-                        'Shortlist',
-                        () => context.go('/shortlist'),
-                      ),
-                      _menuItem(
                         MeIcons.apiPlayground,
                         'API Playground',
                         () => context.push('/me/api-keys'),
