@@ -13,6 +13,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/app_constants.dart';
+import '../../services/auth_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/password_field_keyboard.dart';
@@ -547,32 +548,27 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Future<void> _googleSignIn() async {
-    GoogleSignInAccount? googleSignInAccount = await _googleSignInClient
-        .signIn();
-    if (googleSignInAccount != null) {
-      GoogleSignInAuthentication googleSignInAuthentication =
-          await googleSignInAccount.authentication;
-      // final avatar = googleSignInAccount.photoUrl ?? "";
-      // final platformId = googleSignInAccount.id;
-      // final name = googleSignInAccount.displayName ?? "";
-      String platformAccessToken = googleSignInAuthentication.idToken ?? "";
-      try {
-        await ToastUtil.showLoading();
-        if (!mounted) {
-          await ToastUtil.dismiss();
-          return;
-        }
-        await context.read<UserStore>().thirdPartyLogin(
-          provider: 'google',
-          idToken: platformAccessToken,
-        );
+    try {
+      final googleSignInAccount = await _googleSignInClient.signIn();
+      if (googleSignInAccount == null) return;
+
+      final authentication = await googleSignInAccount.authentication;
+      final idToken = requireGoogleIdToken(authentication.idToken);
+      await ToastUtil.showLoading();
+      if (!mounted) {
         await ToastUtil.dismiss();
-        if (!mounted) return;
-        _handleLoginSuccess();
-      } catch (error) {
-        await ToastUtil.dismiss();
-        await ToastUtil.show("Login failed: $error");
+        return;
       }
+      await context.read<UserStore>().thirdPartyLogin(
+        provider: 'google',
+        idToken: idToken,
+      );
+      await ToastUtil.dismiss();
+      if (!mounted) return;
+      _handleLoginSuccess();
+    } catch (error) {
+      await ToastUtil.dismiss();
+      await ToastUtil.show(googleLoginErrorMessage(error));
     }
   }
 
@@ -586,10 +582,6 @@ class _SignInPageState extends State<SignInPage> {
     final result = await gitHubSignIn.signIn(context);
     switch (result.status) {
       case GitHubSignInResultStatus.ok:
-        if (result.userData != null) {
-          final user = result.userData!;
-        }
-
         try {
           await ToastUtil.showLoading();
           if (!mounted) {

@@ -1,7 +1,35 @@
 ﻿import 'package:dio/dio.dart';
 
 import '../models/user_models.dart';
+import '../utils/api_error.dart';
 import 'api_client.dart';
+
+final class GoogleLoginException implements Exception {
+  const GoogleLoginException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+String requireGoogleIdToken(String? token) {
+  final value = token?.trim() ?? '';
+  if (value.isEmpty) {
+    throw const GoogleLoginException(
+      'Google login is not configured for this app build.',
+    );
+  }
+  return value;
+}
+
+String googleLoginErrorMessage(Object error) {
+  if (error is GoogleLoginException) return error.message;
+  return apiErrorMessage(
+    error,
+    fallback: 'Google login failed. Please try again.',
+  );
+}
 
 class AuthService {
   final Dio _dio = ApiClient.instance.dio;
