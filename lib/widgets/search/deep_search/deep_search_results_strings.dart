@@ -41,6 +41,10 @@ abstract final class DeepSearchResultsStrings {
   static const toastAddedToFolder = 'Added to folder';
   static const toastRemovedFromShortlist = 'Removed from shortlist';
 
+  static String toastRemovedFromShortlistCount(int count) => count == 1
+      ? 'Removed 1 candidate from shortlist'
+      : 'Removed $count candidates from shortlist';
+
   static const filtersClear = 'Clear';
 
   static const columnGroup = 'Group';
