@@ -3,6 +3,13 @@ const String gatewayUrl = String.fromEnvironment(
   'GATEWAY_URL',
   defaultValue: 'https://testapi.dinq.me',
 );
+const String githubClientId = String.fromEnvironment(
+  'GITHUB_CLIENT_ID',
+  defaultValue: '',
+);
+// GitHub OAuth App 允许已配置 callback 的子路径。App 使用专用子路径，
+// 避免 WebView 拦截稍晚时命中网关的 Web callback 并提前消费一次性 code。
+const String githubRedirectUrl = '$gatewayUrl/auth/oauth/github/callback/app';
 
 // ?type=app：web 的 terms/privacy 页检测到该参数会隐藏页内 Back 返回栏
 // （app WebView 顶部已有原生返回，避免出现两个返回按钮）。

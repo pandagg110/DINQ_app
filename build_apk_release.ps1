@@ -4,20 +4,28 @@
 param(
     [string]$gatewayUrl = "https://testapi.dinq.me",
     [string]$appUrl = "https://dinq.me",
+    [string]$githubClientId = $env:GITHUB_CLIENT_ID,
     [switch]$splitPerAbi = $false
 )
+
+if ([string]::IsNullOrWhiteSpace($githubClientId)) {
+    Write-Error "GITHUB_CLIENT_ID is required for release builds."
+    exit 1
+}
 
 Write-Host "=== 构建 Release APK ===" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "配置信息:" -ForegroundColor Green
 Write-Host "  Gateway URL: $gatewayUrl" -ForegroundColor Gray
 Write-Host "  App URL: $appUrl" -ForegroundColor Gray
+Write-Host "  GitHub Client ID: $githubClientId" -ForegroundColor Gray
 Write-Host ""
 
 # 构建命令
 $buildCmd = "flutter build apk --release"
 $buildCmd += " --dart-define=GATEWAY_URL=$gatewayUrl"
 $buildCmd += " --dart-define=APP_URL=$appUrl"
+$buildCmd += " --dart-define=GITHUB_CLIENT_ID=$githubClientId"
 
 if ($splitPerAbi) {
     $buildCmd += " --split-per-abi"

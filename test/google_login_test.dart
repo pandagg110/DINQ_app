@@ -3,6 +3,23 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('Google account selection', () {
+    test('clears the cached account before opening Google sign-in', () async {
+      final calls = <String>[];
+
+      final account = await selectGoogleAccount<String>(
+        clearCachedAccount: () async => calls.add('signOut'),
+        signIn: () async {
+          calls.add('signIn');
+          return 'selected-account';
+        },
+      );
+
+      expect(calls, ['signOut', 'signIn']);
+      expect(account, 'selected-account');
+    });
+  });
+
   group('Google login token validation', () {
     test('accepts a non-empty Google ID token', () {
       expect(requireGoogleIdToken('  signed-id-token  '), 'signed-id-token');

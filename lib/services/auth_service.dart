@@ -4,6 +4,16 @@ import '../models/user_models.dart';
 import '../utils/api_error.dart';
 import 'api_client.dart';
 
+Map<String, dynamic> buildThirdPartyLoginPayload({
+  required String provider,
+  required String idToken,
+  String? redirectUri,
+}) => {
+  'provider': provider,
+  'id_token': idToken,
+  'redirect_uri': ?redirectUri,
+};
+
 final class GoogleLoginException implements Exception {
   const GoogleLoginException(this.message);
 
@@ -11,6 +21,15 @@ final class GoogleLoginException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Clears the locally cached Google account before opening the account picker.
+Future<T?> selectGoogleAccount<T>({
+  required Future<void> Function() clearCachedAccount,
+  required Future<T?> Function() signIn,
+}) async {
+  await clearCachedAccount();
+  return signIn();
 }
 
 String requireGoogleIdToken(String? token) {
@@ -53,10 +72,15 @@ class AuthService {
   Future<Map<String, dynamic>> thirdPartyLogin({
     required String provider,
     required String idToken,
+    String? redirectUri,
   }) async {
     final response = await _dio.post(
       '/auth/oauth/app-login',
-      data: {'provider': provider, 'id_token': idToken},
+      data: buildThirdPartyLoginPayload(
+        provider: provider,
+        idToken: idToken,
+        redirectUri: redirectUri,
+      ),
     );
     return Map<String, dynamic>.from(response.data as Map);
   }

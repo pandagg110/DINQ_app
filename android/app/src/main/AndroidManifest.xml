@@ -41,19 +41,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name="com.example.github_sign_in.CallbackActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="dinq" />
-            </intent-filter>
-        </activity>
-
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
