@@ -9,6 +9,9 @@ const String gatewayUrl = String.fromEnvironment(
 const String privacyUrl = '$appUrl/privacy?type=app';
 const String termsUrl = '$appUrl/terms?type=app';
 
+/// Social Verification OAuth 回调地址，须与后端生成授权 URL 时一致。
+const String socialCallbackRedirectUri = '$appUrl/social-callback';
+
 /// 分析页 base URL，与 TSX buildFullAnalysisUrl 一致
 const String analysisBaseUrl = 'https://analysis.dinq.me';
 

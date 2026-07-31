@@ -1,14 +1,19 @@
 import 'dart:math' as math;
 
+import 'package:dinq_app/constants/app_constants.dart';
+import 'package:dinq_app/utils/api_error.dart';
 import 'package:dinq_app/utils/color_util.dart';
 import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
+import 'package:dinq_app/widgets/common/confirm_dialog.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../services/profile_service.dart';
 import '../../stores/user_store.dart';
+import 'social_oauth_page.dart';
 
 class SettingsVerificationPage extends StatefulWidget {
   const SettingsVerificationPage({super.key});
@@ -18,6 +23,9 @@ class SettingsVerificationPage extends StatefulWidget {
 }
 
 class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
+  final ProfileService _profileService = ProfileService();
+  bool _isSocialBusy = false;
+
   @override
   void initState() {
     super.initState();
@@ -38,23 +46,14 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
     final careerData = verification['career'] as Map<String, dynamic>? ?? {};
     final socialData = verification['social'] as Map<String, dynamic>? ?? {};
 
-    // 社交账号列表（从 connectedAccounts 获取）
-    final connectedAccounts = userStore.connectedAccounts;
+    // 社交账号列表（对齐 Web：来自 verification overview 的 social.accounts）
+    final linkedAccounts = (socialData['accounts'] as List<dynamic>?) ?? const [];
 
-    // 查找 LinkedIn 和 Twitter 状态
-    final linkedinAccount = connectedAccounts.firstWhere(
-      (a) => a['platform']?.toString().toLowerCase() == 'linkedin',
-      orElse: () => <String, dynamic>{},
-    );
-    final twitterAccount = connectedAccounts.firstWhere(
-      (a) =>
-          a['platform']?.toString().toLowerCase() == 'twitter' ||
-          a['platform']?.toString().toLowerCase() == 'x',
-      orElse: () => <String, dynamic>{},
-    );
+    final linkedinAccount = _findSocialAccount(linkedAccounts, 'linkedin');
+    final twitterAccount = _findSocialAccount(linkedAccounts, 'twitter');
 
-    final isLinkedinLinked = linkedinAccount['linked'] == true;
-    final isTwitterLinked = twitterAccount['linked'] == true;
+    final isLinkedinLinked = linkedinAccount?['linked'] == true;
+    final isTwitterLinked = twitterAccount?['linked'] == true;
 
     // 是否有任何验证通过（用于显示虚线边框）
     final hasAnyVerified =
@@ -199,9 +198,25 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
         _buildSocialVerificationView(
           isLinkedinLinked: isLinkedinLinked,
           isTwitterLinked: isTwitterLinked,
+          isPaidUser: isPaidUser,
         ),
       ],
     );
+  }
+
+  Map<String, dynamic>? _findSocialAccount(List<dynamic> accounts, String platform) {
+    for (final raw in accounts) {
+      if (raw is! Map) continue;
+      final p = raw['platform']?.toString().toLowerCase() ?? '';
+      if (platform == 'twitter') {
+        if (p == 'twitter' || p == 'x') {
+          return Map<String, dynamic>.from(raw);
+        }
+      } else if (p == platform) {
+        return Map<String, dynamic>.from(raw);
+      }
+    }
+    return null;
   }
 
   Widget _buildDivider() {
@@ -262,35 +277,39 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
     );
   }
 
+  Widget _buildVerifiedBadge({EdgeInsets margin = EdgeInsets.zero}) {
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.only(left: 4, right: 8),
+      margin: margin,
+      decoration: BoxDecoration(
+        color: const Color(0xFFDDFEBC),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          AssetImageView("settings_success", width: 16, height: 16),
+          const SizedBox(width: 4),
+          Text(
+            'Verified',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: ColorUtil.textColor,
+              fontFamily: 'Geist',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatusWidget(VerificationStatus status, String? rejectionReason) {
     switch (status) {
       case VerificationStatus.verified:
-        return Container(
-          height: 24,
-          padding: const EdgeInsets.only(left: 4, right: 8),
-          margin: EdgeInsets.only(top: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFDDFEBC),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AssetImageView("settings_success", width: 16, height: 16),
-              const SizedBox(width: 4),
-              Text(
-                'Verified',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: ColorUtil.textColor,
-                  fontFamily: 'Geist',
-                ),
-              ),
-            ],
-          ),
-        );
+        return _buildVerifiedBadge(margin: const EdgeInsets.only(top: 4));
       case VerificationStatus.rejected:
         return _buildRejectedStatus(rejectionReason);
       case VerificationStatus.pending:
@@ -410,6 +429,7 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
   Widget _buildSocialVerificationView({
     required bool isLinkedinLinked,
     required bool isTwitterLinked,
+    required bool isPaidUser,
   }) {
     return Container(
       margin: EdgeInsets.only(left: 16, right: 16, bottom: 16),
@@ -421,67 +441,67 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
       ),
       child: Column(
         children: [
-          NormalButton(
-            onTap: () => _handleSocialLink('Linkedin', isLinkedinLinked),
-            child: Row(
-              children: [
-                AssetImageView("icon_linkedin", width: 24, height: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "Linkedin",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: ColorUtil.textColor,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: "Geist",
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 32,
-                  child: !isLinkedinLinked
-                      ? _buildLinkButton()
-                      : _buildStatusWidget(
-                          isLinkedinLinked ? VerificationStatus.verified : VerificationStatus.none,
-                          null,
-                        ),
-                ),
-              ],
-            ),
+          _buildSocialRow(
+            iconPath: 'icon_linkedin',
+            label: 'Linkedin',
+            platform: 'linkedin',
+            displayName: 'LinkedIn',
+            isLinked: isLinkedinLinked,
+            isPaidUser: isPaidUser,
           ),
           const SizedBox(height: 16),
-          NormalButton(
-            onTap: () => _handleSocialLink('X', isTwitterLinked),
-            child: Row(
-              children: [
-                AssetImageView("icon_x", width: 24, height: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "X",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: ColorUtil.textColor,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: "Geist",
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 32,
-                  child: !isTwitterLinked
-                      ? _buildLinkButton()
-                      : _buildStatusWidget(
-                          isTwitterLinked ? VerificationStatus.verified : VerificationStatus.none,
-                          null,
-                        ),
-                ),
-              ],
-            ),
+          _buildSocialRow(
+            iconPath: 'icon_x',
+            label: 'X',
+            platform: 'twitter',
+            displayName: 'X',
+            isLinked: isTwitterLinked,
+            isPaidUser: isPaidUser,
           ),
         ],
       ),
+    );
+  }
+
+  /// 单个社交平台行：左侧图标 + 名称，右侧已绑定显示 Verified 徽标 + Unlink，
+  /// 未绑定显示 Link（对齐 Web VerificationCard 的社交列表）。
+  Widget _buildSocialRow({
+    required String iconPath,
+    required String label,
+    required String platform,
+    required String displayName,
+    required bool isLinked,
+    required bool isPaidUser,
+  }) {
+    return Row(
+      children: [
+        AssetImageView(iconPath, width: 24, height: 24),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: ColorUtil.textColor,
+              fontWeight: FontWeight.w500,
+              fontFamily: "Geist",
+            ),
+          ),
+        ),
+        if (isLinked) ...[
+          _buildVerifiedBadge(),
+          const SizedBox(width: 8),
+        ],
+        NormalButton(
+          onTap: () => _handleSocialLink(
+            platform: platform,
+            displayName: displayName,
+            isLinked: isLinked,
+            isPaidUser: isPaidUser,
+          ),
+          child: isLinked ? _buildUnlinkButton() : _buildLinkButton(),
+        ),
+      ],
     );
   }
 
@@ -500,6 +520,28 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: ColorUtil.textColor,
+            fontFamily: 'Geist',
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnlinkButton() {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFEF4444)),
+      ),
+      child: const Center(
+        child: Text(
+          'Unlink',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFFEF4444),
             fontFamily: 'Geist',
           ),
         ),
@@ -562,9 +604,116 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
     }
   }
 
-  void _handleSocialLink(String platform, bool isLinked) {
-    // TODO: 处理社交账号绑定/解绑
-    TopToastUtil.showInfo(context: context, title: '${isLinked ? 'Unlink' : 'Link'} $platform');
+  Future<void> _handleSocialLink({
+    required String platform,
+    required String displayName,
+    required bool isLinked,
+    required bool isPaidUser,
+  }) async {
+    if (!isPaidUser || _isSocialBusy) return;
+
+    if (isLinked) {
+      await _unlinkSocialAccount(platform: platform, displayName: displayName);
+      return;
+    }
+
+    await _linkSocialAccount(platform: platform, displayName: displayName);
+  }
+
+  Future<void> _unlinkSocialAccount({
+    required String platform,
+    required String displayName,
+  }) async {
+    final confirmed = await ConfirmDialog.show(
+      context: context,
+      title: 'Unlink $displayName',
+      content: 'Are you sure you want to unlink your $displayName account?',
+      okText: 'Unlink',
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSocialBusy = true);
+    final userStore = context.read<UserStore>();
+    try {
+      await _profileService.unlinkSocialAccount({'platform': platform});
+      await userStore.loadVerifications();
+      if (!mounted) return;
+      TopToastUtil.showSuccess(
+        context: context,
+        title: '$displayName unlinked',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to unlink $displayName',
+        description: apiErrorMessage(e),
+      );
+    } finally {
+      if (mounted) setState(() => _isSocialBusy = false);
+    }
+  }
+
+  Future<void> _linkSocialAccount({
+    required String platform,
+    required String displayName,
+  }) async {
+    setState(() => _isSocialBusy = true);
+    final userStore = context.read<UserStore>();
+    try {
+      final res = await _profileService.getSocialOAuthURL({'platform': platform});
+      final authUrl = res['url']?.toString();
+      if (authUrl == null || authUrl.isEmpty) {
+        throw Exception('Missing OAuth URL');
+      }
+      if (!mounted) return;
+
+      final result = await Navigator.of(context).push<SocialOAuthResult>(
+        MaterialPageRoute(
+          builder: (_) => SocialOAuthPage(
+            authUrl: authUrl,
+            title: 'Link $displayName',
+          ),
+        ),
+      );
+
+      // 用户点返回关闭 WebView
+      if (result == null || !mounted) return;
+
+      if (!result.isSuccess) {
+        final msg = result.errorDescription ??
+            result.error ??
+            'Authorization was cancelled or failed';
+        TopToastUtil.showError(
+          context: context,
+          title: 'Failed to link $displayName',
+          description: msg,
+        );
+        return;
+      }
+
+      await _profileService.linkSocialAccount({
+        'platform': platform,
+        'authorization_code': result.code,
+        'redirect_uri': socialCallbackRedirectUri,
+        'state': result.state,
+      });
+      await userStore.loadVerifications();
+      if (!mounted) return;
+      TopToastUtil.showSuccess(
+        context: context,
+        title: '$displayName linked',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to link $displayName',
+        description: apiErrorMessage(e),
+      );
+    } finally {
+      if (mounted) setState(() => _isSocialBusy = false);
+    }
   }
 }
 
