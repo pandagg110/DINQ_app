@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.WRITE_MEDIA_IMAGES" />
 
     <application
-        android:label="dinq_app"
+        android:label="DINQ"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -38,19 +38,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <activity
-            android:name="com.example.github_sign_in.CallbackActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="dinq" />
             </intent-filter>
         </activity>
 

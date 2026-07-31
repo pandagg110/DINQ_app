@@ -134,6 +134,7 @@ class UserStore extends ChangeNotifier {
   Future<UserProfile?> thirdPartyLogin({
     required String provider,
     required String idToken,
+    String? redirectUri,
   }) async {
     isLoading = true;
     notifyListeners();
@@ -141,6 +142,7 @@ class UserStore extends ChangeNotifier {
       final result = await _authService.thirdPartyLogin(
         provider: provider,
         idToken: idToken,
+        redirectUri: redirectUri,
       );
       authToken = result['token']?.toString();
       ApiClient.instance.setAuthToken(authToken);

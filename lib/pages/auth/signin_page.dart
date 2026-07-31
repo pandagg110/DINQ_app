@@ -7,17 +7,19 @@ import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:dinq_app/widgets/landing/invite_code_dialog.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:github_oauth_signin/github_oauth_signin.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/app_constants.dart';
+import '../../services/auth_service.dart';
+import '../../services/github_oauth.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/password_field_keyboard.dart';
 import '../../utils/unfocus_on_tap_outside.dart';
 import '../../widgets/common/default_app_bar.dart';
+import 'github_oauth_page.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -547,74 +549,89 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Future<void> _googleSignIn() async {
-    GoogleSignInAccount? googleSignInAccount = await _googleSignInClient
-        .signIn();
-    if (googleSignInAccount != null) {
-      GoogleSignInAuthentication googleSignInAuthentication =
-          await googleSignInAccount.authentication;
-      // final avatar = googleSignInAccount.photoUrl ?? "";
-      // final platformId = googleSignInAccount.id;
-      // final name = googleSignInAccount.displayName ?? "";
-      String platformAccessToken = googleSignInAuthentication.idToken ?? "";
-      try {
-        await ToastUtil.showLoading();
-        if (!mounted) {
-          await ToastUtil.dismiss();
-          return;
-        }
-        await context.read<UserStore>().thirdPartyLogin(
-          provider: 'google',
-          idToken: platformAccessToken,
-        );
+    try {
+      final googleSignInAccount = await selectGoogleAccount(
+        clearCachedAccount: () async {
+          await _googleSignInClient.signOut();
+        },
+        signIn: _googleSignInClient.signIn,
+      );
+      if (googleSignInAccount == null) return;
+
+      final authentication = await googleSignInAccount.authentication;
+      final idToken = requireGoogleIdToken(authentication.idToken);
+      await ToastUtil.showLoading();
+      if (!mounted) {
         await ToastUtil.dismiss();
-        if (!mounted) return;
-        _handleLoginSuccess();
-      } catch (error) {
-        await ToastUtil.dismiss();
-        await ToastUtil.show("Login failed: $error");
+        return;
       }
+      await context.read<UserStore>().thirdPartyLogin(
+        provider: 'google',
+        idToken: idToken,
+      );
+      await ToastUtil.dismiss();
+      if (!mounted) return;
+      _handleLoginSuccess();
+    } catch (error) {
+      await ToastUtil.dismiss();
+      await ToastUtil.show(googleLoginErrorMessage(error));
     }
   }
 
   Future<void> _githubSignIn() async {
-    final GitHubSignIn gitHubSignIn = GitHubSignIn(
-      clientId: 'Ov23livoAOOYkvlzKccK',
-      clientSecret: '2cd66054c8c0659968925bcd9fec842636703bd6',
-      redirectUrl: '$gatewayUrl/auth/oauth/github/callback',
+    if (githubClientId.trim().isEmpty) {
+      await ToastUtil.show('GitHub login is not configured.');
+      return;
+    }
+
+    final redirectUri = Uri.tryParse(githubRedirectUrl);
+    if (redirectUri == null) {
+      await ToastUtil.show('GitHub login is not configured.');
+      return;
+    }
+    try {
+      GitHubOAuth.buildAuthorizationUri(
+        clientId: githubClientId,
+        redirectUri: redirectUri,
+        state: 'configuration-check',
+      );
+    } on GitHubOAuthException catch (error) {
+      await ToastUtil.show(error.message);
+      return;
+    }
+    if (!mounted) return;
+
+    final result = await Navigator.of(context).push<GitHubOAuthResult>(
+      MaterialPageRoute(
+        builder: (_) => GitHubOAuthPage(
+          clientId: githubClientId,
+          redirectUri: redirectUri,
+        ),
+      ),
     );
+    if (result == null) return;
+    if (!result.isSuccess) {
+      await ToastUtil.show(result.error ?? 'GitHub login failed.');
+      return;
+    }
 
-    final result = await gitHubSignIn.signIn(context);
-    switch (result.status) {
-      case GitHubSignInResultStatus.ok:
-        if (result.userData != null) {
-          final user = result.userData!;
-        }
-
-        try {
-          await ToastUtil.showLoading();
-          if (!mounted) {
-            await ToastUtil.dismiss();
-            return;
-          }
-          await context.read<UserStore>().thirdPartyLogin(
-            provider: 'github',
-            idToken: result.token ?? '',
-          );
-          await ToastUtil.dismiss();
-          if (!mounted) return;
-          _handleLoginSuccess();
-        } catch (error) {
-          await ToastUtil.dismiss();
-          await ToastUtil.show("Login failed: $error");
-        }
-
-        break;
-
-      case GitHubSignInResultStatus.cancelled:
-        break;
-
-      case GitHubSignInResultStatus.failed:
-        break;
+    try {
+      await ToastUtil.showLoading();
+      if (!mounted) {
+        await ToastUtil.dismiss();
+        return;
+      }
+      await context.read<UserStore>().thirdPartyLogin(
+        provider: 'github',
+        idToken: result.code!,
+        redirectUri: githubRedirectUrl,
+      );
+      await ToastUtil.dismiss();
+      if (!mounted) return;
+      _handleLoginSuccess();
+    } catch (error) {
+      await ToastUtil.dismiss();
+      await ToastUtil.show('Login failed: ${apiErrorMessage(error)}');
     }
   }
 

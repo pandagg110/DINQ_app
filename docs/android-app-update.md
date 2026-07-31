@@ -1,9 +1,21 @@
 # Android update builds
 
+Set the public GitHub OAuth Client ID before any release build:
+
+```bash
+export GITHUB_CLIENT_ID=<production-github-oauth-client-id>
+```
+
+Do not put `GITHUB_CLIENT_SECRET` in the client build. The gateway exchanges the
+one-time authorization code with the secret stored in its deployment environment.
+
 The official APK is the default channel:
 
 ```bash
-flutter build apk --release --dart-define=GATEWAY_URL=https://testapi.dinq.me
+flutter build apk --release \
+  --dart-define=GATEWAY_URL=https://api.dinq.me \
+  --dart-define=APP_URL=https://dinq.me \
+  --dart-define=GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID
 ```
 
 Build the Google Play bundle with an explicit channel:
@@ -11,7 +23,18 @@ Build the Google Play bundle with an explicit channel:
 ```bash
 flutter build appbundle --release \
   --dart-define=DISTRIBUTION_CHANNEL=google_play \
-  --dart-define=GATEWAY_URL=https://api.dinq.me
+  --dart-define=GATEWAY_URL=https://api.dinq.me \
+  --dart-define=APP_URL=https://dinq.me \
+  --dart-define=GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID
+```
+
+iOS release builds require the same OAuth configuration:
+
+```bash
+flutter build ipa --release \
+  --dart-define=GATEWAY_URL=https://api.dinq.me \
+  --dart-define=APP_URL=https://dinq.me \
+  --dart-define=GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID
 ```
 
 The same channel define also selects the subscription provider:
