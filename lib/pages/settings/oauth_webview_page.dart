@@ -6,28 +6,32 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../widgets/common/default_app_bar.dart';
 
-/// Social Verification OAuth 授权页（应用内 WebView）。
+/// 第三方授权页（应用内 WebView），供 Social Verification 与账号绑定共用。
 ///
-/// 打开后端返回的授权 URL；用户授权后跳到
-/// `https://dinq.me/social-callback?code=&state=`，拦截该 URL，
-/// 取出 code / state（或 error）后 pop 回调用方，由调用方调 link 接口。
-class SocialOAuthPage extends StatefulWidget {
-  const SocialOAuthPage({
+/// 打开后端返回的授权 URL；用户授权后会跳到 `https://dinq.me/<callbackPath>?code=&state=`，
+/// 拦截该 URL，取出 code / state（或 error）后 pop 回调用方，由调用方调对应的 link 接口。
+class OAuthWebViewPage extends StatefulWidget {
+  const OAuthWebViewPage({
     super.key,
     required this.authUrl,
-    this.title = 'Link account',
+    required this.callbackPath,
+    this.title = 'Authorize',
   });
 
   final String authUrl;
+
+  /// 回调地址的路径片段，如 `social-callback` / `account-callback`。
+  final String callbackPath;
+
   final String title;
 
   @override
-  State<SocialOAuthPage> createState() => _SocialOAuthPageState();
+  State<OAuthWebViewPage> createState() => _OAuthWebViewPageState();
 }
 
 /// WebView 拦回调后回传的结果。
-class SocialOAuthResult {
-  const SocialOAuthResult({
+class OAuthCallbackResult {
+  const OAuthCallbackResult({
     this.code,
     this.state,
     this.error,
@@ -45,14 +49,17 @@ class SocialOAuthResult {
       code!.isNotEmpty &&
       state != null &&
       state!.isNotEmpty;
+
+  String get failureMessage =>
+      errorDescription ?? error ?? 'Authorization was cancelled or failed';
 }
 
-class _SocialOAuthPageState extends State<SocialOAuthPage> {
+class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
   late final WebViewController _controller;
   double _progress = 0;
   bool _finished = false;
 
-  // LinkedIn / X 可能拒绝内嵌 WebView 默认 UA，使用标准移动浏览器 UA。
+  // 部分平台（LinkedIn / X / Google）拒绝内嵌 WebView 默认 UA，使用标准移动浏览器 UA。
   static final String _userAgent = !kIsWeb && Platform.isAndroid
       ? 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) '
             'Chrome/124.0.0.0 Mobile Safari/537.36'
@@ -60,27 +67,26 @@ class _SocialOAuthPageState extends State<SocialOAuthPage> {
             'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 '
             'Mobile/15E148 Safari/604.1';
 
-  bool _isSocialCallback(String url) {
+  bool _isCallback(String url) {
     try {
-      final uri = Uri.parse(url);
-      return uri.path.contains('social-callback');
+      return Uri.parse(url).path.contains(widget.callbackPath);
     } catch (_) {
-      return url.contains('social-callback');
+      return url.contains(widget.callbackPath);
     }
   }
 
-  void _completeOnce(SocialOAuthResult result) {
+  void _completeOnce(OAuthCallbackResult result) {
     if (_finished || !mounted) return;
     _finished = true;
     Navigator.pop(context, result);
   }
 
   void _handleCallbackUrl(String url) {
-    if (!_isSocialCallback(url)) return;
+    if (!_isCallback(url)) return;
     try {
       final uri = Uri.parse(url);
       _completeOnce(
-        SocialOAuthResult(
+        OAuthCallbackResult(
           code: uri.queryParameters['code'],
           state: uri.queryParameters['state'],
           error: uri.queryParameters['error'],
@@ -88,9 +94,7 @@ class _SocialOAuthPageState extends State<SocialOAuthPage> {
         ),
       );
     } catch (_) {
-      _completeOnce(
-        const SocialOAuthResult(error: 'invalid_callback'),
-      );
+      _completeOnce(const OAuthCallbackResult(error: 'invalid_callback'));
     }
   }
 
@@ -106,7 +110,7 @@ class _SocialOAuthPageState extends State<SocialOAuthPage> {
             if (mounted) setState(() => _progress = p / 100.0);
           },
           onNavigationRequest: (request) {
-            if (_isSocialCallback(request.url)) {
+            if (_isCallback(request.url)) {
               _handleCallbackUrl(request.url);
               return NavigationDecision.prevent;
             }

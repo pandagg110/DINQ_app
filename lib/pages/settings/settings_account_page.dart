@@ -1,15 +1,17 @@
 import 'package:dinq_app/utils/color_util.dart';
+import 'package:dinq_app/utils/top_toast_util.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/profile_service.dart';
 import '../../stores/user_store.dart';
+import '../../utils/api_error.dart';
 import '../../widgets/account/delete_account_modal.dart';
+import 'oauth_webview_page.dart';
 
 class SettingsAccountPage extends StatefulWidget {
   const SettingsAccountPage({super.key});
@@ -22,6 +24,7 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
   final AuthService _authService = AuthService();
   final ProfileService _profileService = ProfileService();
   bool _isConnectingGithub = false;
+  String? _unlinkingProvider;
 
   @override
   void initState() {
@@ -53,6 +56,9 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     final isGithubConnected = githubAccount['connected'] == true;
     final emailAddress = emailAccount['email']?.toString() ?? '';
 
+    // 至少保留一个已连接账号（对齐 Web AccountCard 的 connectedCount 校验）
+    final connectedCount = connectedAccounts.where((a) => a['connected'] == true).length;
+
     return Scaffold(
       appBar: DefaultAppBar(context, titleString: "Accounts", backgroundColor: Colors.transparent),
       backgroundColor: ColorUtil.pageBgColor,
@@ -77,13 +83,19 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
                   padding: EdgeInsets.only(left: 16, right: 16),
                   child: const Divider(height: 1, color: Color(0xFFF0F0F0)),
                 ),
-                // Email
+                // Email：对齐 Web，只提供绑定/解绑，不支持直接换绑
                 _buildAccountItem(
                   imgName: 'settings_accounts_mail',
                   title: 'Email',
-                  subtitle: isEmailConnected ? emailAddress : 'Not set',
-                  buttonText: isEmailConnected ? 'Change' : 'Bind',
-                  onTap: () => _pushChangeEmail(isEmailConnected ? emailAddress : null),
+                  subtitle: isEmailConnected ? emailAddress : 'Not connected',
+                  buttonText: !isEmailConnected
+                      ? 'Bind'
+                      : (_unlinkingProvider == 'email' ? 'Unbind...' : 'Unbind'),
+                  enabled: _unlinkingProvider == null &&
+                      !(isEmailConnected && connectedCount <= 1),
+                  onTap: isEmailConnected
+                      ? () => _handleEmailUnbind(connectedCount: connectedCount)
+                      : _pushBindEmail,
                 ),
               ],
             ),
@@ -125,6 +137,7 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     required String subtitle,
     required String buttonText,
     required VoidCallback onTap,
+    bool enabled = true,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -161,7 +174,7 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
               ],
             ),
           ),
-          _buildOutlineButton(buttonText, onTap),
+          _buildOutlineButton(buttonText, onTap, enabled: enabled),
         ],
       ),
     );
@@ -272,37 +285,78 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     );
   }
 
-  Widget _buildOutlineButton(String text, VoidCallback onTap) {
-    return NormalButton(
-      onTap: onTap,
-      child: Container(
-        width: 100,
-        height: 34,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Color(0xFFE6E6E6)),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: ColorUtil.textColor,
-              fontFamily: 'Geist',
-            ),
+  Widget _buildOutlineButton(String text, VoidCallback onTap, {bool enabled = true}) {
+    final button = Container(
+      width: 100,
+      height: 34,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: enabled ? const Color(0xFFE6E6E6) : const Color(0xFFEFEFEF)),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: enabled ? ColorUtil.textColor : const Color(0xFFA3A3A3),
+            fontFamily: 'Geist',
           ),
         ),
       ),
     );
+
+    if (!enabled) return button;
+    return NormalButton(onTap: onTap, child: button);
   }
 
   void _pushChangePassword(bool hasPassword) {
     context.push('/settings/account/password', extra: {'hasPassword': hasPassword});
   }
 
-  void _pushChangeEmail(String? currentEmail) {
-    context.push('/settings/account/email', extra: {'currentEmail': currentEmail});
+  void _pushBindEmail() {
+    final userStore = context.read<UserStore>();
+    context.push(
+      '/settings/account/email',
+      extra: {
+        'currentEmail': null,
+        'onSuccess': () => userStore.loadUserAccounts(),
+      },
+    );
+  }
+
+  Future<void> _handleEmailUnbind({required int connectedCount}) async {
+    if (connectedCount <= 1) {
+      TopToastUtil.showWarning(
+        context: context,
+        title: 'You must keep at least one connected account',
+      );
+      return;
+    }
+
+    final confirmed = await _showBrandConfirmDialog(
+      title: 'Unbind Email',
+      message: 'Are you sure you want to unbind your email account?',
+      confirmText: 'Unbind',
+    );
+    if (confirmed != true || !mounted) return;
+
+    final userStore = context.read<UserStore>();
+    setState(() => _unlinkingProvider = 'email');
+    try {
+      await userStore.unlinkAccount(provider: 'email');
+      if (!mounted) return;
+      TopToastUtil.showSuccess(context: context, title: 'Email unbound successfully');
+    } catch (e) {
+      if (!mounted) return;
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to unbind email',
+        description: apiErrorMessage(e),
+      );
+    } finally {
+      if (mounted) setState(() => _unlinkingProvider = null);
+    }
   }
 
   void _showDeleteAccountModal() {
@@ -331,22 +385,52 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     );
   }
 
+  /// GitHub 绑定：与 Social Verification 一致，走应用内 WebView 授权并拦
+  /// `/account-callback`，拿到 code 后调 link 接口（对齐 Web 弹窗回调页逻辑）。
   Future<void> _handleGithubConnect() async {
     setState(() => _isConnectingGithub = true);
+    final userStore = context.read<UserStore>();
     try {
       final response = await _profileService.getAccountLinkOAuthURL(platform: 'github');
       final authUrl = response['auth_url']?.toString();
-      if (authUrl != null && authUrl.isNotEmpty) {
-        final uri = Uri.parse(authUrl);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+      if (authUrl == null || authUrl.isEmpty) {
+        throw Exception('Missing OAuth URL');
       }
+      if (!mounted) return;
+
+      final result = await Navigator.of(context).push<OAuthCallbackResult>(
+        MaterialPageRoute(
+          builder: (_) => OAuthWebViewPage(
+            authUrl: authUrl,
+            callbackPath: 'account-callback',
+            title: 'Connect GitHub',
+          ),
+        ),
+      );
+
+      // 用户点返回关闭 WebView
+      if (result == null || !mounted) return;
+
+      if (!result.isSuccess) {
+        TopToastUtil.showError(
+          context: context,
+          title: 'Failed to connect GitHub',
+          description: result.failureMessage,
+        );
+        return;
+      }
+
+      await _profileService.linkAccount(platform: 'github', code: result.code!);
+      await userStore.loadUserAccounts();
+      if (!mounted) return;
+      TopToastUtil.showSuccess(context: context, title: 'GitHub connected successfully');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to connect GitHub: $e')));
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to connect GitHub',
+        description: apiErrorMessage(e),
+      );
     } finally {
       if (mounted) {
         setState(() => _isConnectingGithub = false);
@@ -364,9 +448,10 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
 
     // 至少保留一个连接的账号
     if (connectedCount <= 1) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('You must keep at least one connected account')));
+      TopToastUtil.showWarning(
+        context: context,
+        title: 'You must keep at least one connected account',
+      );
       return;
     }
 
@@ -388,14 +473,14 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
       try {
         await context.read<UserStore>().unlinkAccount(provider: 'github');
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('GitHub disconnected successfully')));
+        TopToastUtil.showSuccess(context: context, title: 'GitHub disconnected successfully');
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to disconnect GitHub: $e')));
+        TopToastUtil.showError(
+          context: context,
+          title: 'Failed to disconnect GitHub',
+          description: apiErrorMessage(e),
+        );
       }
     }
   }

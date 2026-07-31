@@ -298,11 +298,13 @@ class AppRouter {
           path: '/settings/account/email',
           builder: (context, state) {
             final map = state.extra as Map<String, dynamic>;
-            // 获取路径参数
-            final currentEmail = map['currentEmail'].toString();
+            // 获取路径参数（未绑定邮箱时 currentEmail 为空，走绑定流程）
+            final currentEmail = map['currentEmail']?.toString();
             final onSuccess = map['onSuccess'];
             return SettingsSetEmailPage(
-              currentEmail: currentEmail,
+              currentEmail: (currentEmail == null || currentEmail.isEmpty)
+                  ? null
+                  : currentEmail,
               onSuccess: onSuccess,
             );
           },

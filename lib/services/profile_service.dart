@@ -5,6 +5,11 @@ import 'api_client.dart';
 class ProfileService {
   final Dio _dio = ApiClient.instance.dio;
 
+  /// 部分接口成功时 `data` 为 null（如账号绑定/解绑），直接 `as Map` 会抛
+  /// 类型错误，让调用方误判为失败。
+  Map<String, dynamic> _asMap(dynamic data) =>
+      data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+
   /// 获取用户数据 (通过 username)
   Future<UserData> getUserData(String username) async {
     final response = await _dio.get(
@@ -61,7 +66,7 @@ class ProfileService {
       '/user/profile/social-verification/link',
       data: data,
     );
-    return Map<String, dynamic>.from(response.data as Map);
+    return _asMap(response.data);
   }
 
   /// 取消链接社交账号
@@ -72,7 +77,7 @@ class ProfileService {
       '/user/profile/social-verification/unlink',
       data: data,
     );
-    return Map<String, dynamic>.from(response.data as Map);
+    return _asMap(response.data);
   }
 
   /// 获取验证概览
@@ -96,7 +101,7 @@ class ProfileService {
       '/user/accounts/link/$platform',
       data: {'code': code},
     );
-    return Map<String, dynamic>.from(response.data as Map);
+    return _asMap(response.data);
   }
 
   /// 断开账号连接

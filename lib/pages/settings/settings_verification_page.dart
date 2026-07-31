@@ -13,7 +13,7 @@ import 'package:provider/provider.dart';
 
 import '../../services/profile_service.dart';
 import '../../stores/user_store.dart';
-import 'social_oauth_page.dart';
+import 'oauth_webview_page.dart';
 
 class SettingsVerificationPage extends StatefulWidget {
   const SettingsVerificationPage({super.key});
@@ -668,10 +668,11 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
       }
       if (!mounted) return;
 
-      final result = await Navigator.of(context).push<SocialOAuthResult>(
+      final result = await Navigator.of(context).push<OAuthCallbackResult>(
         MaterialPageRoute(
-          builder: (_) => SocialOAuthPage(
+          builder: (_) => OAuthWebViewPage(
             authUrl: authUrl,
+            callbackPath: 'social-callback',
             title: 'Link $displayName',
           ),
         ),
@@ -681,13 +682,10 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
       if (result == null || !mounted) return;
 
       if (!result.isSuccess) {
-        final msg = result.errorDescription ??
-            result.error ??
-            'Authorization was cancelled or failed';
         TopToastUtil.showError(
           context: context,
           title: 'Failed to link $displayName',
-          description: msg,
+          description: result.failureMessage,
         );
         return;
       }
