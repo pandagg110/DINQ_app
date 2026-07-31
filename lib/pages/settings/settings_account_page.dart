@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/github_oauth.dart';
 import '../../services/profile_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/api_error.dart';
@@ -404,6 +405,9 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
             authUrl: authUrl,
             callbackPath: 'account-callback',
             title: 'Connect GitHub',
+            // 与 GitHub 登录一致：先清 GitHub Cookie，避免沿用上次会话
+            // 直接静默绑定，让用户能重新选择账号。
+            prepare: clearGitHubWebViewCookies,
           ),
         ),
       );

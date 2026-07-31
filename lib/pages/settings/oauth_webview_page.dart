@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -16,6 +17,7 @@ class OAuthWebViewPage extends StatefulWidget {
     required this.authUrl,
     required this.callbackPath,
     this.title = 'Authorize',
+    this.prepare,
   });
 
   final String authUrl;
@@ -24,6 +26,9 @@ class OAuthWebViewPage extends StatefulWidget {
   final String callbackPath;
 
   final String title;
+
+  /// 加载授权页前的准备工作，如清除平台 Cookie，让用户可以重新选择账号。
+  final Future<void> Function()? prepare;
 
   @override
   State<OAuthWebViewPage> createState() => _OAuthWebViewPageState();
@@ -58,6 +63,7 @@ class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
   late final WebViewController _controller;
   double _progress = 0;
   bool _finished = false;
+  bool _loadStarted = false;
 
   // 部分平台（LinkedIn / X / Google）拒绝内嵌 WebView 默认 UA，使用标准移动浏览器 UA。
   static final String _userAgent = !kIsWeb && Platform.isAndroid
@@ -119,8 +125,21 @@ class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
           // 兜底：部分平台重定向不触发 onNavigationRequest 时在这里再拦一次。
           onPageStarted: _handleCallbackUrl,
         ),
-      )
-      ..loadRequest(Uri.parse(widget.authUrl));
+      );
+    unawaited(_loadAuthorizationPage());
+  }
+
+  Future<void> _loadAuthorizationPage() async {
+    final prepare = widget.prepare;
+    if (prepare != null) {
+      // 清 Cookie 失败只会让平台沿用上次的登录态，不该因此中断授权。
+      try {
+        await prepare();
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() => _loadStarted = true);
+    await _controller.loadRequest(Uri.parse(widget.authUrl));
   }
 
   @override
@@ -147,7 +166,9 @@ class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
       ),
       body: SafeArea(
         bottom: false,
-        child: WebViewWidget(controller: _controller),
+        child: _loadStarted
+            ? WebViewWidget(controller: _controller)
+            : const Center(child: CircularProgressIndicator()),
       ),
     );
   }
