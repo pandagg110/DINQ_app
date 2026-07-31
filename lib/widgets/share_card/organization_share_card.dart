@@ -110,45 +110,67 @@ class OrganizationShareCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    (org.description != null && org.description!.trim().isNotEmpty)
-                        ? org.description!.trim()
-                        : '${org.name} on DINQ',
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Geist',
-                      fontSize: 34,
-                      height: 46 / 34,
-                      color: Color(0xFF171717),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        const lineHeight = 46.0;
+                        final maxLines =
+                            (constraints.maxHeight / lineHeight).floor().clamp(
+                              1,
+                              4,
+                            );
+                        return Text(
+                          (org.description != null &&
+                                  org.description!.trim().isNotEmpty)
+                              ? org.description!.trim()
+                              : '${org.name} on DINQ',
+                          maxLines: maxLines,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Geist',
+                            fontSize: 34,
+                            height: 46 / 34,
+                            color: Color(0xFF171717),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   if (tags.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        for (var i = 0; i < tags.length; i++)
-                          Container(
-                            height: 48,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: _tagColors[i % _tagColors.length],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              tags[i],
-                              style: const TextStyle(
-                                fontFamily: 'Geist',
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF171717),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 48,
+                      child: ClipRect(
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            for (var i = 0; i < tags.length; i++)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _tagColors[i % _tagColors.length],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  tags[i],
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Geist',
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF171717),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ],
