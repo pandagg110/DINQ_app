@@ -110,6 +110,42 @@ void main() {
       expect(platform.queryCount, 1);
     });
 
+    test('stops waiting when StoreKit product loading hangs', () async {
+      platform.queryBlock = Completer<void>();
+      service = AppleIapService.forTesting(
+        platform: platform,
+        transactionVerifier: (_) async => {'success': true},
+        initializationTimeout: const Duration(milliseconds: 20),
+      );
+      service.setUserIdProvider(() => '4a476859-2929-43ef-9a38-2e80eb7e7bb0');
+
+      await service.init().timeout(const Duration(milliseconds: 200));
+
+      expect(platform.queryCount, 1);
+      expect(await service.buy('pro_monthly'), isFalse);
+    });
+
+    test(
+      'clears the checkout path when a missing product reload hangs',
+      () async {
+        service = AppleIapService.forTesting(
+          platform: platform,
+          transactionVerifier: (_) async => {'success': true},
+          initializationTimeout: const Duration(milliseconds: 20),
+        );
+        service.setUserIdProvider(() => '4a476859-2929-43ef-9a38-2e80eb7e7bb0');
+        await service.init();
+        platform.queryBlock = Completer<void>();
+
+        expect(
+          await service
+              .buy('basic_monthly')
+              .timeout(const Duration(milliseconds: 200)),
+          isFalse,
+        );
+      },
+    );
+
     test('rejects purchase and restore without a valid DINQ user', () async {
       service.setUserIdProvider(() => null);
 

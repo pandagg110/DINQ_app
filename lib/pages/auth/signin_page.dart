@@ -574,7 +574,9 @@ class _SignInPageState extends State<SignInPage> {
       _handleLoginSuccess();
     } catch (error) {
       await ToastUtil.dismiss();
-      await ToastUtil.show(googleLoginErrorMessage(error));
+      await ToastUtil.show(
+        thirdPartyLoginErrorMessage(provider: 'google', error: error),
+      );
     }
   }
 
@@ -631,7 +633,9 @@ class _SignInPageState extends State<SignInPage> {
       _handleLoginSuccess();
     } catch (error) {
       await ToastUtil.dismiss();
-      await ToastUtil.show('Login failed: ${apiErrorMessage(error)}');
+      await ToastUtil.show(
+        thirdPartyLoginErrorMessage(provider: 'github', error: error),
+      );
     }
   }
 

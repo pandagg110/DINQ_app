@@ -1,5 +1,6 @@
 import 'package:dinq_app/services/auth_service.dart';
 import 'package:dinq_app/services/github_oauth.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -214,6 +215,23 @@ void main() {
         'id_token': 'authorization-code',
         'redirect_uri': redirectUri.toString(),
       },
+    );
+  });
+
+  test('explains a verified-email provider conflict without exposing internals', () {
+    final request = RequestOptions(path: '/auth/oauth/app-login');
+    final error = DioException(
+      requestOptions: request,
+      response: Response<dynamic>(
+        requestOptions: request,
+        statusCode: 409,
+        data: {'message': 'account already exists with another provider'},
+      ),
+    );
+
+    expect(
+      thirdPartyLoginErrorMessage(provider: 'github', error: error),
+      'This email is already linked to another sign-in method. Sign in with that method, then connect GitHub in Settings.',
     );
   });
 }

@@ -19,22 +19,26 @@ class AppleIapService {
     AppleTransactionVerifier? transactionVerifier,
     bool? isIOSOverride,
     Duration restoreTimeout = const Duration(seconds: 5),
+    Duration initializationTimeout = const Duration(seconds: 10),
   }) : _platformOverride = platform,
        _transactionVerifier =
            transactionVerifier ?? PaymentService().verifyAppleTransaction,
        _isIOSOverride = isIOSOverride,
-       _restoreTimeout = restoreTimeout;
+       _restoreTimeout = restoreTimeout,
+       _initializationTimeout = initializationTimeout;
 
   @visibleForTesting
   factory AppleIapService.forTesting({
     required InAppPurchasePlatform platform,
     required AppleTransactionVerifier transactionVerifier,
     Duration restoreTimeout = const Duration(milliseconds: 20),
+    Duration initializationTimeout = const Duration(milliseconds: 200),
   }) => AppleIapService._(
     platform: platform,
     transactionVerifier: transactionVerifier,
     isIOSOverride: true,
     restoreTimeout: restoreTimeout,
+    initializationTimeout: initializationTimeout,
   );
 
   static final AppleIapService instance = AppleIapService._();
@@ -53,6 +57,7 @@ class AppleIapService {
   final AppleTransactionVerifier _transactionVerifier;
   final bool? _isIOSOverride;
   final Duration _restoreTimeout;
+  final Duration _initializationTimeout;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   Map<String, ProductDetails> _products = {};
   bool _ready = false;
@@ -95,7 +100,7 @@ class AppleIapService {
         InAppPurchaseStoreKitPlatform.registerPlatform();
       }
       final iap = _platform;
-      if (!await iap.isAvailable()) return;
+      if (!await iap.isAvailable().timeout(_initializationTimeout)) return;
       _purchaseSub = iap.purchaseStream.listen(
         _onPurchaseUpdates,
         onError: (Object error) {
@@ -113,7 +118,9 @@ class AppleIapService {
   }
 
   Future<void> _loadProducts() async {
-    final response = await _platform.queryProductDetails(_productIds);
+    final response = await _platform
+        .queryProductDetails(_productIds)
+        .timeout(_initializationTimeout);
     _products = {
       for (final product in response.productDetails) product.id: product,
     };
@@ -160,7 +167,12 @@ class AppleIapService {
 
     var product = _products[productIdForPlan(plan)];
     if (product == null) {
-      await _loadProducts();
+      try {
+        await _loadProducts();
+      } catch (error) {
+        debugPrint('IAP product reload failed: ${error.runtimeType}');
+        return false;
+      }
       product = _products[productIdForPlan(plan)];
     }
     if (product == null) return false;

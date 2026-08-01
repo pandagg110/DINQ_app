@@ -50,6 +50,35 @@ String googleLoginErrorMessage(Object error) {
   );
 }
 
+String thirdPartyLoginErrorMessage({
+  required String provider,
+  required Object error,
+}) {
+  final message = apiErrorMessage(
+    error,
+    fallback: '${_providerLabel(provider)} login failed. Please try again.',
+  );
+  final normalized = message.toLowerCase();
+  final isProviderConflict =
+      normalized.contains('another provider') ||
+      normalized.contains('another sign-in') ||
+      normalized.contains('already registered') ||
+      normalized.contains('account already exists') ||
+      normalized.contains('email already exists');
+  if (isProviderConflict) {
+    final label = _providerLabel(provider);
+    return 'This email is already linked to another sign-in method. '
+        'Sign in with that method, then connect $label in Settings.';
+  }
+  return message;
+}
+
+String _providerLabel(String provider) => switch (provider.toLowerCase()) {
+  'github' => 'GitHub',
+  'google' => 'Google',
+  _ => 'this account',
+};
+
 class AuthService {
   final Dio _dio = ApiClient.instance.dio;
 

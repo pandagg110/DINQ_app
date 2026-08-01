@@ -15,6 +15,18 @@ import '../services/flow_service.dart';
 import '../services/payment_service.dart';
 import '../services/profile_service.dart';
 
+@visibleForTesting
+Future<void> runPostLoginTasks(Iterable<Future<void> Function()> tasks) async {
+  for (final task in tasks) {
+    try {
+      await task();
+    } catch (error) {
+      // 不输出响应体、token 或堆栈，避免认证相关信息进入客户端日志。
+      debugPrint('Post-login task failed: ${error.runtimeType}');
+    }
+  }
+}
+
 class UserStore extends ChangeNotifier {
   UserStore() {
     _authService = AuthService();
@@ -144,17 +156,26 @@ class UserStore extends ChangeNotifier {
         idToken: idToken,
         redirectUri: redirectUri,
       );
-      authToken = result['token']?.toString();
+      final token = result['token']?.toString().trim();
+      if (token == null || token.isEmpty) {
+        throw StateError('OAuth login response did not include a token.');
+      }
+      authToken = token;
       ApiClient.instance.setAuthToken(authToken);
-      await _persistToken();
-      await initialize();
-      // 埋点时序：先 setUserId，再报 login_success。
-      // thirdPartyLogin 每次 OAuth 回调成功仅执行一次，天然只报一次。
-      await _setAnalyticsUser(result);
-      AnalyticsService.instance.track(
-        'login_success',
-        params: {'method': AnalyticsService.methodForProvider(provider)},
-      );
+      // OAuth 服务端已经签发 token 后，资料/订阅初始化、持久化或埋点失败
+      // 都不能再把成功登录表现成失败。各任务独立执行，避免一个失败跳过其余任务。
+      await runPostLoginTasks([
+        _persistToken,
+        initialize,
+        () async {
+          // 埋点时序：先 setUserId，再报 login_success。
+          await _setAnalyticsUser(result);
+          AnalyticsService.instance.track(
+            'login_success',
+            params: {'method': AnalyticsService.methodForProvider(provider)},
+          );
+        },
+      ]);
       isLoading = false;
       notifyListeners();
       return user;
