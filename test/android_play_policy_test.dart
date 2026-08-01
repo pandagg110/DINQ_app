@@ -17,8 +17,14 @@ void main() {
     ]) {
       expect(manifest, isNot(contains(permission)));
     }
-    expect(manifest, contains('com.google.android.gms.permission.AD_ID'));
-    expect(manifest, contains('tools:node="remove"'));
+    for (final permission in [
+      'com.google.android.gms.permission.AD_ID',
+      'android.permission.ACCESS_ADSERVICES_AD_ID',
+      'android.permission.ACCESS_ADSERVICES_ATTRIBUTION',
+    ]) {
+      expect(manifest, contains(permission));
+    }
+    expect('tools:node="remove"'.allMatches(manifest), hasLength(3));
     expect(manifest, contains('google_analytics_adid_collection_enabled'));
     expect(manifest, contains('android:value="false"'));
   });
