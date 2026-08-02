@@ -177,12 +177,17 @@ class AppleIapService {
     }
     if (product == null) return false;
 
-    return _platform.buyNonConsumable(
-      purchaseParam: PurchaseParam(
-        productDetails: product,
-        applicationUserName: appAccountToken,
-      ),
-    );
+    try {
+      return await _platform.buyNonConsumable(
+        purchaseParam: PurchaseParam(
+          productDetails: product,
+          applicationUserName: appAccountToken,
+        ),
+      );
+    } catch (error) {
+      debugPrint('IAP purchase start failed: ${error.runtimeType}');
+      return false;
+    }
   }
 
   Future<AppleRestoreResult> restorePurchases() async {

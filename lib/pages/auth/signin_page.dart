@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../services/github_oauth.dart';
+import '../../services/oauth_login_attempt.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/password_field_keyboard.dart';
@@ -549,35 +550,42 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Future<void> _googleSignIn() async {
-    try {
-      final googleSignInAccount = await selectGoogleAccount(
-        clearCachedAccount: () async {
-          await _googleSignInClient.signOut();
-        },
-        signIn: _googleSignInClient.signIn,
-      );
-      if (googleSignInAccount == null) return;
+    await runOAuthLoginAttempt(
+      authenticate: () async {
+        final googleSignInAccount = await selectGoogleAccount(
+          clearCachedAccount: () async {
+            await _googleSignInClient.signOut();
+          },
+          signIn: _googleSignInClient.signIn,
+        );
+        if (googleSignInAccount == null) return false;
 
-      final authentication = await googleSignInAccount.authentication;
-      final idToken = requireGoogleIdToken(authentication.idToken);
-      await ToastUtil.showLoading();
-      if (!mounted) {
+        final authentication = await googleSignInAccount.authentication;
+        final idToken = requireGoogleIdToken(authentication.idToken);
+        await ToastUtil.showLoading();
+        if (!mounted) {
+          await ToastUtil.dismiss();
+          return false;
+        }
+        await context.read<UserStore>().thirdPartyLogin(
+          provider: 'google',
+          idToken: idToken,
+        );
+        return true;
+      },
+      onAuthenticated: () async {
+        try {
+          await ToastUtil.dismiss();
+        } catch (_) {}
+        if (mounted) _handleLoginSuccess();
+      },
+      onAuthenticationFailed: (error) async {
         await ToastUtil.dismiss();
-        return;
-      }
-      await context.read<UserStore>().thirdPartyLogin(
-        provider: 'google',
-        idToken: idToken,
-      );
-      await ToastUtil.dismiss();
-      if (!mounted) return;
-      _handleLoginSuccess();
-    } catch (error) {
-      await ToastUtil.dismiss();
-      await ToastUtil.show(
-        thirdPartyLoginErrorMessage(provider: 'google', error: error),
-      );
-    }
+        await ToastUtil.show(
+          thirdPartyLoginErrorMessage(provider: 'google', error: error),
+        );
+      },
+    );
   }
 
   Future<void> _githubSignIn() async {
@@ -617,26 +625,33 @@ class _SignInPageState extends State<SignInPage> {
       return;
     }
 
-    try {
-      await ToastUtil.showLoading();
-      if (!mounted) {
+    await runOAuthLoginAttempt(
+      authenticate: () async {
+        await ToastUtil.showLoading();
+        if (!mounted) {
+          await ToastUtil.dismiss();
+          return false;
+        }
+        await context.read<UserStore>().thirdPartyLogin(
+          provider: 'github',
+          idToken: result.code!,
+          redirectUri: githubRedirectUrl,
+        );
+        return true;
+      },
+      onAuthenticated: () async {
+        try {
+          await ToastUtil.dismiss();
+        } catch (_) {}
+        if (mounted) _handleLoginSuccess();
+      },
+      onAuthenticationFailed: (error) async {
         await ToastUtil.dismiss();
-        return;
-      }
-      await context.read<UserStore>().thirdPartyLogin(
-        provider: 'github',
-        idToken: result.code!,
-        redirectUri: githubRedirectUrl,
-      );
-      await ToastUtil.dismiss();
-      if (!mounted) return;
-      _handleLoginSuccess();
-    } catch (error) {
-      await ToastUtil.dismiss();
-      await ToastUtil.show(
-        thirdPartyLoginErrorMessage(provider: 'github', error: error),
-      );
-    }
+        await ToastUtil.show(
+          thirdPartyLoginErrorMessage(provider: 'github', error: error),
+        );
+      },
+    );
   }
 
   void _handleLoginSuccess({String? email}) {

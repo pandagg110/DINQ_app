@@ -96,6 +96,13 @@ void main() {
       expect(await service.buy('basic_monthly'), isFalse);
     });
 
+    test('returns false when StoreKit rejects the purchase request', () async {
+      platform.purchaseError = StateError('store unavailable');
+      await service.init();
+
+      expect(await service.buy('pro_monthly'), isFalse);
+    });
+
     test('shares product loading across concurrent initialization', () async {
       platform.queryBlock = Completer<void>();
 
@@ -325,6 +332,7 @@ class _FakeIapPlatform extends InAppPurchasePlatform {
 
   PurchaseParam? lastPurchaseParam;
   final List<PurchaseDetails> completedPurchases = [];
+  Object? purchaseError;
   Object? restoreError;
   Completer<void>? queryBlock;
   int queryCount = 0;
@@ -361,6 +369,7 @@ class _FakeIapPlatform extends InAppPurchasePlatform {
   @override
   Future<bool> buyNonConsumable({required PurchaseParam purchaseParam}) async {
     lastPurchaseParam = purchaseParam;
+    if (purchaseError case final error?) throw error;
     return true;
   }
 
