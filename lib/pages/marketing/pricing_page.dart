@@ -16,6 +16,7 @@ import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/base_page.dart';
 import '../../widgets/common/default_app_bar.dart';
+import '../../widgets/marketing/contact_support_dialog.dart';
 
 // ─── Plan 配置常量 ────────────────────────────────────────────────
 
@@ -759,10 +760,27 @@ class _PricingPageState extends State<PricingPage> {
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
-  void _handleContactSupport() async {
+  Future<void> _handleContactSupport() async {
+    final shouldContact = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => ContactSupportDialog(
+        onContact: () => Navigator.of(dialogContext).pop(true),
+      ),
+    );
+    if (shouldContact != true || !mounted) return;
     final uri = Uri.parse('mailto:support@dinqlabs.com');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    var launched = false;
+    try {
+      if (await canLaunchUrl(uri)) {
+        launched = await launchUrl(uri);
+      }
+    } catch (_) {}
+    if (!launched && mounted) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Unable to open email',
+        description: 'Please email support@dinqlabs.com manually.',
+      );
     }
   }
 

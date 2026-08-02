@@ -3,6 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
+    'generic login success cleanup errors are not reported as authentication errors',
+    () async {
+      final authenticationErrors = <Object>[];
+
+      final authenticated = await runLoginAttempt(
+        authenticate: () async {},
+        onAuthenticated: () async {
+          throw StateError('navigation failed');
+        },
+        onAuthenticationFailed: authenticationErrors.add,
+      );
+
+      expect(authenticated, isTrue);
+      expect(authenticationErrors, isEmpty);
+    },
+  );
+
+  test(
     'post-login navigation errors are not reported as authentication errors',
     () async {
       final authenticationErrors = <Object>[];

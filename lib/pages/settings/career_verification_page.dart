@@ -70,7 +70,9 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
 
         final documentUrls = data['documents'] ?? data['document_urls'] ?? [];
         if (documentUrls is List) {
-          _uploadedDocumentUrls = documentUrls.map((e) => e.toString()).toList();
+          _uploadedDocumentUrls = documentUrls
+              .map((e) => e.toString())
+              .toList();
           _uploadedFileNames = _uploadedDocumentUrls.map((url) {
             try {
               final decodedUrl = Uri.decodeComponent(url);
@@ -92,10 +94,7 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
     final status = _existingData?['status']?.toString();
 
     return Scaffold(
-      appBar: DefaultAppBar(
-        context,
-        titleString: "Career Verification",
-      ),
+      appBar: DefaultAppBar(context, titleString: "Career Verification"),
       backgroundColor: DinqTokens.bgPage,
       body: Column(
         children: [
@@ -139,7 +138,11 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.info_outline, size: 20, color: const Color(0xFFF59E0B)),
+              Icon(
+                Icons.info_outline,
+                size: 20,
+                color: const Color(0xFFF59E0B),
+              ),
               const SizedBox(width: 8),
               Text(
                 'Verification In Review',
@@ -155,7 +158,11 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
           const SizedBox(height: 8),
           Text(
             'Your verification is currently being reviewed. You can update your information and resubmit if needed.',
-            style: TextStyle(fontSize: 14, color: const Color(0xFF92400E), fontFamily: 'Geist'),
+            style: TextStyle(
+              fontSize: 14,
+              color: const Color(0xFF92400E),
+              fontFamily: 'Geist',
+            ),
           ),
         ],
       ),
@@ -192,7 +199,11 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
     );
   }
 
-  Widget _buildFormField({required String label, required bool isRequired, required Widget child}) {
+  Widget _buildFormField({
+    required String label,
+    required bool isRequired,
+    required Widget child,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,12 +247,23 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
         controller: TextEditingController(text: value)
           ..selection = TextSelection.collapsed(offset: value.length),
         onChanged: onChanged,
-        style: TextStyle(fontSize: 14, color: ColorUtil.textColor, fontFamily: 'Geist'),
+        style: TextStyle(
+          fontSize: 14,
+          color: ColorUtil.textColor,
+          fontFamily: 'Geist',
+        ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(fontSize: 14, color: const Color(0xFF999999), fontFamily: 'Geist'),
+          hintStyle: TextStyle(
+            fontSize: 14,
+            color: const Color(0xFF999999),
+            fontFamily: 'Geist',
+          ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );
@@ -352,7 +374,11 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
                   ),
                   child: TextField(
                     onChanged: (v) => setState(() => _verificationEmail = v),
-                    style: TextStyle(fontSize: 14, color: ColorUtil.textColor, fontFamily: 'Geist'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: ColorUtil.textColor,
+                      fontFamily: 'Geist',
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Enter Email address',
                       hintStyle: TextStyle(
@@ -361,7 +387,10 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
                         fontFamily: 'Geist',
                       ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ),
@@ -435,17 +464,24 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
           children: [
             // Upload button
             NormalButton(
-              onTap: _uploadedDocumentUrls.length >= 3 || _isUploading ? () {} : _handleFileUpload,
+              onTap: _uploadedDocumentUrls.length >= 3 || _isUploading
+                  ? () {}
+                  : _handleFileUpload,
               child: Container(
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
                   color: const Color(0xFFFBFBFB),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFD8D8D8), style: BorderStyle.solid),
+                  border: Border.all(
+                    color: const Color(0xFFD8D8D8),
+                    style: BorderStyle.solid,
+                  ),
                 ),
                 child: Opacity(
-                  opacity: _uploadedDocumentUrls.length >= 3 || _isUploading ? 0.5 : 1.0,
+                  opacity: _uploadedDocumentUrls.length >= 3 || _isUploading
+                      ? 0.5
+                      : 1.0,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -513,7 +549,11 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.description_outlined, size: 16, color: ColorUtil.textColor),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 16,
+                    color: ColorUtil.textColor,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -535,7 +575,11 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Icon(Icons.close, size: 14, color: const Color(0xFF878787)),
+                      child: Icon(
+                        Icons.close,
+                        size: 14,
+                        color: const Color(0xFF878787),
+                      ),
                     ),
                   ),
                 ],
@@ -591,7 +635,10 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
 
   void _handleVerifyEmail() {
     if (!_verificationEmail.contains('@')) {
-      TopToastUtil.showInfo(context: context, title: 'Please enter a valid email address');
+      TopToastUtil.showInfo(
+        context: context,
+        title: 'Please enter a valid email address',
+      );
       return;
     }
     _showEmailVerificationModal();
@@ -638,7 +685,10 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
         final fileSize = file.size;
         if (fileSize > 10 * 1024 * 1024) {
           if (mounted) {
-            TopToastUtil.showInfo(context: context, title: '${file.name} exceeds 10MB limit');
+            TopToastUtil.showInfo(
+              context: context,
+              title: '${file.name} exceeds 10MB limit',
+            );
           }
           continue;
         }
@@ -667,7 +717,10 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
           });
         } catch (e) {
           if (mounted) {
-            TopToastUtil.showInfo(context: context, title: 'Failed to upload ${file.name}');
+            TopToastUtil.showInfo(
+              context: context,
+              title: 'Failed to upload ${file.name}',
+            );
           }
         }
       }
@@ -706,7 +759,10 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
   Future<void> _handleSubmit() async {
     // Validate required fields
     if (_company.isEmpty || _jobTitle.isEmpty) {
-      TopToastUtil.showInfo(context: context, title: 'Please fill in all required fields');
+      TopToastUtil.showInfo(
+        context: context,
+        title: 'Please fill in all required fields',
+      );
       return;
     }
 
@@ -725,7 +781,8 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
       'job_title': _jobTitle,
       if (_isEmailVerified) 'verification_email': _verificationEmail,
       if (_isEmailVerified) 'verification_email_verified': true,
-      if (_uploadedDocumentUrls.isNotEmpty) 'document_urls': _uploadedDocumentUrls,
+      if (_uploadedDocumentUrls.isNotEmpty)
+        'document_urls': _uploadedDocumentUrls,
     };
 
     setState(() => _isSubmitting = true);
@@ -751,7 +808,10 @@ class _CareerVerificationPageState extends State<CareerVerificationPage> {
       }
     } catch (e) {
       if (mounted) {
-        TopToastUtil.showInfo(context: context, title: 'Failed to submit: ${e.toString()}');
+        TopToastUtil.showInfo(
+          context: context,
+          title: 'Failed to submit: ${e.toString()}',
+        );
       }
     } finally {
       if (mounted) {
@@ -777,7 +837,8 @@ class _EmailVerificationModal extends StatefulWidget {
   });
 
   @override
-  State<_EmailVerificationModal> createState() => _EmailVerificationModalState();
+  State<_EmailVerificationModal> createState() =>
+      _EmailVerificationModalState();
 }
 
 class _EmailVerificationModalState extends State<_EmailVerificationModal> {
@@ -814,7 +875,10 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
     });
 
     try {
-      await widget.authService.sendCode(email: widget.email, type: 'profile_verification');
+      await widget.authService.sendCode(
+        email: widget.email,
+        type: 'profile_verification',
+      );
       if (!mounted) return;
       setState(() {
         _countdown = 60;
@@ -841,7 +905,11 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
     });
 
     try {
-      await widget.authService.verifyCode(email: widget.email, code: _codeController.text.trim());
+      await widget.authService.verifyCode(
+        email: widget.email,
+        code: _codeController.text.trim(),
+        purpose: 'profile',
+      );
       widget.onVerifySuccess();
       if (mounted) {
         Navigator.pop(context);
@@ -871,7 +939,9 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -949,7 +1019,9 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
                               fontFamily: 'Geist',
                             ),
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
                           ),
                         ),
                       ),
@@ -962,7 +1034,9 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
                         height: 48,
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: _canResend ? ColorUtil.textColor : const Color(0xFFD8D8D8),
+                            color: _canResend
+                                ? ColorUtil.textColor
+                                : const Color(0xFFD8D8D8),
                           ),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -975,7 +1049,9 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
                                 : '${_countdown}s',
                             style: TextStyle(
                               fontSize: 14,
-                              color: _canResend ? ColorUtil.textColor : const Color(0xFF7B7B7B),
+                              color: _canResend
+                                  ? ColorUtil.textColor
+                                  : const Color(0xFF7B7B7B),
                               fontFamily: 'Geist',
                             ),
                           ),
@@ -997,7 +1073,11 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, size: 16, color: const Color(0xFFDC2626)),
+                        Icon(
+                          Icons.error_outline,
+                          size: 16,
+                          color: const Color(0xFFDC2626),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _error!,

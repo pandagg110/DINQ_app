@@ -104,20 +104,23 @@ void main() {
     expect(second, isNot(first));
   });
 
-  test('extracts code only from the configured callback with matching state', () {
-    final callback = redirectUri.replace(
-      queryParameters: {'code': 'authorization-code', 'state': 'csrf-state'},
-    );
+  test(
+    'extracts code only from the configured callback with matching state',
+    () {
+      final callback = redirectUri.replace(
+        queryParameters: {'code': 'authorization-code', 'state': 'csrf-state'},
+      );
 
-    expect(
-      GitHubOAuth.extractAuthorizationCode(
-        callback: callback,
-        redirectUri: redirectUri,
-        expectedState: 'csrf-state',
-      ),
-      'authorization-code',
-    );
-  });
+      expect(
+        GitHubOAuth.extractAuthorizationCode(
+          callback: callback,
+          redirectUri: redirectUri,
+          expectedState: 'csrf-state',
+        ),
+        'authorization-code',
+      );
+    },
+  );
 
   test('rejects callback with mismatched state', () {
     final callback = redirectUri.replace(
@@ -149,11 +152,13 @@ void main() {
         redirectUri: redirectUri,
         expectedState: 'csrf-state',
       ),
-      throwsA(isA<GitHubOAuthException>().having(
-        (error) => error.message,
-        'message',
-        'GitHub login was cancelled.',
-      )),
+      throwsA(
+        isA<GitHubOAuthException>().having(
+          (error) => error.message,
+          'message',
+          'GitHub login was cancelled.',
+        ),
+      ),
     );
   });
 
@@ -218,20 +223,34 @@ void main() {
     );
   });
 
-  test('explains a verified-email provider conflict without exposing internals', () {
-    final request = RequestOptions(path: '/auth/oauth/app-login');
-    final error = DioException(
-      requestOptions: request,
-      response: Response<dynamic>(
-        requestOptions: request,
-        statusCode: 409,
-        data: {'message': 'account already exists with another provider'},
-      ),
-    );
-
+  test('profile verification identifies the code purpose explicitly', () {
     expect(
-      thirdPartyLoginErrorMessage(provider: 'github', error: error),
-      'This email is already linked to another sign-in method. Sign in with that method, then connect GitHub in Settings.',
+      buildVerificationPayload(
+        email: 'career@example.com',
+        code: '123456',
+        purpose: 'profile',
+      ),
+      {'email': 'career@example.com', 'code': '123456', 'purpose': 'profile'},
     );
   });
+
+  test(
+    'explains a verified-email provider conflict without exposing internals',
+    () {
+      final request = RequestOptions(path: '/auth/oauth/app-login');
+      final error = DioException(
+        requestOptions: request,
+        response: Response<dynamic>(
+          requestOptions: request,
+          statusCode: 409,
+          data: {'message': 'account already exists with another provider'},
+        ),
+      );
+
+      expect(
+        thirdPartyLoginErrorMessage(provider: 'github', error: error),
+        'This email is already linked to another sign-in method. Sign in with that method, then connect GitHub in Settings.',
+      );
+    },
+  );
 }

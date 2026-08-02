@@ -32,6 +32,8 @@ void main() {
           verifiedPayloads.add(payload);
           return {'plan': 'pro_monthly'};
         },
+        initializationTimeout: const Duration(milliseconds: 20),
+        platformOperationTimeout: const Duration(milliseconds: 20),
       );
       service.setUserIdProvider(() => '4a476859-2929-43ef-9a38-2e80eb7e7bb0');
     });
@@ -52,6 +54,44 @@ void main() {
       expect(
         platform.lastPurchaseParam?.productDetails.id,
         'me.dinq.app.pro.monthly',
+      );
+    });
+
+    test(
+      'returns false when Google Play Billing rejects purchase start',
+      () async {
+        platform.buyError = StateError('billing unavailable');
+        await service.init();
+
+        expect(await service.buy('pro_monthly'), isFalse);
+      },
+    );
+
+    test(
+      'stops initialization when Google Play product loading hangs',
+      () async {
+        platform.queryBlock = Completer<ProductDetailsResponse>();
+
+        await service.init();
+
+        expect(await service.buy('pro_monthly'), isFalse);
+      },
+    );
+
+    test('stops waiting when Google Play purchase start hangs', () async {
+      platform.buyBlock = Completer<bool>();
+      await service.init();
+
+      expect(await service.buy('pro_monthly'), isFalse);
+    });
+
+    test('stops waiting when Google Play restore hangs', () async {
+      platform.restoreBlock = Completer<void>();
+      await service.init();
+
+      expect(
+        await service.restorePurchases(),
+        GooglePlayRestoreResult.failed,
       );
     });
 
@@ -160,6 +200,10 @@ class _FakeGooglePlayPlatform extends InAppPurchasePlatform {
   final _updates = StreamController<List<PurchaseDetails>>.broadcast();
   final completedPurchases = <PurchaseDetails>[];
   PurchaseParam? lastPurchaseParam;
+  Object? buyError;
+  Completer<ProductDetailsResponse>? queryBlock;
+  Completer<bool>? buyBlock;
+  Completer<void>? restoreBlock;
 
   @override
   Stream<List<PurchaseDetails>> get purchaseStream => _updates.stream;
@@ -171,6 +215,8 @@ class _FakeGooglePlayPlatform extends InAppPurchasePlatform {
   Future<ProductDetailsResponse> queryProductDetails(
     Set<String> identifiers,
   ) async {
+    final block = queryBlock;
+    if (block != null) return block.future;
     return ProductDetailsResponse(
       productDetails: [
         ProductDetails(
@@ -202,6 +248,10 @@ class _FakeGooglePlayPlatform extends InAppPurchasePlatform {
 
   @override
   Future<bool> buyNonConsumable({required PurchaseParam purchaseParam}) async {
+    final block = buyBlock;
+    if (block != null) return block.future;
+    final error = buyError;
+    if (error != null) throw error;
     lastPurchaseParam = purchaseParam;
     return true;
   }
@@ -212,7 +262,10 @@ class _FakeGooglePlayPlatform extends InAppPurchasePlatform {
   }
 
   @override
-  Future<void> restorePurchases({String? applicationUserName}) async {}
+  Future<void> restorePurchases({String? applicationUserName}) async {
+    final block = restoreBlock;
+    if (block != null) return block.future;
+  }
 
   void emit(List<PurchaseDetails> purchases) => _updates.add(purchases);
 

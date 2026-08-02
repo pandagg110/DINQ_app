@@ -35,8 +35,7 @@ String normalizeRoundErrorMessage(String message) {
   return text.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
-const _networkErrorUserMessage =
-    'Network error. Please check your connection.';
+const _networkErrorUserMessage = 'Network error. Please check your connection.';
 
 bool isNetworkErrorMessage(String message) {
   return RegExp(
@@ -1311,6 +1310,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   /// 与 TSX handleSearch 一致
   void handleSearch({
     required String query,
+    String? submissionId,
     bool simple = false,
     String? displayQuery,
     String? attachmentUrl,
@@ -1339,7 +1339,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     final hasAttachment = attachment != null && attachment.isNotEmpty;
     final searchTypeParam = simple ? 'quick_search' : 'deep_search';
     AnalyticsService.instance.setActivationIntent('search');
-    AnalyticsService.instance.track(
+    AnalyticsService.instance.trackOnce(
+      'search-submit-${submissionId ?? groupId}',
       'search_submit',
       params: {
         'search_type': searchTypeParam,
@@ -1545,10 +1546,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   }
 
   /// 错误轮次「Try again」：留在当前会话页，用原 query/附件重新发起搜索。
-  void retryFailedRound(
-    AgenticMessageGroup group, {
-    String? modelProvider,
-  }) {
+  void retryFailedRound(AgenticMessageGroup group, {String? modelProvider}) {
     if (group.roundStatus != DeepSearchRoundStatus.error) return;
     if (group.toolType != null) return;
 
@@ -1556,9 +1554,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     final displayQuery = group.displayQuery;
     final attachmentUrl = group.pdfAttachment?['url']?.toString();
     final attachmentName = group.pdfAttachment?['name']?.toString();
-    final provider = modelProvider ??
-        searchStore.modelProvider ??
-        'anthropic-hao';
+    final provider =
+        modelProvider ?? searchStore.modelProvider ?? 'anthropic-hao';
 
     messageGroups = [
       for (final g in messageGroups)

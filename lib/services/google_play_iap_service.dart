@@ -19,22 +19,30 @@ class GooglePlayIapService {
     GooglePlayTransactionVerifier? transactionVerifier,
     bool? isGooglePlayOverride,
     Duration restoreTimeout = const Duration(seconds: 5),
+    Duration initializationTimeout = const Duration(seconds: 10),
+    Duration platformOperationTimeout = const Duration(seconds: 15),
   }) : _platformOverride = platform,
        _transactionVerifier =
            transactionVerifier ?? PaymentService().verifyGooglePlayPurchase,
        _isGooglePlayOverride = isGooglePlayOverride,
-       _restoreTimeout = restoreTimeout;
+       _restoreTimeout = restoreTimeout,
+       _initializationTimeout = initializationTimeout,
+       _platformOperationTimeout = platformOperationTimeout;
 
   @visibleForTesting
   factory GooglePlayIapService.forTesting({
     required InAppPurchasePlatform platform,
     required GooglePlayTransactionVerifier transactionVerifier,
     Duration restoreTimeout = const Duration(milliseconds: 20),
+    Duration initializationTimeout = const Duration(milliseconds: 200),
+    Duration platformOperationTimeout = const Duration(milliseconds: 200),
   }) => GooglePlayIapService._(
     platform: platform,
     transactionVerifier: transactionVerifier,
     isGooglePlayOverride: true,
     restoreTimeout: restoreTimeout,
+    initializationTimeout: initializationTimeout,
+    platformOperationTimeout: platformOperationTimeout,
   );
 
   static final GooglePlayIapService instance = GooglePlayIapService._();
@@ -52,6 +60,8 @@ class GooglePlayIapService {
   final GooglePlayTransactionVerifier _transactionVerifier;
   final bool? _isGooglePlayOverride;
   final Duration _restoreTimeout;
+  final Duration _initializationTimeout;
+  final Duration _platformOperationTimeout;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   Map<String, ProductDetails> _products = {};
   GooglePlayPurchaseDetails? _activePurchase;
@@ -96,7 +106,9 @@ class GooglePlayIapService {
       if (_platformOverride == null) {
         InAppPurchaseAndroidPlatform.registerPlatform();
       }
-      if (!await _platform.isAvailable()) return;
+      if (!await _platform.isAvailable().timeout(_initializationTimeout)) {
+        return;
+      }
       _purchaseSub = _platform.purchaseStream.listen(
         _onPurchaseUpdates,
         onError: (Object error) {
@@ -114,7 +126,9 @@ class GooglePlayIapService {
   }
 
   Future<void> _loadProducts() async {
-    final response = await _platform.queryProductDetails(_productIds);
+    final response = await _platform
+        .queryProductDetails(_productIds)
+        .timeout(_initializationTimeout);
     _products = {
       for (final product in response.productDetails) product.id: product,
     };
@@ -151,25 +165,35 @@ class GooglePlayIapService {
 
     var product = _products[productIdForPlan(plan)];
     if (product == null) {
-      await _loadProducts();
+      try {
+        await _loadProducts();
+      } catch (error) {
+        debugPrint('Google Play product reload failed: ${error.runtimeType}');
+        return false;
+      }
       product = _products[productIdForPlan(plan)];
     }
     if (product == null) return false;
 
     final activePurchase = _activePurchase;
-    return _platform.buyNonConsumable(
-      purchaseParam: GooglePlayPurchaseParam(
-        productDetails: product,
-        applicationUserName: accountId,
-        changeSubscriptionParam:
-            activePurchase == null || activePurchase.productID == product.id
-            ? null
-            : ChangeSubscriptionParam(
-                oldPurchaseDetails: activePurchase,
-                replacementMode: ReplacementMode.withTimeProration,
-              ),
-      ),
-    );
+    try {
+      return await _platform.buyNonConsumable(
+        purchaseParam: GooglePlayPurchaseParam(
+          productDetails: product,
+          applicationUserName: accountId,
+          changeSubscriptionParam:
+              activePurchase == null || activePurchase.productID == product.id
+              ? null
+              : ChangeSubscriptionParam(
+                  oldPurchaseDetails: activePurchase,
+                  replacementMode: ReplacementMode.withTimeProration,
+                ),
+        ),
+      ).timeout(_platformOperationTimeout);
+    } catch (error) {
+      debugPrint('Google Play purchase start failed: ${error.runtimeType}');
+      return false;
+    }
   }
 
   Future<GooglePlayRestoreResult> restorePurchases() async {
@@ -186,7 +210,9 @@ class GooglePlayIapService {
     _restoreTimer?.cancel();
     _restoreCompleter = Completer<GooglePlayRestoreResult>();
     try {
-      await _platform.restorePurchases(applicationUserName: accountId);
+      await _platform
+          .restorePurchases(applicationUserName: accountId)
+          .timeout(_platformOperationTimeout);
       _restoreTimer = Timer(
         _restoreTimeout,
         () => _completeRestore(GooglePlayRestoreResult.noPurchases),

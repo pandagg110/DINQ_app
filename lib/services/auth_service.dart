@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 
 import '../models/user_models.dart';
 import '../utils/api_error.dart';
@@ -8,10 +8,16 @@ Map<String, dynamic> buildThirdPartyLoginPayload({
   required String provider,
   required String idToken,
   String? redirectUri,
+}) => {'provider': provider, 'id_token': idToken, 'redirect_uri': ?redirectUri};
+
+Map<String, dynamic> buildVerificationPayload({
+  required String email,
+  required String code,
+  String? purpose,
 }) => {
-  'provider': provider,
-  'id_token': idToken,
-  'redirect_uri': ?redirectUri,
+  'email': email,
+  'code': code,
+  if (purpose != null && purpose.isNotEmpty) 'purpose': purpose,
 };
 
 final class GoogleLoginException implements Exception {
@@ -88,12 +94,20 @@ class AuthService {
   /// 依赖：当前用户已登录，ApiClient 会在请求拦截器里自动带上
   /// Authorization: Bearer <当前 App JWT>。
   Future<Map<String, dynamic>> webLoginTicket() async {
-    final response = await _dio.post<Map<String, dynamic>>('/auth/web-login-ticket');
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/auth/web-login-ticket',
+    );
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  Future<Map<String, dynamic>> login({required String email, required String password}) async {
-    final response = await _dio.post('/auth/login', data: {'email': email, 'password': password});
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await _dio.post(
+      '/auth/login',
+      data: {'email': email, 'password': password},
+    );
     return Map<String, dynamic>.from(response.data as Map);
   }
 
@@ -137,24 +151,46 @@ class AuthService {
   /// [inviteCode] 邀请码（可选）
   Future<void> sendCode({
     required String email,
-    required String type, // "register" | "reset_password" | "profile_verification"
+    required String
+    type, // "register" | "reset_password" | "profile_verification"
     String? inviteCode,
   }) async {
     await _dio.post(
       '/auth/send-code',
-      data: {'email': email, 'type': type, if (inviteCode != null) 'inviteCode': inviteCode},
+      data: {
+        'email': email,
+        'type': type,
+        if (inviteCode != null) 'inviteCode': inviteCode,
+      },
     );
   }
 
-  Future<void> verifyCode({required String email, required String code}) async {
-    await _dio.post('/auth/verify', data: {'email': email, 'code': code});
+  Future<void> verifyCode({
+    required String email,
+    required String code,
+    String? purpose,
+  }) async {
+    await _dio.post(
+      '/auth/verify',
+      data: buildVerificationPayload(
+        email: email,
+        code: code,
+        purpose: purpose,
+      ),
+    );
   }
 
   /// 忘记密码 - 发送重置链接到邮箱
   /// [email] 邮箱地址
   /// [redirectUrl] 重定向 URL
-  Future<void> forgotPassword({required String email, required String redirectUrl}) async {
-    await _dio.post('/auth/forgot-password', data: {'email': email, 'redirectUrl': redirectUrl});
+  Future<void> forgotPassword({
+    required String email,
+    required String redirectUrl,
+  }) async {
+    await _dio.post(
+      '/auth/forgot-password',
+      data: {'email': email, 'redirectUrl': redirectUrl},
+    );
   }
 
   /// 确认重置密码
@@ -175,7 +211,10 @@ class AuthService {
   /// 修改密码 (已登录用户)
   /// [currentPassword] 当前密码（可选）
   /// [newPassword] 新密码
-  Future<void> changePassword({String? currentPassword, required String newPassword}) async {
+  Future<void> changePassword({
+    String? currentPassword,
+    required String newPassword,
+  }) async {
     await _dio.post(
       '/auth/change-password',
       data: {
@@ -187,20 +226,31 @@ class AuthService {
 
   Future<UserProfile> getUserProfile() async {
     final response = await _dio.get('/user/profile');
-    return UserProfile.fromJson(Map<String, dynamic>.from(response.data as Map));
+    return UserProfile.fromJson(
+      Map<String, dynamic>.from(response.data as Map),
+    );
   }
 
   /// 发送绑定/更换邮箱验证码
   /// [newEmail] 新邮箱地址
   Future<void> sendBindEmailCode({required String newEmail}) async {
-    await _dio.post('/auth/change-email/send-code', data: {'newEmail': newEmail});
+    await _dio.post(
+      '/auth/change-email/send-code',
+      data: {'newEmail': newEmail},
+    );
   }
 
   /// 绑定/更换邮箱
   /// [newEmail] 新邮箱地址
   /// [code] 验证码
-  Future<void> bindEmail({required String newEmail, required String code}) async {
-    await _dio.post('/auth/change-email', data: {'newEmail': newEmail, 'code': code});
+  Future<void> bindEmail({
+    required String newEmail,
+    required String code,
+  }) async {
+    await _dio.post(
+      '/auth/change-email',
+      data: {'newEmail': newEmail, 'code': code},
+    );
   }
 
   Future<void> deleteAccount() async {

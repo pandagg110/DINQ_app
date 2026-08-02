@@ -73,11 +73,13 @@ class UserStore extends ChangeNotifier {
     unawaited(GooglePlayIapService.instance.retryPendingTransactions());
     // 验证概览 / 绑定账号 / 推送注册不挡登录与进主界面（FCM 在无 GMS
     // 真机上可能一直挂起，await 会导致 ToastUtil loading 永不 dismiss）。
-    unawaited(Future.wait([
-      loadVerifications(),
-      loadUserAccounts(),
-      PushService.instance.registerToken(),
-    ]));
+    unawaited(
+      Future.wait([
+        loadVerifications(),
+        loadUserAccounts(),
+        PushService.instance.registerToken(),
+      ]),
+    );
   }
 
   Future<void> _loadToken() async {
@@ -98,11 +100,47 @@ class UserStore extends ChangeNotifier {
 
   Future<void> _persistToken() async {
     final prefs = await SharedPreferences.getInstance();
-    if (authToken == null) {
-      await prefs.remove('user.authToken');
-    } else {
-      await prefs.setString('user.authToken', authToken!);
+    const key = 'user.authToken';
+    final removed = await prefs.remove(key);
+    if (!removed && prefs.containsKey(key)) {
+      throw StateError('Unable to clear the previous authentication token.');
     }
+    final token = authToken;
+    if (token != null) {
+      final written = await prefs.setString(key, token);
+      if (!written || prefs.getString(key) != token) {
+        await prefs.remove(key);
+        throw StateError('Unable to persist the authentication token.');
+      }
+    }
+  }
+
+  Future<void> _failAuthCommit() async {
+    authToken = null;
+    ApiClient.instance.setAuthToken(null);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user.authToken');
+    } catch (_) {
+      // Login still fails closed in memory; the next launch must validate any
+      // remaining token with the server before showing authenticated content.
+    }
+  }
+
+  Future<void> _clearPersistedTokenWithRetry() async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await _persistToken();
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+      }
+    }
+    debugPrint('Unable to clear persisted auth token: ${lastError.runtimeType}');
   }
 
   void setCardOwner(UserData? data) {
@@ -118,21 +156,32 @@ class UserStore extends ChangeNotifier {
     notifyListeners();
     try {
       final result = await _authService.login(email: email, password: password);
-      authToken = result['token']?.toString();
+      final token = result['token']?.toString().trim();
+      if (token == null || token.isEmpty) {
+        throw StateError('Password login response did not include a token.');
+      }
+      authToken = token;
       ApiClient.instance.setAuthToken(authToken);
-      await _persistToken();
-      // 登录已成功（token 已持久化）。初始化失败不能让整个登录表现为
-      // "密码错误"（H5 可登录、客户端报密码错误的根因之一），
-      // 首页各模块会自行拉取数据。
       try {
-        await initialize();
-      } catch (_) {}
-      // 埋点时序：先 setUserId，再报 login_success
-      await _setAnalyticsUser(result);
-      AnalyticsService.instance.track(
-        'login_success',
-        params: {'method': 'email'},
-      );
+        await _persistToken();
+      } catch (_) {
+        await _failAuthCommit();
+        rethrow;
+      }
+      // The server has accepted the credentials and issued a token. Local
+      // profile loading or analytics failures must not turn that successful
+      // login into a credential error. Token persistence is completed first
+      // so a stale account cannot be restored after restart.
+      await runPostLoginTasks([
+        initialize,
+        () async {
+          await _setAnalyticsUser(result);
+          AnalyticsService.instance.track(
+            'login_success',
+            params: {'method': 'email'},
+          );
+        },
+      ]);
       isLoading = false;
       notifyListeners();
       return user;
@@ -162,10 +211,15 @@ class UserStore extends ChangeNotifier {
       }
       authToken = token;
       ApiClient.instance.setAuthToken(authToken);
-      // OAuth 服务端已经签发 token 后，资料/订阅初始化、持久化或埋点失败
-      // 都不能再把成功登录表现成失败。各任务独立执行，避免一个失败跳过其余任务。
+      try {
+        await _persistToken();
+      } catch (_) {
+        await _failAuthCommit();
+        rethrow;
+      }
+      // OAuth 服务端已经签发 token 后，资料/订阅初始化或埋点失败
+      // 都不能再把成功登录表现成失败。Token 持久化必须先成功，避免重启恢复旧账号。
       await runPostLoginTasks([
-        _persistToken,
         initialize,
         () async {
           // 埋点时序：先 setUserId，再报 login_success。
@@ -203,7 +257,12 @@ class UserStore extends ChangeNotifier {
       );
       authToken = result['token']?.toString();
       ApiClient.instance.setAuthToken(authToken);
-      await _persistToken();
+      try {
+        await _persistToken();
+      } catch (_) {
+        await _failAuthCommit();
+        rethrow;
+      }
       // 埋点时序：注册成功拿到用户 ID（response.data.user.id）后先 setUserId，
       // 再报 sign_up_success。注册自动登录只报 sign_up_success，不报 login_success。
       await _setAnalyticsUser(result);
@@ -236,7 +295,7 @@ class UserStore extends ChangeNotifier {
   /// [userInitiated] 为 true 表示用户主动登出（设置页/头像菜单），
   /// 此时按时序报 logout（login_status 仍为 logged_in）→ clearUserId → 本地置 guest。
   /// 401 会话过期走默认 false，只清用户态不报事件。
-  void logout({bool userInitiated = false}) {
+  Future<void> logout({bool userInitiated = false}) async {
     if (userInitiated && isLoggedIn()) {
       AnalyticsService.instance.track('logout');
     }
@@ -250,7 +309,7 @@ class UserStore extends ChangeNotifier {
     verify = null;
     subscription = null;
     ApiClient.instance.setAuthToken(null);
-    _persistToken();
+    await _clearPersistedTokenWithRetry();
     // 清理各 Store 的跨账号用户态（新建账号看到上一账号 shortlist 老数据的根因）
     for (final cleanup in List<VoidCallback>.of(_logoutCleanups)) {
       cleanup();
@@ -302,20 +361,11 @@ class UserStore extends ChangeNotifier {
 
   Future<void> updateUserData(Map<String, dynamic> payload) async {
     if (user == null) return;
-    final updated = UserData.fromJson({
-      ...user!.userData.toJson(),
-      ...payload,
-    });
-    user = UserProfile(
-      user: user!.user,
-      userData: updated,
-    );
+    final updated = UserData.fromJson({...user!.userData.toJson(), ...payload});
+    user = UserProfile(user: user!.user, userData: updated);
     // Keep profile/share owner in sync when editing own page.
     if (cardOwner != null && cardOwner!.domain == updated.domain) {
-      cardOwner = UserData.fromJson({
-        ...cardOwner!.toJson(),
-        ...payload,
-      });
+      cardOwner = UserData.fromJson({...cardOwner!.toJson(), ...payload});
     }
     notifyListeners();
     await _profileService.updateUserData(payload);

@@ -34,8 +34,10 @@ class _SignInPageState extends State<SignInPage> {
   final _passwordController = TextEditingController();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
+
   /// 上一持焦输入框：用于判断邮箱↔密码（普通键盘↔安全键盘）互切。
   FocusNode? _lastFocusedField;
+
   /// 互切 hide→show 窗口期内，忽略 onTap 的立刻 show，避免抢跑。
   bool _suppressTapShow = false;
   bool _showPassword = false;
@@ -74,8 +76,7 @@ class _SignInPageState extends State<SignInPage> {
       return;
     }
     final previous = _lastFocusedField;
-    final switched =
-        previous != null && !identical(previous, node);
+    final switched = previous != null && !identical(previous, node);
     _lastFocusedField = node;
     if (switched) {
       // 邮箱(普通) ↔ 密码(安全) 互切：先 hide 再延后 show
@@ -111,408 +112,407 @@ class _SignInPageState extends State<SignInPage> {
     final userStore = context.watch<UserStore>();
     final isLoading = userStore.isLoading;
     return Scaffold(
-        // 登录页不需要返回按钮，避免用户误返回到空白或历史页
-        appBar: DefaultAppBar(context, isShowBack: false),
-        resizeToAvoidBottomInset: false,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 18),
-                      Text(
-                        'Sign in',
+      // 登录页不需要返回按钮，避免用户误返回到空白或历史页
+      appBar: DefaultAppBar(context, isShowBack: false),
+      resizeToAvoidBottomInset: false,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 18),
+                    Text(
+                      'Sign in',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w600,
+                        color: ColorUtil.textColor,
+                        fontFamily: 'Editor Note',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Intelligent Social Card of the AI Era',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xA3303030)),
+                    ),
+                    const SizedBox(height: 15),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Email',
                         style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w600,
-                          color: ColorUtil.textColor,
-                          fontFamily: 'Editor Note',
+                          fontSize: 14,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Intelligent Social Card of the AI Era',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xA3303030)),
-                      ),
-                      const SizedBox(height: 15),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Email',
-                          style: TextStyle(
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 48,
+                      child: TextField(
+                        controller: _emailController,
+                        focusNode: _emailFocusNode,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        enableInteractiveSelection: true,
+                        onTapOutside: unfocusOnTapOutside,
+                        onTap: () => _onFieldTap(_emailFocusNode),
+                        decoration: InputDecoration(
+                          hintText: 'Enter your email',
+                          hintStyle: TextStyle(
+                            color: Color(0x66303030),
                             fontSize: 14,
-                            color: Colors.black,
-                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 48,
-                        child: TextField(
-                            controller: _emailController,
-                            focusNode: _emailFocusNode,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            enableInteractiveSelection: true,
-                            onTapOutside: unfocusOnTapOutside,
-                            onTap: () => _onFieldTap(_emailFocusNode),
-                            decoration: InputDecoration(
-                              hintText: 'Enter your email',
-                              hintStyle: TextStyle(
-                                color: Color(0x66303030),
-                                fontSize: 14,
-                              ),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        children: [
+                          Text(
+                            'Password',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                      ),
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Row(
-                          children: [
-                            Text(
-                              'Password',
+                          Spacer(),
+                          NormalButton(
+                            onTap: () => context.push('/reset'),
+                            child: const Text(
+                              'Forgot password?',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.black,
                                 fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Spacer(),
-                            NormalButton(
-                              onTap: () => context.push('/reset'),
-                              child: const Text(
-                                'Forgot password?',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.underline,
-                                  decorationThickness: 1,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 48,
-                        child: TextField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocusNode,
-                            obscureText: !_showPassword,
-                            keyboardType: kPasswordKeyboardType,
-                            enableSuggestions: false,
-                            autocorrect: false,
-                            textInputAction: TextInputAction.done,
-                            enableInteractiveSelection: true,
-                            onTapOutside: unfocusOnTapOutside,
-                            // 小米：安全键盘↔普通键盘互切由 focus listener 处理；已获焦再点由此补弹
-                            onTap: () => _onFieldTap(_passwordFocusNode),
-                            decoration: InputDecoration(
-                              hintText: 'Enter your password',
-                              hintStyle: TextStyle(
-                                color: Color(0x66303030),
-                                fontSize: 14,
-                              ),
-                              border: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: ColorUtil.textColor,
-                                  width: 1,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _showPassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                ),
-                                onPressed: () => setState(
-                                  () => _showPassword = !_showPassword,
-                                ),
+                                decoration: TextDecoration.underline,
+                                decorationThickness: 1,
                               ),
                             ),
                           ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      if (_error != null)
-                        Row(
-                          children: [
-                            AssetImageView(
-                              'signin_error_tip',
-                              width: 24,
-                              height: 24,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 48,
+                      child: TextField(
+                        controller: _passwordController,
+                        focusNode: _passwordFocusNode,
+                        obscureText: !_showPassword,
+                        keyboardType: kPasswordKeyboardType,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        textInputAction: TextInputAction.done,
+                        enableInteractiveSelection: true,
+                        onTapOutside: unfocusOnTapOutside,
+                        // 小米：安全键盘↔普通键盘互切由 focus listener 处理；已获焦再点由此补弹
+                        onTap: () => _onFieldTap(_passwordFocusNode),
+                        decoration: InputDecoration(
+                          hintText: 'Enter your password',
+                          hintStyle: TextStyle(
+                            color: Color(0x66303030),
+                            fontSize: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: ColorUtil.textColor,
+                              width: 1,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _error ?? 'Username or password is incorrect.',
-                              style: TextStyle(
-                                fontFamily: 'Tomato Grotesk',
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                                color: Color(0xFFC81E1D),
-                              ),
-                            ),
-                          ],
-                        ),
-                      const SizedBox(height: 15),
-                      NormalButton(
-                        onTap: (isLoading || !_isButtonEnabled)
-                            ? () {}
-                            : () => _handleSignIn(),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: _isButtonEnabled
-                                ? ColorUtil.textColor
-                                : .new(0xFF1A343434),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          width: double.infinity,
-                          height: 48,
-                          child: Center(
-                            child: Text(
-                              'Sign in',
-                              style: TextStyle(
-                                color: _isButtonEnabled
-                                    ? Colors.white
-                                    : ColorUtil.sub2TextColor,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 16,
-                                fontFamily: 'Tomato Grotesk',
-                              ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                             ),
+                            onPressed: () =>
+                                setState(() => _showPassword = !_showPassword),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_error != null)
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          AssetImageView(
+                            'signin_error_tip',
+                            width: 24,
+                            height: 24,
+                          ),
+                          const SizedBox(width: 4),
                           Text(
-                            "Don't have an account? ",
+                            _error ?? 'Username or password is incorrect.',
                             style: TextStyle(
-                              color: ColorUtil.sub1TextColor,
-                              fontSize: 14,
+                              fontFamily: 'Tomato Grotesk',
                               fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                              color: Color(0xFFC81E1D),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 15),
+                    NormalButton(
+                      onTap: (isLoading || !_isButtonEnabled)
+                          ? () {}
+                          : () => _handleSignIn(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _isButtonEnabled
+                              ? ColorUtil.textColor
+                              : .new(0xFF1A343434),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        width: double.infinity,
+                        height: 48,
+                        child: Center(
+                          child: Text(
+                            'Sign in',
+                            style: TextStyle(
+                              color: _isButtonEnabled
+                                  ? Colors.white
+                                  : ColorUtil.sub2TextColor,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
                               fontFamily: 'Tomato Grotesk',
                             ),
                           ),
-                          NormalButton(
-                            child: Text(
-                              'Sign Up',
-                              style: TextStyle(
-                                color: ColorUtil.textColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                fontFamily: 'Tomato Grotesk',
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                            onTap: () {
-                              // 获取路由参数，判断是否从注册页进入
-                              final extra =
-                                  GoRouterState.of(context).extra
-                                      as Map<String, dynamic>?;
-                              final fromSignUp = extra?['fromSignUp'] == true;
-
-                              if (fromSignUp) {
-                                // 从注册页进入，返回注册页
-                                context.pop();
-                              } else {
-                                // 从其他页面进入，跳转到注册页，并传递来源参数
-                                context.push(
-                                  '/signup',
-                                  extra: {'fromSignIn': true},
-                                );
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              color: Color(0xFFD8D8D8),
-                              thickness: 0.5,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'or',
-                              style: TextStyle(
-                                color: ColorUtil.sub2TextColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                fontFamily: 'Tomato Grotesk',
-                                height: 1.2,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              color: Color(0xFFD8D8D8),
-                              thickness: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      NormalButton(
-                        onTap: () => _googleSignIn(),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Color(0xFFECECEC),
-                              width: 1,
-                            ),
-                          ),
-                          width: double.infinity,
-                          height: 48,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AssetImageView(
-                                'google_icon',
-                                width: 24,
-                                height: 24,
-                              ),
-                              const SizedBox(width: 16),
-                              Text(
-                                'Continue with Google',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: ColorUtil.textColor,
-                                  fontFamily: 'Tomato Grotesk',
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      NormalButton(
-                        onTap: () {
-                          _githubSignIn();
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Color(0xFFECECEC),
-                              width: 1,
-                            ),
-                          ),
-                          width: double.infinity,
-                          height: 48,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AssetImageView(
-                                'github_icon',
-                                width: 24,
-                                height: 24,
-                              ),
-                              const SizedBox(width: 16),
-                              Text(
-                                'Continue with Github',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: ColorUtil.textColor,
-                                  fontFamily: 'Tomato Grotesk',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsetsGeometry.symmetric(horizontal: 24),
-                child: RichText(
-                  text: TextSpan(
-                    text: 'Login, you agree to our ',
-                    style: TextStyle(
-                      color: ColorUtil.sub2TextColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'Tomato Grotesk',
                     ),
-                    children: [
-                      TextSpan(
-                        text: 'Terms of Service',
-                        style: TextStyle(
-                          color: ColorUtil.textColor,
-                          fontSize: 12,
-                          fontFamily: 'Tomato Grotesk',
-                          decoration: TextDecoration.underline,
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Don't have an account? ",
+                          style: TextStyle(
+                            color: ColorUtil.sub1TextColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Tomato Grotesk',
+                          ),
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            context.push(
-                              '/webview',
-                              extra: {
-                                'url': termsUrl,
-                                'navTitle': 'Terms of Service',
-                              },
-                            );
+                        NormalButton(
+                          child: Text(
+                            'Sign Up',
+                            style: TextStyle(
+                              color: ColorUtil.textColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Tomato Grotesk',
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          onTap: () {
+                            // 获取路由参数，判断是否从注册页进入
+                            final extra =
+                                GoRouterState.of(context).extra
+                                    as Map<String, dynamic>?;
+                            final fromSignUp = extra?['fromSignUp'] == true;
+
+                            if (fromSignUp) {
+                              // 从注册页进入，返回注册页
+                              context.pop();
+                            } else {
+                              // 从其他页面进入，跳转到注册页，并传递来源参数
+                              context.push(
+                                '/signup',
+                                extra: {'fromSignIn': true},
+                              );
+                            }
                           },
-                      ),
-                      TextSpan(
-                        text: ' and ',
-                        style: TextStyle(
-                          color: ColorUtil.sub2TextColor,
-                          fontSize: 12,
-                          fontFamily: 'Tomato Grotesk',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Divider(
+                            color: Color(0xFFD8D8D8),
+                            thickness: 0.5,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'or',
+                            style: TextStyle(
+                              color: ColorUtil.sub2TextColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Tomato Grotesk',
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Divider(
+                            color: Color(0xFFD8D8D8),
+                            thickness: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    NormalButton(
+                      onTap: () => _googleSignIn(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Color(0xFFECECEC),
+                            width: 1,
+                          ),
+                        ),
+                        width: double.infinity,
+                        height: 48,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AssetImageView(
+                              'google_icon',
+                              width: 24,
+                              height: 24,
+                            ),
+                            const SizedBox(width: 16),
+                            Text(
+                              'Continue with Google',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: ColorUtil.textColor,
+                                fontFamily: 'Tomato Grotesk',
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      TextSpan(
-                        text: 'Privacy Policy.',
-                        style: TextStyle(
-                          color: ColorUtil.textColor,
-                          fontSize: 12,
-                          fontFamily: 'Tomato Grotesk',
-                          decoration: TextDecoration.underline,
+                    ),
+                    const SizedBox(height: 10),
+                    NormalButton(
+                      onTap: () {
+                        _githubSignIn();
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Color(0xFFECECEC),
+                            width: 1,
+                          ),
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            context.push(
-                              '/webview',
-                              extra: {
-                                'url': privacyUrl,
-                                'navTitle': 'Privacy Policy',
-                              },
-                            );
-                          },
+                        width: double.infinity,
+                        height: 48,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AssetImageView(
+                              'github_icon',
+                              width: 24,
+                              height: 24,
+                            ),
+                            const SizedBox(width: 16),
+                            Text(
+                              'Continue with Github',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: ColorUtil.textColor,
+                                fontFamily: 'Tomato Grotesk',
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 15),
-            ],
-          ),
+            ),
+            Padding(
+              padding: EdgeInsetsGeometry.symmetric(horizontal: 24),
+              child: RichText(
+                text: TextSpan(
+                  text: 'Login, you agree to our ',
+                  style: TextStyle(
+                    color: ColorUtil.sub2TextColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Tomato Grotesk',
+                  ),
+                  children: [
+                    TextSpan(
+                      text: 'Terms of Service',
+                      style: TextStyle(
+                        color: ColorUtil.textColor,
+                        fontSize: 12,
+                        fontFamily: 'Tomato Grotesk',
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          context.push(
+                            '/webview',
+                            extra: {
+                              'url': termsUrl,
+                              'navTitle': 'Terms of Service',
+                            },
+                          );
+                        },
+                    ),
+                    TextSpan(
+                      text: ' and ',
+                      style: TextStyle(
+                        color: ColorUtil.sub2TextColor,
+                        fontSize: 12,
+                        fontFamily: 'Tomato Grotesk',
+                      ),
+                    ),
+                    TextSpan(
+                      text: 'Privacy Policy.',
+                      style: TextStyle(
+                        color: ColorUtil.textColor,
+                        fontSize: 12,
+                        fontFamily: 'Tomato Grotesk',
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          context.push(
+                            '/webview',
+                            extra: {
+                              'url': privacyUrl,
+                              'navTitle': 'Privacy Policy',
+                            },
+                          );
+                        },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+          ],
         ),
-      );
+      ),
+    );
   }
 
   Future<void> _handleSignIn() async {
@@ -525,28 +525,33 @@ class _SignInPageState extends State<SignInPage> {
       return;
     }
 
-    try {
-      await ToastUtil.showLoading();
-      if (!mounted) {
+    await runLoginAttempt<void>(
+      authenticate: () async {
+        await ToastUtil.showLoading();
+        if (!mounted) return;
+        await context.read<UserStore>().login(email: email, password: password);
+      },
+      onAuthenticated: () async {
+        try {
+          await ToastUtil.dismiss();
+        } catch (_) {}
+        if (mounted) _handleLoginSuccess();
+      },
+      onAuthenticationFailed: (error) async {
         await ToastUtil.dismiss();
-        return;
-      }
-      await context.read<UserStore>().login(email: email, password: password);
-      await ToastUtil.dismiss();
-      if (!mounted) return;
-      _handleLoginSuccess();
-    } catch (error) {
-      await ToastUtil.dismiss();
-      // 仅账号密码错误(401/400)显示固定文案；其它错误展示真实原因，
-      // 避免网关/初始化等问题被误报成"密码错误"（H5 正常客户端失败难排查）。
-      final status = error is DioException ? error.response?.statusCode : null;
-      final isCredentialError = status == 401 || status == 400;
-      ToastUtil.show(
-        isCredentialError
-            ? "Username or password is incorrect."
-            : apiErrorMessage(error),
-      );
-    }
+        // Only credential failures use the fixed copy; gateway errors retain
+        // their useful diagnostic message.
+        final status = error is DioException
+            ? error.response?.statusCode
+            : null;
+        final isCredentialError = status == 401 || status == 400;
+        await ToastUtil.show(
+          isCredentialError
+              ? 'Username or password is incorrect.'
+              : apiErrorMessage(error),
+        );
+      },
+    );
   }
 
   Future<void> _googleSignIn() async {
@@ -613,10 +618,8 @@ class _SignInPageState extends State<SignInPage> {
 
     final result = await Navigator.of(context).push<GitHubOAuthResult>(
       MaterialPageRoute(
-        builder: (_) => GitHubOAuthPage(
-          clientId: githubClientId,
-          redirectUri: redirectUri,
-        ),
+        builder: (_) =>
+            GitHubOAuthPage(clientId: githubClientId, redirectUri: redirectUri),
       ),
     );
     if (result == null) return;

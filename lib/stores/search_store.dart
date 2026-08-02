@@ -19,6 +19,7 @@ const int _maxTabs = 12;
 /// 与 Web `deepSearchStore.pendingQuery` 对齐：路由跳转后再消费并发起搜索。
 class PendingDeepSearchRequest {
   const PendingDeepSearchRequest({
+    required this.submissionId,
     required this.query,
     this.displayQuery,
     this.attachmentUrl,
@@ -27,6 +28,7 @@ class PendingDeepSearchRequest {
     this.simple = false,
   });
 
+  final String submissionId;
   final String query;
   final String? displayQuery;
   final String? attachmentUrl;
@@ -48,18 +50,25 @@ class SearchStore extends ChangeNotifier {
   bool isTabPanelOpen = false;
   bool isLoadingConversation = false;
   int? currentConversationId;
+
   /// 待加载的会话详情（从 Chat History 点入时设置，AgenticChat 会消费并清空）
   Map<String, dynamic>? pendingConversation;
+
   /// 重置版本：clearAll 时递增，AgenticChat 据此清空消息
   int resetVersion = 0;
+
   /// Extra type 字符串（默认 null）
   String? extraType;
+
   /// Active tool（'find-advisor' 或 null）
   String? activeTool;
+
   /// Deep Search session id，对齐 Web `deepSearchStore.sessionId`
   String? deepSearchSessionId;
+
   /// 与 TSX deepSearchStore.claudeSessionId 对齐
   String? claudeSessionId;
+
   /// 与 TSX deepSearchStore.modelProvider 对齐
   String? modelProvider;
 
@@ -88,7 +97,15 @@ class SearchStore extends ChangeNotifier {
 
   /// 与 TSX getCandidateCompleteness 简化版：有值的字段数 / 总字段数
   static double _getCandidateCompleteness(Map<String, dynamic> c) {
-    const keys = ['name', 'image_url', 'company', 'position', 'university', 'one_liner', 'match_reason'];
+    const keys = [
+      'name',
+      'image_url',
+      'company',
+      'position',
+      'university',
+      'one_liner',
+      'match_reason',
+    ];
     var filled = 0;
     for (final k in keys) {
       final v = c[k];
@@ -111,7 +128,9 @@ class SearchStore extends ChangeNotifier {
     final fromNetwork = gId == -1;
     final nameOk = (candidate['name']?.toString() ?? '').trim().isNotEmpty;
     if (!fromNetwork) {
-      final hasAvatar = (candidate['image_url']?.toString() ?? '').trim().isNotEmpty;
+      final hasAvatar = (candidate['image_url']?.toString() ?? '')
+          .trim()
+          .isNotEmpty;
       final completeness = _getCandidateCompleteness(candidate);
       if (!hasAvatar && completeness < 0.7) return null;
     } else if (!nameOk) {
@@ -123,12 +142,14 @@ class SearchStore extends ChangeNotifier {
     for (final t in openTabs) {
       if (matchByName) {
         // 按姓名判重：已有同名角色则复用该 tab，避免同一人出现多个 tab
-        if (candidateName.isNotEmpty && (t.candidate['name']?.toString() ?? '') == candidateName) {
+        if (candidateName.isNotEmpty &&
+            (t.candidate['name']?.toString() ?? '') == candidateName) {
           existing = t;
           break;
         }
       } else {
-        if (t.candidate['groupId'] == gId && t.candidate['originalIndex'] == originalIndex) {
+        if (t.candidate['groupId'] == gId &&
+            t.candidate['originalIndex'] == originalIndex) {
           existing = t;
           break;
         }
@@ -292,7 +313,13 @@ class SearchStore extends ChangeNotifier {
     bool matchByName = false,
     bool switchTab = true,
   }) {
-    return openTab(candidate, index: index, groupId: groupId, matchByName: matchByName, switchTab: switchTab);
+    return openTab(
+      candidate,
+      index: index,
+      groupId: groupId,
+      matchByName: matchByName,
+      switchTab: switchTab,
+    );
   }
 
   /// 用搜索结果候选人整体替换标签页（首次展示返回值时用；与 TSX 中“无已有 tab 时展示结果”对应）
@@ -313,7 +340,8 @@ class SearchStore extends ChangeNotifier {
   void syncCandidatesToTabs(List<Map<String, dynamic>> candidates) {
     for (final tab in openTabs) {
       final idx = tab.candidate['originalIndex'];
-      if (idx == null || idx is! int || idx < 0 || idx >= candidates.length) continue;
+      if (idx == null || idx is! int || idx < 0 || idx >= candidates.length)
+        continue;
       final updated = candidates[idx];
       if (updated['name'] != tab.candidate['name']) continue;
       tab.candidate.addAll(updated);
@@ -323,21 +351,30 @@ class SearchStore extends ChangeNotifier {
 
   // 更新标签页的 profile 数据
   void updateTabProfile(int id, Map<String, dynamic> profile) {
-    final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
+    final tab = openTabs.firstWhere(
+      (t) => t.id == id,
+      orElse: () => throw Exception('Tab not found'),
+    );
     tab.profile = profile;
     notifyListeners();
   }
 
   // 更新标签页的 network 数据
   void updateTabNetwork(int id, List<dynamic> network) {
-    final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
+    final tab = openTabs.firstWhere(
+      (t) => t.id == id,
+      orElse: () => throw Exception('Tab not found'),
+    );
     tab.network = network;
     notifyListeners();
   }
 
   // 更新标签页的 candidate 数据
   void updateTabCandidate(int id, Map<String, dynamic> candidate) {
-    final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
+    final tab = openTabs.firstWhere(
+      (t) => t.id == id,
+      orElse: () => throw Exception('Tab not found'),
+    );
     tab.candidate.clear();
     tab.candidate.addAll(candidate);
     notifyListeners();
@@ -345,7 +382,10 @@ class SearchStore extends ChangeNotifier {
 
   // 设置标签页错误（与 TSX 一致：同时将 isLoading 置为 false）
   void setTabError(int id, String? error) {
-    final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
+    final tab = openTabs.firstWhere(
+      (t) => t.id == id,
+      orElse: () => throw Exception('Tab not found'),
+    );
     tab.error = error;
     tab.isLoading = false;
     notifyListeners();
@@ -353,21 +393,30 @@ class SearchStore extends ChangeNotifier {
 
   // 设置标签页加载状态
   void setTabLoading(int id, bool loading) {
-    final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
+    final tab = openTabs.firstWhere(
+      (t) => t.id == id,
+      orElse: () => throw Exception('Tab not found'),
+    );
     tab.isLoading = loading;
     notifyListeners();
   }
 
   // 设置标签页网络加载状态
   void setTabNetworkLoading(int id, bool loading) {
-    final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
+    final tab = openTabs.firstWhere(
+      (t) => t.id == id,
+      orElse: () => throw Exception('Tab not found'),
+    );
     tab.networkLoading = loading;
     notifyListeners();
   }
 
   // 设置标签页 enrich 加载状态
   void setTabEnrichLoading(int id, bool loading) {
-    final tab = openTabs.firstWhere((t) => t.id == id, orElse: () => throw Exception('Tab not found'));
+    final tab = openTabs.firstWhere(
+      (t) => t.id == id,
+      orElse: () => throw Exception('Tab not found'),
+    );
     tab.enrichLoading = loading;
     notifyListeners();
   }
@@ -393,7 +442,9 @@ class SearchStore extends ChangeNotifier {
       final result = record['result'];
       if (result is List) {
         for (var j = 0; j < result.length; j++) {
-          final c = Map<String, dynamic>.from(result[j] as Map<String, dynamic>);
+          final c = Map<String, dynamic>.from(
+            result[j] as Map<String, dynamic>,
+          );
           c['originalIndex'] = j;
           openTab(c);
         }
@@ -404,5 +455,3 @@ class SearchStore extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-

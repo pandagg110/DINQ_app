@@ -73,9 +73,7 @@ class FavoriteItem {
       id: (json['id'] ?? '').toString(),
       projectId: (json['projectId'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
-      field: rawField is Map<String, dynamic>
-          ? rawField
-          : <String, dynamic>{},
+      field: rawField is Map<String, dynamic> ? rawField : <String, dynamic>{},
       tags: (json['tags'] ?? '').toString(),
       status: (json['status'] ?? 'not_obtained').toString(),
       createdAt: json['createdAt']?.toString(),
@@ -133,11 +131,8 @@ class FavoriteItem {
     return c;
   }
 
-  List<String> get tagList => tags
-      .split(',')
-      .map((t) => t.trim())
-      .where((t) => t.isNotEmpty)
-      .toList();
+  List<String> get tagList =>
+      tags.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
 
   String get initials {
     final n = name.trim();
@@ -163,7 +158,9 @@ class FavoriteItem {
 
   Map<String, dynamic> toEnrichRow() {
     return {
-      'row_id': rowId ?? id,
+      // Search row ids can be reused across conversations. A favorite id is
+      // globally unique and is therefore safe as the local enrich cache key.
+      'row_id': id,
       'name': name,
       'title': roleTitle,
       'company': company,
@@ -182,10 +179,7 @@ class ShortlistBulkResult {
 }
 
 class ShortlistPdfExportResult {
-  const ShortlistPdfExportResult({
-    required this.bytes,
-    required this.filename,
-  });
+  const ShortlistPdfExportResult({required this.bytes, required this.filename});
 
   final List<int> bytes;
   final String filename;

@@ -108,44 +108,38 @@ class _EducationVerificationPageState extends State<EducationVerificationPage> {
   Widget build(BuildContext context) {
     final status = _existingData?['status']?.toString();
     return Scaffold(
-        appBar: DefaultAppBar(
-          context,
-          titleString: "Education Verification",
-        ),
-        backgroundColor: DinqTokens.bgPage,
-        body: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Pending status banner
-                    if (status == 'pending') _buildPendingBanner(),
+      appBar: DefaultAppBar(context, titleString: "Education Verification"),
+      backgroundColor: DinqTokens.bgPage,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Pending status banner
+                  if (status == 'pending') _buildPendingBanner(),
 
-                    // Student type selection
-                    _buildStudentTypeSelection(),
-                    const SizedBox(height: 24),
+                  // Student type selection
+                  _buildStudentTypeSelection(),
+                  const SizedBox(height: 24),
 
-                    // Form fields
-                    _buildFormFields(),
-                    const SizedBox(height: 24),
+                  // Form fields
+                  _buildFormFields(),
+                  const SizedBox(height: 24),
 
-                    // Verification section
-                    _buildVerificationSection(),
-                  ],
-                ),
+                  // Verification section
+                  _buildVerificationSection(),
+                ],
               ),
             ),
-            // Submit button
-            _buildSubmitButton(),
-          ],
-        ),
-      );
+          ),
+          // Submit button
+          _buildSubmitButton(),
+        ],
+      ),
+    );
   }
 
   Widget _buildPendingBanner() {
@@ -1311,6 +1305,7 @@ class _EmailVerificationModalState extends State<_EmailVerificationModal> {
       await widget.authService.verifyCode(
         email: widget.email,
         code: _codeController.text.trim(),
+        purpose: 'profile',
       );
       widget.onVerifySuccess();
       if (mounted) {

@@ -9,6 +9,7 @@ import '../../models/card_models.dart';
 import '../../models/user_models.dart';
 import '../share_card/export_qr_card.dart';
 import 'export_card_preview.dart';
+import 'profile_share_download.dart';
 import '../../stores/card_store.dart';
 import '../../stores/user_store.dart';
 import '../../utils/asset_path.dart';
@@ -65,6 +66,7 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   bool _isDownloading = false;
   String? _downloadError;
   final GlobalKey _moreButtonKey = GlobalKey();
+  final GlobalKey _previewBoundaryKey = GlobalKey();
   late Map<String, String> _shareTheme;
 
   @override
@@ -236,21 +238,32 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
   }
 
   Future<void> _handleDownload() async {
+    if (_isDownloading) return;
     setState(() {
       _isDownloading = true;
       _downloadError = null;
     });
-    // 占位：实际下载需要 og-image 接口或本地生成图片，此处仅关闭 More 并提示
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) {
-      setState(() => _isDownloading = false);
-      TopToastUtil.showCustom(
-        context: context,
-        icon: Icons.info_outline,
-        iconColor: Colors.blue,
-        title: 'Download',
-        description: 'Image download will be available when og-image is ready.',
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      final origin = box == null || !box.hasSize
+          ? null
+          : box.localToGlobal(Offset.zero) & box.size;
+      await shareProfileBoundary(
+        boundaryKey: _previewBoundaryKey,
+        profileName: widget.userData.name,
+        sharePositionOrigin: origin,
       );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _downloadError = 'Unable to generate profile image.');
+        TopToastUtil.showError(
+          context: context,
+          title: 'Download failed',
+          description: 'Please try again after the preview finishes loading.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
     }
   }
 
@@ -385,34 +398,37 @@ class _ShareProfileBottomSheetState extends State<_ShareProfileBottomSheet> {
                   ),
                   const SizedBox(height: 24),
                   // Preview area: ExportCard/ShareCard 布局同步；watch CardStore 使移动卡片时预览同步更新
-                  SizedBox(
-                    height: _viewModeCard ? cardPreviewHeight : 330,
-                    child: _viewModeCard
-                        ? Builder(
-                            builder: (context) {
-                              final cardStore = context.watch<CardStore>();
-                              return ExportCardPreview(
-                                userData: userData,
-                                cards: cardStore.cards,
-                                height: cardPreviewHeight,
-                                isEditable: isSelf,
-                                theme: _shareTheme,
-                                onThemeChange: _handleShareThemeChange,
-                              );
-                            },
-                          )
-                        : Container(
-                            alignment: Alignment.center,
-                            child: FittedBox(
-                              fit: BoxFit.contain,
-                              child: ExportQrCard(
-                                userInfo: userData,
-                                username: widget.username,
-                                profileUrl: widget.profileUrl,
-                                forExport: false,
+                  RepaintBoundary(
+                    key: _previewBoundaryKey,
+                    child: SizedBox(
+                      height: _viewModeCard ? cardPreviewHeight : 330,
+                      child: _viewModeCard
+                          ? Builder(
+                              builder: (context) {
+                                final cardStore = context.watch<CardStore>();
+                                return ExportCardPreview(
+                                  userData: userData,
+                                  cards: cardStore.cards,
+                                  height: cardPreviewHeight,
+                                  isEditable: isSelf,
+                                  theme: _shareTheme,
+                                  onThemeChange: _handleShareThemeChange,
+                                );
+                              },
+                            )
+                          : Container(
+                              alignment: Alignment.center,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: ExportQrCard(
+                                  userInfo: userData,
+                                  username: widget.username,
+                                  profileUrl: widget.profileUrl,
+                                  forExport: false,
+                                ),
                               ),
                             ),
-                          ),
+                    ),
                   ),
                 ],
               ),

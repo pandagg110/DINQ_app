@@ -9,6 +9,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 void main() {
+  test('shortlist enrich cache keys use the unique favorite id', () {
+    final item = FavoriteItem(
+      id: 'favorite-keith',
+      projectId: 'project-1',
+      title: 'Keith',
+      field: const {
+        'row_id': 'reused-search-row-0',
+        'name': 'Keith',
+        'profile_url': 'https://dinq.me/keith',
+      },
+      tags: '',
+      status: 'not_obtained',
+    );
+
+    expect(item.toEnrichRow()['row_id'], 'favorite-keith');
+  });
+
   testWidgets('mobile search prompt asks users to search for talent', (
     tester,
   ) async {

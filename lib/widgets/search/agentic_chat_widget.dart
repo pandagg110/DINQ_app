@@ -186,6 +186,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         ModelChannelsCache.instance.defaultProvider;
 
     final request = PendingDeepSearchRequest(
+      submissionId: const Uuid().v4(),
       query: query,
       displayQuery: displayQuery,
       attachmentUrl: attachmentUrl,
@@ -209,6 +210,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
     logic.handleSearch(
       query: query,
+      submissionId: request.submissionId,
       simple: simple,
       displayQuery: displayQuery,
       attachmentUrl: attachmentUrl,
@@ -233,6 +235,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
     logic.handleSearch(
       query: pending.query,
+      submissionId: pending.submissionId,
       simple: pending.simple,
       displayQuery: pending.displayQuery,
       attachmentUrl: pending.attachmentUrl,
