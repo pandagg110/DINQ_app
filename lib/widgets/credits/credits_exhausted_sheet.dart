@@ -348,23 +348,23 @@ class _CreditsExhaustedSheetState extends State<CreditsExhaustedSheet> {
       });
     }
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
-        ),
-        decoration: const BoxDecoration(
-          color: _sheetBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x2E000000),
-              offset: Offset(0, -18),
-              blurRadius: 48,
-            ),
-          ],
-        ),
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
+      decoration: const BoxDecoration(
+        color: _sheetBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x2E000000),
+            offset: Offset(0, -18),
+            blurRadius: 48,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
