@@ -126,8 +126,8 @@ class _MainTabBottomViewState extends State<MainTabBottomView> {
         title: "Search",
         iconName: "",
         selIconName: "",
-        iconSvg: "assets/icons/nav-discover-outline.svg",
-        selIconSvg: "assets/icons/nav-discover-fill.svg",
+        iconSvg: "assets/icons/nav-search-outline.svg",
+        selIconSvg: "assets/icons/nav-search-fill.svg",
       ),
       MainTabModel(
         pageType: MainTabType.talentRadar,
