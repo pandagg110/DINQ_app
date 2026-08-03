@@ -468,7 +468,9 @@ class _PricingPageState extends State<PricingPage> {
       TopToastUtil.showError(
         context: context,
         title: 'Unable to start purchase',
-        description: 'Please try again later.',
+        description:
+            AppleIapService.instance.purchaseStartErrorMessage ??
+            'Please try again later.',
       );
       return;
     }

@@ -65,6 +65,7 @@ class AppleIapService {
   String? Function()? _userIdProvider;
   Completer<AppleRestoreResult>? _restoreCompleter;
   Timer? _restoreTimer;
+  String? _purchaseStartErrorMessage;
 
   Future<void> Function()? onSubscriptionChanged;
   void Function(bool success, String? message)? onPurchaseFinished;
@@ -111,7 +112,12 @@ class AppleIapService {
       await _loadProducts();
       _ready = true;
     } catch (error) {
-      debugPrint('IAP init failed: $error');
+      final platformCode = switch (error) {
+        IAPError(:final code) => ' ($code)',
+        PlatformException(:final code) => ' ($code)',
+        _ => '',
+      };
+      debugPrint('IAP init failed: ${error.runtimeType}$platformCode');
       await _purchaseSub?.cancel();
       _purchaseSub = null;
     }
@@ -121,6 +127,11 @@ class AppleIapService {
     final response = await _platform
         .queryProductDetails(_productIds)
         .timeout(_initializationTimeout);
+    if (response.error case final error?) {
+      debugPrint('IAP product query failed: ${error.code}');
+      _products = {};
+      throw error;
+    }
     _products = {
       for (final product in response.productDetails) product.id: product,
     };
@@ -159,11 +170,21 @@ class AppleIapService {
   String? priceForPlan(String plan) =>
       localizedPriceForPlan(plan, _products.values);
 
+  String? get purchaseStartErrorMessage => _purchaseStartErrorMessage;
+
   Future<bool> buy(String plan) async {
+    _purchaseStartErrorMessage = null;
     final appAccountToken = _appAccountToken;
-    if (appAccountToken == null) return false;
+    if (appAccountToken == null) {
+      _purchaseStartErrorMessage = 'Please sign in again before purchasing.';
+      return false;
+    }
     if (!_ready) await init();
-    if (!_ready) return false;
+    if (!_ready) {
+      _purchaseStartErrorMessage =
+          'The App Store is unavailable. Please try again later.';
+      return false;
+    }
 
     var product = _products[productIdForPlan(plan)];
     if (product == null) {
@@ -171,21 +192,40 @@ class AppleIapService {
         await _loadProducts();
       } catch (error) {
         debugPrint('IAP product reload failed: ${error.runtimeType}');
+        _purchaseStartErrorMessage =
+            'The App Store is unavailable. Please try again later.';
         return false;
       }
       product = _products[productIdForPlan(plan)];
     }
-    if (product == null) return false;
+    if (product == null) {
+      _purchaseStartErrorMessage =
+          'This subscription is not available in the App Store for this build. '
+          'Please contact support.';
+      return false;
+    }
 
     try {
-      return await _platform.buyNonConsumable(
+      final started = await _platform.buyNonConsumable(
         purchaseParam: PurchaseParam(
           productDetails: product,
           applicationUserName: appAccountToken,
         ),
       );
+      if (!started) {
+        _purchaseStartErrorMessage =
+            'The App Store could not start this purchase. '
+            'Please check your App Store account and try again.';
+      }
+      return started;
     } catch (error) {
-      debugPrint('IAP purchase start failed: ${error.runtimeType}');
+      final platformCode = error is PlatformException ? ' (${error.code})' : '';
+      debugPrint(
+        'IAP purchase start failed: ${error.runtimeType}$platformCode',
+      );
+      _purchaseStartErrorMessage =
+          'The App Store could not start this purchase. '
+          'Please check your App Store account and try again.';
       return false;
     }
   }

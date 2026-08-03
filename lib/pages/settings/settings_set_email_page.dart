@@ -85,7 +85,11 @@ class _SettingsSetEmailPageState extends State<SettingsSetEmailPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSendingCode = false);
-      TopToastUtil.showError(context: context, title: 'Failed to send code', description: '$e');
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to send code',
+        description: bindEmailErrorMessage(e),
+      );
     }
   }
 
@@ -131,7 +135,11 @@ class _SettingsSetEmailPageState extends State<SettingsSetEmailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      TopToastUtil.showError(context: context, title: 'Failed to bind email', description: '$e');
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to bind email',
+        description: bindEmailErrorMessage(e),
+      );
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

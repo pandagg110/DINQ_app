@@ -94,6 +94,11 @@ void main() {
       );
       expect(service.priceForPlan('pro_monthly'), '¥988');
       expect(await service.buy('basic_monthly'), isFalse);
+      expect(
+        service.purchaseStartErrorMessage,
+        'This subscription is not available in the App Store for this build. '
+        'Please contact support.',
+      );
     });
 
     test('returns false when StoreKit rejects the purchase request', () async {
@@ -101,6 +106,39 @@ void main() {
       await service.init();
 
       expect(await service.buy('pro_monthly'), isFalse);
+      expect(
+        service.purchaseStartErrorMessage,
+        'The App Store could not start this purchase. '
+        'Please check your App Store account and try again.',
+      );
+    });
+
+    test('reports when the App Store is unavailable', () async {
+      platform.available = false;
+
+      expect(await service.buy('pro_monthly'), isFalse);
+      expect(
+        service.purchaseStartErrorMessage,
+        'The App Store is unavailable. Please try again later.',
+      );
+    });
+
+    test('treats product query errors as App Store unavailability', () async {
+      platform.queryError = IAPError(
+        source: 'app_store',
+        code: 'storekit_query_failed',
+        message: 'StoreKit query failed',
+      );
+
+      expect(await service.buy('pro_monthly'), isFalse);
+      expect(
+        service.purchaseStartErrorMessage,
+        'The App Store is unavailable. Please try again later.',
+      );
+      expect(
+        service.purchaseStartErrorMessage,
+        isNot(contains('not available in the App Store for this build')),
+      );
     });
 
     test('shares product loading across concurrent initialization', () async {
@@ -150,6 +188,10 @@ void main() {
               .timeout(const Duration(milliseconds: 200)),
           isFalse,
         );
+        expect(
+          service.purchaseStartErrorMessage,
+          'The App Store is unavailable. Please try again later.',
+        );
       },
     );
 
@@ -157,6 +199,10 @@ void main() {
       service.setUserIdProvider(() => null);
 
       expect(await service.buy('pro_monthly'), isFalse);
+      expect(
+        service.purchaseStartErrorMessage,
+        'Please sign in again before purchasing.',
+      );
       expect(await service.restorePurchases(), AppleRestoreResult.unavailable);
       await service.retryPendingTransactions();
     });
@@ -334,14 +380,16 @@ class _FakeIapPlatform extends InAppPurchasePlatform {
   final List<PurchaseDetails> completedPurchases = [];
   Object? purchaseError;
   Object? restoreError;
+  IAPError? queryError;
   Completer<void>? queryBlock;
   int queryCount = 0;
+  bool available = true;
 
   @override
   Stream<List<PurchaseDetails>> get purchaseStream => _controller.stream;
 
   @override
-  Future<bool> isAvailable() async => true;
+  Future<bool> isAvailable() async => available;
 
   @override
   Future<ProductDetailsResponse> queryProductDetails(
@@ -349,6 +397,13 @@ class _FakeIapPlatform extends InAppPurchasePlatform {
   ) async {
     queryCount++;
     await queryBlock?.future;
+    if (queryError case final error?) {
+      return ProductDetailsResponse(
+        productDetails: const [],
+        notFoundIDs: identifiers.toList(),
+        error: error,
+      );
+    }
     return ProductDetailsResponse(
       productDetails: [
         ProductDetails(

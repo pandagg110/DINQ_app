@@ -79,6 +79,59 @@ String thirdPartyLoginErrorMessage({
   return message;
 }
 
+String bindEmailErrorMessage(Object error) {
+  const conflictMessage =
+      'This email is already linked to another account. '
+      'Please use a different email and try again.';
+  const fallbackMessage = 'Unable to update email. Please try again.';
+  final message = apiErrorMessage(error, fallback: fallbackMessage);
+  final normalized = message.toLowerCase();
+  final statusCode = error is DioException ? error.response?.statusCode : null;
+  final isEmailConflict =
+      statusCode == 409 ||
+      normalized.contains('already bound') ||
+      normalized.contains('already linked') ||
+      normalized.contains('already registered') ||
+      normalized.contains('already exists') ||
+      normalized.contains('email exists') ||
+      normalized.contains('email is in use') ||
+      normalized.contains('email already in use') ||
+      normalized.contains('another account');
+  if (isEmailConflict) return conflictMessage;
+
+  if (error is DioException) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.sendTimeout:
+        return 'Network timeout. Please try again.';
+      case DioExceptionType.connectionError:
+        return 'Network error. Please check your connection.';
+      default:
+        break;
+    }
+
+    if (statusCode == 401) {
+      return 'Your session has expired. Please sign in again.';
+    }
+    if (statusCode == 429) {
+      return 'Too many attempts. Please try again later.';
+    }
+  }
+
+  final isInvalidCode =
+      normalized.contains('verification code') &&
+      (normalized.contains('invalid') ||
+          normalized.contains('incorrect') ||
+          normalized.contains('expired'));
+  if (isInvalidCode) {
+    return 'The verification code is invalid or expired. '
+        'Please request a new code and try again.';
+  }
+
+  return fallbackMessage;
+}
+
 String _providerLabel(String provider) => switch (provider.toLowerCase()) {
   'github' => 'GitHub',
   'google' => 'Google',
