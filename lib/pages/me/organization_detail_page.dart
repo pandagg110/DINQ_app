@@ -1643,7 +1643,8 @@ class _OrganizationDetailPageState extends State<OrganizationDetailPage> {
   }
 
   Widget _emptyState(IconData icon, String text) {
-    return Padding(
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
