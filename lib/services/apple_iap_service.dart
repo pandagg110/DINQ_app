@@ -10,6 +10,14 @@ import 'payment_service.dart';
 
 enum AppleRestoreResult { restored, noPurchases, unavailable, failed }
 
+enum _AppleVerificationResult {
+  verified,
+  foreignAccount,
+  unlinkedAccount,
+  failed,
+  deferred,
+}
+
 typedef AppleTransactionVerifier =
     Future<Map<String, dynamic>> Function(Map<String, dynamic> data);
 
@@ -66,6 +74,7 @@ class AppleIapService {
   String? Function()? _userIdProvider;
   Completer<AppleRestoreResult>? _restoreCompleter;
   Timer? _restoreTimer;
+  bool _restoreHadVerificationFailure = false;
   String? _purchaseStartErrorMessage;
 
   Future<void> Function()? onSubscriptionChanged;
@@ -255,16 +264,16 @@ class AppleIapService {
 
     _restoreTimer?.cancel();
     _restoreCompleter = Completer<AppleRestoreResult>();
+    _restoreHadVerificationFailure = false;
     try {
       await _platform.restorePurchases(applicationUserName: _appAccountToken);
-      _restoreTimer = Timer(_restoreTimeout, () {
-        _completeRestore(AppleRestoreResult.noPurchases);
-      });
+      _startRestoreTimeout();
       return await _restoreCompleter!.future;
     } catch (error) {
       debugPrint('IAP restore failed: $error');
-      _completeRestore(AppleRestoreResult.failed);
-      return AppleRestoreResult.failed;
+      _restoreHadVerificationFailure = true;
+      _startRestoreTimeout();
+      return await _restoreCompleter!.future;
     }
   }
 
@@ -279,24 +288,35 @@ class AppleIapService {
     if (completer != null && !completer.isCompleted) completer.complete(result);
   }
 
+  void _startRestoreTimeout() {
+    final completer = _restoreCompleter;
+    if (completer == null || completer.isCompleted) return;
+    _restoreTimer?.cancel();
+    _restoreTimer = Timer(_restoreTimeout, () {
+      _completeRestore(
+        _restoreHadVerificationFailure
+            ? AppleRestoreResult.failed
+            : AppleRestoreResult.noPurchases,
+      );
+    });
+  }
+
   Future<void> _onPurchaseUpdates(List<PurchaseDetails> purchases) async {
+    var restoredVerified = false;
+    var restoredVerificationFailed = false;
     for (final purchase in purchases) {
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          if (purchase.status == PurchaseStatus.restored) {
-            _restoreTimer?.cancel();
-          }
-          final verified = await _verifyAndFinish(
+          final verificationResult = await _verifyAndFinish(
             purchase,
             notifyPurchaseFinished: purchase.status != PurchaseStatus.restored,
           );
           if (purchase.status == PurchaseStatus.restored) {
-            _completeRestore(
-              verified
-                  ? AppleRestoreResult.restored
-                  : AppleRestoreResult.failed,
-            );
+            restoredVerified |=
+                verificationResult == _AppleVerificationResult.verified;
+            restoredVerificationFailed |=
+                verificationResult == _AppleVerificationResult.failed;
           }
         case PurchaseStatus.error:
           onPurchaseFinished?.call(
@@ -316,15 +336,55 @@ class AppleIapService {
           break;
       }
     }
+    if (restoredVerified) {
+      _completeRestore(AppleRestoreResult.restored);
+    } else if (restoredVerificationFailed) {
+      _restoreHadVerificationFailure = true;
+    }
   }
 
-  Future<bool> _verifyAndFinish(
+  Future<_AppleVerificationResult> _verifyAndFinish(
     PurchaseDetails purchase, {
     required bool notifyPurchaseFinished,
   }) async {
-    if (_appAccountToken == null) {
+    final currentAppAccountToken = _appAccountToken;
+    if (currentAppAccountToken == null) {
       debugPrint('IAP verification deferred until a DINQ user is available');
-      return false;
+      return _AppleVerificationResult.deferred;
+    }
+    final transactionAppAccountToken = switch (purchase) {
+      SK2PurchaseDetails(:final appAccountToken) => appAccountToken,
+      _ => null,
+    };
+    if (purchase is SK2PurchaseDetails && transactionAppAccountToken == null) {
+      debugPrint(
+        'IAP verification skipped because the StoreKit transaction has no '
+        'DINQ account link',
+      );
+      if (notifyPurchaseFinished) {
+        onPurchaseFinished?.call(
+          false,
+          'This purchase is not linked to a DINQ account. '
+          'Please contact support.',
+        );
+      }
+      return _AppleVerificationResult.unlinkedAccount;
+    }
+    if (transactionAppAccountToken != null &&
+        transactionAppAccountToken.toLowerCase() !=
+            currentAppAccountToken.toLowerCase()) {
+      debugPrint(
+        'IAP verification skipped because the transaction belongs to '
+        'another DINQ account',
+      );
+      if (notifyPurchaseFinished) {
+        onPurchaseFinished?.call(
+          false,
+          'This purchase belongs to another DINQ account. '
+          'Sign in with the account used for this purchase.',
+        );
+      }
+      return _AppleVerificationResult.foreignAccount;
     }
     try {
       await _transactionVerifier({
@@ -337,13 +397,13 @@ class AppleIapService {
       }
       await onSubscriptionChanged?.call();
       if (notifyPurchaseFinished) onPurchaseFinished?.call(true, null);
-      return true;
+      return _AppleVerificationResult.verified;
     } catch (error) {
       debugPrint('IAP server verify failed: $error');
       if (notifyPurchaseFinished) {
         onPurchaseFinished?.call(false, _activationFailureMessage(error));
       }
-      return false;
+      return _AppleVerificationResult.failed;
     }
   }
 

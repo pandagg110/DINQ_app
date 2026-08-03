@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 void main() {
   group('AppleIapService product mapping', () {
@@ -277,6 +278,193 @@ void main() {
     });
 
     test(
+      'does not verify or finish a StoreKit 2 transaction owned by another user',
+      () async {
+        String? failureMessage;
+        service.onPurchaseFinished = (success, message) {
+          if (!success) failureMessage = message;
+        };
+        await service.init();
+
+        platform.emit(
+          _sk2Purchase(
+            PurchaseStatus.purchased,
+            appAccountToken: '74475f70-0477-442f-8b8d-2d58943935f0',
+          ),
+        );
+        await _flushEvents();
+
+        expect(verifiedPayloads, isEmpty);
+        expect(platform.completedPurchases, isEmpty);
+        expect(
+          failureMessage,
+          'This purchase belongs to another DINQ account. '
+          'Sign in with the account used for this purchase.',
+        );
+      },
+    );
+
+    test(
+      'does not verify or finish a StoreKit 2 transaction without an account token',
+      () async {
+        String? failureMessage;
+        service.onPurchaseFinished = (success, message) {
+          if (!success) failureMessage = message;
+        };
+        await service.init();
+
+        platform.emit(
+          _sk2Purchase(PurchaseStatus.purchased, appAccountToken: null),
+        );
+        await _flushEvents();
+
+        expect(verifiedPayloads, isEmpty);
+        expect(platform.completedPurchases, isEmpty);
+        expect(
+          failureMessage,
+          'This purchase is not linked to a DINQ account. '
+          'Please contact support.',
+        );
+      },
+    );
+
+    test(
+      'verifies a StoreKit 2 transaction owned by the current user',
+      () async {
+        await service.init();
+
+        platform.emit(
+          _sk2Purchase(
+            PurchaseStatus.purchased,
+            appAccountToken: '4A476859-2929-43EF-9A38-2E80EB7E7BB0',
+          ),
+        );
+        await _flushEvents();
+
+        expect(verifiedPayloads, hasLength(1));
+        expect(platform.completedPurchases, hasLength(1));
+      },
+    );
+
+    test(
+      'silently rejects a restored transaction owned by another user',
+      () async {
+        var purchaseCallbackCount = 0;
+        service.onPurchaseFinished = (_, _) => purchaseCallbackCount++;
+        await service.init();
+
+        final restoredFuture = service.restorePurchases();
+        await _flushEvents();
+        platform.emit(
+          _sk2Purchase(
+            PurchaseStatus.restored,
+            appAccountToken: '74475f70-0477-442f-8b8d-2d58943935f0',
+          ),
+        );
+
+        expect(await restoredFuture, AppleRestoreResult.noPurchases);
+        expect(verifiedPayloads, isEmpty);
+        expect(platform.completedPurchases, isEmpty);
+        expect(purchaseCallbackCount, 0);
+      },
+    );
+
+    test(
+      'restores the current user when a foreign transaction appears first',
+      () async {
+        await service.init();
+
+        final restoredFuture = service.restorePurchases();
+        await _flushEvents();
+        platform.emitMany([
+          _sk2Purchase(
+            PurchaseStatus.restored,
+            appAccountToken: '74475f70-0477-442f-8b8d-2d58943935f0',
+          ),
+          _sk2Purchase(
+            PurchaseStatus.restored,
+            appAccountToken: '4a476859-2929-43ef-9a38-2e80eb7e7bb0',
+          ),
+        ]);
+
+        expect(await restoredFuture, AppleRestoreResult.restored);
+        await _flushEvents();
+        expect(verifiedPayloads, hasLength(1));
+        expect(platform.completedPurchases, isEmpty);
+      },
+    );
+
+    test(
+      'restores when a later StoreKit event succeeds after an earlier failure',
+      () async {
+        var verificationCount = 0;
+        service = AppleIapService.forTesting(
+          platform: platform,
+          transactionVerifier: (payload) async {
+            verificationCount++;
+            if (verificationCount == 1) {
+              throw StateError('temporary verification failure');
+            }
+            verifiedPayloads.add(payload);
+            return {'success': true};
+          },
+          restoreTimeout: const Duration(milliseconds: 100),
+        );
+        service.setUserIdProvider(() => '4a476859-2929-43ef-9a38-2e80eb7e7bb0');
+        await service.init();
+
+        final restoredFuture = service.restorePurchases();
+        await _flushEvents();
+        platform.emit(
+          _sk2Purchase(
+            PurchaseStatus.restored,
+            appAccountToken: '4a476859-2929-43ef-9a38-2e80eb7e7bb0',
+          ),
+        );
+        await _flushEvents();
+        platform.emit(
+          _sk2Purchase(
+            PurchaseStatus.restored,
+            appAccountToken: '4a476859-2929-43ef-9a38-2e80eb7e7bb0',
+          ),
+        );
+
+        expect(await restoredFuture, AppleRestoreResult.restored);
+        expect(verificationCount, 2);
+        expect(verifiedPayloads, hasLength(1));
+      },
+    );
+
+    test(
+      'restores when StoreKit reports a partial failure before a valid event',
+      () async {
+        service = AppleIapService.forTesting(
+          platform: platform,
+          transactionVerifier: (payload) async {
+            verifiedPayloads.add(payload);
+            return {'success': true};
+          },
+          restoreTimeout: const Duration(milliseconds: 100),
+        );
+        service.setUserIdProvider(() => '4a476859-2929-43ef-9a38-2e80eb7e7bb0');
+        platform.restoreError = StateError('partial StoreKit restore failure');
+        await service.init();
+
+        final restoredFuture = service.restorePurchases();
+        await _flushEvents();
+        platform.emit(
+          _sk2Purchase(
+            PurchaseStatus.restored,
+            appAccountToken: '4a476859-2929-43ef-9a38-2e80eb7e7bb0',
+          ),
+        );
+
+        expect(await restoredFuture, AppleRestoreResult.restored);
+        expect(verifiedPayloads, hasLength(1));
+      },
+    );
+
+    test(
       'keeps a transaction unfinished when server verification fails',
       () async {
         service = AppleIapService.forTesting(
@@ -416,6 +604,22 @@ PurchaseDetails _purchase(PurchaseStatus status) {
   return purchase;
 }
 
+PurchaseDetails _sk2Purchase(
+  PurchaseStatus status, {
+  required String? appAccountToken,
+}) => SK2PurchaseDetails(
+  purchaseID: 'transaction-1',
+  productID: 'me.dinq.app.pro.monthly',
+  verificationData: PurchaseVerificationData(
+    localVerificationData: '',
+    serverVerificationData: 'signed-jws',
+    source: 'app_store',
+  ),
+  transactionDate: '1',
+  status: status,
+  appAccountToken: appAccountToken,
+);
+
 Future<void> _flushEvents() =>
     Future<void>.delayed(const Duration(milliseconds: 10));
 
@@ -498,6 +702,8 @@ class _FakeIapPlatform extends InAppPurchasePlatform {
   }
 
   void emit(PurchaseDetails purchase) => _controller.add([purchase]);
+
+  void emitMany(List<PurchaseDetails> purchases) => _controller.add(purchases);
 
   Future<void> close() => _controller.close();
 }
