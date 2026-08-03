@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dinq_app/services/apple_iap_service.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
 
@@ -12,9 +13,23 @@ void main() {
         AppleIapService.productIdForPlan('pro_monthly'),
         'me.dinq.app.pro.monthly',
       );
+      expect(
+        AppleIapService.productIdForPlan('basic_monthly'),
+        'me.dinq.app.basic.monthly.v2',
+      );
       expect(AppleIapService.isSupportedPlan('basic_yearly'), isTrue);
       expect(AppleIapService.isSupportedPlan('pro_yearly'), isFalse);
       expect(AppleIapService.isSupportedPlan('plus_monthly'), isFalse);
+    });
+
+    test('keeps the legacy Basic monthly product available for refunds', () {
+      expect(AppleIapService.refundProductIdsForPlan('basic_monthly'), [
+        'me.dinq.app.basic.monthly.v2',
+        'me.dinq.app.basic.monthly',
+      ]);
+      expect(AppleIapService.refundProductIdsForPlan('pro_monthly'), [
+        'me.dinq.app.pro.monthly',
+      ]);
     });
 
     test('returns the localized App Store price for a plan', () {
@@ -79,6 +94,33 @@ void main() {
       await platform.close();
     });
 
+    testWidgets('refund falls back to the legacy Basic monthly product', (
+      tester,
+    ) async {
+      const channel = MethodChannel('me.dinq.app/storekit');
+      final requestedProductIds = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            final arguments = Map<String, dynamic>.from(call.arguments as Map);
+            final productId = arguments['productId'] as String;
+            requestedProductIds.add(productId);
+            if (productId == 'me.dinq.app.basic.monthly.v2') {
+              throw PlatformException(code: 'no_transaction');
+            }
+            return 'success';
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+
+      expect(await service.beginRefundRequest('basic_monthly'), 'success');
+      expect(requestedProductIds, [
+        'me.dinq.app.basic.monthly.v2',
+        'me.dinq.app.basic.monthly',
+      ]);
+    });
+
     test('starts a purchase with the DINQ user UUID', () async {
       await service.init();
 
@@ -93,7 +135,12 @@ void main() {
         'me.dinq.app.pro.monthly',
       );
       expect(service.priceForPlan('pro_monthly'), '¥988');
-      expect(await service.buy('basic_monthly'), isFalse);
+      expect(await service.buy('basic_monthly'), isTrue);
+      expect(
+        platform.lastPurchaseParam?.productDetails.id,
+        'me.dinq.app.basic.monthly.v2',
+      );
+      expect(await service.buy('basic_yearly'), isFalse);
       expect(
         service.purchaseStartErrorMessage,
         'This subscription is not available in the App Store for this build. '
@@ -184,7 +231,7 @@ void main() {
 
         expect(
           await service
-              .buy('basic_monthly')
+              .buy('basic_yearly')
               .timeout(const Duration(milliseconds: 200)),
           isFalse,
         );
@@ -414,9 +461,21 @@ class _FakeIapPlatform extends InAppPurchasePlatform {
           rawPrice: 988,
           currencyCode: 'CNY',
         ),
+        ProductDetails(
+          id: 'me.dinq.app.basic.monthly.v2',
+          title: 'DINQ Basic',
+          description: 'Monthly subscription',
+          price: 'US\$49',
+          rawPrice: 49,
+          currencyCode: 'USD',
+        ),
       ],
       notFoundIDs: identifiers
-          .where((id) => id != 'me.dinq.app.pro.monthly')
+          .where(
+            (id) =>
+                id != 'me.dinq.app.pro.monthly' &&
+                id != 'me.dinq.app.basic.monthly.v2',
+          )
           .toList(),
     );
   }

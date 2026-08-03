@@ -43,11 +43,12 @@ class AppleIapService {
 
   static final AppleIapService instance = AppleIapService._();
   static const _productIdPrefix = 'me.dinq.app.';
-  static const Set<String> _productIds = {
-    'me.dinq.app.pro.monthly',
-    'me.dinq.app.basic.monthly',
-    'me.dinq.app.basic.yearly',
+  static const Map<String, String> _productIdByPlan = {
+    'pro_monthly': 'me.dinq.app.pro.monthly',
+    'basic_monthly': 'me.dinq.app.basic.monthly.v2',
+    'basic_yearly': 'me.dinq.app.basic.yearly',
   };
+  static final Set<String> _productIds = _productIdByPlan.values.toSet();
   static final RegExp _uuidPattern = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
   );
@@ -124,9 +125,17 @@ class AppleIapService {
   }
 
   Future<void> _loadProducts() async {
+    final requestedProductIds = _productIds.toList()..sort();
+    debugPrint('IAP requested product IDs: $requestedProductIds');
     final response = await _platform
         .queryProductDetails(_productIds)
         .timeout(_initializationTimeout);
+    final returnedProductIds =
+        response.productDetails.map((product) => product.id).toList()..sort();
+    debugPrint('IAP returned product IDs: $returnedProductIds');
+    if (response.notFoundIDs.isNotEmpty) {
+      debugPrint('IAP products not found: ${response.notFoundIDs}');
+    }
     if (response.error case final error?) {
       debugPrint('IAP product query failed: ${error.code}');
       _products = {};
@@ -135,16 +144,21 @@ class AppleIapService {
     _products = {
       for (final product in response.productDetails) product.id: product,
     };
-    if (response.notFoundIDs.isNotEmpty) {
-      debugPrint('IAP products not found: ${response.notFoundIDs}');
-    }
   }
 
   static String productIdForPlan(String plan) =>
-      '$_productIdPrefix${plan.replaceAll('_', '.')}';
+      _productIdByPlan[plan] ?? '$_productIdPrefix${plan.replaceAll('_', '.')}';
 
   static bool isSupportedPlan(String plan) =>
-      _productIds.contains(productIdForPlan(plan));
+      _productIdByPlan.containsKey(plan);
+
+  static List<String> refundProductIdsForPlan(String plan) {
+    final currentProductId = productIdForPlan(plan);
+    if (plan == 'basic_monthly') {
+      return [currentProductId, 'me.dinq.app.basic.monthly'];
+    }
+    return [currentProductId];
+  }
 
   static String? appAccountTokenForUser(String? userId) {
     if (userId == null || !_uuidPattern.hasMatch(userId)) return null;
@@ -354,10 +368,21 @@ class AppleIapService {
   Future<void> showManageSubscriptions() =>
       _bridge.invokeMethod<void>('showManageSubscriptions');
 
-  Future<String?> beginRefundRequest(String plan) =>
-      _bridge.invokeMethod<String>('beginRefundRequest', {
-        'productId': productIdForPlan(plan),
-      });
+  Future<String?> beginRefundRequest(String plan) async {
+    PlatformException? noTransactionError;
+    for (final productId in refundProductIdsForPlan(plan)) {
+      try {
+        return await _bridge.invokeMethod<String>('beginRefundRequest', {
+          'productId': productId,
+        });
+      } on PlatformException catch (error) {
+        if (error.code != 'no_transaction') rethrow;
+        noTransactionError = error;
+      }
+    }
+    if (noTransactionError != null) throw noTransactionError;
+    return null;
+  }
 
   void dispose() {
     _restoreTimer?.cancel();
