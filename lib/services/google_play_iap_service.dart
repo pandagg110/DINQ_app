@@ -46,12 +46,17 @@ class GooglePlayIapService {
   );
 
   static final GooglePlayIapService instance = GooglePlayIapService._();
-  static const _productIdPrefix = 'me.dinq.app.';
-  static const Set<String> _productIds = {
-    'me.dinq.app.basic.monthly',
-    'me.dinq.app.basic.yearly',
-    'me.dinq.app.pro.monthly',
+  static const Map<String, String> _productIdByPlan = {
+    'basic_monthly': 'dinq_basic',
+    'basic_yearly': 'dinq_basic',
+    'pro_monthly': 'dinq_pro',
   };
+  static const Map<String, String> _basePlanIdByPlan = {
+    'basic_monthly': 'monthly',
+    'basic_yearly': 'yearly',
+    'pro_monthly': 'monthly',
+  };
+  static final Set<String> _productIds = _productIdByPlan.values.toSet();
   static final RegExp _uuidPattern = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
   );
@@ -63,7 +68,7 @@ class GooglePlayIapService {
   final Duration _initializationTimeout;
   final Duration _platformOperationTimeout;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
-  Map<String, ProductDetails> _products = {};
+  Map<String, GooglePlayProductDetails> _productsByPlan = {};
   GooglePlayPurchaseDetails? _activePurchase;
   bool _ready = false;
   Future<void>? _initialization;
@@ -129,19 +134,60 @@ class GooglePlayIapService {
     final response = await _platform
         .queryProductDetails(_productIds)
         .timeout(_initializationTimeout);
-    _products = {
-      for (final product in response.productDetails) product.id: product,
-    };
+    final googleProducts = response.productDetails
+        .whereType<GooglePlayProductDetails>()
+        .toList();
+    final productsByPlan = <String, GooglePlayProductDetails>{};
+    for (final plan in _productIdByPlan.keys) {
+      final product = _productForPlan(plan, googleProducts);
+      if (product != null) {
+        productsByPlan[plan] = product;
+      }
+    }
+    _productsByPlan = productsByPlan;
     if (response.notFoundIDs.isNotEmpty) {
       debugPrint('Google Play products not found: ${response.notFoundIDs}');
     }
+    final missingPlans = _productIdByPlan.keys
+        .where((plan) => !_productsByPlan.containsKey(plan))
+        .toList();
+    if (missingPlans.isNotEmpty) {
+      debugPrint('Google Play base plans not found: $missingPlans');
+    }
   }
 
-  static String productIdForPlan(String plan) =>
-      '$_productIdPrefix${plan.replaceAll('_', '.')}';
+  static String productIdForPlan(String plan) => _productIdByPlan[plan] ?? '';
+
+  static String? basePlanIdForPlan(String plan) => _basePlanIdByPlan[plan];
 
   static bool isSupportedPlan(String plan) =>
-      _productIds.contains(productIdForPlan(plan));
+      _productIdByPlan.containsKey(plan) && _basePlanIdByPlan.containsKey(plan);
+
+  static GooglePlayProductDetails? _productForPlan(
+    String plan,
+    Iterable<GooglePlayProductDetails> products,
+  ) {
+    final productId = _productIdByPlan[plan];
+    final basePlanId = _basePlanIdByPlan[plan];
+    if (productId == null || basePlanId == null) return null;
+    for (final product in products) {
+      if (product.id != productId) continue;
+      final offer = _offerForProduct(product);
+      if (offer?.basePlanId == basePlanId && offer?.offerId == null) {
+        return product;
+      }
+    }
+    return null;
+  }
+
+  static SubscriptionOfferDetailsWrapper? _offerForProduct(
+    GooglePlayProductDetails product,
+  ) {
+    final index = product.subscriptionIndex;
+    final offers = product.productDetails.subscriptionOfferDetails;
+    if (index == null || offers == null || index >= offers.length) return null;
+    return offers[index];
+  }
 
   static String? accountIdForUser(String? userId) {
     if (userId == null || !_uuidPattern.hasMatch(userId)) return null;
@@ -153,7 +199,7 @@ class GooglePlayIapService {
   bool supportsPlan(String plan) => isSupportedPlan(plan);
 
   String? priceForPlan(String plan) {
-    final product = _products[productIdForPlan(plan)];
+    final product = _productsByPlan[plan];
     return product?.price;
   }
 
@@ -163,7 +209,7 @@ class GooglePlayIapService {
     if (!_ready) await init();
     if (!_ready) return false;
 
-    var product = _products[productIdForPlan(plan)];
+    var product = _productsByPlan[plan];
     if (product == null) {
       try {
         await _loadProducts();
@@ -171,25 +217,27 @@ class GooglePlayIapService {
         debugPrint('Google Play product reload failed: ${error.runtimeType}');
         return false;
       }
-      product = _products[productIdForPlan(plan)];
+      product = _productsByPlan[plan];
     }
     if (product == null) return false;
 
     final activePurchase = _activePurchase;
     try {
-      return await _platform.buyNonConsumable(
-        purchaseParam: GooglePlayPurchaseParam(
-          productDetails: product,
-          applicationUserName: accountId,
-          changeSubscriptionParam:
-              activePurchase == null || activePurchase.productID == product.id
-              ? null
-              : ChangeSubscriptionParam(
-                  oldPurchaseDetails: activePurchase,
-                  replacementMode: ReplacementMode.withTimeProration,
-                ),
-        ),
-      ).timeout(_platformOperationTimeout);
+      return await _platform
+          .buyNonConsumable(
+            purchaseParam: GooglePlayPurchaseParam(
+              productDetails: product,
+              applicationUserName: accountId,
+              offerToken: product.offerToken,
+              changeSubscriptionParam: activePurchase == null
+                  ? null
+                  : ChangeSubscriptionParam(
+                      oldPurchaseDetails: activePurchase,
+                      replacementMode: ReplacementMode.withTimeProration,
+                    ),
+            ),
+          )
+          .timeout(_platformOperationTimeout);
     } catch (error) {
       debugPrint('Google Play purchase start failed: ${error.runtimeType}');
       return false;

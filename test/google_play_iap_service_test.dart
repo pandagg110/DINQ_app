@@ -15,6 +15,21 @@ void main() {
       expect(GooglePlayIapService.isSupportedPlan('basic_yearly'), isTrue);
       expect(GooglePlayIapService.isSupportedPlan('pro_monthly'), isTrue);
       expect(GooglePlayIapService.isSupportedPlan('pro_yearly'), isFalse);
+      expect(
+        GooglePlayIapService.productIdForPlan('basic_monthly'),
+        'dinq_basic',
+      );
+      expect(
+        GooglePlayIapService.productIdForPlan('basic_yearly'),
+        'dinq_basic',
+      );
+      expect(GooglePlayIapService.productIdForPlan('pro_monthly'), 'dinq_pro');
+      expect(
+        GooglePlayIapService.basePlanIdForPlan('basic_monthly'),
+        'monthly',
+      );
+      expect(GooglePlayIapService.basePlanIdForPlan('basic_yearly'), 'yearly');
+      expect(GooglePlayIapService.basePlanIdForPlan('pro_monthly'), 'monthly');
     });
   });
 
@@ -51,10 +66,14 @@ void main() {
         platform.lastPurchaseParam?.applicationUserName,
         '4a476859-2929-43ef-9a38-2e80eb7e7bb0',
       );
+      expect(platform.lastPurchaseParam?.productDetails.id, 'dinq_pro');
       expect(
-        platform.lastPurchaseParam?.productDetails.id,
-        'me.dinq.app.pro.monthly',
+        (platform.lastPurchaseParam as GooglePlayPurchaseParam).offerToken,
+        'token-pro-monthly',
       );
+      expect(platform.queriedProductIds, {'dinq_basic', 'dinq_pro'});
+      expect(service.priceForPlan('basic_monthly'), r'$29');
+      expect(service.priceForPlan('basic_yearly'), r'$290');
     });
 
     test(
@@ -89,10 +108,7 @@ void main() {
       platform.restoreBlock = Completer<void>();
       await service.init();
 
-      expect(
-        await service.restorePurchases(),
-        GooglePlayRestoreResult.failed,
-      );
+      expect(await service.restorePurchases(), GooglePlayRestoreResult.failed);
     });
 
     test('acknowledges a purchase only after server verification', () async {
@@ -105,7 +121,7 @@ void main() {
       expect(verifiedPayloads, [
         {
           'purchase_token': 'purchase-token',
-          'product_id': 'me.dinq.app.pro.monthly',
+          'product_id': 'dinq_pro',
           'order_id': 'order-1',
         },
       ]);
@@ -130,10 +146,7 @@ void main() {
       () async {
         await service.init();
         platform.emit([
-          _googlePurchase(
-            PurchaseStatus.restored,
-            productID: 'me.dinq.app.basic.monthly',
-          ),
+          _googlePurchase(PurchaseStatus.restored, productID: 'dinq_basic'),
         ]);
         await Future<void>.delayed(Duration.zero);
 
@@ -148,13 +161,29 @@ void main() {
         expect(purchaseParam.changeSubscriptionParam, isNull);
       },
     );
+
+    test('changes base plans within the same subscription product', () async {
+      await service.init();
+      platform.emit([
+        _googlePurchase(PurchaseStatus.restored, productID: 'dinq_basic'),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(await service.buy('basic_yearly'), isTrue);
+
+      final purchaseParam =
+          platform.lastPurchaseParam as GooglePlayPurchaseParam;
+      expect(purchaseParam.productDetails.id, 'dinq_basic');
+      expect(purchaseParam.offerToken, 'token-basic-yearly');
+      expect(purchaseParam.changeSubscriptionParam, isNotNull);
+    });
   });
 }
 
 PurchaseDetails _purchase(PurchaseStatus status) {
   final purchase = PurchaseDetails(
     purchaseID: 'order-1',
-    productID: 'me.dinq.app.pro.monthly',
+    productID: 'dinq_pro',
     verificationData: PurchaseVerificationData(
       localVerificationData: '{}',
       serverVerificationData: 'purchase-token',
@@ -204,6 +233,7 @@ class _FakeGooglePlayPlatform extends InAppPurchasePlatform {
   Completer<ProductDetailsResponse>? queryBlock;
   Completer<bool>? buyBlock;
   Completer<void>? restoreBlock;
+  Set<String>? queriedProductIds;
 
   @override
   Stream<List<PurchaseDetails>> get purchaseStream => _updates.stream;
@@ -215,33 +245,50 @@ class _FakeGooglePlayPlatform extends InAppPurchasePlatform {
   Future<ProductDetailsResponse> queryProductDetails(
     Set<String> identifiers,
   ) async {
+    queriedProductIds = identifiers;
     final block = queryBlock;
     if (block != null) return block.future;
+    final products = <ProductDetails>[
+      ...GooglePlayProductDetails.fromProductDetails(
+        _subscriptionProduct(
+          productId: 'dinq_basic',
+          offers: [
+            _basePlan(
+              id: 'monthly',
+              token: 'token-basic-monthly',
+              price: r'$29',
+              micros: 29000000,
+              period: 'P1M',
+            ),
+            _basePlan(
+              id: 'yearly',
+              token: 'token-basic-yearly',
+              price: r'$290',
+              micros: 290000000,
+              period: 'P1Y',
+            ),
+          ],
+        ),
+      ),
+      ...GooglePlayProductDetails.fromProductDetails(
+        _subscriptionProduct(
+          productId: 'dinq_pro',
+          offers: [
+            _basePlan(
+              id: 'monthly',
+              token: 'token-pro-monthly',
+              price: r'$99',
+              micros: 99000000,
+              period: 'P1M',
+            ),
+          ],
+        ),
+      ),
+    ];
     return ProductDetailsResponse(
-      productDetails: [
-        ProductDetails(
-          id: 'me.dinq.app.basic.monthly',
-          title: 'DINQ Basic',
-          description: 'Monthly subscription',
-          price: r'$29',
-          rawPrice: 29,
-          currencyCode: 'USD',
-        ),
-        ProductDetails(
-          id: 'me.dinq.app.pro.monthly',
-          title: 'DINQ Pro',
-          description: 'Monthly subscription',
-          price: r'$99',
-          rawPrice: 99,
-          currencyCode: 'USD',
-        ),
-      ],
+      productDetails: products,
       notFoundIDs: identifiers
-          .where(
-            (id) =>
-                id != 'me.dinq.app.basic.monthly' &&
-                id != 'me.dinq.app.pro.monthly',
-          )
+          .where((id) => id != 'dinq_basic' && id != 'dinq_pro')
           .toList(),
     );
   }
@@ -271,3 +318,38 @@ class _FakeGooglePlayPlatform extends InAppPurchasePlatform {
 
   Future<void> dispose() => _updates.close();
 }
+
+ProductDetailsWrapper _subscriptionProduct({
+  required String productId,
+  required List<SubscriptionOfferDetailsWrapper> offers,
+}) => ProductDetailsWrapper(
+  description: '$productId subscription',
+  name: productId,
+  productId: productId,
+  productType: ProductType.subs,
+  subscriptionOfferDetails: offers,
+  title: productId,
+);
+
+SubscriptionOfferDetailsWrapper _basePlan({
+  required String id,
+  required String token,
+  required String price,
+  required int micros,
+  required String period,
+}) => SubscriptionOfferDetailsWrapper(
+  basePlanId: id,
+  offerId: null,
+  offerTags: const [],
+  offerIdToken: token,
+  pricingPhases: [
+    PricingPhaseWrapper(
+      billingCycleCount: 0,
+      billingPeriod: period,
+      formattedPrice: price,
+      priceAmountMicros: micros,
+      priceCurrencyCode: 'USD',
+      recurrenceMode: RecurrenceMode.infiniteRecurring,
+    ),
+  ],
+);

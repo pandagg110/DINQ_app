@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "889216227743-ln5hega2lpgd5svsqrff8ks2viu135na.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "me.dinq.app",
+            "certificate_hash": "0999466006f3368676f6730d6035f9d6893bffd7"
+          }
+        },
+        {
           "client_id": "889216227743-nq384ikfoo77j5h3a9n3f0vbfdv0anur.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
