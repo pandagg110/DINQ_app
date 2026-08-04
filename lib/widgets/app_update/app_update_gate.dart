@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../services/app_update_service.dart';
+import 'update_required_panel.dart';
 
 typedef OpenUpdateLink = Future<bool> Function(String url);
 
@@ -26,6 +27,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
   late final AppUpdateChecker _checker;
   late final OpenUpdateLink _openUpdate;
   AppUpdateInfo? _update;
+  String _currentVersion = '';
   int? _dismissedVersionCode;
   bool _checking = false;
   bool _opening = false;
@@ -35,7 +37,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
   void initState() {
     super.initState();
     _checker = widget.checker ?? AppUpdateService();
-    _openUpdate = widget.openUpdate ?? _openExternal;
+    _openUpdate = widget.openUpdate ?? openAppUpdateUrl;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _check());
   }
@@ -67,6 +69,13 @@ class _AppUpdateGateState extends State<AppUpdateGate>
       _error = null;
       _update = result.shouldShowPrompt && !dismissed ? result : null;
     });
+
+    // 版本号仅作展示，不阻塞门禁弹窗。
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _currentVersion = packageInfo.version);
+    } catch (_) {}
   }
 
   Future<void> _updateNow() async {
@@ -100,8 +109,10 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     });
   }
 
-  Future<bool> _openExternal(String url) {
-    return launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  String _requiredVersion(AppUpdateInfo update) {
+    if (update.latestVersion.isNotEmpty) return update.latestVersion;
+    if (update.minimumVersion.isNotEmpty) return update.minimumVersion;
+    return '';
   }
 
   @override
@@ -120,69 +131,14 @@ class _AppUpdateGateState extends State<AppUpdateGate>
             Positioned.fill(
               child: SafeArea(
                 child: Center(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Container(
-                      width: 360,
-                      constraints: const BoxConstraints(maxHeight: 520),
-                      margin: const EdgeInsets.all(24),
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            forced ? 'Update required' : 'Update available',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            update.latestVersion.isEmpty
-                                ? 'A new version of DINQ is available.'
-                                : 'DINQ ${update.latestVersion} is available.',
-                          ),
-                          if (update.releaseNotes.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            Flexible(
-                              child: SingleChildScrollView(
-                                child: Text(update.releaseNotes),
-                              ),
-                            ),
-                          ],
-                          if (_error != null) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              _error!,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          ],
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (!forced) ...[
-                                TextButton(
-                                  onPressed: _opening ? null : _dismiss,
-                                  child: const Text('Later'),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              FilledButton(
-                                onPressed: _opening ? null : _updateNow,
-                                child: Text(
-                                  _opening ? 'Opening…' : 'Update now',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: UpdateRequiredPanel(
+                    currentVersion:
+                        _currentVersion.isEmpty ? '—' : _currentVersion,
+                    requiredVersion: _requiredVersion(update),
+                    opening: _opening,
+                    error: _error,
+                    onDismiss: forced ? null : _dismiss,
+                    onUpdateNow: _updateNow,
                   ),
                 ),
               ),

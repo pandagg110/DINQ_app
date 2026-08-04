@@ -39,9 +39,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Update required'), findsOneWidget);
-    expect(find.text('Later'), findsNothing);
-    expect(find.text('Update now'), findsOneWidget);
+    expect(find.text('Update Required'), findsOneWidget);
+    expect(find.text('0.1.2'), findsOneWidget);
+    expect(find.text('Update Now'), findsOneWidget);
     expect(find.text('App content'), findsOneWidget);
   });
 
@@ -57,11 +57,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Update available'), findsOneWidget);
-    await tester.tap(find.text('Later'));
+    expect(find.text('Update Required'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
     await tester.pumpAndSettle();
 
-    expect(find.text('Update available'), findsNothing);
+    expect(find.text('Update Required'), findsNothing);
     expect(find.text('App content'), findsOneWidget);
   });
 
@@ -79,13 +79,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Update now'));
+    await tester.tap(find.text('Update Now'));
     await tester.pumpAndSettle();
 
     expect(
       find.text('Unable to open the update page. Please try again.'),
       findsOneWidget,
     );
-    expect(find.text('Update now'), findsOneWidget);
+    expect(find.text('Update Now'), findsOneWidget);
   });
 }
