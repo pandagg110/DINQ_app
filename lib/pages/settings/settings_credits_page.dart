@@ -125,7 +125,7 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
 
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
-      appBar: DefaultAppBar(context, titleString: 'Credits'),
+      appBar: DefaultAppBar(context, titleString: 'Manage'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [

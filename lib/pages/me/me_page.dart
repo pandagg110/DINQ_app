@@ -79,19 +79,6 @@ class _MePageState extends State<MePage> {
     }
   }
 
-  String _getContentType(String? extension) {
-    switch (extension?.toLowerCase()) {
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      default:
-        return 'image/jpeg';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final userStore = context.watch<UserStore>();
@@ -267,7 +254,10 @@ class _MePageState extends State<MePage> {
   Widget _buildSubscriptionCard(String basePlan, int credits) {
     // 按实际订阅档位显示（web PLAN_LABEL：free/basic/pro，plus 显示为 Pro），
     // 修复所有付费档位都显示成 "Pro" 的问题
-    final isFree = basePlan == 'free';
+    // 产品规则：只有 Pro（以及存量 plus / enterprise）用户显示 Manage；
+    // Free/Basic 统一跳转定价页用于 Upgrade。
+    final isManagePlan =
+        basePlan == 'pro' || basePlan == 'plus' || basePlan == 'enterprise';
     final displayPlan = kPlanLabel[basePlan] ?? basePlan;
 
     return Container(
@@ -297,29 +287,30 @@ class _MePageState extends State<MePage> {
                     color: ColorUtil.textColor,
                   ),
                 ),
-                if (isFree)
-                  NormalButton(
-                    onTap: () => context.push('/pricing'),
-                    child: Container(
-                      height: 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      decoration: BoxDecoration(
-                        color: ColorUtil.textColor,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Center(
-                        child: const Text(
-                          'Upgrade',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Geist',
-                            color: Colors.white,
-                          ),
+                NormalButton(
+                  onTap: () => context.push(
+                    isManagePlan ? '/settings/credits' : '/pricing',
+                  ),
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    decoration: BoxDecoration(
+                      color: ColorUtil.textColor,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Center(
+                      child: Text(
+                        isManagePlan ? 'Manage' : 'Upgrade',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Geist',
+                          color: Colors.white,
                         ),
                       ),
                     ),
                   ),
+                ),
               ],
             ),
           ),
