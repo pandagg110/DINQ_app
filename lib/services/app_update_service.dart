@@ -97,24 +97,57 @@ class AppUpdateService implements AppUpdateChecker {
     }
 
     try {
-      final packageInfo = _packageInfo ??= await PackageInfo.fromPlatform();
-      final versionCode = int.tryParse(packageInfo.buildNumber) ?? 0;
-      if (versionCode < 1) return null;
-
-      final data = _fetchVersion != null
-          ? await _fetchVersion(versionCode, _channel)
-          : (await ApiClient.instance.dio.get<Map<String, dynamic>>(
-              '/app/version',
-              queryParameters: {
-                'platform': 'android',
-                'channel': _channel,
-                'version_code': versionCode,
-              },
-            )).data;
-      return data == null ? null : AppUpdateInfo.fromJson(data);
+      return (await checkManually()).info;
     } catch (_) {
       // Version checks fail open. A transient backend outage must not lock users out.
       return null;
     }
   }
+
+  /// Help & Support 手动检测：失败时抛出，便于展示错误弹窗。
+  Future<AppUpdateManualResult> checkManually() async {
+    final packageInfo = _packageInfo ??= await PackageInfo.fromPlatform();
+    final versionCode = int.tryParse(packageInfo.buildNumber) ?? 0;
+    if (versionCode < 1) {
+      throw StateError('Invalid app version code.');
+    }
+
+    final platform = (_isAndroid == false ||
+            (_isAndroid == null && defaultTargetPlatform == TargetPlatform.iOS))
+        ? 'ios'
+        : 'android';
+
+    final data = _fetchVersion != null
+        ? await _fetchVersion(versionCode, _channel)
+        : (await ApiClient.instance.dio.get<Map<String, dynamic>>(
+            '/app/version',
+            queryParameters: {
+              'platform': platform,
+              'channel': _channel,
+              'version_code': versionCode,
+            },
+          )).data;
+
+    if (data == null) {
+      throw StateError('Empty version response.');
+    }
+
+    return AppUpdateManualResult(
+      info: AppUpdateInfo.fromJson(data),
+      currentVersion: packageInfo.version,
+      currentVersionCode: versionCode,
+    );
+  }
+}
+
+class AppUpdateManualResult {
+  const AppUpdateManualResult({
+    required this.info,
+    required this.currentVersion,
+    required this.currentVersionCode,
+  });
+
+  final AppUpdateInfo info;
+  final String currentVersion;
+  final int currentVersionCode;
 }

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_constants.dart';
 import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
+import '../../widgets/app_update/version_check_flow.dart';
 import '../../widgets/common/default_app_bar.dart';
 
 /// Settings → Help & Support。
@@ -182,6 +183,7 @@ class _SettingsHelpPageState extends State<SettingsHelpPage> {
               icon: Icons.terminal_rounded,
               label: 'Version',
               trailingText: _versionLabel.isEmpty ? '—' : _versionLabel,
+              onTap: () => showManualVersionCheckFlow(context),
             ),
           ]),
           const SizedBox(height: 16),
