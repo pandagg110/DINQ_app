@@ -11,6 +11,7 @@ import '../../../stores/messages_store.dart';
 import '../../../stores/notifications_store.dart';
 import '../../../stores/user_store.dart';
 import '../../../widgets/inbox/delete_conversation_modal.dart';
+import '../../../widgets/inbox/notification_detail_modal.dart';
 import '../../../widgets/inbox/org_chat_badge.dart';
 import '../../../widgets/common/base_page.dart';
 
@@ -71,6 +72,27 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
     _searchController.dispose();
     _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _handleNotificationClick(AppNotification notification) async {
+    final store = context.read<NotificationsStore>();
+    try {
+      // 触发后端详情拉取，同时会自动标记本条通知已读。
+      await store.loadNotificationDetail(notification.id);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    await NotificationDetailModal.show(
+      context: context,
+      notification: notification,
+      onClose: () {
+        final url = notification.metadata?['url'];
+        if (url is String && url.isNotEmpty) {
+          context.push(url);
+        }
+      },
+    );
   }
 
   void _onSearchChanged(String query) {
@@ -314,52 +336,72 @@ class _AdminInboxPageState extends State<AdminInboxPage> {
   }
 
   Widget _buildNotificationItem(AppNotification n) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            margin: const EdgeInsets.only(top: 6, right: 10),
-            decoration: BoxDecoration(
-              color: n.isRead ? Colors.transparent : const Color(0xFFEF4444),
-              shape: BoxShape.circle,
+    return InkWell(
+      onTap: () => _handleNotificationClick(n),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(top: 6, right: 10),
+              decoration: BoxDecoration(
+                color: n.isRead ? Colors.transparent : const Color(0xFFEF4444),
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(n.title,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          n.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600,
-                              color: Color(0xFF171717), fontFamily: 'Geist')),
-                    ),
-                    Text(formatMessageDate(n.createdAt),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500], fontFamily: 'Geist')),
-                  ],
-                ),
-                if (n.content.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(n.content,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF171717),
+                            fontFamily: 'Geist',
+                          ),
+                        ),
+                      ),
+                      Text(
+                        formatMessageDate(n.createdAt),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (n.content.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      n.content,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600], fontFamily: 'Geist')),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        fontFamily: 'Geist',
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
