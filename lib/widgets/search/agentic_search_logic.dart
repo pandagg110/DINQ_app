@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../services/analytics_service.dart';
 import '../../services/search_service.dart';
+import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../utils/parse_quick_replies.dart';
 import 'deep_search/deep_search_results_helpers.dart';
@@ -11,6 +12,17 @@ import 'deep_search/deep_search_event_handlers.dart';
 import 'deep_search/deep_search_models.dart';
 import 'deep_search/sub_agent_helpers.dart';
 import 'search_box_widget.dart';
+
+String? _firstNonEmptyLine(Iterable<String?> values) {
+  for (final value in values) {
+    if (value == null) continue;
+    for (final line in value.split(RegExp(r'\r?\n'))) {
+      final trimmed = line.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+  }
+  return null;
+}
 
 /// 与 TSX SearchPanel / useDeepSearch isInsufficientCredits 一致
 bool isInsufficientCredits(String message) {
@@ -219,6 +231,7 @@ class AgenticSearchLogic extends ChangeNotifier {
   AgenticSearchLogic({
     required this.searchService,
     required this.searchStore,
+    this.chatHistoryStore,
     this.resolveUserId,
     this.onSearchComplete,
     this.onScrollToBottom,
@@ -228,6 +241,7 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   final SearchService searchService;
   final SearchStore searchStore;
+  final ChatHistoryStore? chatHistoryStore;
 
   /// 与 TSX `deepSearchStream` 内 `user?.user?.id` 对齐。
   final String? Function()? resolveUserId;
@@ -245,9 +259,43 @@ class AgenticSearchLogic extends ChangeNotifier {
   bool analysisLoading = false;
   List<Map<String, dynamic>>? analysisCandidates;
   StreamSubscription? _streamSubscription;
+  Object? _activeLocalStreamToken;
   StreamSubscription? _analysisStreamSubscription;
   String? _activeSessionId;
   bool _creditsExhaustedNotified = false;
+
+  /// 当前本地 SSE 是否仍在监听（切会话 abort 后为 false）
+  bool get hasActiveLocalStream =>
+      _streamSubscription != null && _activeLocalStreamToken != null;
+
+  void _cancelLocalStreamSubscription() {
+    final token = _activeLocalStreamToken;
+    _activeLocalStreamToken = null;
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    if (token != null) {
+      searchStore.setIsSearching(false, owner: token);
+    }
+  }
+
+  bool _releaseLocalStream(Object token) {
+    if (!identical(_activeLocalStreamToken, token)) return false;
+    _activeLocalStreamToken = null;
+    _streamSubscription = null;
+    return true;
+  }
+
+  /// 当前正在搜索的 query（用于切走时写入 backgroundDiscoverQueries）
+  String? get activeSearchingQuery {
+    for (final g in messageGroups.reversed) {
+      if (g.toolType != null) continue;
+      if (g.loading || g.roundStatus == DeepSearchRoundStatus.searching) {
+        final query = _firstNonEmptyLine([g.displayQuery, g.userQuery]);
+        if (query != null) return query;
+      }
+    }
+    return null;
+  }
 
   /// 埋点：本会话内已提交搜索、尚未上报 search_result_view 的轮次
   /// （groupId → search_type）。历史恢复的轮次不在其中，天然不会重复上报。
@@ -804,7 +852,8 @@ class AgenticSearchLogic extends ChangeNotifier {
     }
     dispatcher.finalizeHistoryReplay();
 
-    // 与 TSX restoreDiscover：仅当仍为 searching 时才补 done
+    // 与 TSX restoreDiscover：历史事件回放结束后统一补 done。
+    // 后台进行中由 SearchPanel.backgroundProcessing 单独表现，不污染历史 round 状态。
     if (group.roundStatus == DeepSearchRoundStatus.searching) {
       group.roundStatus = DeepSearchRoundStatus.done;
       group.searchCompleted = true;
@@ -1018,11 +1067,21 @@ class AgenticSearchLogic extends ChangeNotifier {
     return steps;
   }
 
+  /// 与 Web `getConversationSearchState` / detail `is_running` 对齐
+  static bool isDiscoverConversationRunning(
+    Map<String, dynamic>? conversation,
+  ) {
+    if (conversation == null) return false;
+    final state = conversation['search_state']?.toString();
+    if (state == 'running') return true;
+    if (state == 'completed' || state == 'empty') return false;
+    return conversation['is_running'] == true;
+  }
+
   /// 与 TSX restoreConversation / loadFromConversation 一致
   void loadFromConversation(Map<String, dynamic> conversation) {
-    final records = conversation['records'];
-    if (records is! List) return;
-
+    final recordsRaw = conversation['records'];
+    final records = recordsRaw is List ? recordsRaw : const <dynamic>[];
     final convType =
         (conversation['type'] as String?) ??
         searchStore.extraType ??
@@ -1056,9 +1115,24 @@ class AgenticSearchLogic extends ChangeNotifier {
         searchStore.clearActiveTool();
     }
 
+    // 后台仍在跑、records 尚未落库：先清空，由 UI 侧 seed searching 占位
+    if (records.isEmpty) {
+      messageGroups = [];
+      loading = false;
+      advisorLoading = false;
+      advisorShuffleLoading = false;
+      citationLoading = false;
+      analysisLoading = false;
+      searchStore.setIsSearching(false);
+      searchStore.loadConversation(conversation);
+      notifyListeners();
+      return;
+    }
+
     final groups = <AgenticMessageGroup>[];
-    for (final r in records) {
-      if (r is! Map<String, dynamic>) continue;
+    for (final raw in records) {
+      if (raw is! Map) continue;
+      final r = Map<String, dynamic>.from(raw);
       final id = r['id'];
       final rawQuery = r['query'];
       final query = rawQuery is String
@@ -1290,8 +1364,7 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   /// 与 TSX clearMessages / startNewConversation 一致
   void clearMessages() {
-    _streamSubscription?.cancel();
-    _streamSubscription = null;
+    _cancelLocalStreamSubscription();
     _analysisStreamSubscription?.cancel();
     _analysisStreamSubscription = null;
     _setSessionId(null);
@@ -1324,6 +1397,7 @@ class AgenticSearchLogic extends ChangeNotifier {
     }
 
     _creditsExhaustedNotified = false;
+    _cancelLocalStreamSubscription();
 
     if (_activeSessionId == null) {
       final existing = searchStore.deepSearchSessionId;
@@ -1332,7 +1406,26 @@ class AgenticSearchLogic extends ChangeNotifier {
       }
     }
 
-    searchStore.setIsSearching(true);
+    final pendingTitle = _firstNonEmptyLine([
+      displayQuery,
+      trimmedQuery,
+      attachmentName,
+      attachment,
+    ]);
+    final pendingSessionId = _activeSessionId;
+    int? pendingRevision;
+    if (pendingSessionId != null &&
+        pendingSessionId.isNotEmpty &&
+        pendingTitle != null) {
+      pendingRevision = chatHistoryStore?.upsertPendingDiscoverSession(
+        sessionId: pendingSessionId,
+        title: pendingTitle,
+      );
+    }
+
+    final streamToken = Object();
+    _activeLocalStreamToken = streamToken;
+    searchStore.setIsSearching(true, owner: streamToken);
     final groupId = DateTime.now().millisecondsSinceEpoch;
 
     // 埋点：搜索请求正式发出。不采集搜索词/文件名，附件仅按扩展名映射类型。
@@ -1391,9 +1484,9 @@ class AgenticSearchLogic extends ChangeNotifier {
       modelProvider: modelProvider,
     );
 
-    _streamSubscription?.cancel();
     _streamSubscription = stream.listen(
       (event) {
+        if (!identical(_activeLocalStreamToken, streamToken)) return;
         final type = event['type'] as String?;
         if (type == null) return;
 
@@ -1488,6 +1581,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         }
       },
       onDone: () {
+        if (!_releaseLocalStream(streamToken)) return;
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
         final finalCandidates = idx >= 0
             ? messageGroups[idx].candidates
@@ -1510,7 +1604,16 @@ class AgenticSearchLogic extends ChangeNotifier {
         // 该轮不再有机会上报 search_result_view。
         _cancelPendingResultView(groupId);
         onSearchComplete?.call(finalCandidates, finalQuery);
-        searchStore.setIsSearching(false);
+        searchStore.setIsSearching(false, owner: streamToken);
+        final settledSid = pendingSessionId;
+        if (settledSid != null && settledSid.isNotEmpty) {
+          unawaited(
+            _refreshAndClearPendingDiscoverSession(
+              settledSid,
+              expectedRevision: pendingRevision,
+            ),
+          );
+        }
         notifyListeners();
         Future.delayed(
           const Duration(milliseconds: 100),
@@ -1529,6 +1632,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         }
       },
       onError: (e, st) {
+        if (!_releaseLocalStream(streamToken)) return;
         loading = false;
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
         final message = _deepSearchErrorMessage(e);
@@ -1538,11 +1642,35 @@ class AgenticSearchLogic extends ChangeNotifier {
         }
         // 流中断（解析异常/网络错误）的轮次不上报 search_result_view
         _cancelPendingResultView(groupId);
-        searchStore.setIsSearching(false);
+        searchStore.setIsSearching(false, owner: streamToken);
+        final settledSid = pendingSessionId;
+        if (settledSid != null && settledSid.isNotEmpty) {
+          chatHistoryStore?.clearPendingDiscoverSession(
+            settledSid,
+            expectedRevision: pendingRevision,
+          );
+        }
         notifyListeners();
         onRoundError?.call(message);
       },
+      cancelOnError: true,
     );
+  }
+
+  Future<void> _refreshAndClearPendingDiscoverSession(
+    String sessionId, {
+    int? expectedRevision,
+  }) async {
+    final history = chatHistoryStore;
+    if (history == null) return;
+    try {
+      await history.refreshTopConversations();
+    } finally {
+      history.clearPendingDiscoverSession(
+        sessionId,
+        expectedRevision: expectedRevision,
+      );
+    }
   }
 
   /// 错误轮次「Try again」：留在当前会话页，用原 query/附件重新发起搜索。
@@ -1930,10 +2058,16 @@ class AgenticSearchLogic extends ChangeNotifier {
     required Stream<Map<String, dynamic>> stream,
     required void Function(bool loading) setLoading,
   }) {
-    _streamSubscription?.cancel();
+    _cancelLocalStreamSubscription();
+    final streamToken = Object();
+    _activeLocalStreamToken = streamToken;
     _streamSubscription = stream.listen(
-      (event) => _processAdvisorStreamEvent(event, groupId),
+      (event) {
+        if (!identical(_activeLocalStreamToken, streamToken)) return;
+        _processAdvisorStreamEvent(event, groupId);
+      },
       onDone: () {
+        if (!_releaseLocalStream(streamToken)) return;
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
         if (idx >= 0) {
           messageGroups[idx].loading = false;
@@ -1948,6 +2082,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         onScrollToBottom?.call();
       },
       onError: (_, _) {
+        if (!_releaseLocalStream(streamToken)) return;
         final idx = messageGroups.indexWhere((g) => g.id == groupId);
         if (idx >= 0) {
           messageGroups[idx].loading = false;
@@ -1958,6 +2093,7 @@ class AgenticSearchLogic extends ChangeNotifier {
         setLoading(false);
         notifyListeners();
       },
+      cancelOnError: true,
     );
   }
 
@@ -2478,17 +2614,73 @@ class AgenticSearchLogic extends ChangeNotifier {
     }
   }
 
+  /// 与 Web `abortLocalStream` 对齐：只断本地 SSE，不调后端 `/stop`。
+  /// 用于切会话 / 路由切换；用户点 Stop 仍走 [handleStop]。
+  void abortLocalStream({bool clearPending = true}) {
+    final sid = _activeSessionId;
+    _cancelLocalStreamSubscription();
+    _analysisStreamSubscription?.cancel();
+    _analysisStreamSubscription = null;
+    _pendingResultViewGroups.clear();
+    loading = false;
+    advisorLoading = false;
+    advisorShuffleLoading = false;
+    citationLoading = false;
+    analysisLoading = false;
+    for (final g in messageGroups) {
+      if (g.loading) g.loading = false;
+    }
+    if (clearPending && sid != null && sid.isNotEmpty) {
+      chatHistoryStore?.clearPendingDiscoverSession(sid);
+    }
+    notifyListeners();
+  }
+
+  /// 与 Web detached placeholder `pushRound(..., status: searching)` 对齐
+  void seedSearchingPlaceholder({required String query, String? sessionId}) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+
+    if (sessionId != null && sessionId.isNotEmpty) {
+      _setSessionId(sessionId);
+    }
+
+    if (messageGroups.isNotEmpty) return;
+
+    final group = AgenticMessageGroup(
+      id: DateTime.now().millisecondsSinceEpoch,
+      userQuery: trimmed,
+      loading: true,
+      candidates: [],
+      searchType: 'global',
+      thinkingSteps: [],
+      thinkingExpanded: false,
+      searchCompleted: false,
+    );
+    group.displayQuery = trimmed;
+    group.roundStatus = DeepSearchRoundStatus.searching;
+    group.isDeepSearch = true;
+
+    messageGroups = [group];
+    // 全局 loading 保持 false：detached 态不可 Stop（对齐 Web backgroundProcessing）
+    loading = false;
+    searchStore.setIsSearching(false);
+    notifyListeners();
+  }
+
   /// 与 TSX handleStop 一致（尽量通知服务端停止）
   void handleStop() {
+    final sid = _activeSessionId;
     unawaited(_stopServerSearchIfNeeded());
+    if (sid != null && sid.isNotEmpty) {
+      chatHistoryStore?.clearPendingDiscoverSession(sid);
+    }
     _setSessionId(null);
-    _streamSubscription?.cancel();
-    _streamSubscription = null;
+    _cancelLocalStreamSubscription();
     _analysisStreamSubscription?.cancel();
     _analysisStreamSubscription = null;
     // 用户中断的轮次不上报 search_result_view
     _pendingResultViewGroups.clear();
-    searchStore.setIsSearching(false);
     loading = false;
     advisorLoading = false;
     advisorShuffleLoading = false;
@@ -2519,7 +2711,9 @@ class AgenticSearchLogic extends ChangeNotifier {
 
   @override
   void dispose() {
-    _streamSubscription?.cancel();
+    _cancelLocalStreamSubscription();
+    _analysisStreamSubscription?.cancel();
+    _analysisStreamSubscription = null;
     super.dispose();
   }
 }

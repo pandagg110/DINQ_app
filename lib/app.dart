@@ -27,6 +27,7 @@ import 'theme/app_theme.dart';
 import 'widgets/account/privacy_consent_gate.dart';
 import 'widgets/app_update/app_update_gate.dart';
 import 'widgets/cards/placeholder/use_placeholders.dart';
+import 'widgets/search/history/search_history_status_monitor.dart';
 
 class DinqApp extends StatelessWidget {
   DinqApp({
@@ -102,10 +103,13 @@ class DinqApp extends StatelessWidget {
                       child: easyLoadingBuilder(
                         context,
                         // 全局 privacy consent 弹窗（对齐 Web），覆盖所有路由
-                        AppUpdateGate(
-                          child: PrivacyConsentGate(
-                            router: _router,
-                            child: child ?? const SizedBox.shrink(),
+                        SearchHistoryStatusMonitor(
+                          router: _router,
+                          child: AppUpdateGate(
+                            child: PrivacyConsentGate(
+                              router: _router,
+                              child: child ?? const SizedBox.shrink(),
+                            ),
                           ),
                         ),
                       ),

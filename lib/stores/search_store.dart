@@ -41,6 +41,9 @@ class SearchStore extends ChangeNotifier {
   final List<SearchTabData> openTabs = [];
   int? activeTabId;
   bool isSearching = false;
+  Object? _searchOwner;
+  Object? _activeAgenticViewOwner;
+  String? Function()? _activeAgenticSessionProvider;
   int _idCounter = 0;
   String? pendingQuery;
   String? pendingFill;
@@ -88,6 +91,28 @@ class SearchStore extends ChangeNotifier {
     if (deepSearchSessionId == sessionId) return;
     deepSearchSessionId = sessionId;
     notifyListeners();
+  }
+
+  /// App 的消息轮次保存在当前 `AgenticChatWidget` 的本地 logic 中，而不是
+  /// SearchStore。路由恢复不能只比较全局 sessionId；还要确认当前挂载的
+  /// chat view 确实持有该 session，才能等价于 Web Zustand 的 alreadyLoaded。
+  void registerActiveAgenticView(
+    Object owner,
+    String? Function() sessionProvider,
+  ) {
+    _activeAgenticViewOwner = owner;
+    _activeAgenticSessionProvider = sessionProvider;
+  }
+
+  void unregisterActiveAgenticView(Object owner) {
+    if (!identical(_activeAgenticViewOwner, owner)) return;
+    _activeAgenticViewOwner = null;
+    _activeAgenticSessionProvider = null;
+  }
+
+  bool activeAgenticViewHasSession(String sessionId) {
+    if (_activeAgenticViewOwner == null) return false;
+    return _activeAgenticSessionProvider?.call() == sessionId;
   }
 
   int _nextId() {
@@ -213,8 +238,16 @@ class SearchStore extends ChangeNotifier {
     return openTabs.isNotEmpty ? openTabs.first : null;
   }
 
-  void setIsSearching(bool value) {
+  /// [owner] 用于隔离路由切换前后的本地 SSE。旧 widget/旧 stream 只能清理
+  /// 自己持有的 searching 状态，不能把新一轮搜索误置为 false。
+  void setIsSearching(bool value, {Object? owner}) {
+    if (!value && owner != null && !identical(_searchOwner, owner)) return;
+    if (isSearching == value &&
+        (value ? identical(_searchOwner, owner) : _searchOwner == null)) {
+      return;
+    }
     isSearching = value;
+    _searchOwner = value ? owner : null;
     notifyListeners();
   }
 
@@ -222,6 +255,7 @@ class SearchStore extends ChangeNotifier {
     openTabs.clear();
     activeTabId = null;
     isSearching = false;
+    _searchOwner = null;
     isLoadingConversation = false;
     pendingQuery = null;
     pendingDeepSearch = null;
@@ -340,8 +374,9 @@ class SearchStore extends ChangeNotifier {
   void syncCandidatesToTabs(List<Map<String, dynamic>> candidates) {
     for (final tab in openTabs) {
       final idx = tab.candidate['originalIndex'];
-      if (idx == null || idx is! int || idx < 0 || idx >= candidates.length)
+      if (idx == null || idx is! int || idx < 0 || idx >= candidates.length) {
         continue;
+      }
       final updated = candidates[idx];
       if (updated['name'] != tab.candidate['name']) continue;
       tab.candidate.addAll(updated);

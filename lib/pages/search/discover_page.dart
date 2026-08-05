@@ -11,7 +11,12 @@ import '../../widgets/search/chat_history_mobile_widget.dart';
 import '../../widgets/search/tab_panel_mobile_widget.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  const SearchPage({super.key, this.contentOverride});
+
+  /// 仅替换主内容区；路由状态同步、history/tab 面板仍按真实页面运行。
+  /// 主要用于对 URL ↔ SearchStore 的竞态做隔离测试。
+  @visibleForTesting
+  final Widget? contentOverride;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -25,6 +30,7 @@ class _SearchPageState extends State<SearchPage> {
   SearchStore? _searchStoreForDispose;
   DeepSearchEnrichStore? _enrichStoreForDispose;
   String? _lastRoutePath;
+  int _routeSyncEpoch = 0;
 
   void _syncBottomNav() {
     if (!mounted) return;
@@ -59,7 +65,9 @@ class _SearchPageState extends State<SearchPage> {
       _chatHistoryStoreForDispose = ch;
       _searchStoreForDispose = ss;
       _enrichStoreForDispose = es;
-      _syncBottomNav();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncBottomNav();
+      });
     }
     _syncRouteState();
   }
@@ -69,9 +77,12 @@ class _SearchPageState extends State<SearchPage> {
     final currentPath = state.uri.path;
     if (currentPath == _lastRoutePath) return;
     _lastRoutePath = currentPath;
+    final routeSyncEpoch = ++_routeSyncEpoch;
 
     final segments = state.uri.pathSegments;
-    if (segments.isEmpty || segments.first != 'search') return;
+    // `/` 与 `/search` 都是 App 的 Search 首页。根路由不能直接跳过，
+    // 否则从详情返回首页后旧会话仍会被 history 当作 active。
+    if (segments.isNotEmpty && segments.first != 'search') return;
 
     const toolRouteMap = <String, String>{
       'advisor': 'find-advisor',
@@ -81,23 +92,35 @@ class _SearchPageState extends State<SearchPage> {
 
     final searchStore = context.read<SearchStore>();
     final chatHistoryStore = context.read<ChatHistoryStore>();
+    final router = GoRouter.of(context);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
+      bool isCurrentRouteSync() =>
+          mounted &&
+          routeSyncEpoch == _routeSyncEpoch &&
+          router.routeInformationProvider.value.uri.path == currentPath;
+      if (!isCurrentRouteSync()) return;
 
-      // /search: clear detail context.
-      if (segments.length == 1) {
+      // / | /search: clear detail context.
+      if (segments.isEmpty || segments.length == 1) {
+        chatHistoryStore.setActiveConversationId(null);
         searchStore.clearExtraType();
         searchStore.setCurrentConversationId(null);
         searchStore.setDeepSearchSessionId(null);
+        searchStore.clearPendingConversation();
+        searchStore.clearPendingDeepSearch();
+        searchStore.setLoadingConversation(false);
         return;
       }
 
       // /search/advisor | /search/citation | /search/analyze: tool route only.
       if (segments.length == 2 && toolRouteMap.containsKey(segments[1])) {
+        chatHistoryStore.setActiveConversationId(null);
         searchStore.clearExtraType();
         searchStore.setCurrentConversationId(null);
         searchStore.clearPendingConversation();
+        searchStore.clearPendingDeepSearch();
+        searchStore.setDeepSearchSessionId(null);
         searchStore.setLoadingConversation(false);
         searchStore.setActiveTool(toolRouteMap[segments[1]]);
         return;
@@ -113,20 +136,41 @@ class _SearchPageState extends State<SearchPage> {
       }
       if (idText.isEmpty) {
         searchStore.setCurrentConversationId(null);
+        searchStore.setLoadingConversation(false);
         return;
       }
 
       final conversationId = int.tryParse(idText);
       if (conversationId == null && segments.length == 2) {
-        if (searchStore.pendingDeepSearch != null) {
+        // Web 的 sessionId 与 rounds 同在全局 Zustand；App 的 rounds 则在
+        // 当前 AgenticChat logic 内。因此这里既接受尚未消费的同 UUID
+        // handoff，也接受当前挂载 chat view 实际持有该 UUID，不能只比较
+        // 全局 deepSearchSessionId（页面重挂载时它可能是旧值）。
+        final sessionMatchesRoute = searchStore.deepSearchSessionId == idText;
+        final hasMatchingHandoff =
+            sessionMatchesRoute && searchStore.pendingDeepSearch != null;
+        final alreadyLoadedInCurrentView =
+            sessionMatchesRoute &&
+            searchStore.activeAgenticViewHasSession(idText);
+        if (hasMatchingHandoff || alreadyLoadedInCurrentView) {
+          chatHistoryStore.setActiveConversationId(
+            idText,
+            type: ChatHistoryStore.searchConversationType,
+          );
           searchStore.clearExtraType();
           searchStore.setCurrentConversationId(null);
-          searchStore.setDeepSearchSessionId(idText);
+          searchStore.clearPendingConversation();
+          searchStore.setLoadingConversation(false);
           return;
         }
 
+        // pending 属于其他 UUID 时不能在当前路由消费，否则旧 query 会在
+        // 被点击的历史 session 中启动。
+        searchStore.clearPendingDeepSearch();
+
         // /search/:uuid — 历史 discover 会话，走 discover/sessions API 恢复
         const convType = 'discover';
+        chatHistoryStore.setActiveConversationId(idText, type: convType);
         searchStore.clearExtraType();
         searchStore.setCurrentConversationId(null);
         searchStore.setDeepSearchSessionId(idText);
@@ -138,16 +182,14 @@ class _SearchPageState extends State<SearchPage> {
             idText,
             convType,
           );
-          if (!mounted) return;
+          if (!isCurrentRouteSync()) return;
           if (detail != null) {
-            chatHistoryStore.setActiveConversationId(idText, type: convType);
-            searchStore.setPendingConversation({
-              ...detail,
-              if (!detail.containsKey('type')) 'type': convType,
-            });
+            searchStore.setPendingConversation(
+              _mergeDiscoverDetail(detail, idText, chatHistoryStore),
+            );
           }
         } finally {
-          if (mounted) {
+          if (isCurrentRouteSync()) {
             searchStore.setLoadingConversation(false);
           }
         }
@@ -161,6 +203,7 @@ class _SearchPageState extends State<SearchPage> {
       }
 
       final convType = type ?? 'discover';
+      chatHistoryStore.setActiveConversationId(idText, type: convType);
       searchStore.setCurrentConversationId(conversationId);
       searchStore.clearPendingConversation();
       searchStore.setLoadingConversation(true);
@@ -170,20 +213,48 @@ class _SearchPageState extends State<SearchPage> {
           idText,
           convType,
         );
-        if (!mounted) return;
+        if (!isCurrentRouteSync()) return;
         if (detail != null) {
-          chatHistoryStore.setActiveConversationId(idText, type: convType);
-          searchStore.setPendingConversation({
-            ...detail,
-            if (!detail.containsKey('type')) 'type': convType,
-          });
+          final pending = convType == 'discover'
+              ? _mergeDiscoverDetail(detail, idText, chatHistoryStore)
+              : {...detail, if (!detail.containsKey('type')) 'type': convType};
+          searchStore.setPendingConversation(pending);
         }
       } finally {
-        if (mounted) {
+        if (isCurrentRouteSync()) {
           searchStore.setLoadingConversation(false);
         }
       }
     });
+  }
+
+  /// 详情接口缺字段时用列表快照补齐；不把历史恢复误标为 local pending。
+  Map<String, dynamic> _mergeDiscoverDetail(
+    Map<String, dynamic> detail,
+    String idText,
+    ChatHistoryStore chatHistoryStore,
+  ) {
+    const convType = 'discover';
+    final listItem = chatHistoryStore.findDiscoverById(idText);
+    final merged = <String, dynamic>{
+      ...detail,
+      if (!detail.containsKey('type')) 'type': convType,
+    };
+
+    if (listItem != null) {
+      if (!merged.containsKey('is_running')) {
+        merged['is_running'] = listItem.isRunning;
+      }
+      if (!merged.containsKey('search_state') && listItem.searchState != null) {
+        merged['search_state'] = listItem.searchState;
+      }
+      final title = merged['title']?.toString().trim() ?? '';
+      if (title.isEmpty && listItem.title.trim().isNotEmpty) {
+        merged['title'] = listItem.title;
+      }
+    }
+
+    return merged;
   }
 
   @override
@@ -260,9 +331,10 @@ class _SearchPageState extends State<SearchPage> {
                   child: Stack(
                     children: [
                       // 主聊天区域
-                      AgenticSearchContentWidget(
-                        embeddedInMainTab: embeddedInMainTab,
-                      ),
+                      widget.contentOverride ??
+                          AgenticSearchContentWidget(
+                            embeddedInMainTab: embeddedInMainTab,
+                          ),
 
                       // 聊天历史移动端面板（左侧滑入）
                       ChatHistoryMobileWidget(

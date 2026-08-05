@@ -77,13 +77,15 @@ class RoundSection extends StatefulWidget {
     this.onOpenResultsRound,
     this.activeResultsRoundId,
     this.onRetry,
+    this.backgroundProcessing = false,
   });
 
   final AgenticMessageGroup group;
   final bool isLatest;
   final bool hideUserQueryBubble;
+  final bool backgroundProcessing;
   final void Function(Map<String, dynamic> candidate, int index, int groupId)
-      onCandidateClick;
+  onCandidateClick;
   final bool copied;
   final VoidCallback onCopyMarkdown;
   final VoidCallback? onAdvisorShuffle;
@@ -106,25 +108,32 @@ class _RoundSectionState extends State<RoundSection> {
   Widget build(BuildContext context) {
     final group = widget.group;
     final status = _roundStatus(group);
-    final isSearching = status == DeepSearchRoundStatus.searching;
+    final isSearching =
+        status == DeepSearchRoundStatus.searching ||
+        widget.backgroundProcessing;
     final hasMessageParts = group.contentBlocks.isNotEmpty;
-    final allowFallbackSummary = !isSearching;
+    final allowFallbackSummary =
+        status != DeepSearchRoundStatus.searching &&
+        !widget.backgroundProcessing;
     final toolType = group.toolType;
     final hasRows = group.candidates.isNotEmpty;
     final showResults = hasRows;
     final resultCount = group.candidates.length;
     final toolCount = getGroupToolCount(group);
-    final hasResultWorkspace =
-        groupHasResultWorkspace(group, isSearching: isSearching);
-    final showResultsStatusCard = !widget.showInlineResults &&
-        toolType == null &&
-        hasResultWorkspace;
+    final hasResultWorkspace = groupHasResultWorkspace(
+      group,
+      isSearching: isSearching,
+      backgroundProcessing: widget.backgroundProcessing,
+    );
+    final showResultsStatusCard =
+        !widget.showInlineResults && toolType == null && hasResultWorkspace;
     final showInlineResultsBlock =
         widget.showInlineResults && toolType == null && showResults;
     final canOpenResults =
-        hasResultWorkspace && widget.onOpenResultsRound != null;
-    final resultCardSelected =
-        widget.activeResultsRoundId == group.id;
+        hasResultWorkspace &&
+        !widget.backgroundProcessing &&
+        widget.onOpenResultsRound != null;
+    final resultCardSelected = widget.activeResultsRoundId == group.id;
     final summaryText = getRoundSummaryText(
       subAgents: group.subAgents,
       contentBlocks: group.contentBlocks,
@@ -157,10 +166,7 @@ class _RoundSectionState extends State<RoundSection> {
       addSection(
         Text(
           formatLogRecordTimestamp(group.recordCreatedAt!),
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF9E9B93),
-          ),
+          style: const TextStyle(fontSize: 12, color: Color(0xFF9E9B93)),
         ),
       );
     }
@@ -260,6 +266,7 @@ class _RoundSectionState extends State<RoundSection> {
           mode: widget.resultEntryMode,
           selected: resultCardSelected,
           enabled: canOpenResults,
+          backgroundProcessing: widget.backgroundProcessing,
           onTap: canOpenResults
               ? () => widget.onOpenResultsRound!(group.id)
               : null,
@@ -315,7 +322,8 @@ class _RoundSectionState extends State<RoundSection> {
               ),
             if (showMarkdownCopy)
               RoundMarkdownCopyButton(
-                alwaysVisible: widget.isLatest ||
+                alwaysVisible:
+                    widget.isLatest ||
                     _isHovered ||
                     widget.resultEntryMode == ResultEntryMode.mobile,
                 copied: widget.copied,
@@ -332,18 +340,12 @@ class _RoundSectionState extends State<RoundSection> {
         !widget.hideUserQueryBubble) {
       addSection(
         Padding(
-          padding: EdgeInsets.only(
-            top: showMarkdownCopy ? 4 : 0,
-            bottom: 4,
-          ),
+          padding: EdgeInsets.only(top: showMarkdownCopy ? 4 : 0, bottom: 4),
           child: Transform.translate(
             offset: Offset(0, showMarkdownCopy ? 0 : -8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: DinqLogoButton(
-                isLoading: isSearching,
-                size: 20,
-              ),
+              child: DinqLogoButton(isLoading: isSearching, size: 20),
             ),
           ),
         ),
@@ -367,7 +369,7 @@ class _AdvisorToolSection extends StatelessWidget {
 
   final AgenticMessageGroup group;
   final void Function(Map<String, dynamic> candidate, int index, int groupId)
-      onCandidateClick;
+  onCandidateClick;
   final VoidCallback? onShuffle;
   final bool shuffleLoading;
 
@@ -376,9 +378,9 @@ class _AdvisorToolSection extends StatelessWidget {
     final result = group.toolResult;
     final advisors = result?['advisors'] is List
         ? (result!['advisors'] as List)
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList()
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()
         : (group.advisorResults ?? []);
     final rounds = result?['rounds'] is List ? result!['rounds'] as List : null;
     final isSearching = _roundStatus(group) == DeepSearchRoundStatus.searching;
@@ -622,7 +624,7 @@ class _CitationToolSection extends StatelessWidget {
 
   final AgenticMessageGroup group;
   final void Function(Map<String, dynamic> candidate, int index, int groupId)
-      onCandidateClick;
+  onCandidateClick;
 
   @override
   Widget build(BuildContext context) {
@@ -670,7 +672,7 @@ class _AnalysisToolSection extends StatelessWidget {
 
   final AgenticMessageGroup group;
   final void Function(Map<String, dynamic> candidate, int index, int groupId)
-      onCandidateClick;
+  onCandidateClick;
 
   @override
   Widget build(BuildContext context) {
@@ -680,22 +682,25 @@ class _AnalysisToolSection extends StatelessWidget {
     final platformOrder = AnalysisPlatformConfig.cardOrder(platform);
     final cardCount = cards is Map
         ? platformOrder
-            .where(
-              (key) =>
-                  cards[key] is Map &&
-                  (cards[key] as Map)['status'] == 'completed',
-            )
-            .length
+              .where(
+                (key) =>
+                    cards[key] is Map &&
+                    (cards[key] as Map)['status'] == 'completed',
+              )
+              .length
         : 0;
-    final isDone = _roundStatus(group) == DeepSearchRoundStatus.done ||
+    final isDone =
+        _roundStatus(group) == DeepSearchRoundStatus.done ||
         group.roundStatus == DeepSearchRoundStatus.interrupted;
     final isStopped = group.roundStatus == DeepSearchRoundStatus.interrupted;
-    final rounds = result['rounds'] is List ? result['rounds'] as List : const [];
+    final rounds = result['rounds'] is List
+        ? result['rounds'] as List
+        : const [];
     final analysisPhases = buildAnalysisPhases(
       rounds: rounds,
       isFinished: isDone,
       cardCount: cardCount,
-      cards: cards is Map ? Map<String, dynamic>.from(cards as Map) : null,
+      cards: cards is Map ? Map<String, dynamic>.from(cards) : null,
       platform: platform,
     );
     final query = result['query']?.toString() ?? group.userQuery;
@@ -711,24 +716,17 @@ class _AnalysisToolSection extends StatelessWidget {
             finishedLabel: isStopped
                 ? (group.errorMessage ?? 'Stopped')
                 : cardCount > 0
-                    ? 'Analysis complete · $cardCount ${cardCount == 1 ? 'card' : 'cards'}'
-                    : 'No results found',
+                ? 'Analysis complete · $cardCount ${cardCount == 1 ? 'card' : 'cards'}'
+                : 'No results found',
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-          ),
+          Padding(padding: const EdgeInsets.only(top: 12)),
           AnalysisResultsView(
             platform: platform,
-            cards: Map<String, dynamic>.from(
-              cards is Map ? cards as Map : const {},
-            ),
+            cards: Map<String, dynamic>.from(cards is Map ? cards : const {}),
             query: query,
             loading: !isDone,
-            onEnrich: () => onCandidateClick(
-              _analysisToRow(query, platform),
-              0,
-              group.id,
-            ),
+            onEnrich: () =>
+                onCandidateClick(_analysisToRow(query, platform), 0, group.id),
           ),
         ],
       ),
@@ -740,7 +738,9 @@ class _AnalysisToolSection extends StatelessWidget {
     if (platform == 'scholar' && query.contains('scholar.google.com')) {
       profileUrl = query;
     } else if (platform == 'github') {
-      profileUrl = query.startsWith('http') ? query : 'https://github.com/$query';
+      profileUrl = query.startsWith('http')
+          ? query
+          : 'https://github.com/$query';
     } else if (platform == 'linkedin' && query.contains('linkedin.com')) {
       profileUrl = query;
     }

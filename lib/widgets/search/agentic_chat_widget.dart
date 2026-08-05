@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -24,6 +25,9 @@ import 'search_panel/mobile_results_workspace.dart';
 import 'search_panel/result_entry_card.dart';
 import 'search_panel_widget.dart';
 import 'deep_search/deep_search_models.dart';
+
+/// 与 Web `BACKGROUND_PROCESSING_REFRESH_MS` 对齐
+const _backgroundProcessingRefreshMs = 7000;
 
 class AgenticChatWidget extends StatefulWidget {
   const AgenticChatWidget({
@@ -63,6 +67,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
   /// 与 TSX useAgenticSearch 对应，逻辑在 agentic_search_logic.dart
   AgenticSearchLogic? _logic;
+  final Object _activeViewOwner = Object();
+  SearchStore? _searchStoreForActiveView;
   bool _logicInitialized = false;
   int _lastResetVersion = 0;
   String? _lastSyncedToolKey;
@@ -75,6 +81,16 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   // 已自动打开过结果页的轮次：每轮结果首次返回时自动进入结果页，
   // 用户手动关闭后同一轮不再强制打开。
   int? _autoOpenedResultsGroupId;
+
+  // 与 Web AgenticChat detached discover processing 对齐
+  String? _lastRestoredKey;
+  final Set<String> _backgroundProcessingSeen = {};
+  String? _backgroundRestoreKey;
+  String? _backgroundPlaceholderKey;
+  Timer? _backgroundPollTimer;
+  ChatHistoryStore? _historyStoreForListener;
+  bool _historyListenerAttached = false;
+  Map<String, dynamic>? _loadedDiscoverDetail;
 
   // bool _initialQueryProcessed = false; // TODO: 实现 URL 参数处理时使用
 
@@ -97,9 +113,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     _screenHeight ??= MediaQuery.of(context).size.height;
     if (!_logicInitialized) {
       _logicInitialized = true;
+      final searchStore = context.read<SearchStore>();
       _logic = AgenticSearchLogic(
         searchService: SearchService(),
-        searchStore: context.read<SearchStore>(),
+        searchStore: searchStore,
+        chatHistoryStore: context.read<ChatHistoryStore>(),
         resolveUserId: () => context.read<UserStore>().user?.user.id,
         onSearchComplete: widget.onSearchComplete,
         onScrollToBottom: _scrollToBottom,
@@ -121,7 +139,17 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         },
       );
       _logic!.addListener(_onLogicUpdate);
+      _searchStoreForActiveView = searchStore;
+      searchStore.registerActiveAgenticView(
+        _activeViewOwner,
+        () => _logic?.activeSessionId,
+      );
       _loadModelChannels();
+    }
+    if (!_historyListenerAttached) {
+      _historyListenerAttached = true;
+      _historyStoreForListener = context.read<ChatHistoryStore>();
+      _historyStoreForListener!.addListener(_onHistoryStoreUpdate);
     }
   }
 
@@ -142,13 +170,322 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
 
   void _onLogicUpdate() => setState(() {});
 
+  void _onHistoryStoreUpdate() {
+    if (!mounted) return;
+    final logic = _logic;
+    if (logic != null &&
+        (logic.hasActiveLocalStream ||
+            logic.loading ||
+            context.read<SearchStore>().isSearching)) {
+      // 前台搜索中只刷新列表 UI，不触发 restore
+      setState(() {});
+      return;
+    }
+    _maybeRestoreAfterBackgroundComplete();
+    setState(() {});
+  }
+
   @override
   void dispose() {
+    _backgroundPollTimer?.cancel();
+    _historyStoreForListener?.removeListener(_onHistoryStoreUpdate);
+    _searchStoreForActiveView?.unregisterActiveAgenticView(_activeViewOwner);
     _logic?.removeListener(_onLogicUpdate);
     _logic?.dispose();
     _scrollController.dispose();
     _breathingController.dispose();
     super.dispose();
+  }
+
+  /// 切走进行中的搜索：只断本地 SSE，并把 query 记入 backgroundDiscoverQueries
+  void _detachActiveSearchIfNeeded(AgenticSearchLogic logic) {
+    if (!logic.hasActiveLocalStream &&
+        !context.read<SearchStore>().isSearching) {
+      return;
+    }
+    final history = context.read<ChatHistoryStore>();
+    final sid =
+        logic.activeSessionId ??
+        context.read<SearchStore>().deepSearchSessionId;
+    final query = logic.activeSearchingQuery;
+    var pendingRevision = sid == null
+        ? null
+        : history.pendingDiscoverRevision(sid);
+    if (sid != null &&
+        sid.isNotEmpty &&
+        query != null &&
+        query.trim().isNotEmpty) {
+      pendingRevision = history.upsertPendingDiscoverSession(
+        sessionId: sid,
+        title: query.trim(),
+      );
+    }
+    logic.abortLocalStream(clearPending: false);
+    if (sid != null && sid.isNotEmpty) {
+      unawaited(
+        _refreshDetachedDiscoverSession(
+          history,
+          sid,
+          expectedRevision: pendingRevision,
+        ),
+      );
+    }
+  }
+
+  Future<void> _refreshDetachedDiscoverSession(
+    ChatHistoryStore history,
+    String sessionId, {
+    int? expectedRevision,
+  }) async {
+    final serverItems = await history.refreshTopConversations();
+    if (expectedRevision == null) return;
+    final serverConfirmed = serverItems.any(
+      (item) =>
+          item.type == ChatHistoryStore.searchConversationType &&
+          item.id.toString() == sessionId &&
+          history.serverItemConfirmsPendingDiscoverSession(
+            item,
+            expectedRevision: expectedRevision,
+          ),
+    );
+    if (!serverConfirmed) return;
+    history.clearPendingDiscoverSession(
+      sessionId,
+      expectedRevision: expectedRevision,
+    );
+  }
+
+  String? _discoverUrlId(BuildContext context) {
+    final segments = GoRouterState.of(context).uri.pathSegments;
+    if (segments.isEmpty || segments.first != 'search') return null;
+    if (segments.length == 2) {
+      final id = segments[1];
+      if (_toolByRoute.containsKey(id)) return null;
+      return id;
+    }
+    if (segments.length >= 3 && segments[1] == 'discover') {
+      return segments[2];
+    }
+    return null;
+  }
+
+  bool _isDiscoverSessionRunning(
+    ChatHistoryStore history,
+    String urlId, {
+    Map<String, dynamic>? detail,
+  }) {
+    final listItem = history.findDiscoverById(urlId);
+    if (listItem != null) {
+      return listItem.serverSearchState == 'running';
+    }
+
+    final resolved = detail ?? _loadedDiscoverDetail;
+    return AgenticSearchLogic.isDiscoverConversationRunning(resolved);
+  }
+
+  bool _isDetachedDiscoverProcessing(
+    ChatHistoryStore history,
+    AgenticSearchLogic logic,
+    String? urlId,
+  ) {
+    if (urlId == null || urlId.isEmpty) return false;
+    // 与 Web 一致：本地正在搜时不算 detached
+    if (logic.hasActiveLocalStream) return false;
+    if (context.read<SearchStore>().isSearching) return false;
+    if (logic.loading) return false;
+
+    return _isDiscoverSessionRunning(history, urlId);
+  }
+
+  void _maybeSeedBackgroundPlaceholder(
+    ChatHistoryStore history,
+    AgenticSearchLogic logic,
+    String urlId, {
+    required bool isRestoring,
+  }) {
+    if (isRestoring) return;
+    if (!_isDetachedDiscoverProcessing(history, logic, urlId)) return;
+    if (logic.messageGroups.isNotEmpty) return;
+
+    final query =
+        (history.backgroundDiscoverQuery(urlId) ??
+                history.findDiscoverById(urlId)?.title ??
+                '')
+            .trim();
+    if (query.isEmpty) return;
+
+    final placeholderKey = '$urlId:$query';
+    if (_backgroundPlaceholderKey == placeholderKey) return;
+    _backgroundPlaceholderKey = placeholderKey;
+    logic.seedSearchingPlaceholder(query: query, sessionId: urlId);
+  }
+
+  void _syncBackgroundPoll(
+    ChatHistoryStore history,
+    AgenticSearchLogic logic,
+    String? urlId,
+  ) {
+    final detached = _isDetachedDiscoverProcessing(history, logic, urlId);
+    if (!detached || urlId == null) {
+      _backgroundPollTimer?.cancel();
+      _backgroundPollTimer = null;
+      return;
+    }
+
+    _backgroundProcessingSeen.add(urlId);
+    if (_backgroundPollTimer != null) return;
+
+    unawaited(history.refreshTopConversations());
+    _backgroundPollTimer = Timer.periodic(
+      const Duration(milliseconds: _backgroundProcessingRefreshMs),
+      (_) {
+        if (!mounted) return;
+        unawaited(context.read<ChatHistoryStore>().refreshTopConversations());
+      },
+    );
+  }
+
+  /// 前台开始新一轮搜索时，取消该会话的后台 restore，避免点快捷回复被「整页重载」
+  void _cancelBackgroundRestoreForSession(String? sessionId) {
+    if (sessionId == null || sessionId.isEmpty) return;
+    _backgroundProcessingSeen.remove(sessionId);
+    if (_backgroundRestoreKey != null &&
+        _backgroundRestoreKey!.startsWith('$sessionId:')) {
+      _backgroundRestoreKey = null;
+    }
+    _backgroundPlaceholderKey = null;
+    _backgroundPollTimer?.cancel();
+    _backgroundPollTimer = null;
+  }
+
+  void _maybeRestoreAfterBackgroundComplete() {
+    final logic = _logic;
+    if (logic == null || !mounted) return;
+    final urlId = _discoverUrlId(context);
+    if (urlId == null) return;
+    if (!_backgroundProcessingSeen.contains(urlId)) return;
+
+    final searchStore = context.read<SearchStore>();
+    // 本地正在搜 / 刚点了快捷回复：绝不能 reload 历史盖掉当前内容
+    if (logic.hasActiveLocalStream ||
+        searchStore.isSearching ||
+        logic.loading) {
+      return;
+    }
+
+    final history = context.read<ChatHistoryStore>();
+    // 仍在后台跑
+    if (_isDetachedDiscoverProcessing(history, logic, urlId)) return;
+
+    final state = history.discoverServerSearchState(urlId);
+    // 尚未拿到明确终态，继续等轮询
+    if (state == null || state == 'running') return;
+
+    final item = history.findDiscoverById(urlId);
+    final updateKey =
+        item?.updatedAt.toIso8601String() ??
+        item?.createdAt.toIso8601String() ??
+        '';
+    if (updateKey.isEmpty) return;
+
+    final restoreKey = '$urlId:$updateKey:$state';
+    if (_backgroundRestoreKey == restoreKey) return;
+    _backgroundRestoreKey = restoreKey;
+
+    unawaited(_restoreBackgroundConversation(urlId));
+  }
+
+  Future<void> _restoreBackgroundConversation(String urlId) async {
+    if (!mounted) return;
+    final history = context.read<ChatHistoryStore>();
+    final searchStore = context.read<SearchStore>();
+    final logic = _logic;
+    if (logic == null) return;
+
+    searchStore.setLoadingConversation(true);
+    try {
+      final detail = await history.fetchConversationDetail(urlId, 'discover');
+      if (!mounted || _discoverUrlId(context) != urlId) return;
+      if (detail == null) return;
+
+      logic.abortLocalStream();
+      logic.loadFromConversation({
+        ...detail,
+        if (!detail.containsKey('type')) 'type': 'discover',
+      });
+      _loadedDiscoverDetail = {
+        ...detail,
+        if (!detail.containsKey('type')) 'type': 'discover',
+      };
+      _syncQuickRepliesStoreFromLogic(logic);
+      if (detail['is_read'] == false) {
+        unawaited(history.markDiscoverSessionRead(urlId));
+      }
+      _lastRestoredKey = 'discover-$urlId';
+      _backgroundProcessingSeen.remove(urlId);
+      history.clearBackgroundDiscoverQuery(urlId);
+      _backgroundPlaceholderKey = null;
+      _backgroundPollTimer?.cancel();
+      _backgroundPollTimer = null;
+    } finally {
+      if (mounted) searchStore.setLoadingConversation(false);
+    }
+  }
+
+  void _applyPendingConversation(
+    SearchStore searchStore,
+    AgenticSearchLogic logic,
+    Map<String, dynamic> pending,
+  ) {
+    final history = context.read<ChatHistoryStore>();
+    final conversationType =
+        pending['type']?.toString() ?? searchStore.extraType ?? 'discover';
+    final convId = (pending['session_id'] ?? pending['id'])?.toString();
+    final key = convId != null ? '$conversationType-$convId' : null;
+
+    final currentSid = logic.activeSessionId ?? searchStore.deepSearchSessionId;
+    // 切到其他会话：只断本地 SSE，后端继续跑
+    if (currentSid != null &&
+        convId != null &&
+        currentSid != convId &&
+        (logic.hasActiveLocalStream || searchStore.isSearching)) {
+      _detachActiveSearchIfNeeded(logic);
+    }
+
+    // 同会话已恢复且本地仍有内容（含正在搜索 / 占位）时跳过，避免打断
+    if (key != null &&
+        _lastRestoredKey == key &&
+        logic.messageGroups.isNotEmpty) {
+      searchStore.clearPendingConversation();
+      if (conversationType == 'discover' && convId != null) {
+        _syncBackgroundPoll(history, logic, convId);
+      }
+      return;
+    }
+
+    logic.loadFromConversation(pending);
+    _loadedDiscoverDetail = Map<String, dynamic>.from(pending);
+    _syncQuickRepliesStoreFromLogic(logic);
+    if (conversationType == 'discover' &&
+        convId != null &&
+        pending['is_read'] == false) {
+      unawaited(history.markDiscoverSessionRead(convId));
+    }
+    searchStore.clearPendingConversation();
+    if (key != null) _lastRestoredKey = key;
+    _lastSyncedToolKey = searchStore.activeTool != null
+        ? 'tool-${searchStore.activeTool}'
+        : 'deep-search';
+
+    if (conversationType == 'discover' && convId != null) {
+      _maybeSeedBackgroundPlaceholder(
+        history,
+        logic,
+        convId,
+        isRestoring: false,
+      );
+      _syncBackgroundPoll(history, logic, convId);
+    }
   }
 
   void _scrollToBottom() {
@@ -194,6 +531,10 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       modelProvider: resolvedProvider,
       simple: simple,
     );
+
+    // 点快捷回复 / 继续搜索：取消该会话的后台 restore，避免整页重载
+    final sid = logic.activeSessionId ?? searchStore.deepSearchSessionId;
+    _cancelBackgroundRestoreForSession(sid);
 
     final needsNavigate =
         _isMainTabHomeRoute(context) &&
@@ -326,12 +667,15 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       if (_lastSyncedToolKey == key && searchStore.activeTool == routeTool) {
         return;
       }
-      logic.handleStop();
+      _detachActiveSearchIfNeeded(logic);
       logic.clearMessages();
       _clearQuickRepliesStore();
       logic.clearAnalysisCandidates();
       searchStore.setActiveTool(routeTool);
       _lastSyncedToolKey = key;
+      _lastRestoredKey = key;
+      _backgroundPollTimer?.cancel();
+      _backgroundPollTimer = null;
       return;
     }
 
@@ -341,12 +685,16 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
       if (_lastSyncedToolKey == key && searchStore.activeTool == null) {
         return;
       }
-      logic.handleStop();
+      _detachActiveSearchIfNeeded(logic);
       logic.clearMessages();
       _clearQuickRepliesStore();
       logic.clearAnalysisCandidates();
       searchStore.clearActiveTool();
       _lastSyncedToolKey = key;
+      _lastRestoredKey = null;
+      _loadedDiscoverDetail = null;
+      _backgroundPollTimer?.cancel();
+      _backgroundPollTimer = null;
     }
   }
 
@@ -376,341 +724,391 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   Widget build(BuildContext context) {
     final logic = _logic;
     if (logic == null) return const SizedBox.shrink();
-    return Consumer3<SearchStore, UserStore, SettingsStore>(
-      builder: (context, searchStore, userStore, settingsStore, _) {
-        _syncToolWithRoute(searchStore, logic);
-        if (!mounted) return const SizedBox.shrink();
-        if (searchStore.resetVersion != _lastResetVersion) {
-          _lastResetVersion = searchStore.resetVersion;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              logic.clearMessages();
-              _clearQuickRepliesStore();
-              _lastSyncedToolKey = searchStore.activeTool != null
-                  ? 'tool-${searchStore.activeTool}'
-                  : 'deep-search';
-            }
-          });
-        }
-        if (searchStore.pendingConversation != null) {
-          final pending = searchStore.pendingConversation!;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            logic.loadFromConversation(pending);
-            _syncQuickRepliesStoreFromLogic(logic);
-            searchStore.clearPendingConversation();
-            _lastSyncedToolKey = searchStore.activeTool != null
-                ? 'tool-${searchStore.activeTool}'
-                : 'deep-search';
-          });
-        }
-        if (searchStore.pendingDeepSearch != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            final store = context.read<SearchStore>();
-            if (store.pendingDeepSearch == null) return;
-            _consumePendingDeepSearch(store, logic);
-          });
-        }
-        if (searchStore.isLoadingConversation &&
-            logic.messageGroups.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            logic.clearMessagesOnly();
-          });
-        }
-        final user = userStore.user;
-        final userName = user?.userData.name.isNotEmpty == true
-            ? user!.userData.name
-            : (user?.user.name.isNotEmpty == true ? user!.user.name : 'DINQer');
-        final creditsBalance = userStore.subscription?.creditsBalance ?? 0;
-        final planLabel = userStore.subscription?.basePlan ?? 'free';
-        final isMobile = settingsStore.isMobile;
-
-        return ListenableBuilder(
-          listenable: logic,
-          builder: (context, child) {
-            final messageGroups = logic.messageGroups;
-            final hasDeepSearchContent = messageGroups.isNotEmpty;
-            final isToolActive = searchStore.activeTool != null;
-            final showRestoring =
-                searchStore.isLoadingConversation && messageGroups.isEmpty;
-            final showChatContent = hasDeepSearchContent || isToolActive;
-            final path = GoRouterState.of(context).uri.path;
-            final showBackHome =
-                !widget.embeddedInMainTab || searchStore.activeTool != null;
-
-            final searchBox = _buildSearchBox(
-              logic: logic,
-              searchStore: searchStore,
-              isMobile: isMobile,
-            );
-
-            final canUseMobileResults =
-                isMobile && !isToolActive && messageGroups.isNotEmpty;
-            if (!canUseMobileResults && _mobileResultsOpen) {
+    return Consumer4<SearchStore, UserStore, SettingsStore, ChatHistoryStore>(
+      builder:
+          (
+            context,
+            searchStore,
+            userStore,
+            settingsStore,
+            chatHistoryStore,
+            _,
+          ) {
+            _syncToolWithRoute(searchStore, logic);
+            if (!mounted) return const SizedBox.shrink();
+            if (searchStore.resetVersion != _lastResetVersion) {
+              _lastResetVersion = searchStore.resetVersion;
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) return;
-                setState(() => _mobileResultsOpen = false);
+                if (mounted) {
+                  logic.clearMessages();
+                  _clearQuickRepliesStore();
+                  _lastSyncedToolKey = searchStore.activeTool != null
+                      ? 'tool-${searchStore.activeTool}'
+                      : 'deep-search';
+                }
               });
             }
-
-            AgenticMessageGroup? mobileResultsGroup;
-            if (_activeResultsGroupId != null) {
-              for (final group in messageGroups) {
-                if (group.id == _activeResultsGroupId) {
-                  mobileResultsGroup = group;
-                  break;
-                }
-              }
-            }
-            mobileResultsGroup ??= () {
-              for (final group in messageGroups.reversed) {
-                if (group.toolType == null &&
-                    groupHasResultWorkspace(
-                      group,
-                      isSearching:
-                          groupRoundStatus(group) ==
-                          DeepSearchRoundStatus.searching,
-                    )) {
-                  return group;
-                }
-              }
-              return null;
-            }();
-
-            // 搜索结果一旦开始返回就自动进入结果页（边搜索边继续展示），
-            // 不再停留在搜索过程页；只针对最新一轮，且每轮只自动打开一次。
-            if (canUseMobileResults && !_mobileResultsOpen) {
-              AgenticMessageGroup? latestRound;
-              for (final group in messageGroups.reversed) {
-                if (group.toolType == null) {
-                  latestRound = group;
-                  break;
-                }
-              }
-              if (latestRound != null &&
-                  latestRound.candidates.isNotEmpty &&
-                  latestRound.id != _autoOpenedResultsGroupId) {
-                final autoOpenGroupId = latestRound.id;
+            if (searchStore.pendingConversation != null) {
+              final pending = searchStore.pendingConversation!;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                final store = context.read<SearchStore>();
+                if (store.pendingConversation == null) return;
+                _applyPendingConversation(store, logic, pending);
+              });
+            } else {
+              // 无 pending 时也要在已恢复会话上维护 detached 占位 / 轮询
+              final urlId = _discoverUrlId(context);
+              if (urlId != null && !searchStore.isLoadingConversation) {
+                final history = context.read<ChatHistoryStore>();
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!mounted) return;
-                  setState(() {
-                    _autoOpenedResultsGroupId = autoOpenGroupId;
-                    _activeResultsGroupId = autoOpenGroupId;
-                    _mobileResultsOpen = true;
-                  });
+                  _maybeSeedBackgroundPlaceholder(
+                    history,
+                    logic,
+                    urlId,
+                    isRestoring: searchStore.isLoadingConversation,
+                  );
+                  _syncBackgroundPoll(history, logic, urlId);
+                  _maybeRestoreAfterBackgroundComplete();
                 });
               }
             }
+            if (searchStore.pendingDeepSearch != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                final store = context.read<SearchStore>();
+                if (store.pendingDeepSearch == null) return;
+                _consumePendingDeepSearch(store, logic);
+              });
+            }
+            if (searchStore.isLoadingConversation &&
+                (logic.messageGroups.isNotEmpty ||
+                    logic.hasActiveLocalStream)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                final store = context.read<SearchStore>();
+                if (!store.isLoadingConversation) return;
+                _detachActiveSearchIfNeeded(logic);
+                logic.clearMessagesOnly();
+              });
+            }
+            final user = userStore.user;
+            final userName = user?.userData.name.isNotEmpty == true
+                ? user!.userData.name
+                : (user?.user.name.isNotEmpty == true
+                      ? user!.user.name
+                      : 'DINQer');
+            final creditsBalance = userStore.subscription?.creditsBalance ?? 0;
+            final planLabel = userStore.subscription?.basePlan ?? 'free';
+            final isMobile = settingsStore.isMobile;
 
-            final activeMobileResultsGroup = mobileResultsGroup;
-            final showMobileResultsWorkspace =
-                canUseMobileResults &&
-                _mobileResultsOpen &&
-                activeMobileResultsGroup != null;
-            final mobileResultsStatus = activeMobileResultsGroup == null
-                ? DeepSearchRoundStatus.idle
-                : groupRoundStatus(activeMobileResultsGroup);
+            return ListenableBuilder(
+              listenable: logic,
+              builder: (context, child) {
+                final messageGroups = logic.messageGroups;
+                final hasDeepSearchContent = messageGroups.isNotEmpty;
+                final isToolActive = searchStore.activeTool != null;
+                final showRestoring =
+                    searchStore.isLoadingConversation && messageGroups.isEmpty;
+                final showChatContent = hasDeepSearchContent || isToolActive;
+                final path = GoRouterState.of(context).uri.path;
+                final discoverUrlId = _discoverUrlId(context);
+                final isDetachedDiscoverProcessing =
+                    discoverUrlId != null &&
+                    _isDetachedDiscoverProcessing(
+                      chatHistoryStore,
+                      logic,
+                      discoverUrlId,
+                    );
+                final showBackHome =
+                    !widget.embeddedInMainTab || searchStore.activeTool != null;
 
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  color: const Color(0xFFFAF9F6),
-                  width: double.infinity,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: showRestoring
-                            ? Center(
-                                child: BreathingLogo(
-                                  size: 28,
-                                  animation: _breathingController,
-                                ),
-                              )
-                            : showChatContent
-                            ? Column(
-                                children: [
-                                  Expanded(
-                                    child: SearchPanelWidget(
-                                      messageGroups: messageGroups,
-                                      scrollController: _scrollController,
-                                      activeTool: searchStore.activeTool,
-                                      hideUserQueryBubble: false,
-                                      selectedRowId: widget.enrichSelectedRowId,
-                                      onQuickReplySelect: (option, blockId) {
-                                        _handleDeepSearch(
-                                          DeepSearchSubmitParams(
-                                            query: option,
-                                            displayQuery: option,
-                                          ),
-                                        );
-                                      },
-                                      onConfirmStart:
-                                          (query, displayQuery, blockId) {
-                                            _startFreshDeepSearch(
-                                              query: query,
-                                              displayQuery: displayQuery,
+                final searchBox = _buildSearchBox(
+                  logic: logic,
+                  searchStore: searchStore,
+                  isMobile: isMobile,
+                  backgroundProcessing: isDetachedDiscoverProcessing,
+                );
+
+                final canUseMobileResults =
+                    isMobile && !isToolActive && messageGroups.isNotEmpty;
+                if (!canUseMobileResults && _mobileResultsOpen) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    setState(() => _mobileResultsOpen = false);
+                  });
+                }
+
+                AgenticMessageGroup? mobileResultsGroup;
+                if (_activeResultsGroupId != null) {
+                  for (final group in messageGroups) {
+                    if (group.id == _activeResultsGroupId) {
+                      mobileResultsGroup = group;
+                      break;
+                    }
+                  }
+                }
+                mobileResultsGroup ??= () {
+                  for (final group in messageGroups.reversed) {
+                    if (group.toolType == null &&
+                        groupHasResultWorkspace(
+                          group,
+                          isSearching:
+                              groupRoundStatus(group) ==
+                              DeepSearchRoundStatus.searching,
+                        )) {
+                      return group;
+                    }
+                  }
+                  return null;
+                }();
+
+                // 搜索结果一旦开始返回就自动进入结果页（边搜索边继续展示），
+                // 不再停留在搜索过程页；只针对最新一轮，且每轮只自动打开一次。
+                if (canUseMobileResults && !_mobileResultsOpen) {
+                  AgenticMessageGroup? latestRound;
+                  for (final group in messageGroups.reversed) {
+                    if (group.toolType == null) {
+                      latestRound = group;
+                      break;
+                    }
+                  }
+                  if (latestRound != null &&
+                      latestRound.candidates.isNotEmpty &&
+                      latestRound.id != _autoOpenedResultsGroupId) {
+                    final autoOpenGroupId = latestRound.id;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      setState(() {
+                        _autoOpenedResultsGroupId = autoOpenGroupId;
+                        _activeResultsGroupId = autoOpenGroupId;
+                        _mobileResultsOpen = true;
+                      });
+                    });
+                  }
+                }
+
+                final activeMobileResultsGroup = mobileResultsGroup;
+                final showMobileResultsWorkspace =
+                    canUseMobileResults &&
+                    _mobileResultsOpen &&
+                    activeMobileResultsGroup != null;
+                final mobileResultsStatus = activeMobileResultsGroup == null
+                    ? DeepSearchRoundStatus.idle
+                    : (isDetachedDiscoverProcessing
+                          ? DeepSearchRoundStatus.searching
+                          : groupRoundStatus(activeMobileResultsGroup));
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      color: const Color(0xFFFAF9F6),
+                      width: double.infinity,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: showRestoring
+                                ? Center(
+                                    child: BreathingLogo(
+                                      size: 28,
+                                      animation: _breathingController,
+                                    ),
+                                  )
+                                : showChatContent
+                                ? Column(
+                                    children: [
+                                      Expanded(
+                                        child: SearchPanelWidget(
+                                          messageGroups: messageGroups,
+                                          scrollController: _scrollController,
+                                          activeTool: searchStore.activeTool,
+                                          backgroundProcessing:
+                                              isDetachedDiscoverProcessing,
+                                          hideUserQueryBubble: false,
+                                          selectedRowId:
+                                              widget.enrichSelectedRowId,
+                                          onQuickReplySelect:
+                                              (option, blockId) {
+                                                _handleDeepSearch(
+                                                  DeepSearchSubmitParams(
+                                                    query: option,
+                                                    displayQuery: option,
+                                                  ),
+                                                );
+                                              },
+                                          onConfirmStart:
+                                              (query, displayQuery, blockId) {
+                                                _startFreshDeepSearch(
+                                                  query: query,
+                                                  displayQuery: displayQuery,
+                                                );
+                                              },
+                                          onCandidateClick:
+                                              (candidate, index, groupId) {
+                                                if (widget.onEnrichRowClick !=
+                                                    null) {
+                                                  widget.onEnrichRowClick!(
+                                                    candidate,
+                                                  );
+                                                  return;
+                                                }
+                                                final tabId = searchStore
+                                                    .openTabWithClick(
+                                                      candidate,
+                                                      index: index,
+                                                      groupId: groupId,
+                                                      matchByName: true,
+                                                    );
+                                                if (tabId != null) {
+                                                  searchStore.setTabPanelOpen(
+                                                    true,
+                                                  );
+                                                }
+                                              },
+                                          onAdvisorShuffle:
+                                              logic.shuffleAdvisors,
+                                          advisorShuffleLoading:
+                                              logic.advisorShuffleLoading,
+                                          onRetryRound: (group) {
+                                            logic.retryFailedRound(
+                                              group,
+                                              modelProvider:
+                                                  searchStore.modelProvider ??
+                                                  ModelChannelsCache
+                                                      .instance
+                                                      .defaultProvider,
                                             );
                                           },
-                                      onCandidateClick:
-                                          (candidate, index, groupId) {
-                                            if (widget.onEnrichRowClick !=
-                                                null) {
-                                              widget.onEnrichRowClick!(
-                                                candidate,
-                                              );
-                                              return;
-                                            }
-                                            final tabId = searchStore
-                                                .openTabWithClick(
-                                                  candidate,
-                                                  index: index,
-                                                  groupId: groupId,
-                                                  matchByName: true,
-                                                );
-                                            if (tabId != null) {
-                                              searchStore.setTabPanelOpen(true);
-                                            }
-                                          },
-                                      onAdvisorShuffle: logic.shuffleAdvisors,
-                                      advisorShuffleLoading:
-                                          logic.advisorShuffleLoading,
-                                      onRetryRound: (group) {
-                                        logic.retryFailedRound(
-                                          group,
-                                          modelProvider:
-                                              searchStore.modelProvider ??
-                                              ModelChannelsCache
-                                                  .instance
-                                                  .defaultProvider,
-                                        );
-                                      },
-                                      bottomInset: widget.embeddedInMainTab
-                                          ? 20
-                                          : 12,
-                                      analysisPlatform: _analysisPlatform,
-                                      citationMode: _citationMode.name,
-                                      showInlineResults: !isMobile,
-                                      resultEntryMode: isMobile
-                                          ? ResultEntryMode.mobile
-                                          : ResultEntryMode.desktop,
-                                      activeResultsRoundId:
-                                          _activeResultsGroupId,
-                                      onOpenResultsRound: isMobile
-                                          ? (roundId) {
-                                              setState(() {
-                                                _activeResultsGroupId = roundId;
-                                                _mobileResultsOpen = true;
-                                              });
-                                            }
-                                          : null,
-                                    ),
-                                  ),
-                                  AnimatedPadding(
-                                    duration: const Duration(milliseconds: 180),
-                                    curve: Curves.easeOutCubic,
-                                    padding: EdgeInsets.fromLTRB(
-                                      isMobile ? 12 : 24,
-                                      0,
-                                      isMobile ? 12 : 24,
-                                      isMobile
-                                          ? _mobileBottomBarInset(context)
-                                          : 12,
-                                    ),
-                                    child: Center(
-                                      child: ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          maxWidth: 768,
+                                          bottomInset: widget.embeddedInMainTab
+                                              ? 20
+                                              : 12,
+                                          analysisPlatform: _analysisPlatform,
+                                          citationMode: _citationMode.name,
+                                          showInlineResults: !isMobile,
+                                          resultEntryMode: isMobile
+                                              ? ResultEntryMode.mobile
+                                              : ResultEntryMode.desktop,
+                                          activeResultsRoundId:
+                                              _activeResultsGroupId,
+                                          onOpenResultsRound: isMobile
+                                              ? (roundId) {
+                                                  setState(() {
+                                                    _activeResultsGroupId =
+                                                        roundId;
+                                                    _mobileResultsOpen = true;
+                                                  });
+                                                }
+                                              : null,
                                         ),
-                                        child: searchBox,
                                       ),
-                                    ),
+                                      AnimatedPadding(
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
+                                        curve: Curves.easeOutCubic,
+                                        padding: EdgeInsets.fromLTRB(
+                                          isMobile ? 12 : 24,
+                                          0,
+                                          isMobile ? 12 : 24,
+                                          isMobile
+                                              ? _mobileBottomBarInset(context)
+                                              : 12,
+                                        ),
+                                        child: Center(
+                                          child: ConstrainedBox(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 768,
+                                            ),
+                                            child: searchBox,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : isMobile
+                                ? _buildMobileWelcome(
+                                    userName: userName,
+                                    searchBox: searchBox,
+                                  )
+                                : _buildDesktopWelcome(
+                                    userName: userName,
+                                    searchBox: searchBox,
                                   ),
-                                ],
-                              )
-                            : isMobile
-                            ? _buildMobileWelcome(
-                                userName: userName,
-                                searchBox: searchBox,
-                              )
-                            : _buildDesktopWelcome(
-                                userName: userName,
-                                searchBox: searchBox,
-                              ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                if (isMobile)
-                  Positioned(
-                    top: MediaQuery.paddingOf(context).top + 16,
-                    left: 16,
-                    child: _buildHistoryButton(),
-                  ),
-                if (isMobile && showBackHome)
-                  Positioned(
-                    top: MediaQuery.paddingOf(context).top + 16,
-                    right: 16,
-                    child: _buildBackHomeButton(),
-                  ),
-                if (!isMobile)
-                  Positioned(
-                    top: 12,
-                    right: 14,
-                    child: _buildCreditsButton(
-                      creditsBalance: creditsBalance,
-                      planLabel: planLabel,
-                      path: path,
                     ),
-                  ),
-                if (showMobileResultsWorkspace)
-                  Positioned.fill(
-                    child: MobileResultsWorkspace(
-                      candidates: activeMobileResultsGroup.candidates,
-                      isSearching:
-                          mobileResultsStatus ==
-                          DeepSearchRoundStatus.searching,
-                      isInterrupted:
-                          mobileResultsStatus ==
-                          DeepSearchRoundStatus.interrupted,
-                      selectedRowId: widget.enrichSelectedRowId,
-                      roundStatus: mobileResultsStatus,
-                      contentBlocks: activeMobileResultsGroup.contentBlocks,
-                      subAgents: activeMobileResultsGroup.subAgents,
-                      sessionId: searchStore.deepSearchSessionId,
-                      sseEventsId: activeMobileResultsGroup.sseEventsId,
-                      onClose: () => setState(() => _mobileResultsOpen = false),
-                      onRowClick: (row) {
-                        if (widget.onEnrichRowClick != null) {
-                          widget.onEnrichRowClick!(row);
-                          return;
-                        }
-                        final idx = activeMobileResultsGroup.candidates
-                            .indexWhere(
-                              (c) =>
-                                  c['row_id']?.toString() ==
-                                      row['row_id']?.toString() ||
-                                  c['name'] == row['name'],
+                    if (isMobile)
+                      Positioned(
+                        top: MediaQuery.paddingOf(context).top + 16,
+                        left: 16,
+                        child: _buildHistoryButton(),
+                      ),
+                    if (isMobile && showBackHome)
+                      Positioned(
+                        top: MediaQuery.paddingOf(context).top + 16,
+                        right: 16,
+                        child: _buildBackHomeButton(),
+                      ),
+                    if (!isMobile)
+                      Positioned(
+                        top: 12,
+                        right: 14,
+                        child: _buildCreditsButton(
+                          creditsBalance: creditsBalance,
+                          planLabel: planLabel,
+                          path: path,
+                        ),
+                      ),
+                    if (showMobileResultsWorkspace)
+                      Positioned.fill(
+                        child: MobileResultsWorkspace(
+                          candidates: activeMobileResultsGroup.candidates,
+                          isSearching:
+                              mobileResultsStatus ==
+                              DeepSearchRoundStatus.searching,
+                          isInterrupted:
+                              mobileResultsStatus ==
+                              DeepSearchRoundStatus.interrupted,
+                          selectedRowId: widget.enrichSelectedRowId,
+                          roundStatus: mobileResultsStatus,
+                          contentBlocks: activeMobileResultsGroup.contentBlocks,
+                          subAgents: activeMobileResultsGroup.subAgents,
+                          sessionId: searchStore.deepSearchSessionId,
+                          sseEventsId: activeMobileResultsGroup.sseEventsId,
+                          onClose: () =>
+                              setState(() => _mobileResultsOpen = false),
+                          onRowClick: (row) {
+                            if (widget.onEnrichRowClick != null) {
+                              widget.onEnrichRowClick!(row);
+                              return;
+                            }
+                            final idx = activeMobileResultsGroup.candidates
+                                .indexWhere(
+                                  (c) =>
+                                      c['row_id']?.toString() ==
+                                          row['row_id']?.toString() ||
+                                      c['name'] == row['name'],
+                                );
+                            final tabId = searchStore.openTabWithClick(
+                              row,
+                              index: idx >= 0 ? idx : 0,
+                              groupId: activeMobileResultsGroup.id,
+                              matchByName: true,
                             );
-                        final tabId = searchStore.openTabWithClick(
-                          row,
-                          index: idx >= 0 ? idx : 0,
-                          groupId: activeMobileResultsGroup.id,
-                          matchByName: true,
-                        );
-                        if (tabId != null) {
-                          searchStore.setTabPanelOpen(true);
-                        }
-                      },
-                    ),
-                  ),
-              ],
+                            if (tabId != null) {
+                              searchStore.setTabPanelOpen(true);
+                            }
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              },
             );
           },
-        );
-      },
     );
   }
 
@@ -817,13 +1215,14 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     required AgenticSearchLogic logic,
     required SearchStore searchStore,
     required bool isMobile,
+    bool backgroundProcessing = false,
   }) {
     return SearchBoxWidget(
       activeTool: searchStore.activeTool,
       onActiveToolChange: (tool) => _handleActiveToolChange(searchStore, tool),
       onDeepSearch: _handleDeepSearch,
       onDeepSearchStop: _handleStop,
-      deepSearchLoading: logic.loading,
+      deepSearchLoading: logic.loading && !backgroundProcessing,
       modelOptions: _modelChannelsLoaded ? _modelOptions : null,
       modelProvider:
           searchStore.modelProvider ??

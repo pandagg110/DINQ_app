@@ -11,8 +11,10 @@ import '../deep_search/sub_agent_helpers.dart';
 enum ResultEntryMode { desktop, mobile }
 
 bool isStartSearchMarker(String text) {
-  return RegExp(r'^(start search|开始搜索)$', caseSensitive: false)
-      .hasMatch(text.trim());
+  return RegExp(
+    r'^(start search|开始搜索)$',
+    caseSensitive: false,
+  ).hasMatch(text.trim());
 }
 
 DeepSearchRoundStatus groupRoundStatus(AgenticMessageGroup group) {
@@ -40,10 +42,12 @@ int getGroupToolCount(AgenticMessageGroup group) {
 bool groupHasResultWorkspace(
   AgenticMessageGroup group, {
   required bool isSearching,
+  bool backgroundProcessing = false,
 }) {
   if (group.toolType != null) return false;
   final hasRows = group.candidates.isNotEmpty;
   if (hasRows) return true;
+  if (backgroundProcessing) return true;
   if (!isSearching) return false;
   final toolCount = getGroupToolCount(group);
   return toolCount > 0 ||
@@ -60,6 +64,7 @@ class ResultEntryCard extends StatelessWidget {
     this.selected = false,
     this.onTap,
     this.enabled = true,
+    this.backgroundProcessing = false,
   });
 
   final bool isSearching;
@@ -69,6 +74,7 @@ class ResultEntryCard extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
   final bool enabled;
+  final bool backgroundProcessing;
 
   static const _searchingTitlesDesktop = [
     'Searching candidates.',
@@ -96,10 +102,16 @@ class ResultEntryCard extends StatelessWidget {
 
   String get _subtitle {
     if (resultCount > 0) {
-      final candidateLabel =
-          resultCount == 1 ? '1 candidate' : '$resultCount candidates';
-      final toolLabel = toolCount == 1 ? '1 tool call' : '$toolCount tool calls';
+      final candidateLabel = resultCount == 1
+          ? '1 candidate'
+          : '$resultCount candidates';
+      final toolLabel = toolCount == 1
+          ? '1 tool call'
+          : '$toolCount tool calls';
       return '$candidateLabel · $toolLabel';
+    }
+    if (backgroundProcessing) {
+      return 'Running in the background — this page will update when results are ready';
     }
     return 'Screening profiles · ranking matches';
   }
@@ -131,7 +143,10 @@ class ResultEntryCard extends StatelessWidget {
             child: CustomPaint(
               painter: const _DotGridPainter(),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -207,11 +222,7 @@ class _StatusBadge extends StatelessWidget {
           else
             const Padding(
               padding: EdgeInsets.only(right: 4),
-              child: Icon(
-                Icons.check,
-                size: 12,
-                color: Color(0xFF2F8F68),
-              ),
+              child: Icon(Icons.check, size: 12, color: Color(0xFF2F8F68)),
             ),
           Text(
             isSearching ? 'Searching' : 'Completed',
@@ -242,25 +253,33 @@ class _ResultPreviewIllustration extends StatelessWidget {
     final width = isDesktop
         ? 140.0
         : isWideMobile
-            ? 126.0
-            : isCompact
-                ? 96.0
-                : 112.0;
+        ? 126.0
+        : isCompact
+        ? 96.0
+        : 112.0;
     final height = isDesktop
         ? 84.0
         : isWideMobile
-            ? 78.0
-            : isCompact
-                ? 64.0
-                : 72.0;
+        ? 78.0
+        : isCompact
+        ? 64.0
+        : 72.0;
     final horizontalPadding = isCompact
         ? 8.0
         : isWideMobile || isDesktop
-            ? 12.0
-            : 10.0;
+        ? 12.0
+        : 10.0;
     final rowGap = isCompact ? 6.0 : 8.0;
-    final iconGap = isDesktop ? 6.0 : isCompact ? 4.0 : 5.0;
-    final badgeSize = isDesktop ? 16.0 : isCompact ? 12.0 : 14.0;
+    final iconGap = isDesktop
+        ? 6.0
+        : isCompact
+        ? 4.0
+        : 5.0;
+    final badgeSize = isDesktop
+        ? 16.0
+        : isCompact
+        ? 12.0
+        : 14.0;
     final badgeRadius = isDesktop ? 4.0 : 3.5;
     final lineHeight = isCompact ? 5.0 : 6.0;
     final coinSize = isCompact ? 32.0 : 36.0;
@@ -423,7 +442,8 @@ class _ScanningLensState extends State<ScanningLens>
     super.dispose();
   }
 
-  double _rand(double min, double max) => min + _random.nextDouble() * (max - min);
+  double _rand(double min, double max) =>
+      min + _random.nextDouble() * (max - min);
 
   double _easeInOut(double t) =>
       t < 0.5 ? 2 * t * t : 1 - math.pow(-2 * t + 2, 2) / 2;
@@ -431,37 +451,45 @@ class _ScanningLensState extends State<ScanningLens>
   void _buildLoop() {
     final segments = <_ScanSegment>[];
     for (var i = 0; i < 3; i++) {
-      segments.add(_ScanSegment(
-        fromL: _left,
-        toL: _right,
-        fromT: _rowY[i],
-        toT: _rowY[i],
-        durMs: _rand(420, 980),
-      ));
-      segments.add(_ScanSegment(
-        fromL: _right,
-        toL: _right,
-        fromT: _rowY[i],
-        toT: _rowY[i],
-        durMs: _rand(40, 150),
-      ));
-      if (i < 2) {
-        segments.add(_ScanSegment(
-          fromL: _right,
-          toL: _left,
+      segments.add(
+        _ScanSegment(
+          fromL: _left,
+          toL: _right,
           fromT: _rowY[i],
-          toT: _rowY[i + 1],
-          durMs: _rand(110, 180),
-        ));
+          toT: _rowY[i],
+          durMs: _rand(420, 980),
+        ),
+      );
+      segments.add(
+        _ScanSegment(
+          fromL: _right,
+          toL: _right,
+          fromT: _rowY[i],
+          toT: _rowY[i],
+          durMs: _rand(40, 150),
+        ),
+      );
+      if (i < 2) {
+        segments.add(
+          _ScanSegment(
+            fromL: _right,
+            toL: _left,
+            fromT: _rowY[i],
+            toT: _rowY[i + 1],
+            durMs: _rand(110, 180),
+          ),
+        );
       }
     }
-    segments.add(_ScanSegment(
-      fromL: _right,
-      toL: _left,
-      fromT: _rowY[2],
-      toT: _rowY[0],
-      durMs: _rand(280, 400),
-    ));
+    segments.add(
+      _ScanSegment(
+        fromL: _right,
+        toL: _left,
+        fromT: _rowY[2],
+        toT: _rowY[0],
+        durMs: _rand(280, 400),
+      ),
+    );
     _segments = segments;
     _segmentIndex = 0;
     _segmentStart = Duration.zero;
@@ -475,8 +503,8 @@ class _ScanningLensState extends State<ScanningLens>
     }
     if (_segmentStart == Duration.zero) _segmentStart = elapsed;
     final segment = _segments[_segmentIndex];
-    final progress =
-        ((elapsed - _segmentStart).inMilliseconds / segment.durMs).clamp(0.0, 1.0);
+    final progress = ((elapsed - _segmentStart).inMilliseconds / segment.durMs)
+        .clamp(0.0, 1.0);
     final eased = _easeInOut(progress);
     setState(() {
       _position = Offset(

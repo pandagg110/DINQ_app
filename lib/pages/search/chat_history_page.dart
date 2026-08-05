@@ -170,10 +170,14 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                 selector: (_, store) => store.conversations,
                 builder: (context, conversations, _) {
                   final chatStore = context.watch<ChatHistoryStore>();
+                  final searchStore = context.watch<SearchStore>();
                   final normalizedQuery = _query.trim();
                   final filteredItems = _filteredConversations(conversations);
                   return _buildList(
                     chatStore: chatStore,
+                    foregroundSearchingSessionId: searchStore.isSearching
+                        ? searchStore.deepSearchSessionId
+                        : null,
                     filteredItems: filteredItems,
                     normalizedQuery: normalizedQuery,
                     onItemClick: (item) => _handleItemClick(context, item),
@@ -317,6 +321,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
 
   Widget _buildList({
     required ChatHistoryStore chatStore,
+    required String? foregroundSearchingSessionId,
     required List<ConversationItem> filteredItems,
     required String normalizedQuery,
     required void Function(ConversationItem) onItemClick,
@@ -374,10 +379,13 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           );
         }
         final item = filteredItems[index];
+        final isActive = chatStore.isActiveConversation(item);
         return ChatHistoryItemWidget(
           key: ValueKey('conv_${item.type}_${item.id}'),
           conversation: item,
-          isActive: chatStore.isActiveConversation(item),
+          isActive: isActive,
+          isCurrentLocalSearching:
+              isActive && foregroundSearchingSessionId == item.id.toString(),
           onClick: () => onItemClick(item),
           onDelete: (id) =>
               chatStore.deleteConversationById(id, type: item.type),

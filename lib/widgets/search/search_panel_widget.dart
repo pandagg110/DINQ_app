@@ -34,6 +34,7 @@ class SearchPanelWidget extends StatefulWidget {
     this.onOpenResultsRound,
     this.activeResultsRoundId,
     this.onRetryRound,
+    this.backgroundProcessing = false,
   });
 
   final List<AgenticMessageGroup> messageGroups;
@@ -55,6 +56,9 @@ class SearchPanelWidget extends StatefulWidget {
   final void Function(int roundId)? onOpenResultsRound;
   final int? activeResultsRoundId;
   final void Function(AgenticMessageGroup group)? onRetryRound;
+
+  /// 与 Web SearchPanel `backgroundProcessing` 对齐：最后一轮强制展示进行中态
+  final bool backgroundProcessing;
 
   @override
   State<SearchPanelWidget> createState() => _SearchPanelWidgetState();
@@ -173,7 +177,9 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
   }
 
   void _scrollNewRoundToTop() {
-    if (!widget.scrollController.hasClients || widget.messageGroups.isEmpty) return;
+    if (!widget.scrollController.hasClients || widget.messageGroups.isEmpty) {
+      return;
+    }
 
     final expanded = _viewportHeight > 0
         ? _viewportHeight
@@ -184,14 +190,15 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
 
     final lastRoundId = widget.messageGroups.last.id;
     final targetKey = _roundKeys[lastRoundId];
-    final targetBox = targetKey?.currentContext?.findRenderObject() as RenderBox?;
-    final listBox = _listViewKey.currentContext?.findRenderObject() as RenderBox?;
+    final targetBox =
+        targetKey?.currentContext?.findRenderObject() as RenderBox?;
+    final listBox =
+        _listViewKey.currentContext?.findRenderObject() as RenderBox?;
     if (targetBox == null || listBox == null) return;
 
-    final topInViewport = targetBox.localToGlobal(
-      Offset.zero,
-      ancestor: listBox,
-    ).dy;
+    final topInViewport = targetBox
+        .localToGlobal(Offset.zero, ancestor: listBox)
+        .dy;
     final current = widget.scrollController.offset;
     final target = (current + topInViewport - _topOffset).clamp(
       0.0,
@@ -212,33 +219,45 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
   }
 
   void _stickToBottomDuringStreaming() {
-    if (!widget.scrollController.hasClients || widget.messageGroups.isEmpty) return;
+    if (!widget.scrollController.hasClients || widget.messageGroups.isEmpty) {
+      return;
+    }
     if (_isUserScrolled || _isProgrammaticScroll) return;
 
     final last = widget.messageGroups.last;
-    final isToolRound = last.searchType == 'advisor' || last.searchType == 'dinq';
+    final isToolRound =
+        last.searchType == 'advisor' || last.searchType == 'dinq';
     if (isToolRound) return;
     if (!_isStreaming(last)) return;
 
     if (_lastRoundHeight < _viewportHeight * 0.8) return;
 
-    widget.scrollController.jumpTo(widget.scrollController.position.maxScrollExtent);
+    widget.scrollController.jumpTo(
+      widget.scrollController.position.maxScrollExtent,
+    );
   }
 
   bool _isStreaming(AgenticMessageGroup group) {
     if (group.loading || group.assistantStreaming) return true;
-    return group.subAgents.values.any((agent) =>
-        agent.status == DeepSearchRoundStatus.searching ||
-        agent.contentBlocks.any((block) =>
-            block is ThinkingPart && block.block.isStreaming ||
-            block is ToolCallPart &&
-                block.block.status == ToolCallStatus.running));
+    return group.subAgents.values.any(
+      (agent) =>
+          agent.status == DeepSearchRoundStatus.searching ||
+          agent.contentBlocks.any(
+            (block) =>
+                block is ThinkingPart && block.block.isStreaming ||
+                block is ToolCallPart &&
+                    block.block.status == ToolCallStatus.running,
+          ),
+    );
   }
 
   void _recalcSpacer() {
     if (!mounted) return;
     final minSpacer = widget.bottomInset;
-    final computed = (_viewportHeight - _lastRoundHeight).clamp(minSpacer, 2000.0);
+    final computed = (_viewportHeight - _lastRoundHeight).clamp(
+      minSpacer,
+      2000.0,
+    );
     if ((computed - _spacerHeight).abs() > 2) {
       setState(() => _spacerHeight = computed);
     }
@@ -275,78 +294,82 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                 )
               else
                 ListView(
-                key: _listViewKey,
-                controller: widget.scrollController,
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                children: [
-                  for (var i = 0; i < groups.length; i++) ...[
-                    _MeasureSize(
-                      onChange: (size) {
-                        if (i == groups.length - 1) {
-                          _lastRoundHeight = size.height;
-                          _recalcSpacer();
-                        }
-                      },
-                      child: Container(
-                        key: _keyForRound(groups[i].id),
-                        alignment: Alignment.center,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 768),
-                          child: RoundSection(
-                            group: groups[i],
-                            isLatest: i == groups.length - 1,
-                            hideUserQueryBubble: widget.hideUserQueryBubble,
-                            onCandidateClick: widget.onCandidateClick,
-                            selectedRowId: widget.selectedRowId,
-                            copied: _copiedRoundId == groups[i].id,
-                            onCopyMarkdown: () => _copyRoundMarkdown(groups[i]),
-                            onAdvisorShuffle: widget.onAdvisorShuffle,
-                            advisorShuffleLoading:
-                                widget.advisorShuffleLoading ?? false,
-                            showInlineResults: widget.showInlineResults,
-                            resultEntryMode: widget.resultEntryMode,
-                            onOpenResultsRound: widget.onOpenResultsRound,
-                            activeResultsRoundId: widget.activeResultsRoundId,
-                            onRetry: widget.onRetryRound == null
-                                ? null
-                                : () => widget.onRetryRound!(groups[i]),
+                  key: _listViewKey,
+                  controller: widget.scrollController,
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                  children: [
+                    for (var i = 0; i < groups.length; i++) ...[
+                      _MeasureSize(
+                        onChange: (size) {
+                          if (i == groups.length - 1) {
+                            _lastRoundHeight = size.height;
+                            _recalcSpacer();
+                          }
+                        },
+                        child: Container(
+                          key: _keyForRound(groups[i].id),
+                          alignment: Alignment.center,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 768),
+                            child: RoundSection(
+                              group: groups[i],
+                              isLatest: i == groups.length - 1,
+                              hideUserQueryBubble: widget.hideUserQueryBubble,
+                              backgroundProcessing:
+                                  widget.backgroundProcessing &&
+                                  i == groups.length - 1,
+                              onCandidateClick: widget.onCandidateClick,
+                              selectedRowId: widget.selectedRowId,
+                              copied: _copiedRoundId == groups[i].id,
+                              onCopyMarkdown: () =>
+                                  _copyRoundMarkdown(groups[i]),
+                              onAdvisorShuffle: widget.onAdvisorShuffle,
+                              advisorShuffleLoading:
+                                  widget.advisorShuffleLoading ?? false,
+                              showInlineResults: widget.showInlineResults,
+                              resultEntryMode: widget.resultEntryMode,
+                              onOpenResultsRound: widget.onOpenResultsRound,
+                              activeResultsRoundId: widget.activeResultsRoundId,
+                              onRetry: widget.onRetryRound == null
+                                  ? null
+                                  : () => widget.onRetryRound!(groups[i]),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
+                    SizedBox(height: _spacerHeight),
                   ],
-                  SizedBox(height: _spacerHeight),
-                ],
-              ),
-            if (_showScrollToBottom)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 16,
-                child: Center(
-                  child: SizedBox(
-                    width: 34,
-                    height: 34,
-                    child: Material(
-                      color: Colors.white,
-                      shape: const CircleBorder(),
-                      elevation: 1,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: _scrollToBottom,
-                        child: const Icon(
-                          Icons.arrow_downward,
-                          size: 18,
-                          color: Color(0xFF6B6862),
+                ),
+              if (_showScrollToBottom)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 16,
+                  child: Center(
+                    child: SizedBox(
+                      width: 34,
+                      height: 34,
+                      child: Material(
+                        color: Colors.white,
+                        shape: const CircleBorder(),
+                        elevation: 1,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _scrollToBottom,
+                          child: const Icon(
+                            Icons.arrow_downward,
+                            size: 18,
+                            color: Color(0xFF6B6862),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
+            ],
+          ),
         );
       },
     );
@@ -377,10 +400,7 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
 typedef OnWidgetSizeChange = void Function(Size size);
 
 class _MeasureSize extends SingleChildRenderObjectWidget {
-  const _MeasureSize({
-    required this.onChange,
-    required super.child,
-  });
+  const _MeasureSize({required this.onChange, required super.child});
 
   final OnWidgetSizeChange onChange;
 
@@ -390,10 +410,7 @@ class _MeasureSize extends SingleChildRenderObjectWidget {
   }
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderObject renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
     (renderObject as _MeasureSizeRenderObject).onChange = onChange;
   }
 }
@@ -513,7 +530,9 @@ class _ToolWelcome extends StatelessWidget {
     final (text, examples) = _welcomeContent();
     final isMobile = MediaQuery.sizeOf(context).width < 768;
     // 移动端浮动 History/Home 按钮：safe-area + 16 + 40(h) + 12(gap)
-    final topPadding = isMobile ? MediaQuery.paddingOf(context).top + 68.0 : 48.0;
+    final topPadding = isMobile
+        ? MediaQuery.paddingOf(context).top + 68.0
+        : 48.0;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16, topPadding, 16, 12),
