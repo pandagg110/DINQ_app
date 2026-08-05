@@ -47,10 +47,26 @@ bool groupHasResultWorkspace(
   if (group.toolType != null) return false;
   final hasRows = group.candidates.isNotEmpty;
   if (hasRows) return true;
+  // RoundSection 卡片在 result-entry 模式下可用 backgroundProcessing 撑起；
+  // 是否进入该模式由 AgenticChat 的 hasResultWorkspaceRound（不含此项）决定，
+  // 对齐 Web：仅后台 processing、尚无 tool/结果时不展示 Preparing results 卡。
   if (backgroundProcessing) return true;
   if (!isSearching) return false;
   final toolCount = getGroupToolCount(group);
   return toolCount > 0 ||
+      isStartSearchMarker(group.displayQuery ?? group.userQuery);
+}
+
+/// 对齐 Web `AgenticChat.hasResultWorkspace`：不含 backgroundProcessing。
+/// 用于决定是否进入 mobile result-entry 模式（showInlineResults=false）。
+bool groupHasResultWorkspaceRound(AgenticMessageGroup group) {
+  if (group.toolType != null) return false;
+  final status = groupRoundStatus(group);
+  final isSearching = status == DeepSearchRoundStatus.searching;
+  if (group.candidates.isNotEmpty) return true;
+  final toolCount = getGroupToolCount(group);
+  if (toolCount > 0) return true;
+  return isSearching &&
       isStartSearchMarker(group.displayQuery ?? group.userQuery);
 }
 

@@ -145,6 +145,8 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
         () => _logic?.activeSessionId,
       );
       _loadModelChannels();
+      // 路由 handoff 时在首帧前消费 pending，避免先画 Welcome 再切搜索态闪一下。
+      _consumePendingDeepSearchIfNeeded(searchStore, _logic!);
     }
     if (!_historyListenerAttached) {
       _historyListenerAttached = true;
@@ -560,6 +562,14 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
     );
   }
 
+  void _consumePendingDeepSearchIfNeeded(
+    SearchStore searchStore,
+    AgenticSearchLogic logic,
+  ) {
+    if (searchStore.pendingDeepSearch == null) return;
+    _consumePendingDeepSearch(searchStore, logic);
+  }
+
   void _consumePendingDeepSearch(
     SearchStore searchStore,
     AgenticSearchLogic logic,
@@ -831,8 +841,14 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                   backgroundProcessing: isDetachedDiscoverProcessing,
                 );
 
+                final hasResultWorkspaceRound = messageGroups.any(
+                  groupHasResultWorkspaceRound,
+                );
+                // 对齐 Web canUseResultsWorkspace / canUseMobileResultsWorkspace
+                final canUseResultsWorkspace =
+                    !isMobile && !isToolActive && hasResultWorkspaceRound;
                 final canUseMobileResults =
-                    isMobile && !isToolActive && messageGroups.isNotEmpty;
+                    isMobile && !isToolActive && hasResultWorkspaceRound;
                 if (!canUseMobileResults && _mobileResultsOpen) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (!mounted) return;
@@ -851,13 +867,7 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                 }
                 mobileResultsGroup ??= () {
                   for (final group in messageGroups.reversed) {
-                    if (group.toolType == null &&
-                        groupHasResultWorkspace(
-                          group,
-                          isSearching:
-                              groupRoundStatus(group) ==
-                              DeepSearchRoundStatus.searching,
-                        )) {
+                    if (groupHasResultWorkspaceRound(group)) {
                       return group;
                     }
                   }
@@ -986,7 +996,11 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                                               : 12,
                                           analysisPlatform: _analysisPlatform,
                                           citationMode: _citationMode.name,
-                                          showInlineResults: !isMobile,
+                                          // 对齐 Web：
+                                          // !(canUseResultsWorkspace || canUseMobileResultsWorkspace)
+                                          showInlineResults:
+                                              !(canUseResultsWorkspace ||
+                                                  canUseMobileResults),
                                           resultEntryMode: isMobile
                                               ? ResultEntryMode.mobile
                                               : ResultEntryMode.desktop,

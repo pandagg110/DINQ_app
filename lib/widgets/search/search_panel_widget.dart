@@ -74,6 +74,7 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
   bool _showScrollToBottom = false;
   bool _isUserScrolled = false;
   bool _isProgrammaticScroll = false;
+  bool _suppressSpacerRecalc = false;
 
   int _prevRoundsLen = 0;
   String _lastStreamSignature = '';
@@ -103,6 +104,9 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
     final len = rounds.length;
     if (len > _prevRoundsLen) {
       _prevRoundsLen = len;
+      // 新一轮对齐 Web：先撑开 spacer 再滚到顶部。期间抑制立刻 recalc，
+      // 否则短内容会把 spacer 缩回去，中间出现一帧空闪。
+      _suppressSpacerRecalc = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _scrollNewRoundToTop();
@@ -121,7 +125,7 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || _suppressSpacerRecalc || _isProgrammaticScroll) return;
       _recalcSpacer();
     });
   }
@@ -176,16 +180,10 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
     ].join('|');
   }
 
-  void _scrollNewRoundToTop() {
+  void _scrollNewRoundToTop({int attempt = 0}) {
     if (!widget.scrollController.hasClients || widget.messageGroups.isEmpty) {
+      _suppressSpacerRecalc = false;
       return;
-    }
-
-    final expanded = _viewportHeight > 0
-        ? _viewportHeight
-        : widget.scrollController.position.viewportDimension;
-    if ((expanded - _spacerHeight).abs() > 2) {
-      setState(() => _spacerHeight = expanded);
     }
 
     final lastRoundId = widget.messageGroups.last.id;
@@ -194,7 +192,54 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
         targetKey?.currentContext?.findRenderObject() as RenderBox?;
     final listBox =
         _listViewKey.currentContext?.findRenderObject() as RenderBox?;
-    if (targetBox == null || listBox == null) return;
+
+    // 必须等新 round 完成 layout 再撑 spacer。否则会出现：
+    // spacer 先被拉满视口 → 中间空一帧 → target 找不到直接 return。
+    if (targetBox == null || listBox == null || !targetBox.hasSize) {
+      if (attempt < 4) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _scrollNewRoundToTop(attempt: attempt + 1);
+        });
+        return;
+      }
+      _suppressSpacerRecalc = false;
+      _recalcSpacer();
+      return;
+    }
+
+    final expanded = _viewportHeight > 0
+        ? _viewportHeight
+        : widget.scrollController.position.viewportDimension;
+    final needsExpand = (expanded - _spacerHeight).abs() > 2;
+    if (needsExpand) {
+      setState(() => _spacerHeight = expanded);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _animateNewRoundToTop(lastRoundId);
+      });
+      return;
+    }
+
+    _animateNewRoundToTop(lastRoundId);
+  }
+
+  void _animateNewRoundToTop(int lastRoundId) {
+    if (!widget.scrollController.hasClients) {
+      _suppressSpacerRecalc = false;
+      return;
+    }
+
+    final targetKey = _roundKeys[lastRoundId];
+    final targetBox =
+        targetKey?.currentContext?.findRenderObject() as RenderBox?;
+    final listBox =
+        _listViewKey.currentContext?.findRenderObject() as RenderBox?;
+    if (targetBox == null || listBox == null || !targetBox.hasSize) {
+      _suppressSpacerRecalc = false;
+      _recalcSpacer();
+      return;
+    }
 
     final topInViewport = targetBox
         .localToGlobal(Offset.zero, ancestor: listBox)
@@ -215,6 +260,8 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
     Future<void>.delayed(const Duration(milliseconds: _smoothDurationMs), () {
       if (!mounted) return;
       _isProgrammaticScroll = false;
+      _suppressSpacerRecalc = false;
+      _recalcSpacer();
     });
   }
 
@@ -304,7 +351,10 @@ class _SearchPanelWidgetState extends State<SearchPanelWidget> {
                         onChange: (size) {
                           if (i == groups.length - 1) {
                             _lastRoundHeight = size.height;
-                            _recalcSpacer();
+                            if (!_suppressSpacerRecalc &&
+                                !_isProgrammaticScroll) {
+                              _recalcSpacer();
+                            }
                           }
                         },
                         child: Container(
