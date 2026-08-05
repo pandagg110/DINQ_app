@@ -17,6 +17,7 @@ import '../../utils/top_toast_util.dart';
 import '../../widgets/common/base_page.dart';
 import '../../widgets/common/default_app_bar.dart';
 import '../../widgets/marketing/contact_support_dialog.dart';
+import 'subscription_plan_display.dart';
 
 // ─── Plan 配置常量 ────────────────────────────────────────────────
 
@@ -132,9 +133,10 @@ class _PricingPageState extends State<PricingPage> {
   bool _hasError = false;
   String _billingPeriod = 'yearly';
   String? _processingPlan;
+  bool _selectionInitialized = false;
 
   late PageController _pageController;
-  int _currentPage = 2; // 默认聚焦 Pro
+  int _currentPage = 1; // Free 用户默认推荐 Basic Yearly
 
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   SubscriptionPaymentChannel get _paymentChannel =>
@@ -160,6 +162,38 @@ class _PricingPageState extends State<PricingPage> {
       AppleIapService.instance.onPurchaseFinished = _onIapPurchaseFinished;
     } else if (_usesGooglePlay) {
       GooglePlayIapService.instance.onPurchaseFinished = _onIapPurchaseFinished;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userStore = context.watch<UserStore>();
+    if (_selectionInitialized || !userStore.isInitialized) return;
+    if (userStore.isLoggedIn() && userStore.isLoadingSubscription) return;
+
+    final currentPlan = userStore.subscription?.plan ?? 'free';
+    final (basePlan, billingPeriod) = initialSubscriptionSelection(currentPlan);
+    final visiblePlans = visibleSubscriptionBasePlans(
+      billingPeriod: billingPeriod,
+      currentPlan: currentPlan,
+    );
+    _billingPeriod = billingPeriod;
+    final selectedIndex = visiblePlans.indexOf(basePlan);
+    _currentPage = selectedIndex >= 0 ? selectedIndex : 0;
+    _selectionInitialized = true;
+    if (_pageController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(_currentPage);
+        }
+      });
+    } else {
+      _pageController.dispose();
+      _pageController = PageController(
+        viewportFraction: 0.82,
+        initialPage: _currentPage,
+      );
     }
   }
 
@@ -223,21 +257,11 @@ class _PricingPageState extends State<PricingPage> {
     if (!userStore.isLoggedIn()) return true;
 
     final subscription = userStore.subscription;
-    final currentBasePlan = subscription?.basePlan ?? 'free';
-    final currentBillingPeriod = subscription?.billingPeriod;
-
-    final targetLevel = kPlanLevel[targetBasePlan] ?? 0;
-    final currentLevel = kPlanLevel[currentBasePlan] ?? 0;
-
-    // 升级或降级都允许
-    if (targetLevel != currentLevel) return true;
-
-    // 同级别付费计划：仅允许月付 → 年付
-    if (targetBasePlan != 'free') {
-      return currentBillingPeriod == 'monthly' && _billingPeriod == 'yearly';
-    }
-
-    return false;
+    final currentPlan = subscription?.plan ?? 'free';
+    final targetPlan = targetBasePlan == 'free'
+        ? 'free'
+        : '${targetBasePlan}_$_billingPeriod';
+    return targetPlan != currentPlan;
   }
 
   bool _isCurrentPlan(String basePlan) {
@@ -257,30 +281,12 @@ class _PricingPageState extends State<PricingPage> {
   // 按钮文案对齐 web pricing.cta
   String _getButtonText(String basePlan) {
     final userStore = context.read<UserStore>();
-
-    if (!userStore.isLoggedIn()) {
-      return basePlan == 'free' ? 'Get started' : 'Subscribe';
-    }
-
-    if (_isCurrentPlan(basePlan)) return 'Current plan';
-
-    final subscription = userStore.subscription;
-    final isCurrentPlanFree = subscription?.isFree ?? true;
-    final currentBasePlan = subscription?.basePlan ?? 'free';
-    final currentBillingPeriod = subscription?.billingPeriod;
-
-    if (basePlan == 'free') return 'Downgrade to Free';
-    if (isCurrentPlanFree) return 'Subscribe';
-
-    if (basePlan == currentBasePlan &&
-        currentBillingPeriod == 'yearly' &&
-        _billingPeriod == 'monthly') {
-      return 'Yearly subscriber';
-    }
-
-    final targetLevel = kPlanLevel[basePlan] ?? 0;
-    final currentLevel = kPlanLevel[currentBasePlan] ?? 0;
-    return targetLevel < currentLevel ? 'Downgrade' : 'Upgrade';
+    return subscriptionActionLabel(
+      currentPlan: userStore.subscription?.plan ?? 'free',
+      targetBasePlan: basePlan,
+      targetBillingPeriod: _billingPeriod,
+      isLoggedIn: userStore.isLoggedIn(),
+    );
   }
 
   bool _isButtonDisabled(String basePlan) {
@@ -312,6 +318,17 @@ class _PricingPageState extends State<PricingPage> {
       return;
     }
 
+    final currentPlan = userStore.subscription?.plan ?? 'free';
+    if (requiresProYearlyExitConfirmation(
+          currentPlan: currentPlan,
+          targetBasePlan: basePlan,
+          targetBillingPeriod: _billingPeriod,
+        ) &&
+        !await _confirmLeavingProYearly()) {
+      return;
+    }
+    if (!mounted) return;
+
     // 降级到 Free：确认后关闭自动续费（对齐 web downgradeDialog + setAutoRenew）
     if (basePlan == 'free') {
       if (_isIOS && userStore.subscription?.isAppleChannel == true) {
@@ -335,18 +352,8 @@ class _PricingPageState extends State<PricingPage> {
     }
 
     final subscription = userStore.subscription;
-    final currentBasePlan = subscription?.basePlan ?? 'free';
-    final currentBillingPeriod = subscription?.billingPeriod;
     final isCurrentPlanFree = subscription?.isFree ?? true;
-
-    // 年费用户升级时强制使用年费
-    final targetPeriod =
-        (currentBillingPeriod == 'yearly' &&
-            (kPlanLevel[basePlan] ?? 0) > (kPlanLevel[currentBasePlan] ?? 0))
-        ? 'yearly'
-        : _billingPeriod;
-
-    final fullPlan = '${basePlan}_$targetPeriod';
+    final fullPlan = '${basePlan}_$_billingPeriod';
 
     if (_usesAppleIap) {
       await _handleAppleCheckout(fullPlan, basePlan);
@@ -388,14 +395,14 @@ class _PricingPageState extends State<PricingPage> {
           'subscription_checkout_start',
           params: {
             'target_plan': basePlan,
-            'billing_period': targetPeriod,
+            'billing_period': _billingPeriod,
             'payment_provider': 'stripe',
           },
           activationIntent: 'unknown',
         );
         AnalyticsService.instance.markCheckoutStarted(
           targetPlan: basePlan,
-          billingPeriod: targetPeriod,
+          billingPeriod: _billingPeriod,
           paymentProvider: 'stripe',
         );
         // 支付页关闭后刷新订阅，驱动 subscription_success 的后端确认上报
@@ -437,6 +444,30 @@ class _PricingPageState extends State<PricingPage> {
     } finally {
       if (mounted) setState(() => _processingPlan = null);
     }
+  }
+
+  Future<bool> _confirmLeavingProYearly() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Switch plans?'),
+            content: const Text(
+              'Pro Yearly is not currently available for selection in this app.\n\n'
+              'After switching, you won’t be able to switch back to this plan within the app.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _handleAppleCheckout(String fullPlan, String basePlan) async {
@@ -894,7 +925,7 @@ class _PricingPageState extends State<PricingPage> {
                 // Monthly
                 Expanded(
                   child: NormalButton(
-                    onTap: () => setState(() => _billingPeriod = 'monthly'),
+                    onTap: () => _setBillingPeriod('monthly'),
                     child: Center(
                       child: Text(
                         'Monthly',
@@ -913,7 +944,7 @@ class _PricingPageState extends State<PricingPage> {
                 // Yearly
                 Expanded(
                   child: NormalButton(
-                    onTap: () => setState(() => _billingPeriod = 'yearly'),
+                    onTap: () => _setBillingPeriod('yearly'),
                     child: Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -964,17 +995,50 @@ class _PricingPageState extends State<PricingPage> {
 
   // ─── Plan Carousel ─────────────────────────────────────────
 
+  List<String> get _visiblePlanOrder {
+    final currentPlan = context.read<UserStore>().subscription?.plan ?? 'free';
+    return visibleSubscriptionBasePlans(
+      billingPeriod: _billingPeriod,
+      currentPlan: currentPlan,
+    );
+  }
+
+  void _setBillingPeriod(String billingPeriod) {
+    if (_billingPeriod == billingPeriod) return;
+    final oldPlans = _visiblePlanOrder;
+    final selectedPlan = _currentPage < oldPlans.length
+        ? oldPlans[_currentPage]
+        : null;
+    setState(() {
+      _billingPeriod = billingPeriod;
+      final newPlans = _visiblePlanOrder;
+      final selectedIndex = selectedPlan == null
+          ? -1
+          : newPlans.indexOf(selectedPlan);
+      _currentPage = selectedIndex >= 0
+          ? selectedIndex
+          : newPlans.indexOf('basic');
+    });
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        _currentPage,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   Widget _buildPlanCarousel() {
-    // 4 plans + 1 custom = 5 cards
-    final totalCards = kPlanOrder.length + 1;
+    final visiblePlans = _visiblePlanOrder;
+    final totalCards = visiblePlans.length + 1;
 
     return PageView.builder(
       controller: _pageController,
       itemCount: totalCards,
       onPageChanged: (index) => setState(() => _currentPage = index),
       itemBuilder: (context, index) {
-        if (index < kPlanOrder.length) {
-          return _buildPlanCard(kPlanOrder[index], index);
+        if (index < visiblePlans.length) {
+          return _buildPlanCard(visiblePlans[index], index);
         } else {
           return _buildCustomCard(index);
         }
@@ -1012,7 +1076,10 @@ class _PricingPageState extends State<PricingPage> {
         ? fullMonthlyRate * 12 - displayPrice
         : 0;
 
-    final isPopular = config.popular;
+    final badge = plan == 'basic' && _billingPeriod == 'yearly'
+        ? 'Recommended'
+        : (config.popular ? 'Popular' : null);
+    final isFeatured = badge != null;
     final isFocused = _currentPage == index;
 
     return AnimatedScale(
@@ -1020,12 +1087,12 @@ class _PricingPageState extends State<PricingPage> {
       duration: const Duration(milliseconds: 200),
       child: Padding(
         padding: EdgeInsets.only(
-          top: isPopular ? 0 : 32,
+          top: isFeatured ? 0 : 32,
           left: 6,
           right: 6,
           bottom: 16,
         ),
-        child: isPopular
+        child: isFeatured
             ? _buildPopularCard(
                 plan,
                 config,
@@ -1035,6 +1102,7 @@ class _PricingPageState extends State<PricingPage> {
                 features,
                 fullMonthlyRate,
                 yearlySavings,
+                badge,
               )
             : _buildRegularCard(
                 plan,
@@ -1059,6 +1127,7 @@ class _PricingPageState extends State<PricingPage> {
     List<String> features,
     int? fullMonthlyRate,
     int yearlySavings,
+    String badge,
   ) {
     return Column(
       children: [
@@ -1094,10 +1163,9 @@ class _PricingPageState extends State<PricingPage> {
                       color: const Color(0xFF1487FA),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      // 对齐 web pricing.badge.popular
-                      'Popular',
-                      style: TextStyle(
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
@@ -1194,7 +1262,12 @@ class _PricingPageState extends State<PricingPage> {
     final showYearlyExtras =
         !isFreePlan && !_usesStoreBilling && _billingPeriod == 'yearly';
     final displayedPrice = _usesStoreBilling && !isFreePlan
-        ? (storePrice ?? 'Unavailable')
+        ? (storePrice ??
+              (_isCurrentPlan(plan)
+                  ? (_billingPeriod == 'yearly'
+                        ? '\$$yearlyPrice'
+                        : '\$$monthlyPrice')
+                  : 'Unavailable'))
         : '\$$monthlyPrice';
 
     return Column(
@@ -1559,10 +1632,11 @@ class _PricingPageState extends State<PricingPage> {
   // ─── Bottom Section ────────────────────────────────────────
 
   Widget _buildBottomSection() {
-    final currentPlan = _currentPage < kPlanOrder.length
-        ? kPlanOrder[_currentPage]
+    final visiblePlans = _visiblePlanOrder;
+    final currentPlan = _currentPage < visiblePlans.length
+        ? visiblePlans[_currentPage]
         : null;
-    final isCustom = _currentPage >= kPlanOrder.length;
+    final isCustom = _currentPage >= visiblePlans.length;
 
     return SafeArea(
       top: false,
@@ -1588,7 +1662,7 @@ class _PricingPageState extends State<PricingPage> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
                     color: _getBottomButtonDisabled()
-                        ? const Color(0xFF171717).withOpacity(0.5)
+                        ? const Color(0xFF171717).withValues(alpha: 0.5)
                         : const Color(0xFF171717),
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -1665,15 +1739,18 @@ class _PricingPageState extends State<PricingPage> {
   }
 
   String _getBottomButtonText() {
-    if (_currentPage >= kPlanOrder.length) return 'Contact Sales';
-    final plan = kPlanOrder[_currentPage];
+    final visiblePlans = _visiblePlanOrder;
+    if (_currentPage >= visiblePlans.length) return 'Contact Sales';
+    final plan = visiblePlans[_currentPage];
+    if (_isCurrentPlan(plan)) return _getButtonText(plan);
     if (!_isPlanAvailable(plan)) return 'Unavailable';
     return _getButtonText(plan);
   }
 
   bool _getBottomButtonDisabled() {
-    if (_currentPage >= kPlanOrder.length) return false;
-    final plan = kPlanOrder[_currentPage];
+    final visiblePlans = _visiblePlanOrder;
+    if (_currentPage >= visiblePlans.length) return false;
+    final plan = visiblePlans[_currentPage];
     return _isButtonDisabled(plan);
   }
 }
