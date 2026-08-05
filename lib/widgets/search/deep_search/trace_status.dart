@@ -62,7 +62,13 @@ String toolDisplayName(String name) {
   return (parts.isNotEmpty ? parts.last : name).replaceAll('_', ' ');
 }
 
-bool isHiddenToolCall(ToolCallBlock block) => block.name == 'ToolSearch';
+bool isHiddenToolCall(ToolCallBlock block) {
+  // 对齐 web `traceStatus.isHiddenToolCall`
+  final name = block.name;
+  return name == 'ToolSearch' ||
+      name == 'Skill' ||
+      name == 'mcp__language__record_language';
+}
 
 ({String? query, int? maxResults}) extractToolQuery(dynamic input) {
   if (input is! Map) return (query: null, maxResults: null);

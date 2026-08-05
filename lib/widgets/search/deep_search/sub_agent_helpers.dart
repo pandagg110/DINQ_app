@@ -1,5 +1,6 @@
 import '../../../utils/parse_quick_replies.dart';
 import 'deep_search_models.dart';
+import 'trace_status.dart' as trace_status;
 import 'trace_strings.dart';
 
 const summaryPrefix = '[summary]';
@@ -27,7 +28,7 @@ String stripSummaryPrefix(String text) {
 }
 
 bool isHiddenToolCall(MessagePart part) =>
-    part is ToolCallPart && part.block.name == 'ToolSearch';
+    part is ToolCallPart && trace_status.isHiddenToolCall(part.block);
 
 class ToolGroup {
   ToolGroup({required this.id, this.label, this.tools = const []});
