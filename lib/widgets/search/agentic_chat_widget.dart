@@ -78,9 +78,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
   bool _modelChannelsLoaded = false;
   bool _mobileResultsOpen = false;
   int? _activeResultsGroupId;
-  // 已自动打开过结果页的轮次：每轮结果首次返回时自动进入结果页，
-  // 用户手动关闭后同一轮不再强制打开。
-  int? _autoOpenedResultsGroupId;
 
   // 与 Web AgenticChat detached discover processing 对齐
   String? _lastRestoredKey;
@@ -873,31 +870,6 @@ class _AgenticChatWidgetState extends State<AgenticChatWidget>
                   }
                   return null;
                 }();
-
-                // 搜索结果一旦开始返回就自动进入结果页（边搜索边继续展示），
-                // 不再停留在搜索过程页；只针对最新一轮，且每轮只自动打开一次。
-                if (canUseMobileResults && !_mobileResultsOpen) {
-                  AgenticMessageGroup? latestRound;
-                  for (final group in messageGroups.reversed) {
-                    if (group.toolType == null) {
-                      latestRound = group;
-                      break;
-                    }
-                  }
-                  if (latestRound != null &&
-                      latestRound.candidates.isNotEmpty &&
-                      latestRound.id != _autoOpenedResultsGroupId) {
-                    final autoOpenGroupId = latestRound.id;
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!mounted) return;
-                      setState(() {
-                        _autoOpenedResultsGroupId = autoOpenGroupId;
-                        _activeResultsGroupId = autoOpenGroupId;
-                        _mobileResultsOpen = true;
-                      });
-                    });
-                  }
-                }
 
                 final activeMobileResultsGroup = mobileResultsGroup;
                 final showMobileResultsWorkspace =
