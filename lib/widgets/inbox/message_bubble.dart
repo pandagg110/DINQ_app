@@ -1,9 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/message_models.dart';
+import '../../utils/dinq_link_opener.dart';
 import '../common/base_page.dart';
 
 /// 消息气泡组件
@@ -53,7 +53,8 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment: isOwnMessage ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isOwnMessage ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // 对方头像（群聊时显示）
@@ -75,7 +76,9 @@ class MessageBubble extends StatelessWidget {
           // 消息内容区域
           Flexible(
             child: Column(
-              crossAxisAlignment: isOwnMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isOwnMessage
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 // 群聊发送者名称
                 if (!isOwnMessage && showAvatar && senderName != null)
@@ -94,7 +97,10 @@ class MessageBubble extends StatelessWidget {
                   ),
                   padding: message.messageType == MessageType.emoji
                       ? const EdgeInsets.all(4)
-                      : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      : const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                   decoration: BoxDecoration(
                     color: message.messageType == MessageType.emoji
                         ? Colors.transparent
@@ -108,7 +114,7 @@ class MessageBubble extends StatelessWidget {
                       bottomRight: Radius.circular(isOwnMessage ? 4 : 16),
                     ),
                   ),
-                  child: _buildContent(),
+                  child: _buildContent(context),
                 ),
 
                 // 时间戳和已读状态
@@ -117,7 +123,8 @@ class MessageBubble extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isOwnMessage && (message.status == MessageStatus.read || isRead))
+                      if (isOwnMessage &&
+                          (message.status == MessageStatus.read || isRead))
                         Padding(
                           padding: const EdgeInsets.only(right: 4),
                           child: SvgPicture.asset(
@@ -138,14 +145,13 @@ class MessageBubble extends StatelessWidget {
           ),
 
           // 自己的消息 - 群聊时右侧占位
-          if (isOwnMessage && showAvatar)
-            const SizedBox(width: 40),
+          if (isOwnMessage && showAvatar) const SizedBox(width: 40),
         ],
       ),
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     switch (message.messageType) {
       case MessageType.emoji:
         return Text(
@@ -161,7 +167,7 @@ class MessageBubble extends StatelessWidget {
             if (message.content.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: _buildTextContent(),
+                child: _buildTextContent(context),
               ),
             if (imageUrl != null)
               ClipRRect(
@@ -177,14 +183,14 @@ class MessageBubble extends StatelessWidget {
 
       case MessageType.text:
       default:
-        return _buildTextContent();
+        return _buildTextContent(context);
     }
   }
 
   /// 正则匹配 URL 链接
   static final RegExp _urlRegex = RegExp(r'(https?://[^\s]+)');
 
-  Widget _buildTextContent() {
+  Widget _buildTextContent(BuildContext context) {
     final text = message.content;
     final matches = _urlRegex.allMatches(text).toList();
 
@@ -209,7 +215,7 @@ class MessageBubble extends StatelessWidget {
       if (match.start > lastEnd) {
         spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
       }
-      // 链接文本（可点击）
+      // 链接文本（可点击）→ 域名识别后决定 App 内打开或外跳
       final url = match.group(0)!;
       spans.add(TextSpan(
         text: url,
@@ -218,12 +224,7 @@ class MessageBubble extends StatelessWidget {
           color: isOwnMessage ? Colors.white : const Color(0xFF2563EB),
         ),
         recognizer: TapGestureRecognizer()
-          ..onTap = () {
-            final uri = Uri.tryParse(url);
-            if (uri != null) {
-              launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          },
+          ..onTap = () => openInboxChatLink(context, url),
       ));
       lastEnd = match.end;
     }
