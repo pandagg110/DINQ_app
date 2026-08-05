@@ -8,6 +8,7 @@ import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
 import 'agentic_chat_widget.dart';
 import '../../models/deep_search_enrich_models.dart';
+import '../../widgets/common/swipe_back_page.dart';
 import 'enrich/enrich_header.dart';
 import 'enrich/enrich_profile_view.dart';
 import 'enrich/enrich_stream_controller.dart';
@@ -228,45 +229,48 @@ class _EnrichBottomSheet extends StatelessWidget {
     final topPadding = MediaQuery.paddingOf(context).top;
 
     return Positioned.fill(
-      child: Material(
-        color: Colors.white,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: EdgeInsets.only(top: topPadding),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: Color(0xFFEAE8E3))),
-              ),
-              child: SizedBox(
-                height: 48,
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: onClose,
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: const Color(0xFF171717),
-                      tooltip: 'Back',
-                    ),
-                  ],
+      child: SwipeBackPage(
+        onBack: onClose,
+        child: Material(
+          color: Colors.white,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: EdgeInsets.only(top: topPadding),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: Color(0xFFEAE8E3))),
+                ),
+                child: SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: onClose,
+                        icon: const Icon(Icons.arrow_back, size: 20),
+                        color: const Color(0xFF171717),
+                        tooltip: 'Back',
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              // 内容滚动 + 操作按钮固定底部由 EnrichProfileView 整页模式负责
-              child: entry == null
-                  ? const SizedBox.shrink()
-                  : EnrichProfileView(
-                      entry: entry!,
-                      isMobile: true,
-                      pinActionsToBottom: true,
-                      selectedRowId: selectedRowId,
-                      confidencePct: confidencePct,
-                      onRefresh: onRefresh,
-                    ),
-            ),
-          ],
+              Expanded(
+                // 内容滚动 + 操作按钮固定底部由 EnrichProfileView 整页模式负责
+                child: entry == null
+                    ? const SizedBox.shrink()
+                    : EnrichProfileView(
+                        entry: entry!,
+                        isMobile: true,
+                        pinActionsToBottom: true,
+                        selectedRowId: selectedRowId,
+                        confidencePct: confidencePct,
+                        onRefresh: onRefresh,
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

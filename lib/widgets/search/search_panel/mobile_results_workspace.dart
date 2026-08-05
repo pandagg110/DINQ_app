@@ -10,10 +10,12 @@ import '../../../pages/shortlist/shortlist_strings.dart';
 import '../../../pages/shortlist/widgets/shortlist_shared_widgets.dart';
 import '../../../services/search_service.dart';
 import '../../../services/shortlist_service.dart';
+import '../../../stores/deep_search_enrich_store.dart';
 import '../../../stores/user_store.dart';
 import '../../../theme/dinq_icons.dart';
 import '../../../theme/dinq_tokens.dart';
 import '../../../widgets/common/dinq_svg_icon.dart';
+import '../../../widgets/common/swipe_back_page.dart';
 import '../deep_search/deep_search_models.dart';
 import '../deep_search/deep_search_results_helpers.dart';
 import '../deep_search/deep_search_results_strings.dart';
@@ -451,32 +453,36 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final showBatchBar = _selectionMode && _selectedIds.isNotEmpty;
 
-    return Material(
-      color: DinqTokens.bgPage,
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          DeepSearchResultsStrings.headerTitle,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 20 / 14,
-                            fontWeight: FontWeight.w700,
-                            color: DinqTokens.textPrimary,
-                            fontFamily: 'Geist',
+    return SwipeBackPage(
+      onBack: widget.onClose,
+      // 详情（Enrich）打开时，优先让上层处理返回
+      shouldHandlePop: () => !context.read<DeepSearchEnrichStore>().isOpen,
+      child: Material(
+        color: DinqTokens.bgPage,
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            DeepSearchResultsStrings.headerTitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 20 / 14,
+                              fontWeight: FontWeight.w700,
+                              color: DinqTokens.textPrimary,
+                              fontFamily: 'Geist',
+                            ),
                           ),
                         ),
-                      ),
                       Text(
                         '${_rows.length}',
                         style: const TextStyle(
@@ -569,6 +575,7 @@ class _MobileResultsWorkspaceState extends State<MobileResultsWorkspace> {
               ),
           ],
         ),
+      ),
       ),
     );
   }

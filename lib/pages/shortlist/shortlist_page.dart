@@ -20,6 +20,7 @@ import '../../theme/dinq_icons.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
+import '../../widgets/common/swipe_back_page.dart';
 import '../../widgets/search/enrich/enrich_profile_view.dart';
 import '../../widgets/search/enrich/enrich_stream_controller.dart';
 import 'shortlist_strings.dart';
@@ -1242,90 +1243,93 @@ class _EnrichOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: Material(
-        color: Colors.white,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: Color(0xFFEAE8E3))),
-              ),
-              child: SizedBox(
-                height: 48,
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: onClose,
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: const Color(0xFF171717),
-                      tooltip: 'Back',
-                    ),
-                    const Spacer(),
-                    PopupMenuButton<String>(
-                      tooltip: 'More actions',
-                      icon: const Icon(Icons.more_horiz, size: 22),
-                      onSelected: (value) {
-                        if (value == 'refresh') {
-                          onRefresh();
-                        } else if (value == 'remove') {
-                          onRemove?.call();
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'refresh',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.refresh,
-                                size: 16,
-                                color: Color(0xFF171717),
-                              ),
-                              SizedBox(width: 8),
-                              Text('Search again'),
-                            ],
-                          ),
-                        ),
-                        if (onRemove != null)
+      child: SwipeBackPage(
+        onBack: onClose,
+        child: Material(
+          color: Colors.white,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: Color(0xFFEAE8E3))),
+                ),
+                child: SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: onClose,
+                        icon: const Icon(Icons.arrow_back, size: 20),
+                        color: const Color(0xFF171717),
+                        tooltip: 'Back',
+                      ),
+                      const Spacer(),
+                      PopupMenuButton<String>(
+                        tooltip: 'More actions',
+                        icon: const Icon(Icons.more_horiz, size: 22),
+                        onSelected: (value) {
+                          if (value == 'refresh') {
+                            onRefresh();
+                          } else if (value == 'remove') {
+                            onRemove?.call();
+                          }
+                        },
+                        itemBuilder: (context) => [
                           const PopupMenuItem(
-                            value: 'remove',
+                            value: 'refresh',
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.delete_outline,
+                                  Icons.refresh,
                                   size: 16,
-                                  color: Color(0xFFA04444),
+                                  color: Color(0xFF171717),
                                 ),
                                 SizedBox(width: 8),
-                                Text(
-                                  'Remove from shortlist',
-                                  style: TextStyle(color: Color(0xFFA04444)),
-                                ),
+                                Text('Search again'),
                               ],
                             ),
                           ),
-                      ],
-                    ),
-                  ],
+                          if (onRemove != null)
+                            const PopupMenuItem(
+                              value: 'remove',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.delete_outline,
+                                    size: 16,
+                                    color: Color(0xFFA04444),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Remove from shortlist',
+                                    style: TextStyle(color: Color(0xFFA04444)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: entry == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : EnrichProfileView(
-                      entry: entry!,
-                      isMobile: true,
-                      pinActionsToBottom: true,
-                      selectedRowId: selectedRowId,
-                      confidencePct: confidencePct,
-                      onRefresh: onRefresh,
-                      shortlistMode: true,
-                    ),
-            ),
-          ],
+              Expanded(
+                child: entry == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : EnrichProfileView(
+                        entry: entry!,
+                        isMobile: true,
+                        pinActionsToBottom: true,
+                        selectedRowId: selectedRowId,
+                        confidencePct: confidencePct,
+                        onRefresh: onRefresh,
+                        shortlistMode: true,
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
