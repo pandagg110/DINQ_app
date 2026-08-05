@@ -411,7 +411,8 @@ void main() {
       await store.loadConversations('');
 
       expect(store.conversations.map((item) => item.id), ['session-1']);
-      expect(store.error, contains('offline'));
+      expect(store.error, 'Failed to load history');
+      expect(store.error, isNot(contains('DioException')));
     });
 
     test('coalesces concurrent top status refreshes', () async {

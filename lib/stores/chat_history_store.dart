@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/history_service.dart';
+import '../utils/api_error.dart';
 
 /// 与 Web `ConversationSearchState` 对齐
 typedef ConversationSearchState = String; // running | completed | empty
@@ -379,7 +380,7 @@ class ChatHistoryStore extends ChangeNotifier {
       hasMoreResults = offset < backendTotal;
     } catch (e) {
       if (requestEpoch == _loadRequestEpoch) {
-        error = e.toString();
+        error = apiErrorMessage(e, fallback: 'Failed to load history');
       }
     } finally {
       isLoading = false;

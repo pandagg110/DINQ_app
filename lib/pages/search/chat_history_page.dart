@@ -7,6 +7,7 @@ import '../../pages/settings/settings_subscription_page.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
+import '../../widgets/search/history/chat_history_empty_state_widget.dart';
 import '../../widgets/search/history/chat_history_item_widget.dart';
 import '../../widgets/search/history/chat_history_skeleton_widget.dart';
 
@@ -329,24 +330,19 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     if (chatStore.isLoading && chatStore.conversations.isEmpty) {
       return const ChatHistorySkeletonWidget();
     }
-    if (chatStore.error != null) {
+    // 仅在列表为空时展示兜底；已有快照时继续展示历史（对齐 store 失败保活）
+    if (chatStore.error != null && chatStore.conversations.isEmpty) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            chatStore.error!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF8a8880)),
-          ),
+        child: ChatHistoryEmptyStateWidget(
+          type: 'error',
+          message: chatStore.error,
+          onRetry: () => chatStore.loadConversations(_query),
         ),
       );
     }
     if (chatStore.conversations.isEmpty && !chatStore.hasMore()) {
       return const Center(
-        child: Text(
-          'No history yet',
-          style: TextStyle(fontSize: 14, color: Color(0xFF8a8880)),
-        ),
+        child: ChatHistoryEmptyStateWidget(type: 'empty'),
       );
     }
     if (normalizedQuery.isNotEmpty && filteredItems.isEmpty) {

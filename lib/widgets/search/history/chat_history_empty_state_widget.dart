@@ -8,11 +8,22 @@ class ChatHistoryEmptyStateWidget extends StatelessWidget {
     required this.type,
     this.message,
     this.tier,
+    this.onRetry,
   });
 
   final String type; // 'empty' | 'error' | 'locked' | 'upgrade_pro'
   final String? message;
   final String? tier;
+  final VoidCallback? onRetry;
+
+  static bool isNetworkStyleMessage(String? message) {
+    if (message == null || message.isEmpty) return false;
+    final lower = message.toLowerCase();
+    return lower.contains('network') ||
+        lower.contains('timeout') ||
+        lower.contains('connection') ||
+        lower.contains('offline');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,28 +84,80 @@ class ChatHistoryEmptyStateWidget extends StatelessWidget {
       );
     }
 
-    // Error state (generic)
+    // Error state (generic) — 网络/超时等友好兜底，不暴露 DioException 原文
     if (type == 'error') {
+      final isNetwork = isNetworkStyleMessage(message);
+      final title = isNetwork ? 'Network error' : 'Failed to load history';
+      final detail = (message != null && message!.trim().isNotEmpty)
+          ? message!.trim()
+          : (isNetwork
+              ? 'Please check your connection and try again.'
+              : 'Something went wrong. Please try again.');
+
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(20),
+                color: isNetwork
+                    ? const Color(0xFFF3F4F6)
+                    : const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(Icons.error_outline, size: 20, color: Color(0xFFEF4444)),
+              child: Icon(
+                isNetwork ? Icons.wifi_off_rounded : Icons.error_outline,
+                size: 24,
+                color: isNetwork
+                    ? const Color(0xFF6B7280)
+                    : const Color(0xFFEF4444),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
-              message ?? 'Failed to load history',
+              title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF171717),
+              ),
             ),
+            const SizedBox(height: 6),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: Color(0xFF8A8880),
+              ),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: onRetry,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF171717),
+                  side: const BorderSide(color: Color(0xFFE5E5E5)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                child: const Text('Retry'),
+              ),
+            ],
           ],
         ),
       );
