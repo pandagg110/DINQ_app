@@ -157,13 +157,13 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                       filled: false,
                       onTap: () => context.push('/pricing'),
                     ),
-                    const SizedBox(width: 10),
-                    _pillButton(
-                      'Get more credits',
-                      filled: true,
-                      // 对齐 web：打开 Pay-as-you-go 弹层（非跳转 pricing）
-                      onTap: _openPaygSheet,
-                    ),
+                    // const SizedBox(width: 10),
+                    // _pillButton(
+                    //   'Get more credits',
+                    //   filled: true,
+                    //   // 对齐 web：打开 Pay-as-you-go 弹层（非跳转 pricing）
+                    //   onTap: _openPaygSheet,
+                    // ),
                   ],
                 ),
                 const SizedBox(height: 18),
