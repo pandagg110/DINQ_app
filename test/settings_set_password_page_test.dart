@@ -11,10 +11,24 @@ class _SuccessfulAuthService extends AuthService {
   }) async {}
 }
 
+class _PopTrackingObserver extends NavigatorObserver {
+  int popCount = 0;
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    popCount += 1;
+    super.didPop(route, previousRoute);
+  }
+}
+
 void main() {
-  Future<void> openSuccessfulPasswordDialog(WidgetTester tester) async {
+  Future<_PopTrackingObserver> openSuccessfulPasswordDialog(
+    WidgetTester tester,
+  ) async {
+    final observer = _PopTrackingObserver();
     await tester.pumpWidget(
       MaterialApp(
+        navigatorObservers: [observer],
         home: Builder(
           builder: (context) => Scaffold(
             body: Center(
@@ -50,6 +64,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Password set successfully'), findsOneWidget);
+    return observer;
   }
 
   testWidgets('success confirmation closes the dialog and returns one page', (
@@ -62,6 +77,21 @@ void main() {
 
     expect(find.text('Password set successfully'), findsNothing);
     expect(find.text('Open password page'), findsOneWidget);
+  });
+
+  testWidgets('waits for the dialog route to close before popping the page', (
+    tester,
+  ) async {
+    final observer = await openSuccessfulPasswordDialog(tester);
+
+    await tester.tap(find.text('Ok'));
+    await tester.pump();
+
+    expect(observer.popCount, 1);
+
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(observer.popCount, 2);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('rapid confirmation taps cannot pop more than one page', (

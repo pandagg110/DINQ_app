@@ -133,6 +133,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
+      useRootNavigator: true,
       builder: (dialogContext) => Center(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -181,7 +182,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
                   onPressed: () {
                     if (isClosing) return;
                     isClosing = true;
-                    Navigator.of(dialogContext).pop();
+                    Navigator.of(dialogContext, rootNavigator: true).pop();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ColorUtil.textColor,
@@ -202,8 +203,12 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
       ),
     );
 
+    // Let the modal route finish its reverse transition before changing the
+    // GoRouter stack. Popping both routes in the same frame can leave Android
+    // showing only the dialog barrier as a grey screen.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
     if (mounted) {
-      Navigator.of(context).pop();
+      await Navigator.of(context).maybePop();
     }
   }
 
