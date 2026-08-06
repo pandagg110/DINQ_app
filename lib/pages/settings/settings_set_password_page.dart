@@ -1,9 +1,7 @@
 import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
-import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../services/auth_service.dart';
 import '../../utils/color_util.dart';
@@ -14,11 +12,13 @@ typedef PasswordChangeSuccessCallback = Future<void> Function();
 class SettingsSetPasswordPage extends StatefulWidget {
   final bool hasPassword;
   final PasswordChangeSuccessCallback? onSuccess;
+  final AuthService? authService;
 
   const SettingsSetPasswordPage({
     super.key,
     required this.hasPassword,
     this.onSuccess,
+    this.authService,
   });
 
   @override
@@ -30,7 +30,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _authService = AuthService();
+  late final AuthService _authService;
 
   bool _isSubmitting = false;
   late bool _requiresCurrentPassword;
@@ -44,6 +44,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
     _requiresCurrentPassword = widget.hasPassword;
   }
 
@@ -110,7 +111,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
         // 密码已经修改成功；资料刷新失败不应把成功操作误报为失败。
       }
       if (!mounted) return;
-      _showSuccessDialog();
+      await _showSuccessDialog();
     } catch (e) {
       if (!mounted) return;
       if (passwordChangeRequiresCurrentPassword(e)) {
@@ -127,66 +128,83 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
     }
   }
 
-  void _showSuccessDialog() {
-    final child = Center(
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 20),
-        padding: EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDDFEBC),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Center(
-                child: AssetImageView(
-                  "settings_success",
-                  width: 32,
-                  height: 32,
+  Future<void> _showSuccessDialog() async {
+    var isClosing = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: 16,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDFEBC),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Password set successfully',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Geist',
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                onPressed: () {
-                  CommonDialog.closeDialog(context);
-                  context.pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ColorUtil.textColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                child: Center(
+                  child: AssetImageView(
+                    "settings_success",
+                    width: 32,
+                    height: 32,
                   ),
                 ),
-                child: const Text('Ok', style: TextStyle(fontFamily: 'Geist')),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              const Text(
+                'Password set successfully',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Geist',
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (isClosing) return;
+                    isClosing = true;
+                    Navigator.of(dialogContext).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorUtil.textColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Ok',
+                    style: TextStyle(fontFamily: 'Geist'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
-    CommonDialog.showAlert(context: context, customAlert: child);
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
