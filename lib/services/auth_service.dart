@@ -132,6 +132,73 @@ String bindEmailErrorMessage(Object error) {
   return fallbackMessage;
 }
 
+String passwordChangeErrorMessage(Object error) {
+  const fallbackMessage = 'Unable to update password. Please try again.';
+  final statusCode = error is DioException ? error.response?.statusCode : null;
+
+  if (error is DioException) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.sendTimeout:
+        return 'Network timeout. Please try again.';
+      case DioExceptionType.connectionError:
+        return 'Network error. Please check your connection.';
+      default:
+        break;
+    }
+
+    if (statusCode == 401) {
+      return 'Your session has expired. Please sign in again.';
+    }
+    if (statusCode == 429) {
+      return 'Too many attempts. Please try again later.';
+    }
+    if (statusCode != null && statusCode >= 500) return fallbackMessage;
+  }
+
+  final normalized = _passwordChangeServerMessage(error).toLowerCase();
+  if (normalized.contains('current password is required')) {
+    return 'Please enter your current password.';
+  }
+  if (normalized.contains('current password is incorrect')) {
+    return 'Current password is incorrect.';
+  }
+  if (normalized.contains('different from current password')) {
+    return 'The new password must be different from your current password.';
+  }
+  if (normalized.contains('at least') && normalized.contains('character')) {
+    return 'Password must be at least 8 characters.';
+  }
+  if (statusCode == 400) {
+    return 'Unable to update password. Please check your input.';
+  }
+  return fallbackMessage;
+}
+
+bool passwordChangeRequiresCurrentPassword(Object error) =>
+    _passwordChangeServerMessage(
+      error,
+    ).toLowerCase().contains('current password is required');
+
+String _passwordChangeServerMessage(Object error) {
+  if (error is! DioException) return '';
+
+  final interceptedMessage = error.error;
+  if (interceptedMessage is String && interceptedMessage.isNotEmpty) {
+    return interceptedMessage;
+  }
+
+  final data = error.response?.data;
+  if (data is Map) {
+    for (final key in const ['message', 'error', 'msg', 'detail']) {
+      final value = data[key];
+      if (value is String && value.isNotEmpty) return value;
+    }
+  }
+  return data is String ? data : '';
+}
+
 String _providerLabel(String provider) => switch (provider.toLowerCase()) {
   'github' => 'GitHub',
   'google' => 'Google',

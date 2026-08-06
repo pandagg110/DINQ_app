@@ -58,17 +58,26 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     final emailAddress = emailAccount['email']?.toString() ?? '';
 
     // 至少保留一个已连接账号（对齐 Web AccountCard 的 connectedCount 校验）
-    final connectedCount = connectedAccounts.where((a) => a['connected'] == true).length;
+    final connectedCount = connectedAccounts
+        .where((a) => a['connected'] == true)
+        .length;
 
     return Scaffold(
-      appBar: DefaultAppBar(context, titleString: "Accounts", backgroundColor: Colors.transparent),
+      appBar: DefaultAppBar(
+        context,
+        titleString: "Accounts",
+        backgroundColor: Colors.transparent,
+      ),
       backgroundColor: ColorUtil.pageBgColor,
       body: Column(
         children: [
           // 主要设置区域
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -91,8 +100,11 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
                   subtitle: isEmailConnected ? emailAddress : 'Not connected',
                   buttonText: !isEmailConnected
                       ? 'Bind'
-                      : (_unlinkingProvider == 'email' ? 'Unbind...' : 'Unbind'),
-                  enabled: _unlinkingProvider == null &&
+                      : (_unlinkingProvider == 'email'
+                            ? 'Unbind...'
+                            : 'Unbind'),
+                  enabled:
+                      _unlinkingProvider == null &&
                       !(isEmailConnected && connectedCount <= 1),
                   onTap: isEmailConnected
                       ? () => _handleEmailUnbind(connectedCount: connectedCount)
@@ -103,7 +115,10 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
           ),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: _buildGithubItem(
               isConnected: isGithubConnected,
               displayUrl: githubAccount['display_url']?.toString(),
@@ -118,7 +133,10 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
           // Delete Account
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: _buildDeleteAccountItem(),
           ),
           const Spacer(),
@@ -151,7 +169,9 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
               borderRadius: BorderRadius.circular(48),
               border: Border.all(color: Color(0x12303030), width: 1),
             ),
-            child: Center(child: AssetImageView(imgName, width: 24, height: 24)),
+            child: Center(
+              child: AssetImageView(imgName, width: 24, height: 24),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -170,7 +190,11 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 12, color: Color(0xFF575757), fontFamily: 'Geist'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF575757),
+                    fontFamily: 'Geist',
+                  ),
                 ),
               ],
             ),
@@ -269,7 +293,10 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
           context.go('/');
         },
         child: Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Center(
             child: Text(
               'Log out',
@@ -286,13 +313,19 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     );
   }
 
-  Widget _buildOutlineButton(String text, VoidCallback onTap, {bool enabled = true}) {
+  Widget _buildOutlineButton(
+    String text,
+    VoidCallback onTap, {
+    bool enabled = true,
+  }) {
     final button = Container(
       width: 100,
       height: 34,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: enabled ? const Color(0xFFE6E6E6) : const Color(0xFFEFEFEF)),
+        border: Border.all(
+          color: enabled ? const Color(0xFFE6E6E6) : const Color(0xFFEFEFEF),
+        ),
       ),
       child: Center(
         child: Text(
@@ -312,7 +345,15 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
   }
 
   void _pushChangePassword(bool hasPassword) {
-    context.push('/settings/account/password', extra: {'hasPassword': hasPassword});
+    context.push(
+      '/settings/account/password',
+      extra: {
+        'hasPassword': hasPassword,
+        'onSuccess': () async {
+          await context.read<UserStore>().getCurrentUser();
+        },
+      },
+    );
   }
 
   void _pushBindEmail() {
@@ -347,7 +388,10 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     try {
       await userStore.unlinkAccount(provider: 'email');
       if (!mounted) return;
-      TopToastUtil.showSuccess(context: context, title: 'Email unbound successfully');
+      TopToastUtil.showSuccess(
+        context: context,
+        title: 'Email unbound successfully',
+      );
     } catch (e) {
       if (!mounted) return;
       TopToastUtil.showError(
@@ -392,7 +436,9 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     setState(() => _isConnectingGithub = true);
     final userStore = context.read<UserStore>();
     try {
-      final response = await _profileService.getAccountLinkOAuthURL(platform: 'github');
+      final response = await _profileService.getAccountLinkOAuthURL(
+        platform: 'github',
+      );
       final authUrl = response['auth_url']?.toString();
       if (authUrl == null || authUrl.isEmpty) {
         throw Exception('Missing OAuth URL');
@@ -427,7 +473,10 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
       await _profileService.linkAccount(platform: 'github', code: result.code!);
       await userStore.loadUserAccounts();
       if (!mounted) return;
-      TopToastUtil.showSuccess(context: context, title: 'GitHub connected successfully');
+      TopToastUtil.showSuccess(
+        context: context,
+        title: 'GitHub connected successfully',
+      );
     } catch (e) {
       if (!mounted) return;
       TopToastUtil.showError(
@@ -448,7 +497,9 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
     required List<dynamic> connectedAccounts,
   }) async {
     // 计算已连接的账号数量
-    final connectedCount = connectedAccounts.where((a) => a['connected'] == true).length;
+    final connectedCount = connectedAccounts
+        .where((a) => a['connected'] == true)
+        .length;
 
     // 至少保留一个连接的账号
     if (connectedCount <= 1) {
@@ -477,7 +528,10 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
       try {
         await context.read<UserStore>().unlinkAccount(provider: 'github');
         if (!mounted) return;
-        TopToastUtil.showSuccess(context: context, title: 'GitHub disconnected successfully');
+        TopToastUtil.showSuccess(
+          context: context,
+          title: 'GitHub disconnected successfully',
+        );
       } catch (e) {
         if (!mounted) return;
         TopToastUtil.showError(
@@ -527,7 +581,11 @@ class _SettingsAccountPageState extends State<SettingsAccountPage> {
                   onTap: () => Navigator.pop(context, false),
                   child: const Padding(
                     padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 22, color: Color(0xFF171717)),
+                    child: Icon(
+                      Icons.close,
+                      size: 22,
+                      color: Color(0xFF171717),
+                    ),
                   ),
                 ),
               ),

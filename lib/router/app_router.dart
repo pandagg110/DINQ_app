@@ -152,7 +152,10 @@ class AppRouter {
         ),
         GoRoute(path: '/', builder: (context, state) => const MainTabPage()),
         GoRoute(path: '/me', builder: (context, state) => const MainTabPage()),
-        GoRoute(path: '/shortlist', builder: (context, state) => const MainTabPage()),
+        GoRoute(
+          path: '/shortlist',
+          builder: (context, state) => const MainTabPage(),
+        ),
         GoRoute(
           path: '/landing',
           builder: (context, state) => const LandingPage(),
@@ -292,7 +295,12 @@ class AppRouter {
             final map = state.extra as Map<String, dynamic>;
             // 获取路径参数
             final hasPassword = map['hasPassword'];
-            return SettingsSetPasswordPage(hasPassword: hasPassword);
+            final onSuccess =
+                map['onSuccess'] as PasswordChangeSuccessCallback?;
+            return SettingsSetPasswordPage(
+              hasPassword: hasPassword,
+              onSuccess: onSuccess,
+            );
           },
         ),
         GoRoute(
