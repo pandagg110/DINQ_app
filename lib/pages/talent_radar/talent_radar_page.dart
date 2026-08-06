@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../constants/app_constants.dart';
+import '../../services/auth_service.dart';
+import '../../stores/user_store.dart';
 import '../../theme/dinq_icons.dart';
 import '../../theme/dinq_tokens.dart';
+import '../../utils/top_toast_util.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
 
 /// Talent Radar Tab（持续找人）。
-/// 功能未发布：整页写死为 Coming Soon 空状态（还原 my_first_app
-/// `_TasksPageOverlay`），不请求 /tasks、不展示任何历史任务。
+/// 功能未发布：整页引导到 Web 体验（[dinq.me/talent-radar]），
+/// 不请求 /tasks、不展示任何历史任务。
 /// 上线时从 git 历史恢复任务列表/操作逻辑。
 class TalentRadarPage extends StatefulWidget {
   const TalentRadarPage({super.key});
@@ -16,10 +22,50 @@ class TalentRadarPage extends StatefulWidget {
 }
 
 class _TalentRadarPageState extends State<TalentRadarPage> {
+  bool _openingWeb = false;
+
+  /// 对齐 analysis 跳转：POST /auth/web-login-ticket →
+  /// `{appUrl}/auth/app-login?ticket=...&next=/talent-radar`
+  Future<void> _openTalentRadarWeb() async {
+    if (_openingWeb) return;
+    final userStore = context.read<UserStore>();
+    if (!userStore.isLoggedIn()) {
+      TopToastUtil.showError(
+        context: context,
+        title: 'Please sign in first.',
+      );
+      return;
+    }
+
+    setState(() => _openingWeb = true);
+    try {
+      final ticketRes = await AuthService().webLoginTicket();
+      final ticket = ticketRes['ticket']?.toString();
+      if (ticket == null || ticket.isEmpty) {
+        throw StateError('empty ticket');
+      }
+
+      final uri = Uri.parse('$appUrl/auth/app-login').replace(
+        queryParameters: {
+          'ticket': ticket,
+          'next': '/talent-radar',
+        },
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (!mounted) return;
+      TopToastUtil.showError(
+        context: context,
+        title: 'Failed to open Talent Radar. Please try again.',
+      );
+    } finally {
+      if (mounted) setState(() => _openingWeb = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Radar 未发布：页面写死为 Coming Soon 空状态，不拉取、不展示任何
+    // Radar 未发布：页面写死为 Web 引导空状态，不拉取、不展示任何
     // 历史任务（含其他端创建的）。上线时从 git 历史恢复任务列表逻辑。
     return Scaffold(
       backgroundColor: DinqTokens.bgPage,
@@ -94,62 +140,179 @@ class _TalentRadarPageState extends State<TalentRadarPage> {
             ),
           ),
           SizedBox(height: 24 * s),
-          _ComingSoonButton(scale: s, height: 56 * s, fontSize: 16 * s),
-          SizedBox(height: 10 * s),
-          Text(
-            'Please use Talent Radar on the web.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14 * s,
-              height: 20 / 14,
-              fontWeight: FontWeight.w400,
-              color: DinqTokens.textSecondary,
-            ),
+          _DesktopExperienceCard(
+            scale: s,
+            opening: _openingWeb,
+            onOpenWeb: _openTalentRadarWeb,
           ),
           SizedBox(height: 20 * s),
-          _StepCard(scale: s, step: '1', title: 'Describe', subtitle: 'Describe the role in plain language.'),
+          _StepCard(
+            scale: s,
+            step: '1',
+            title: 'Describe',
+            subtitle: 'Describe the role in plain language.',
+          ),
           SizedBox(height: 12 * s),
-          _StepCard(scale: s, step: '2', title: 'Auto Scan', subtitle: 'Radar runs 24/7 across platforms.'),
+          _StepCard(
+            scale: s,
+            step: '2',
+            title: 'Auto Scan',
+            subtitle: 'Radar runs 24/7 across platforms.',
+          ),
           SizedBox(height: 12 * s),
-          _StepCard(scale: s, step: '3', title: 'Get Notified', subtitle: 'Matches delivered to your inbox daily.'),
+          _StepCard(
+            scale: s,
+            step: '3',
+            title: 'Get Notified',
+            subtitle: 'Matches delivered to your inbox daily.',
+          ),
         ],
       ),
     );
   }
 }
 
-/// Radar 首页创建入口：置灰不可用（功能未发布，禁用点击）。
-class _ComingSoonButton extends StatelessWidget {
-  const _ComingSoonButton({
+/// 桌面体验引导卡：带 ticket 打开 Web Talent Radar
+class _DesktopExperienceCard extends StatelessWidget {
+  const _DesktopExperienceCard({
     required this.scale,
-    required this.height,
-    required this.fontSize,
+    required this.onOpenWeb,
+    this.opening = false,
   });
 
   final double scale;
-  final double height;
-  final double fontSize;
-
-  static const Color _buttonBg = Color(0xFFC4C0BA);
+  final VoidCallback onOpenWeb;
+  final bool opening;
 
   @override
   Widget build(BuildContext context) {
+    final s = scale;
     return Container(
       width: double.infinity,
-      height: height,
-      alignment: Alignment.center,
+      padding: EdgeInsets.fromLTRB(16 * s, 16 * s, 16 * s, 16 * s),
       decoration: BoxDecoration(
-        color: _buttonBg,
-        borderRadius: BorderRadius.circular(12 * scale),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16 * s),
       ),
-      child: Text(
-        'Go to Web',
-        style: TextStyle(
-          fontSize: fontSize,
-          height: 22 / 16,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40 * s,
+                height: 40 * s,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFD8D5CF)),
+                  color: Colors.white,
+                ),
+                child: Icon(
+                  Icons.public_outlined,
+                  size: 22 * s,
+                  color: DinqTokens.textPrimary,
+                ),
+              ),
+              SizedBox(width: 12 * s),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Get the best experience on desktop',
+                      style: TextStyle(
+                        fontSize: 15 * s,
+                        height: 20 / 15,
+                        fontWeight: FontWeight.w700,
+                        color: DinqTokens.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4 * s),
+                    Text.rich(
+                      TextSpan(
+                        style: TextStyle(
+                          fontSize: 13 * s,
+                          height: 18 / 13,
+                          fontWeight: FontWeight.w400,
+                          color: DinqTokens.textSecondary,
+                        ),
+                        children: [
+                          const TextSpan(text: 'Visit '),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.baseline,
+                            baseline: TextBaseline.alphabetic,
+                            child: GestureDetector(
+                              onTap: opening ? null : onOpenWeb,
+                              child: Text(
+                                'dinq.me',
+                                style: TextStyle(
+                                  fontSize: 13 * s,
+                                  height: 18 / 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF2563EB),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const TextSpan(
+                            text:
+                                ' to access the full Talent Radar experience.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14 * s),
+          Material(
+            color: DinqTokens.textPrimary,
+            borderRadius: BorderRadius.circular(12 * s),
+            child: InkWell(
+              onTap: opening ? null : onOpenWeb,
+              borderRadius: BorderRadius.circular(12 * s),
+              child: SizedBox(
+                height: 48 * s,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (opening) ...[
+                      SizedBox(
+                        width: 16 * s,
+                        height: 16 * s,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8 * s),
+                    ],
+                    Text(
+                      'Open dinq.me',
+                      style: TextStyle(
+                        fontSize: 15 * s,
+                        height: 20 / 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (!opening) ...[
+                      SizedBox(width: 6 * s),
+                      Icon(
+                        Icons.arrow_outward_rounded,
+                        size: 18 * s,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -233,7 +396,12 @@ class _StepCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(30 * scale, 18 * scale, 24 * scale, 18 * scale),
+            padding: EdgeInsets.fromLTRB(
+              30 * scale,
+              18 * scale,
+              24 * scale,
+              18 * scale,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
