@@ -12,10 +12,9 @@ const String distributionChannel = String.fromEnvironment(
 );
 
 /// 固定下载地址：`GET /api/v1/app/download/android`（307 到最新 APK）。
-const String androidApkDownloadUrl =
-    '$gatewayUrl/api/v1/app/download/android';
+const String androidApkDownloadUrl = '$gatewayUrl/api/v1/app/download/android';
 
-/// 对应 `GET /api/v1/app/releases/latest` 的 data 解析结果。
+/// 对应 `GET /api/v1/app/version` 的 data 解析结果。
 class AppUpdateInfo {
   const AppUpdateInfo({
     required this.platform,
@@ -25,86 +24,27 @@ class AppUpdateInfo {
     required this.latestVersionCode,
     required this.releaseNotes,
     required this.downloadUrl,
-    this.fileUrl = '',
-    this.fileName = '',
-    this.fileSize = 0,
-    this.publishedAt = '',
-    this.forceUpdate = false,
-    // 兼容旧构造参数（门禁单测等）
     this.minimumVersion = '',
     this.minimumVersionCode = 0,
   });
 
-  /// 解析接口文档中的 `data`：
-  /// ```json
-  /// {
-  ///   "release": {
-  ///     "version": "1.5.0",
-  ///     "version_code": 15,
-  ///     "release_notes": "更新说明",
-  ///     "file_url": "https://assets.dinq.me/...apk",
-  ///     "file_name": "dinq-1.5.0.apk",
-  ///     "file_size": 123456789,
-  ///     "published_at": "2026-08-06T10:00:00Z",
-  ///     "force_update": false
-  ///   },
-  ///   "stable_download_url": "/api/v1/app/download/android"
-  /// }
-  /// ```
-  factory AppUpdateInfo.fromLatestRelease(
-    Map<String, dynamic> data, {
-    required int currentVersionCode,
-    String fallbackChannel = distributionChannel,
-  }) {
-    final release = data['release'];
-    if (release is! Map) {
-      return AppUpdateInfo(
-        platform: 'android',
-        channel: fallbackChannel,
-        updateType: AppUpdateType.none,
-        latestVersion: '',
-        latestVersionCode: 0,
-        releaseNotes: '',
-        downloadUrl: androidApkDownloadUrl,
-      );
-    }
-
-    final releaseMap = Map<String, dynamic>.from(release);
-    final version = releaseMap['version']?.toString() ?? '';
-    final versionCode = _asInt(releaseMap['version_code']);
-    final releaseNotes = releaseMap['release_notes']?.toString() ?? '';
-    final fileUrl = releaseMap['file_url']?.toString() ?? '';
-    final fileName = releaseMap['file_name']?.toString() ?? '';
-    final fileSize = _asInt(releaseMap['file_size']);
-    final publishedAt = releaseMap['published_at']?.toString() ?? '';
-    final forceUpdate = _asBool(releaseMap['force_update']);
-    final platform = releaseMap['platform']?.toString() ?? 'android';
-    final channel = releaseMap['channel']?.toString() ?? fallbackChannel;
-
-    final stablePath = data['stable_download_url']?.toString() ?? '';
-    final downloadUrl = _resolveStableDownloadUrl(stablePath);
-
-    // 本地 version_code 落后最新版 → 需要更新；是否强制看 force_update
-    final needsUpdate = versionCode > currentVersionCode;
-    final updateType = !needsUpdate
-        ? AppUpdateType.none
-        : (forceUpdate ? AppUpdateType.force : AppUpdateType.optional);
-
+  factory AppUpdateInfo.fromJson(Map<String, dynamic> json) {
+    final rawType = json['update_type']?.toString();
+    final updateType = switch (rawType) {
+      'force' => AppUpdateType.force,
+      'optional' => AppUpdateType.optional,
+      _ => AppUpdateType.none,
+    };
     return AppUpdateInfo(
-      platform: platform,
-      channel: channel,
+      platform: json['platform']?.toString() ?? 'android',
+      channel: json['channel']?.toString() ?? distributionChannel,
       updateType: updateType,
-      latestVersion: version,
-      latestVersionCode: versionCode,
-      releaseNotes: releaseNotes,
-      downloadUrl: downloadUrl,
-      fileUrl: fileUrl,
-      fileName: fileName,
-      fileSize: fileSize,
-      publishedAt: publishedAt,
-      forceUpdate: forceUpdate,
-      minimumVersion: forceUpdate ? version : '',
-      minimumVersionCode: forceUpdate ? versionCode : 0,
+      latestVersion: json['latest_version']?.toString() ?? '',
+      latestVersionCode: _asInt(json['latest_version_code']),
+      minimumVersion: json['minimum_version']?.toString() ?? '',
+      minimumVersionCode: _asInt(json['minimum_version_code']),
+      releaseNotes: json['release_notes']?.toString() ?? '',
+      downloadUrl: json['download_url']?.toString() ?? '',
     );
   }
 
@@ -115,49 +55,23 @@ class AppUpdateInfo {
   final int latestVersionCode;
   final String releaseNotes;
 
-  /// 由 `stable_download_url` 解析出的绝对下载地址。
+  /// 版本接口返回的更新下载地址。
   final String downloadUrl;
-  final String fileUrl;
-  final String fileName;
-  final int fileSize;
-  final String publishedAt;
-  final bool forceUpdate;
-
   final String minimumVersion;
   final int minimumVersionCode;
 
   bool get isForceUpdate => updateType == AppUpdateType.force;
 
-  bool get shouldShowPrompt =>
-      updateType == AppUpdateType.force ||
-      (updateType == AppUpdateType.optional && channel != 'google_play');
+  bool get shouldShowPrompt => updateType != AppUpdateType.none;
 
-  /// 下载按钮始终使用固定下载地址（接口文档约定）。
+  /// 优先使用版本接口返回的地址；缺失时回退到官方 APK 固定地址。
   String get effectiveDownloadUrl {
-    if (channel == 'google_play') {
-      return fileUrl.isNotEmpty
-          ? fileUrl
-          : (downloadUrl.isNotEmpty ? downloadUrl : androidApkDownloadUrl);
-    }
-    return androidApkDownloadUrl;
-  }
-
-  static String _resolveStableDownloadUrl(String stablePath) {
-    if (stablePath.isEmpty) return androidApkDownloadUrl;
-    if (stablePath.startsWith('http')) return stablePath;
-    if (stablePath.startsWith('/')) return '$gatewayUrl$stablePath';
-    return androidApkDownloadUrl;
+    return downloadUrl.isNotEmpty ? downloadUrl : androidApkDownloadUrl;
   }
 
   static int _asInt(dynamic value) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  static bool _asBool(dynamic value) {
-    if (value is bool) return value;
-    final text = value?.toString().toLowerCase();
-    return text == 'true' || text == '1';
   }
 }
 
@@ -165,23 +79,27 @@ abstract interface class AppUpdateChecker {
   Future<AppUpdateInfo?> check();
 }
 
-typedef FetchLatestRelease =
-    Future<Map<String, dynamic>?> Function(String platform, String channel);
+typedef FetchAppVersion =
+    Future<Map<String, dynamic>?> Function(
+      String platform,
+      String channel,
+      int versionCode,
+    );
 
 class AppUpdateService implements AppUpdateChecker {
   AppUpdateService({
     PackageInfo? packageInfo,
     String channel = distributionChannel,
-    FetchLatestRelease? fetchLatestRelease,
+    FetchAppVersion? fetchVersion,
     bool? isAndroid,
   }) : _packageInfo = packageInfo,
        _channel = channel,
-       _fetchLatestRelease = fetchLatestRelease,
+       _fetchVersion = fetchVersion,
        _isAndroid = isAndroid;
 
   PackageInfo? _packageInfo;
   final String _channel;
-  final FetchLatestRelease? _fetchLatestRelease;
+  final FetchAppVersion? _fetchVersion;
   final bool? _isAndroid;
 
   @override
@@ -200,7 +118,7 @@ class AppUpdateService implements AppUpdateChecker {
     }
   }
 
-  /// 手动检测：请求 `GET /api/v1/app/releases/latest`。
+  /// 手动检测：请求 `GET /api/v1/app/version`。
   Future<AppUpdateManualResult> checkManually() async {
     final packageInfo = _packageInfo ??= await PackageInfo.fromPlatform();
     final versionCode = int.tryParse(packageInfo.buildNumber) ?? 0;
@@ -208,28 +126,30 @@ class AppUpdateService implements AppUpdateChecker {
       throw StateError('Invalid app version code.');
     }
 
-    final platform = (_isAndroid == false ||
+    final platform =
+        (_isAndroid == false ||
             (_isAndroid == null && defaultTargetPlatform == TargetPlatform.iOS))
         ? 'ios'
         : 'android';
 
-    // ApiClient 会把 {code:0,data:...} 解包为 data
-    final data = _fetchLatestRelease != null
-        ? await _fetchLatestRelease(platform, _channel)
+    // ApiClient 会把 {code:0,data:...} 解包为 data。
+    final data = _fetchVersion != null
+        ? await _fetchVersion(platform, _channel, versionCode)
         : (await ApiClient.instance.dio.get<Map<String, dynamic>>(
-            '/app/releases/latest',
+            '/app/version',
+            queryParameters: {
+              'platform': platform,
+              'channel': _channel,
+              'version_code': versionCode,
+            },
           )).data;
 
     if (data == null) {
-      throw StateError('Empty release response.');
+      throw StateError('Empty app version response.');
     }
 
     return AppUpdateManualResult(
-      info: AppUpdateInfo.fromLatestRelease(
-        data,
-        currentVersionCode: versionCode,
-        fallbackChannel: _channel,
-      ),
+      info: AppUpdateInfo.fromJson(data),
       currentVersion: packageInfo.version,
       currentVersionCode: versionCode,
     );

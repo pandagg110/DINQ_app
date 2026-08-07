@@ -45,6 +45,32 @@ void main() {
     expect(find.text('Update'), findsOneWidget);
     expect(find.text('Skip'), findsNothing);
     expect(find.text('App content'), findsOneWidget);
+    expect(tester.widget<PopScope>(find.byType(PopScope)).canPop, isFalse);
+  });
+
+  testWidgets('none renders app content without an update barrier', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppUpdateGate(
+          checker: _FakeChecker(_update(AppUpdateType.none)),
+          openUpdate: (_) async => true,
+          child: const Text('App content'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('App content'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is ModalBarrier && widget.color == const Color(0x99000000),
+      ),
+      findsNothing,
+    );
+    expect(find.text('New Version Available'), findsNothing);
   });
 
   testWidgets('optional update can be skipped', (tester) async {
@@ -92,7 +118,7 @@ void main() {
     expect(find.text('Update'), findsOneWidget);
   });
 
-  testWidgets('Update opens the fixed Android APK download URL', (
+  testWidgets('Update opens the URL returned by the version endpoint', (
     tester,
   ) async {
     String? openedUrl;
@@ -113,9 +139,6 @@ void main() {
     await tester.tap(find.text('Update'));
     await tester.pumpAndSettle();
 
-    expect(
-      openedUrl,
-      'https://api.dinq.me/api/v1/app/download/android',
-    );
+    expect(openedUrl, 'https://dinq.me/download/android');
   });
 }

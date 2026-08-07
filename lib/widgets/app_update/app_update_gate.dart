@@ -53,7 +53,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     }
   }
 
-  /// 调用 GET /api/v1/app/releases/latest，按 force_update 与本地 versionCode 控制弹窗/Skip。
+  /// 调用 GET /api/v1/app/version，按服务端 update_type 控制弹窗和 Skip。
   Future<void> _check() async {
     if (_checking) return;
     _checking = true;

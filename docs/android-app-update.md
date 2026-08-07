@@ -44,35 +44,45 @@ The same channel define also selects the subscription provider:
 
 Do not upload a bundle built without `DISTRIBUTION_CHANNEL=google_play` to Play Console. It would route subscription purchases to the official APK checkout path.
 
-The app checks `GET /api/v1/app/releases/latest` on startup and whenever it returns to the foreground.
+The app checks `GET /api/v1/app/version` on startup and whenever it returns to the foreground:
+
+```http
+GET /api/v1/app/version?platform=android&channel=official_apk&version_code=15
+```
+
+The request parameters come from the running build:
+
+- `platform`: `android`
+- `channel`: `official_apk` for direct APK builds, `google_play` for Play builds
+- `version_code`: the installed Android build number
 
 Response `data` shape:
 
 ```json
 {
-  "release": {
-    "version": "1.5.0",
-    "version_code": 15,
-    "release_notes": "更新说明",
-    "file_url": "https://assets.dinq.me/...apk",
-    "file_name": "dinq-1.5.0.apk",
-    "file_size": 123456789,
-    "published_at": "2026-08-06T10:00:00Z",
-    "force_update": false
-  },
-  "stable_download_url": "/api/v1/app/download/android"
+  "platform": "android",
+  "channel": "official_apk",
+  "update_type": "force",
+  "latest_version": "1.0.2",
+  "latest_version_code": 16,
+  "minimum_version": "1.0.2",
+  "minimum_version_code": 16,
+  "release_notes": "修复已知问题",
+  "download_url": "https://assets.dinq.me/xxx.apk"
 }
 ```
 
-Client compares local `versionCode` with `release.version_code`:
+The backend owns version comparison. The client only follows `update_type`:
 
-- behind + `force_update=true`: blocking prompt (no Skip)
-- behind + `force_update=false`: prompt with Skip (official_apk only)
-- already up to date: no prompt
+- `force`: blocking prompt with no Skip and no back dismissal
+- `optional`: prompt with Skip
+- `none` (or an unknown value): no prompt
 
-Update always opens the fixed download URL from `stable_download_url`
-(`GET https://api.dinq.me/api/v1/app/download/android`). Release notes come from
-`release.release_notes`.
+The update button opens `download_url`. If it is missing, the client falls back to
+`GET https://api.dinq.me/api/v1/app/download/android`.
+
+The app does not call `/api/v1/app/releases/latest`; that endpoint is reserved for
+the website's published APK metadata.
 
 The update endpoint fails open, so an unavailable backend does not lock users out.
 After opening the download page, the forced gate remains and checks again when the app resumes.
