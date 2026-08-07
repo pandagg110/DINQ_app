@@ -1,14 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/app_update_service.dart';
 import 'update_required_panel.dart';
 
 typedef OpenUpdateLink = Future<bool> Function(String url);
-
-/// 本地联调：为 true 时启动即弹出版本更新门禁（不请求接口）。
-/// 测完请改回 false。
-const bool kForceAppUpdatePrompt = true;
 
 class AppUpdateGate extends StatefulWidget {
   const AppUpdateGate({
@@ -58,31 +53,12 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     }
   }
 
-  AppUpdateInfo _debugForceUpdate() {
-    return const AppUpdateInfo(
-      platform: 'android',
-      channel: distributionChannel,
-      updateType: AppUpdateType.force,
-      latestVersion: '1.0.1',
-      latestVersionCode: 999,
-      minimumVersion: '1.0.1',
-      minimumVersionCode: 999,
-      releaseNotes: '',
-      downloadUrl: 'https://dinq.me/download/android',
-    );
-  }
-
+  /// 调用 GET /api/v1/app/releases/latest，按 force_update 与本地 versionCode 控制弹窗/Skip。
   Future<void> _check() async {
     if (_checking) return;
     _checking = true;
 
-    AppUpdateInfo? result;
-    // 仅无默认 checker 时生效，避免打断注入 FakeChecker 的单测
-    if (kForceAppUpdatePrompt && kDebugMode && widget.checker == null) {
-      result = _debugForceUpdate();
-    } else {
-      result = await _checker.check();
-    }
+    final result = await _checker.check();
 
     _checking = false;
     if (!mounted || result == null) return;
@@ -99,14 +75,16 @@ class _AppUpdateGateState extends State<AppUpdateGate>
 
   Future<void> _updateNow() async {
     final update = _update;
-    if (update == null || update.downloadUrl.isEmpty || _opening) return;
+    if (update == null || _opening) return;
+    final url = update.effectiveDownloadUrl;
+    if (url.isEmpty) return;
     setState(() {
       _opening = true;
       _error = null;
     });
     var opened = false;
     try {
-      opened = await _openUpdate(update.downloadUrl);
+      opened = await _openUpdate(url);
     } catch (_) {
       opened = false;
     }
@@ -121,6 +99,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
 
   void _dismiss() {
     final update = _update;
+    // 仅 optional 可 Skip；force 不允许关闭
     if (update == null || update.isForceUpdate) return;
     setState(() {
       _dismissedVersionCode = update.latestVersionCode;
@@ -131,9 +110,10 @@ class _AppUpdateGateState extends State<AppUpdateGate>
   @override
   Widget build(BuildContext context) {
     final update = _update;
-    final forced = update?.isForceUpdate ?? false;
+    // update_type == force → 不显示 Skip；optional → 显示 Skip
+    final canSkip = update != null && !update.isForceUpdate;
     return PopScope(
-      canPop: !forced,
+      canPop: canSkip || update == null,
       child: Stack(
         children: [
           widget.child,
@@ -145,13 +125,13 @@ class _AppUpdateGateState extends State<AppUpdateGate>
               child: SafeArea(
                 child: Center(
                   child: UpdateRequiredPanel(
-                    canSkip: !forced,
+                    canSkip: canSkip,
                     releaseNotes: UpdateRequiredPanel.parseReleaseNotes(
                       update.releaseNotes,
                     ),
                     opening: _opening,
                     error: _error,
-                    onSkip: forced ? null : _dismiss,
+                    onSkip: canSkip ? _dismiss : null,
                     onUpdateNow: _updateNow,
                   ),
                 ),

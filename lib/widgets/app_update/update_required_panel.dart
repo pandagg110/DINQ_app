@@ -26,28 +26,21 @@ class UpdateRequiredPanel extends StatelessWidget {
 
   bool get _skippable => canSkip ?? onSkip != null;
 
-  static const _defaultNotes = <String>[
-    'Refreshed page layout for a cleaner experience.',
-    'Improved credits and billing visibility.',
-    'Faster, smoother search performance.',
-    'Bug fixes and stability improvements.',
-  ];
-
+  /// 将接口 [release_notes] 拆成展示行；空则返回空列表（不再使用本地占位文案）。
   static List<String> parseReleaseNotes(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return List.of(_defaultNotes);
-    final lines = raw
+    if (raw == null || raw.trim().isEmpty) return const [];
+    return raw
         .split(RegExp(r'[\r\n]+'))
         .map((line) => line.trim())
-        .map((line) => line.replaceFirst(RegExp(r'^\d+[\.\)]\s*'), ''))
+        .map((line) => line.replaceFirst(RegExp(r'^\d+[\.\)、．]\s*'), ''))
         .map((line) => line.replaceFirst(RegExp(r'^[-•]\s*'), ''))
         .where((line) => line.isNotEmpty)
         .toList();
-    return lines.isEmpty ? List.of(_defaultNotes) : lines;
   }
 
   @override
   Widget build(BuildContext context) {
-    final notes = releaseNotes ?? _defaultNotes;
+    final notes = releaseNotes ?? const <String>[];
     final skippable = _skippable;
 
     return Material(
@@ -103,28 +96,30 @@ class UpdateRequiredPanel extends StatelessWidget {
                   fontFamily: 'Geist',
                 ),
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var i = 0; i < notes.length; i++) ...[
-                      if (i > 0) const SizedBox(height: 8),
-                      Text(
-                        '${i + 1}. ${notes[i]}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.45,
-                          fontWeight: FontWeight.w400,
-                          color: ColorUtil.sub2TextColor,
-                          fontFamily: 'Geist',
+              if (notes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < notes.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 8),
+                        Text(
+                          '${i + 1}. ${notes[i]}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.45,
+                            fontWeight: FontWeight.w400,
+                            color: ColorUtil.sub2TextColor,
+                            fontFamily: 'Geist',
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
+              ],
               if (error != null) ...[
                 const SizedBox(height: 12),
                 Text(

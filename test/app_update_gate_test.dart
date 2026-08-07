@@ -91,4 +91,31 @@ void main() {
     );
     expect(find.text('Update'), findsOneWidget);
   });
+
+  testWidgets('Update opens the fixed Android APK download URL', (
+    tester,
+  ) async {
+    String? openedUrl;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppUpdateGate(
+          checker: _FakeChecker(_update(AppUpdateType.force)),
+          openUpdate: (url) async {
+            openedUrl = url;
+            return true;
+          },
+          child: const Text('App content'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Update'));
+    await tester.pumpAndSettle();
+
+    expect(
+      openedUrl,
+      'https://api.dinq.me/api/v1/app/download/android',
+    );
+  });
 }

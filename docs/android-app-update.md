@@ -44,13 +44,35 @@ The same channel define also selects the subscription provider:
 
 Do not upload a bundle built without `DISTRIBUTION_CHANNEL=google_play` to Play Console. It would route subscription purchases to the official APK checkout path.
 
-The app checks `GET /api/v1/app/version` on startup and whenever it returns to the foreground.
+The app checks `GET /api/v1/app/releases/latest` on startup and whenever it returns to the foreground.
 
-- Official APK optional update: DINQ prompt with Later and Update now.
-- Official APK forced update: blocking DINQ prompt.
-- Google Play optional update: no DINQ prompt; Play handles ordinary updates.
-- Google Play forced update: blocking prompt whose action opens the Play listing.
+Response `data` shape:
 
-The update endpoint fails open, so an unavailable backend does not lock users out. After opening the download/store page, the forced gate remains and checks again when the app resumes.
+```json
+{
+  "release": {
+    "version": "1.5.0",
+    "version_code": 15,
+    "release_notes": "更新说明",
+    "file_url": "https://assets.dinq.me/...apk",
+    "file_name": "dinq-1.5.0.apk",
+    "file_size": 123456789,
+    "published_at": "2026-08-06T10:00:00Z",
+    "force_update": false
+  },
+  "stable_download_url": "/api/v1/app/download/android"
+}
+```
 
-The first update-enabled build is `0.1.1+6`. To force users of the previous `versionCode 5` development APK to upgrade, configure both `latest_version_code` and `minimum_version_code` as `6` for `official_apk`.
+Client compares local `versionCode` with `release.version_code`:
+
+- behind + `force_update=true`: blocking prompt (no Skip)
+- behind + `force_update=false`: prompt with Skip (official_apk only)
+- already up to date: no prompt
+
+Update always opens the fixed download URL from `stable_download_url`
+(`GET https://api.dinq.me/api/v1/app/download/android`). Release notes come from
+`release.release_notes`.
+
+The update endpoint fails open, so an unavailable backend does not lock users out.
+After opening the download page, the forced gate remains and checks again when the app resumes.

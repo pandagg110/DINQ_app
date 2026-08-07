@@ -50,8 +50,9 @@ Future<void> showManualVersionCheckFlow(
                 ? null
                 : () => Navigator.of(dialogContext).pop(),
             onUpdateNow: () {
-              if (info.downloadUrl.isEmpty) return;
-              openAppUpdateUrl(info.downloadUrl);
+              final url = info.effectiveDownloadUrl;
+              if (url.isEmpty) return;
+              openAppUpdateUrl(url);
             },
           ),
         ),

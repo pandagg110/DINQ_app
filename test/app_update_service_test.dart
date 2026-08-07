@@ -2,69 +2,106 @@ import 'package:dinq_app/services/app_update_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-void main() {
-  test('parses a forced update response', () {
-    final info = AppUpdateInfo.fromJson({
+/// 与接口文档对齐的响应 data 示例。
+Map<String, dynamic> _latestPayload({
+  String version = '1.5.0',
+  int versionCode = 15,
+  bool forceUpdate = false,
+  String channel = 'official_apk',
+  String notes = '更新说明',
+}) {
+  return {
+    'release': {
+      'version': version,
+      'version_code': versionCode,
+      'release_notes': notes,
+      'file_url': 'https://assets.dinq.me/...apk',
+      'file_name': 'dinq-1.5.0.apk',
+      'file_size': 123456789,
+      'published_at': '2026-08-06T10:00:00Z',
+      'force_update': forceUpdate,
       'platform': 'android',
-      'channel': 'official_apk',
-      'update_type': 'force',
-      'latest_version': '0.1.2',
-      'latest_version_code': 7,
-      'minimum_version': '0.1.1',
-      'minimum_version_code': 6,
-      'release_notes': 'Critical fixes',
-      'download_url': 'https://dinq.me/download/android',
-    });
+      'channel': channel,
+    },
+    'stable_download_url': '/api/v1/app/download/android',
+  };
+}
 
-    expect(info.isForceUpdate, isTrue);
-    expect(info.latestVersionCode, 7);
-    expect(info.downloadUrl, 'https://dinq.me/download/android');
+void main() {
+  test('parses documented latest release fields', () {
+    final info = AppUpdateInfo.fromLatestRelease(
+      _latestPayload(forceUpdate: false),
+      currentVersionCode: 10,
+    );
+
+    expect(info.latestVersion, '1.5.0');
+    expect(info.latestVersionCode, 15);
+    expect(info.releaseNotes, '更新说明');
+    expect(info.fileName, 'dinq-1.5.0.apk');
+    expect(info.fileSize, 123456789);
+    expect(info.publishedAt, '2026-08-06T10:00:00Z');
+    expect(info.forceUpdate, isFalse);
+    expect(info.updateType, AppUpdateType.optional);
+    expect(
+      info.effectiveDownloadUrl,
+      'https://api.dinq.me/api/v1/app/download/android',
+    );
   });
 
-  test('rejects unknown update types as no update', () {
-    final info = AppUpdateInfo.fromJson({
-      'update_type': 'unexpected',
-      'latest_version_code': 7,
-      'minimum_version_code': 6,
-    });
+  test('force_update=true shows force prompt when behind', () {
+    final info = AppUpdateInfo.fromLatestRelease(
+      _latestPayload(forceUpdate: true),
+      currentVersionCode: 10,
+    );
+
+    expect(info.updateType, AppUpdateType.force);
+    expect(info.isForceUpdate, isTrue);
+    expect(info.shouldShowPrompt, isTrue);
+  });
+
+  test('no prompt when local version_code is up to date', () {
+    final info = AppUpdateInfo.fromLatestRelease(
+      _latestPayload(versionCode: 15, forceUpdate: true),
+      currentVersionCode: 15,
+    );
 
     expect(info.updateType, AppUpdateType.none);
-  });
-
-  test('Google Play optional updates do not use the DINQ prompt', () {
-    final info = AppUpdateInfo.fromJson({
-      'channel': 'google_play',
-      'update_type': 'optional',
-      'latest_version_code': 7,
-      'minimum_version_code': 5,
-    });
-
     expect(info.shouldShowPrompt, isFalse);
   });
 
-  test('sends Android build number and build channel to the backend', () async {
-    int? receivedVersionCode;
-    String? receivedChannel;
+  test('Google Play optional updates do not use the DINQ prompt', () {
+    final info = AppUpdateInfo.fromLatestRelease(
+      _latestPayload(forceUpdate: false, channel: 'google_play'),
+      currentVersionCode: 10,
+    );
+
+    expect(info.updateType, AppUpdateType.optional);
+    expect(info.shouldShowPrompt, isFalse);
+  });
+
+  test('fetches /app/releases/latest', () async {
+    var called = false;
     final service = AppUpdateService(
       isAndroid: true,
       channel: 'official_apk',
       packageInfo: PackageInfo(
         appName: 'DINQ',
         packageName: 'me.dinq.app',
-        version: '0.1.0',
-        buildNumber: '5',
+        version: '1.0.0',
+        buildNumber: '10',
       ),
-      fetchVersion: (versionCode, channel) async {
-        receivedVersionCode = versionCode;
-        receivedChannel = channel;
-        return {'update_type': 'none'};
+      fetchLatestRelease: (platform, channel) async {
+        called = true;
+        expect(platform, 'android');
+        return _latestPayload(forceUpdate: false);
       },
     );
 
-    await service.check();
+    final info = await service.check();
 
-    expect(receivedVersionCode, 5);
-    expect(receivedChannel, 'official_apk');
+    expect(called, isTrue);
+    expect(info?.updateType, AppUpdateType.optional);
+    expect(info?.releaseNotes, '更新说明');
   });
 
   test('version check failures fail open', () async {
@@ -73,10 +110,10 @@ void main() {
       packageInfo: PackageInfo(
         appName: 'DINQ',
         packageName: 'me.dinq.app',
-        version: '0.1.0',
-        buildNumber: '5',
+        version: '1.0.0',
+        buildNumber: '10',
       ),
-      fetchVersion: (versionCode, channel) => throw StateError('offline'),
+      fetchLatestRelease: (platform, channel) => throw StateError('offline'),
     );
 
     expect(await service.check(), isNull);
