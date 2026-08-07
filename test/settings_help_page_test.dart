@@ -9,5 +9,12 @@ void main() {
 
     expect(find.text('Version'), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(4));
+    final versionTapTarget = tester.widget<GestureDetector>(
+      find.ancestor(
+        of: find.text('Version'),
+        matching: find.byType(GestureDetector),
+      ),
+    );
+    expect(versionTapTarget.onTap, isNull);
   });
 }
