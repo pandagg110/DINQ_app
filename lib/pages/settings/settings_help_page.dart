@@ -183,6 +183,7 @@ class _SettingsHelpPageState extends State<SettingsHelpPage> {
               icon: Icons.terminal_rounded,
               label: 'Version',
               trailingText: _versionLabel.isEmpty ? '—' : _versionLabel,
+              showChevron: false,
               onTap: () => showManualVersionCheckFlow(context),
             ),
           ]),
@@ -280,6 +281,7 @@ class _SettingsHelpPageState extends State<SettingsHelpPage> {
     required IconData icon,
     required String label,
     String? trailingText,
+    bool showChevron = true,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -314,8 +316,10 @@ class _SettingsHelpPageState extends State<SettingsHelpPage> {
                 ),
               ),
             ],
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFBDBAB3)),
+            if (showChevron) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFFBDBAB3)),
+            ],
           ],
         ),
       ),
