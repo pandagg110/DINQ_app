@@ -33,6 +33,8 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
   late final AuthService _authService;
 
   bool _isSubmitting = false;
+  bool _showSuccessConfirmation = false;
+  bool _isClosingSuccessConfirmation = false;
   late bool _requiresCurrentPassword;
   bool _showCurrentPassword = false;
   bool _showNewPassword = false;
@@ -111,7 +113,7 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
         // 密码已经修改成功；资料刷新失败不应把成功操作误报为失败。
       }
       if (!mounted) return;
-      await _showSuccessDialog();
+      setState(() => _showSuccessConfirmation = true);
     } catch (e) {
       if (!mounted) return;
       if (passwordChangeRequiresCurrentPassword(e)) {
@@ -128,192 +130,198 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
     }
   }
 
-  Future<void> _showSuccessDialog() async {
-    var isClosing = false;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      builder: (dialogContext) => Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          padding: const EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 24,
-            bottom: 16,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+  Future<void> _closeSuccessConfirmation() async {
+    if (_isClosingSuccessConfirmation) return;
+    _isClosingSuccessConfirmation = true;
+    setState(() => _showSuccessConfirmation = false);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) await Navigator.of(context).maybePop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: DefaultAppBar(context, titleString: 'Password'),
+          body: Column(
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDFEBC),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: AssetImageView(
-                    "settings_success",
-                    width: 32,
-                    height: 32,
+              // Form
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Current Password (only show if has password)
+                      if (_requiresCurrentPassword) ...[
+                        _buildLabel('Current Password'),
+                        const SizedBox(height: 8),
+                        _buildPasswordField(
+                          controller: _currentPasswordController,
+                          hint: 'Enter current password',
+                          showPassword: _showCurrentPassword,
+                          onToggleVisibility: () {
+                            setState(
+                              () =>
+                                  _showCurrentPassword = !_showCurrentPassword,
+                            );
+                          },
+                          errorText: _currentPasswordError,
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      // New Password
+                      _buildLabel('New Password'),
+                      const SizedBox(height: 8),
+                      _buildPasswordField(
+                        controller: _newPasswordController,
+                        hint: 'Enter new password',
+                        showPassword: _showNewPassword,
+                        onToggleVisibility: () {
+                          setState(() => _showNewPassword = !_showNewPassword);
+                        },
+                        errorText: _newPasswordError,
+                      ),
+                      const SizedBox(height: 20),
+                      // Confirm New Password
+                      _buildLabel('Confirm New Password'),
+                      const SizedBox(height: 8),
+                      _buildPasswordField(
+                        controller: _confirmPasswordController,
+                        hint: 'Confirm new password',
+                        showPassword: _showConfirmPassword,
+                        onToggleVisibility: () {
+                          setState(
+                            () => _showConfirmPassword = !_showConfirmPassword,
+                          );
+                        },
+                        errorText: _confirmPasswordError,
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Password set successfully',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Geist',
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (isClosing) return;
-                    isClosing = true;
-                    Navigator.of(dialogContext, rootNavigator: true).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorUtil.textColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              // Submit Button
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _handleSubmit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ColorUtil.textColor,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: ColorUtil.sub4TextColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Confirm',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Geist',
+                              ),
+                            ),
                     ),
-                  ),
-                  child: const Text(
-                    'Ok',
-                    style: TextStyle(fontFamily: 'Geist'),
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+        if (_showSuccessConfirmation) _buildSuccessConfirmation(),
+      ],
     );
-
-    // Let the modal route finish its reverse transition before changing the
-    // GoRouter stack. Popping both routes in the same frame can leave Android
-    // showing only the dialog barrier as a grey screen.
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    if (mounted) {
-      await Navigator.of(context).maybePop();
-    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: DefaultAppBar(context, titleString: 'Password'),
-      body: Column(
-        children: [
-          // Form
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Current Password (only show if has password)
-                  if (_requiresCurrentPassword) ...[
-                    _buildLabel('Current Password'),
-                    const SizedBox(height: 8),
-                    _buildPasswordField(
-                      controller: _currentPasswordController,
-                      hint: 'Enter current password',
-                      showPassword: _showCurrentPassword,
-                      onToggleVisibility: () {
-                        setState(
-                          () => _showCurrentPassword = !_showCurrentPassword,
-                        );
-                      },
-                      errorText: _currentPasswordError,
+  Widget _buildSuccessConfirmation() {
+    return Positioned.fill(
+      child: Material(
+        type: MaterialType.transparency,
+        child: Stack(
+          children: [
+            const ModalBarrier(dismissible: false, color: Colors.black54),
+            Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 24,
+                  bottom: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDDFEBC),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: AssetImageView(
+                          "settings_success",
+                          width: 32,
+                          height: 32,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 20),
-                  ],
-                  // New Password
-                  _buildLabel('New Password'),
-                  const SizedBox(height: 8),
-                  _buildPasswordField(
-                    controller: _newPasswordController,
-                    hint: 'Enter new password',
-                    showPassword: _showNewPassword,
-                    onToggleVisibility: () {
-                      setState(() => _showNewPassword = !_showNewPassword);
-                    },
-                    errorText: _newPasswordError,
-                  ),
-                  const SizedBox(height: 20),
-                  // Confirm New Password
-                  _buildLabel('Confirm New Password'),
-                  const SizedBox(height: 8),
-                  _buildPasswordField(
-                    controller: _confirmPasswordController,
-                    hint: 'Confirm new password',
-                    showPassword: _showConfirmPassword,
-                    onToggleVisibility: () {
-                      setState(
-                        () => _showConfirmPassword = !_showConfirmPassword,
-                      );
-                    },
-                    errorText: _confirmPasswordError,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Submit Button
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleSubmit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorUtil.textColor,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: ColorUtil.sub4TextColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    const Text(
+                      'Password set successfully',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Geist',
+                      ),
                     ),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : const Text(
-                          'Confirm',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Geist',
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: _closeSuccessConfirmation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ColorUtil.textColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
+                        child: const Text(
+                          'Ok',
+                          style: TextStyle(fontFamily: 'Geist'),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,14 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/payment_service.dart';
+import '../../services/app_update_service.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/default_app_bar.dart';
 import '../marketing/pricing_page.dart' show kPlanLabel;
+
+bool shouldShowOfficialApkCreditControls({
+  required bool isWeb,
+  required TargetPlatform platform,
+  required String channel,
+}) => !isWeb && platform == TargetPlatform.android && channel == 'official_apk';
 
 /// My → Available Credits 进入的积分页。对齐 web SubscriptionCard 左图：
 /// {Plan} Plan + Upgrade/Get more credits + Available credits + 进度条 +
@@ -56,7 +64,8 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
         _usageLoaded = true;
       } else {
         final data = await _paymentService.getOrders();
-        final list = (data['orders'] as List?) ?? (data['items'] as List?) ?? [];
+        final list =
+            (data['orders'] as List?) ?? (data['items'] as List?) ?? [];
         _orders = list
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
@@ -96,8 +105,18 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
     final d = DateTime.tryParse(iso ?? '');
     if (d == null) return '';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
@@ -107,17 +126,25 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
     final sub = context.watch<UserStore>().subscription;
     final basePlan = sub?.basePlan ?? 'free';
     final planLabel = kPlanLabel[basePlan] ?? basePlan;
+    final showCreditPurchaseControls = shouldShowOfficialApkCreditControls(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+      channel: distributionChannel,
+    );
 
     // 对齐 web getCreditDisplayParts 的拆分算法
     final available = (sub?.creditsBalance ?? 0).clamp(0, 1 << 31);
     final monthlyTotal = sub?.monthlyCredits ?? 0;
     final referralTotal = sub?.referralCredits ?? 0;
-    final referralRemaining =
-        referralTotal < available ? referralTotal : available;
-    final monthlyRemaining = (available - referralRemaining)
-        .clamp(0, monthlyTotal);
-    final extraRemaining =
-        (available - referralRemaining - monthlyRemaining).clamp(0, 1 << 31);
+    final referralRemaining = referralTotal < available
+        ? referralTotal
+        : available;
+    final monthlyRemaining = (available - referralRemaining).clamp(
+      0,
+      monthlyTotal,
+    );
+    final extraRemaining = (available - referralRemaining - monthlyRemaining)
+        .clamp(0, 1 << 31);
     final totalCapacity = monthlyTotal + referralTotal;
     final progress = totalCapacity > 0
         ? (available / totalCapacity).clamp(0.0, 1.0)
@@ -157,13 +184,14 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                       filled: false,
                       onTap: () => context.push('/pricing'),
                     ),
-                    // const SizedBox(width: 10),
-                    // _pillButton(
-                    //   'Get more credits',
-                    //   filled: true,
-                    //   // 对齐 web：打开 Pay-as-you-go 弹层（非跳转 pricing）
-                    //   onTap: _openPaygSheet,
-                    // ),
+                    if (showCreditPurchaseControls) ...[
+                      const SizedBox(width: 10),
+                      _pillButton(
+                        'Get more credits',
+                        filled: true,
+                        onTap: _openPaygSheet,
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -172,8 +200,11 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome,
-                            size: 18, color: Color(0xFF171717)),
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 18,
+                          color: Color(0xFF171717),
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'Available credits',
@@ -204,30 +235,33 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                     value: progress,
                     minHeight: 6,
                     backgroundColor: const Color(0xFFEDEBE6),
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Color(0xFF171717)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF171717),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Pay as you go：点击打开 PAYG 管理弹层（绑卡/开关/月度上限）
-                Row(
-                  children: [
-                    Switch(
-                      value: sub?.paygEnabled ?? false,
-                      onChanged: (_) => _openPaygSheet(),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Pay as you go',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontFamily: 'Geist',
-                        color: ColorUtil.textColor,
+                if (showCreditPurchaseControls) ...[
+                  // PAYG is web checkout and must not appear in store builds.
+                  Row(
+                    children: [
+                      Switch(
+                        value: sub?.paygEnabled ?? false,
+                        onChanged: (_) => _openPaygSheet(),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Pay as you go',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'Geist',
+                          color: ColorUtil.textColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 _detailRow(
                   'Membership Credits (resets monthly)',
                   '$monthlyRemaining/$monthlyTotal',
@@ -268,8 +302,11 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
     );
   }
 
-  Widget _pillButton(String label,
-      {required bool filled, required VoidCallback onTap}) {
+  Widget _pillButton(
+    String label, {
+    required bool filled,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -367,8 +404,7 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
         for (final tx in _usage)
           Container(
             margin: const EdgeInsets.only(bottom: 8),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: DinqTokens.bgCard,
               borderRadius: BorderRadius.circular(12),
@@ -430,8 +466,7 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
         for (final order in _orders)
           Container(
             margin: const EdgeInsets.only(bottom: 8),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: DinqTokens.bgCard,
               borderRadius: BorderRadius.circular(12),
@@ -444,8 +479,9 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _formatDate((order['paid_at'] ?? order['created_at'])
-                            ?.toString()),
+                        _formatDate(
+                          (order['paid_at'] ?? order['created_at'])?.toString(),
+                        ),
                         style: TextStyle(
                           fontSize: 14,
                           fontFamily: 'Geist',
@@ -470,8 +506,9 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                     final v = cents is int
                         ? cents
                         : int.tryParse(cents?.toString() ?? '0') ?? 0;
-                    final currency =
-                        (order['currency'] ?? 'USD').toString().toUpperCase();
+                    final currency = (order['currency'] ?? 'USD')
+                        .toString()
+                        .toUpperCase();
                     return '\$${(v / 100).toStringAsFixed(2)} $currency';
                   }(),
                   style: const TextStyle(
@@ -593,16 +630,20 @@ class _PaygSheetState extends State<_PaygSheet> {
 
     setState(() => _updating = true);
     try {
-      final res =
-          await widget.paymentService.setupPayg(monthlyLimitCents: cents);
+      final res = await widget.paymentService.setupPayg(
+        monthlyLimitCents: cents,
+      );
       final url = res['url']?.toString();
       if (!mounted) return;
       if (url != null && url.isNotEmpty) {
-        await context.push('/webview', extra: {
-          'url': url,
-          'navTitle': 'Pay-as-you-go',
-          'showAppBar': 'true',
-        });
+        await context.push(
+          '/webview',
+          extra: {
+            'url': url,
+            'navTitle': 'Pay-as-you-go',
+            'showAppBar': 'true',
+          },
+        );
         if (mounted) await _load();
       } else {
         TopToastUtil.showError(
@@ -638,8 +679,10 @@ class _PaygSheetState extends State<_PaygSheet> {
 
     setState(() => _updating = true);
     try {
-      await widget.paymentService
-          .updatePayg(enabled: enabled, monthlyLimitCents: cents);
+      await widget.paymentService.updatePayg(
+        enabled: enabled,
+        monthlyLimitCents: cents,
+      );
       if (!mounted) return;
       await _load();
       if (!mounted) return;
@@ -708,8 +751,11 @@ class _PaygSheetState extends State<_PaygSheet> {
                     onTap: () => Navigator.of(context).pop(),
                     child: const Padding(
                       padding: EdgeInsets.all(4),
-                      child:
-                          Icon(Icons.close, size: 22, color: Color(0xFF9E9B93)),
+                      child: Icon(
+                        Icons.close,
+                        size: 22,
+                        color: Color(0xFF9E9B93),
+                      ),
                     ),
                   ),
                 ],
@@ -718,14 +764,17 @@ class _PaygSheetState extends State<_PaygSheet> {
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
-                  child:
-                      Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 )
               else ...[
                 // 状态徽标
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusBg,
                     borderRadius: BorderRadius.circular(999),
@@ -760,8 +809,8 @@ class _PaygSheetState extends State<_PaygSheet> {
                     onTap: _updating
                         ? null
                         : () => _needsSetup
-                            ? _handleSetup()
-                            : _handleUpdate(enabled: !_enabled),
+                              ? _handleSetup()
+                              : _handleUpdate(enabled: !_enabled),
                     child: Container(
                       height: 48,
                       decoration: BoxDecoration(
@@ -788,8 +837,8 @@ class _PaygSheetState extends State<_PaygSheet> {
                           : Text(
                               _needsSetup
                                   ? (_status == 'payment_failed'
-                                      ? 'Update payment method'
-                                      : 'Set up payment method')
+                                        ? 'Update payment method'
+                                        : 'Set up payment method')
                                   : (_enabled ? 'Disable' : 'Enable'),
                               style: TextStyle(
                                 fontSize: 15,
@@ -866,22 +915,25 @@ class _PaygSheetState extends State<_PaygSheet> {
                             borderRadius: const BorderRadius.horizontal(
                               right: Radius.circular(8),
                             ),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE5E2DC)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE5E2DC),
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: const BorderRadius.horizontal(
                               right: Radius.circular(8),
                             ),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE5E2DC)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE5E2DC),
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: const BorderRadius.horizontal(
                               right: Radius.circular(8),
                             ),
-                            borderSide:
-                                const BorderSide(color: Color(0xFF171717)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF171717),
+                            ),
                           ),
                         ),
                       ),
