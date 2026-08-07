@@ -42,11 +42,11 @@ Future<void> showManualVersionCheckFlow(
           elevation: 0,
           insetPadding: EdgeInsets.zero,
           child: UpdateRequiredPanel(
-            currentVersion: result.currentVersion,
-            requiredVersion: info.latestVersion.isNotEmpty
-                ? info.latestVersion
-                : info.minimumVersion,
-            onDismiss: info.isForceUpdate
+            canSkip: !info.isForceUpdate,
+            releaseNotes: UpdateRequiredPanel.parseReleaseNotes(
+              info.releaseNotes,
+            ),
+            onSkip: info.isForceUpdate
                 ? null
                 : () => Navigator.of(dialogContext).pop(),
             onUpdateNow: () {

@@ -4,205 +4,201 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../utils/color_util.dart';
 
 /// 强制/可选更新共用面板（门禁遮罩 & Help 弹窗）。
+///
+/// [canSkip] 为 true 时显示 Skip + Update；为 false 时仅显示全宽 Update。
 class UpdateRequiredPanel extends StatelessWidget {
   const UpdateRequiredPanel({
     super.key,
-    required this.currentVersion,
-    required this.requiredVersion,
     required this.onUpdateNow,
-    this.onDismiss,
+    this.onSkip,
+    this.canSkip,
+    this.releaseNotes,
     this.opening = false,
     this.error,
   });
 
-  final String currentVersion;
-  final String requiredVersion;
   final VoidCallback onUpdateNow;
-  final VoidCallback? onDismiss;
+  final VoidCallback? onSkip;
+  final bool? canSkip;
+  final List<String>? releaseNotes;
   final bool opening;
   final String? error;
 
-  bool get canDismiss => onDismiss != null;
+  bool get _skippable => canSkip ?? onSkip != null;
+
+  static const _defaultNotes = <String>[
+    'Refreshed page layout for a cleaner experience.',
+    'Improved credits and billing visibility.',
+    'Faster, smoother search performance.',
+    'Bug fixes and stability improvements.',
+  ];
+
+  static List<String> parseReleaseNotes(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return List.of(_defaultNotes);
+    final lines = raw
+        .split(RegExp(r'[\r\n]+'))
+        .map((line) => line.trim())
+        .map((line) => line.replaceFirst(RegExp(r'^\d+[\.\)]\s*'), ''))
+        .map((line) => line.replaceFirst(RegExp(r'^[-•]\s*'), ''))
+        .where((line) => line.isNotEmpty)
+        .toList();
+    return lines.isEmpty ? List.of(_defaultNotes) : lines;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final notes = releaseNotes ?? _defaultNotes;
+    final skippable = _skippable;
+
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: 360,
+        width: 335,
         margin: const EdgeInsets.symmetric(horizontal: 28),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: IconButton(
-                onPressed: canDismiss ? onDismiss : null,
-                icon: Icon(
-                  Icons.close,
-                  color: canDismiss
-                      ? ColorUtil.sub3TextColor
-                      : Colors.transparent,
+              Image.asset(
+                'assets/images/app_update_mascot.png',
+                width: 140,
+                height: 140,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 88,
+                  height: 88,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEAF2FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.system_update_alt_rounded,
+                    size: 40,
+                    color: Color(0xFF3B82F6),
+                  ),
                 ),
               ),
-            ),
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FF),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF3B82F6).withValues(alpha: 0.18),
-                    blurRadius: 18,
-                    spreadRadius: 2,
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Text(
+                'New Version Available',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  height: 24 / 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0,
+                  color: ColorUtil.textColor,
+                  fontFamily: 'Geist',
+                ),
               ),
-              child: const Icon(
-                Icons.security_update_good_rounded,
-                size: 36,
-                color: Color(0xFF3B82F6),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < notes.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 8),
+                      Text(
+                        '${i + 1}. ${notes[i]}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.45,
+                          fontWeight: FontWeight.w400,
+                          color: ColorUtil.sub2TextColor,
+                          fontFamily: 'Geist',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Update Required',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: ColorUtil.textColor,
-                fontFamily: 'Geist',
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'This version is no longer supported. Please update to continue using DINQ.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.4,
-                color: ColorUtil.sub2TextColor,
-                fontFamily: 'Geist',
-              ),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6F6F6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  _versionRow('Current version', currentVersion),
-                  const Divider(height: 1, color: Color(0xFFE8E8E8)),
-                  _versionRow(
-                    'Required version',
-                    requiredVersion.isEmpty ? '—' : requiredVersion,
-                    valueColor: const Color(0xFF3B82F6),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.lock_outline, size: 14, color: ColorUtil.sub3TextColor),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'For security and stability, updating is required.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: ColorUtil.sub3TextColor,
-                      fontFamily: 'Geist',
-                    ),
-                  ),
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
                 ),
               ],
-            ),
-            if (error != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red, fontSize: 13),
-              ),
+              const SizedBox(height: 24),
+              if (skippable)
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: opening ? null : onSkip,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFB5B0A8),
+                            side: const BorderSide(color: Color(0xFFE5E5E5)),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Skip',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Geist',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildUpdateButton()),
+                  ],
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: _buildUpdateButton(),
+                ),
             ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: opening ? null : onUpdateNow,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ColorUtil.textColor,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: ColorUtil.textColor.withValues(
-                    alpha: 0.6,
-                  ),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                ),
-                child: Text(
-                  opening ? 'Opening…' : 'Update Now',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Geist',
-                  ),
-                ),
-              ),
-            ),
-          ],
           ),
         ),
       ),
     );
   }
 
-  Widget _versionRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: ColorUtil.sub2TextColor,
-                fontFamily: 'Geist',
-              ),
-            ),
+  Widget _buildUpdateButton() {
+    return SizedBox(
+      height: 48,
+      child: ElevatedButton(
+        onPressed: opening ? null : onUpdateNow,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: ColorUtil.textColor,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: ColorUtil.textColor.withValues(alpha: 0.6),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: valueColor ?? ColorUtil.sub2TextColor,
-                fontFamily: 'Geist',
-              ),
-            ),
+        ),
+        child: Text(
+          opening ? 'Opening…' : 'Update',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Geist',
           ),
-        ],
+        ),
       ),
     );
   }

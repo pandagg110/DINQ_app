@@ -12,20 +12,21 @@ class _FakeChecker implements AppUpdateChecker {
   Future<AppUpdateInfo?> check() async => info;
 }
 
-AppUpdateInfo _update(AppUpdateType type) => AppUpdateInfo(
-  platform: 'android',
-  channel: 'official_apk',
-  updateType: type,
-  latestVersion: '0.1.2',
-  latestVersionCode: 7,
-  minimumVersion: '0.1.1',
-  minimumVersionCode: 6,
-  releaseNotes: 'Critical fixes',
-  downloadUrl: 'https://dinq.me/download/android',
-);
+AppUpdateInfo _update(AppUpdateType type, {String? releaseNotes}) =>
+    AppUpdateInfo(
+      platform: 'android',
+      channel: 'official_apk',
+      updateType: type,
+      latestVersion: '0.1.2',
+      latestVersionCode: 7,
+      minimumVersion: '0.1.1',
+      minimumVersionCode: 6,
+      releaseNotes: releaseNotes ?? 'Critical fixes',
+      downloadUrl: 'https://dinq.me/download/android',
+    );
 
 void main() {
-  testWidgets('forced update blocks the app and cannot be dismissed', (
+  testWidgets('forced update blocks the app and cannot be skipped', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -39,13 +40,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Update Required'), findsOneWidget);
-    expect(find.text('0.1.2'), findsOneWidget);
-    expect(find.text('Update Now'), findsOneWidget);
+    expect(find.text('New Version Available'), findsOneWidget);
+    expect(find.text('1. Critical fixes'), findsOneWidget);
+    expect(find.text('Update'), findsOneWidget);
+    expect(find.text('Skip'), findsNothing);
     expect(find.text('App content'), findsOneWidget);
   });
 
-  testWidgets('optional update can be dismissed', (tester) async {
+  testWidgets('optional update can be skipped', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: AppUpdateGate(
@@ -57,11 +59,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Update Required'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.close));
+    expect(find.text('New Version Available'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+    await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Update Required'), findsNothing);
+    expect(find.text('New Version Available'), findsNothing);
     expect(find.text('App content'), findsOneWidget);
   });
 
@@ -79,13 +82,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Update Now'));
+    await tester.tap(find.text('Update'));
     await tester.pumpAndSettle();
 
     expect(
       find.text('Unable to open the update page. Please try again.'),
       findsOneWidget,
     );
-    expect(find.text('Update Now'), findsOneWidget);
+    expect(find.text('Update'), findsOneWidget);
   });
 }

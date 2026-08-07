@@ -1,10 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../services/app_update_service.dart';
 import 'update_required_panel.dart';
 
 typedef OpenUpdateLink = Future<bool> Function(String url);
+
+/// 本地联调：为 true 时启动即弹出版本更新门禁（不请求接口）。
+/// 测完请改回 false。
+const bool kForceAppUpdatePrompt = true;
 
 class AppUpdateGate extends StatefulWidget {
   const AppUpdateGate({
@@ -27,7 +31,6 @@ class _AppUpdateGateState extends State<AppUpdateGate>
   late final AppUpdateChecker _checker;
   late final OpenUpdateLink _openUpdate;
   AppUpdateInfo? _update;
-  String _currentVersion = '';
   int? _dismissedVersionCode;
   bool _checking = false;
   bool _opening = false;
@@ -55,27 +58,43 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     }
   }
 
+  AppUpdateInfo _debugForceUpdate() {
+    return const AppUpdateInfo(
+      platform: 'android',
+      channel: distributionChannel,
+      updateType: AppUpdateType.force,
+      latestVersion: '1.0.1',
+      latestVersionCode: 999,
+      minimumVersion: '1.0.1',
+      minimumVersionCode: 999,
+      releaseNotes: '',
+      downloadUrl: 'https://dinq.me/download/android',
+    );
+  }
+
   Future<void> _check() async {
     if (_checking) return;
     _checking = true;
-    final result = await _checker.check();
+
+    AppUpdateInfo? result;
+    // 仅无默认 checker 时生效，避免打断注入 FakeChecker 的单测
+    if (kForceAppUpdatePrompt && kDebugMode && widget.checker == null) {
+      result = _debugForceUpdate();
+    } else {
+      result = await _checker.check();
+    }
+
     _checking = false;
     if (!mounted || result == null) return;
 
+    final info = result;
     final dismissed =
-        result.updateType == AppUpdateType.optional &&
-        result.latestVersionCode == _dismissedVersionCode;
+        info.updateType == AppUpdateType.optional &&
+        info.latestVersionCode == _dismissedVersionCode;
     setState(() {
       _error = null;
-      _update = result.shouldShowPrompt && !dismissed ? result : null;
+      _update = info.shouldShowPrompt && !dismissed ? info : null;
     });
-
-    // 版本号仅作展示，不阻塞门禁弹窗。
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      if (!mounted) return;
-      setState(() => _currentVersion = packageInfo.version);
-    } catch (_) {}
   }
 
   Future<void> _updateNow() async {
@@ -109,12 +128,6 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     });
   }
 
-  String _requiredVersion(AppUpdateInfo update) {
-    if (update.latestVersion.isNotEmpty) return update.latestVersion;
-    if (update.minimumVersion.isNotEmpty) return update.minimumVersion;
-    return '';
-  }
-
   @override
   Widget build(BuildContext context) {
     final update = _update;
@@ -132,12 +145,13 @@ class _AppUpdateGateState extends State<AppUpdateGate>
               child: SafeArea(
                 child: Center(
                   child: UpdateRequiredPanel(
-                    currentVersion:
-                        _currentVersion.isEmpty ? '—' : _currentVersion,
-                    requiredVersion: _requiredVersion(update),
+                    canSkip: !forced,
+                    releaseNotes: UpdateRequiredPanel.parseReleaseNotes(
+                      update.releaseNotes,
+                    ),
                     opening: _opening,
                     error: _error,
-                    onDismiss: forced ? null : _dismiss,
+                    onSkip: forced ? null : _dismiss,
                     onUpdateNow: _updateNow,
                   ),
                 ),
