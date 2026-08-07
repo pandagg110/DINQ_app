@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dinq_app/utils/toast_util.dart';
 import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/default_app_bar.dart';
@@ -106,14 +108,9 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
       );
       if (!mounted) return;
 
-      // 显示成功提示
-      try {
-        await widget.onSuccess?.call();
-      } catch (_) {
-        // 密码已经修改成功；资料刷新失败不应把成功操作误报为失败。
-      }
-      if (!mounted) return;
       setState(() => _showSuccessConfirmation = true);
+      final onSuccess = widget.onSuccess;
+      if (onSuccess != null) unawaited(_refreshAfterSuccess(onSuccess));
     } catch (e) {
       if (!mounted) return;
       if (passwordChangeRequiresCurrentPassword(e)) {
@@ -127,6 +124,16 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
+    }
+  }
+
+  Future<void> _refreshAfterSuccess(
+    PasswordChangeSuccessCallback onSuccess,
+  ) async {
+    try {
+      await onSuccess();
+    } catch (_) {
+      // The password is already changed; profile refresh is best effort.
     }
   }
 
@@ -253,74 +260,69 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
   Widget _buildSuccessConfirmation() {
     return Positioned.fill(
       child: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          children: [
-            const ModalBarrier(dismissible: false, color: Colors.black54),
-            Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 24,
-                  bottom: 16,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDDFEBC),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: AssetImageView(
-                          "settings_success",
-                          width: 32,
-                          height: 32,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Password set successfully',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Geist',
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: _closeSuccessConfirmation,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ColorUtil.textColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Ok',
-                          style: TextStyle(fontFamily: 'Geist'),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+        color: Colors.black54,
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 24,
+              bottom: 16,
             ),
-          ],
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDFEBC),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: AssetImageView(
+                      "settings_success",
+                      width: 32,
+                      height: 32,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Password set successfully',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Geist',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: _closeSuccessConfirmation,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorUtil.textColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Ok',
+                      style: TextStyle(fontFamily: 'Geist'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

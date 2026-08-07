@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dinq_app/pages/settings/settings_set_password_page.dart';
 import 'package:dinq_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -30,8 +32,9 @@ class _PopTrackingObserver extends NavigatorObserver {
 
 void main() {
   Future<_PopTrackingObserver> openSuccessfulPasswordDialog(
-    WidgetTester tester,
-  ) async {
+    WidgetTester tester, {
+    PasswordChangeSuccessCallback? onSuccess,
+  }) async {
     final observer = _PopTrackingObserver();
     await tester.pumpWidget(
       MaterialApp(
@@ -45,6 +48,7 @@ void main() {
                     builder: (_) => SettingsSetPasswordPage(
                       hasPassword: false,
                       authService: _SuccessfulAuthService(),
+                      onSuccess: onSuccess,
                     ),
                   ),
                 ),
@@ -85,6 +89,17 @@ void main() {
 
     expect(find.text('Password set successfully'), findsNothing);
     expect(find.text('Open password page'), findsOneWidget);
+  });
+
+  testWidgets('success is shown without waiting for profile refresh', (
+    tester,
+  ) async {
+    final refresh = Completer<void>();
+
+    await openSuccessfulPasswordDialog(tester, onSuccess: () => refresh.future);
+
+    expect(find.text('Password set successfully'), findsOneWidget);
+    refresh.complete();
   });
 
   testWidgets('confirmation does not leave a modal route above settings', (
