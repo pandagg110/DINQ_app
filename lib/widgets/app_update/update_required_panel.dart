@@ -60,113 +60,119 @@ class UpdateRequiredPanel extends StatelessWidget {
             ),
           ],
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/app_update_mascot.png',
-                width: 140,
-                height: 140,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 88,
-                  height: 88,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEAF2FF),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.system_update_alt_rounded,
-                    size: 40,
-                    color: Color(0xFF3B82F6),
-                  ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/app_update_mascot.png',
+              width: 140,
+              height: 140,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => Container(
+                width: 88,
+                height: 88,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEAF2FF),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.system_update_alt_rounded,
+                  size: 40,
+                  color: Color(0xFF3B82F6),
                 ),
               ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'New Version Available',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                height: 24 / 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+                color: ColorUtil.textColor,
+                fontFamily: 'Geist',
+              ),
+            ),
+            if (notes.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(
-                'New Version Available',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  height: 24 / 20,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0,
-                  color: ColorUtil.textColor,
-                  fontFamily: 'Geist',
-                ),
-              ),
-              if (notes.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < notes.length; i++) ...[
-                        if (i > 0) const SizedBox(height: 8),
-                        Text(
-                          '${i + 1}. ${notes[i]}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.45,
-                            fontWeight: FontWeight.w400,
-                            color: ColorUtil.sub2TextColor,
-                            fontFamily: 'Geist',
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-              if (error != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 13),
-                ),
-              ],
-              const SizedBox(height: 24),
-              if (skippable)
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: OutlinedButton(
-                          onPressed: opening ? null : onSkip,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFB5B0A8),
-                            side: const BorderSide(color: Color(0xFFE5E5E5)),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+              Flexible(
+                fit: FlexFit.loose,
+                child: SingleChildScrollView(
+                  key: const ValueKey('update-release-notes-scroll'),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < notes.length; i++) ...[
+                          if (i > 0)
+                            SizedBox(
+                              key: ValueKey('update-release-note-gap-$i'),
+                              height: 4,
                             ),
-                          ),
-                          child: const Text(
-                            'Skip',
+                          Text(
+                            key: ValueKey('update-release-note-$i'),
+                            '${i + 1}. ${notes[i]}',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              height: 18 / 12,
+                              fontWeight: FontWeight.w400,
+                              color: ColorUtil.sub2TextColor,
                               fontFamily: 'Geist',
                             ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 24),
+            if (skippable)
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: opening ? null : onSkip,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFB5B0A8),
+                          side: const BorderSide(color: Color(0xFFE5E5E5)),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Skip',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Geist',
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildUpdateButton()),
-                  ],
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: _buildUpdateButton(),
-                ),
-            ],
-          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildUpdateButton()),
+                ],
+              )
+            else
+              SizedBox(width: double.infinity, child: _buildUpdateButton()),
+          ],
         ),
       ),
     );
@@ -182,9 +188,7 @@ class UpdateRequiredPanel extends StatelessWidget {
           foregroundColor: Colors.white,
           disabledBackgroundColor: ColorUtil.textColor.withValues(alpha: 0.6),
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Text(
           opening ? 'Opening…' : 'Update',
