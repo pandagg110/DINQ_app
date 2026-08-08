@@ -169,4 +169,36 @@ void main() {
     expect(find.text('Password set successfully'), findsNothing);
     expect(find.text('Open password page'), findsOneWidget);
   });
+
+  testWidgets('confirmation clears its overlay when the page cannot pop', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsSetPasswordPage(
+          hasPassword: false,
+          authService: _SuccessfulAuthService(),
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Enter new password'),
+      'password123',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Confirm new password'),
+      'password123',
+    );
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Password set successfully'), findsOneWidget);
+
+    await tester.tap(find.text('Ok'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Password set successfully'), findsNothing);
+    expect(find.text('Confirm'), findsOneWidget);
+  });
 }

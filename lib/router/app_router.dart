@@ -93,9 +93,34 @@ class AppRouter {
     // 匹配用户资料页 /:username（排除其他路由前缀）
     if (location.startsWith('/') &&
         !location.contains('/') &&
-        location.length > 1)
+        location.length > 1) {
       return true;
+    }
     return false;
+  }
+
+  static ({bool hasPassword, PasswordChangeSuccessCallback? onSuccess})
+  passwordRouteArgs(Object? extra) {
+    final map = extra is Map ? extra : const <Object?, Object?>{};
+    final onSuccess = map['onSuccess'];
+    return (
+      hasPassword: map['hasPassword'] == true,
+      onSuccess: onSuccess is PasswordChangeSuccessCallback ? onSuccess : null,
+    );
+  }
+
+  static ({String? currentEmail, void Function()? onSuccess}) emailRouteArgs(
+    Object? extra,
+  ) {
+    final map = extra is Map ? extra : const <Object?, Object?>{};
+    final currentEmail = map['currentEmail']?.toString();
+    final onSuccess = map['onSuccess'];
+    return (
+      currentEmail: currentEmail == null || currentEmail.isEmpty
+          ? null
+          : currentEmail,
+      onSuccess: onSuccess is void Function() ? onSuccess : null,
+    );
   }
 
   static GoRouter create(
@@ -292,29 +317,20 @@ class AppRouter {
         GoRoute(
           path: '/settings/account/password',
           builder: (context, state) {
-            final map = state.extra as Map<String, dynamic>;
-            // 获取路径参数
-            final hasPassword = map['hasPassword'];
-            final onSuccess =
-                map['onSuccess'] as PasswordChangeSuccessCallback?;
+            final args = passwordRouteArgs(state.extra);
             return SettingsSetPasswordPage(
-              hasPassword: hasPassword,
-              onSuccess: onSuccess,
+              hasPassword: args.hasPassword,
+              onSuccess: args.onSuccess,
             );
           },
         ),
         GoRoute(
           path: '/settings/account/email',
           builder: (context, state) {
-            final map = state.extra as Map<String, dynamic>;
-            // 获取路径参数（未绑定邮箱时 currentEmail 为空，走绑定流程）
-            final currentEmail = map['currentEmail']?.toString();
-            final onSuccess = map['onSuccess'];
+            final args = emailRouteArgs(state.extra);
             return SettingsSetEmailPage(
-              currentEmail: (currentEmail == null || currentEmail.isEmpty)
-                  ? null
-                  : currentEmail,
-              onSuccess: onSuccess,
+              currentEmail: args.currentEmail,
+              onSuccess: args.onSuccess,
             );
           },
         ),

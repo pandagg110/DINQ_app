@@ -141,7 +141,15 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
   void _closeSuccessConfirmation() {
     if (_isClosingSuccessConfirmation) return;
     _isClosingSuccessConfirmation = true;
-    Navigator.of(context).pop();
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    setState(() {
+      _showSuccessConfirmation = false;
+      _isClosingSuccessConfirmation = false;
+    });
   }
 
   @override
