@@ -33,6 +33,7 @@ void main() {
 
     expect(first.style?.fontSize, 12);
     expect(first.style?.height, 18 / 12);
+    expect(first.style?.color, const Color(0xFF575757));
     expect(gap.height, 4);
   });
 

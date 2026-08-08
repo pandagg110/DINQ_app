@@ -119,7 +119,7 @@ class UpdateRequiredPanel extends StatelessWidget {
                               fontSize: 12,
                               height: 18 / 12,
                               fontWeight: FontWeight.w400,
-                              color: ColorUtil.sub2TextColor,
+                              color: const Color(0xFF575757),
                               fontFamily: 'Geist',
                             ),
                           ),
