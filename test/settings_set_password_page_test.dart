@@ -90,7 +90,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Password set successfully'), findsOneWidget);
-    expect(observer.pushCount, 3);
+    expect(find.byType(Dialog), findsNothing);
+    expect(observer.pushCount, 2);
     return observer;
   }
 
@@ -144,11 +145,10 @@ void main() {
     await tester.pump();
 
     expect(observer.popCount, 1);
-    expect(find.text('Open password page'), findsNothing);
 
     await tester.pumpAndSettle();
 
-    expect(observer.popCount, 2);
+    expect(observer.popCount, 1);
     expect(find.text('Password set successfully'), findsNothing);
     expect(find.text('Open password page'), findsOneWidget);
   });
@@ -165,7 +165,7 @@ void main() {
     okButton.onPressed!.call();
     await tester.pumpAndSettle();
 
-    expect(observer.popCount, 2);
+    expect(observer.popCount, 1);
     expect(find.text('Password set successfully'), findsNothing);
     expect(find.text('Open password page'), findsOneWidget);
   });

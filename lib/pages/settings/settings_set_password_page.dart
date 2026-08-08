@@ -35,6 +35,8 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
   late final AuthService _authService;
 
   bool _isSubmitting = false;
+  bool _showSuccessConfirmation = false;
+  bool _isClosingSuccessConfirmation = false;
   late bool _requiresCurrentPassword;
   bool _showCurrentPassword = false;
   bool _showNewPassword = false;
@@ -107,9 +109,9 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
       );
       if (!mounted) return;
 
+      setState(() => _showSuccessConfirmation = true);
       final onSuccess = widget.onSuccess;
       if (onSuccess != null) unawaited(_refreshAfterSuccess(onSuccess));
-      await _showSuccessDialog();
     } catch (e) {
       if (!mounted) return;
       if (passwordChangeRequiresCurrentPassword(e)) {
@@ -136,137 +138,134 @@ class _SettingsSetPasswordPageState extends State<SettingsSetPasswordPage> {
     }
   }
 
-  Future<void> _showSuccessDialog() async {
-    var isClosing = false;
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final route = DialogRoute<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => PopScope(
-        canPop: false,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _buildSuccessConfirmation(
-            onConfirm: () {
-              if (isClosing) return;
-              isClosing = true;
-              Navigator.of(dialogContext, rootNavigator: true).pop();
-            },
-          ),
-        ),
-      ),
-    );
-
-    await navigator.push(route);
-    await route.completed;
-    if (mounted) Navigator.of(context).pop();
+  void _closeSuccessConfirmation() {
+    if (_isClosingSuccessConfirmation) return;
+    _isClosingSuccessConfirmation = true;
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: DefaultAppBar(context, titleString: 'Password'),
-      body: Column(
-        children: [
-          // Form
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Current Password (only show if has password)
-                  if (_requiresCurrentPassword) ...[
-                    _buildLabel('Current Password'),
-                    const SizedBox(height: 8),
-                    _buildPasswordField(
-                      controller: _currentPasswordController,
-                      hint: 'Enter current password',
-                      showPassword: _showCurrentPassword,
-                      onToggleVisibility: () {
-                        setState(
-                          () => _showCurrentPassword = !_showCurrentPassword,
-                        );
-                      },
-                      errorText: _currentPasswordError,
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  // New Password
-                  _buildLabel('New Password'),
-                  const SizedBox(height: 8),
-                  _buildPasswordField(
-                    controller: _newPasswordController,
-                    hint: 'Enter new password',
-                    showPassword: _showNewPassword,
-                    onToggleVisibility: () {
-                      setState(() => _showNewPassword = !_showNewPassword);
-                    },
-                    errorText: _newPasswordError,
-                  ),
-                  const SizedBox(height: 20),
-                  // Confirm New Password
-                  _buildLabel('Confirm New Password'),
-                  const SizedBox(height: 8),
-                  _buildPasswordField(
-                    controller: _confirmPasswordController,
-                    hint: 'Confirm new password',
-                    showPassword: _showConfirmPassword,
-                    onToggleVisibility: () {
-                      setState(
-                        () => _showConfirmPassword = !_showConfirmPassword,
-                      );
-                    },
-                    errorText: _confirmPasswordError,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Submit Button
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleSubmit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorUtil.textColor,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: ColorUtil.sub4TextColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : const Text(
-                          'Confirm',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Geist',
-                          ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: DefaultAppBar(context, titleString: 'Password'),
+          body: Column(
+            children: [
+              // Form
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Current Password (only show if has password)
+                      if (_requiresCurrentPassword) ...[
+                        _buildLabel('Current Password'),
+                        const SizedBox(height: 8),
+                        _buildPasswordField(
+                          controller: _currentPasswordController,
+                          hint: 'Enter current password',
+                          showPassword: _showCurrentPassword,
+                          onToggleVisibility: () {
+                            setState(
+                              () =>
+                                  _showCurrentPassword = !_showCurrentPassword,
+                            );
+                          },
+                          errorText: _currentPasswordError,
                         ),
+                        const SizedBox(height: 20),
+                      ],
+                      // New Password
+                      _buildLabel('New Password'),
+                      const SizedBox(height: 8),
+                      _buildPasswordField(
+                        controller: _newPasswordController,
+                        hint: 'Enter new password',
+                        showPassword: _showNewPassword,
+                        onToggleVisibility: () {
+                          setState(() => _showNewPassword = !_showNewPassword);
+                        },
+                        errorText: _newPasswordError,
+                      ),
+                      const SizedBox(height: 20),
+                      // Confirm New Password
+                      _buildLabel('Confirm New Password'),
+                      const SizedBox(height: 8),
+                      _buildPasswordField(
+                        controller: _confirmPasswordController,
+                        hint: 'Confirm new password',
+                        showPassword: _showConfirmPassword,
+                        onToggleVisibility: () {
+                          setState(
+                            () => _showConfirmPassword = !_showConfirmPassword,
+                          );
+                        },
+                        errorText: _confirmPasswordError,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Submit Button
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _handleSubmit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ColorUtil.textColor,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: ColorUtil.sub4TextColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Confirm',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Geist',
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_showSuccessConfirmation)
+          Positioned.fill(
+            child: Material(
+              color: Colors.black54,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildSuccessConfirmation(
+                    onConfirm: _closeSuccessConfirmation,
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
