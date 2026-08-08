@@ -258,7 +258,13 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       return AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
         ),
         title: Text(
           (userData?.name ?? '').isNotEmpty ? userData!.name : widget.username,

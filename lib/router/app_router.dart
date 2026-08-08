@@ -430,8 +430,10 @@ class AppRouter {
         ),
         GoRoute(
           path: '/:username',
-          builder: (context, state) =>
-              ProfilePage(username: state.pathParameters['username'] ?? ''),
+          builder: (context, state) => ProfilePage(
+            username: state.pathParameters['username'] ?? '',
+            showAppBar: true,
+          ),
         ),
       ],
     );
