@@ -66,7 +66,8 @@ class AppUpdateInfo {
 
   /// 优先使用版本接口返回的地址；缺失时回退到官方 APK 固定地址。
   String get effectiveDownloadUrl {
-    return downloadUrl.isNotEmpty ? downloadUrl : androidApkDownloadUrl;
+    if (downloadUrl.isNotEmpty) return downloadUrl;
+    return platform == 'android' ? androidApkDownloadUrl : '';
   }
 
   static int _asInt(dynamic value) {
@@ -104,9 +105,12 @@ class AppUpdateService implements AppUpdateChecker {
 
   @override
   Future<AppUpdateInfo?> check() async {
-    if (_isAndroid == false ||
-        (_isAndroid == null &&
-            (kIsWeb || defaultTargetPlatform != TargetPlatform.android))) {
+    final isSupportedPlatform =
+        _isAndroid != null ||
+        (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.android ||
+                defaultTargetPlatform == TargetPlatform.iOS));
+    if (!isSupportedPlatform) {
       return null;
     }
 

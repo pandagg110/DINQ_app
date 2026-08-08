@@ -10,9 +10,11 @@ import 'package:package_info_plus/package_info_plus.dart';
 Map<String, dynamic> _versionPayload({
   String updateType = 'force',
   String channel = 'official_apk',
+  String platform = 'android',
+  String downloadUrl = 'https://assets.dinq.me/dinq-1.0.2.apk',
 }) {
   return {
-    'platform': 'android',
+    'platform': platform,
     'channel': channel,
     'update_type': updateType,
     'latest_version': '1.0.2',
@@ -20,15 +22,18 @@ Map<String, dynamic> _versionPayload({
     'minimum_version': '1.0.2',
     'minimum_version_code': 16,
     'release_notes': '修复已知问题',
-    'download_url': 'https://assets.dinq.me/dinq-1.0.2.apk',
+    'download_url': downloadUrl,
   };
 }
 
-PackageInfo _packageInfo() => PackageInfo(
+PackageInfo _packageInfo({
+  String version = '0.0.1',
+  String buildNumber = '15',
+}) => PackageInfo(
   appName: 'DINQ',
   packageName: 'me.dinq.app',
-  version: '0.0.1',
-  buildNumber: '15',
+  version: version,
+  buildNumber: buildNumber,
 );
 
 class _VersionEndpointAdapter implements HttpClientAdapter {
@@ -100,6 +105,14 @@ void main() {
     expect(info.effectiveDownloadUrl, androidApkDownloadUrl);
   });
 
+  test('iOS never falls back to the Android APK download endpoint', () {
+    final info = AppUpdateInfo.fromJson(
+      _versionPayload(platform: 'ios', channel: 'app_store', downloadUrl: ''),
+    );
+
+    expect(info.effectiveDownloadUrl, isEmpty);
+  });
+
   test(
     'version check sends platform, channel, and installed version code',
     () async {
@@ -149,5 +162,28 @@ void main() {
     );
 
     expect(await service.check(), isNull);
+  });
+
+  test('iOS startup check requests the App Store channel', () async {
+    final service = AppUpdateService(
+      isAndroid: false,
+      channel: 'app_store',
+      packageInfo: _packageInfo(version: '1.0.0', buildNumber: '16'),
+      fetchVersion: (platform, channel, versionCode) async {
+        expect(platform, 'ios');
+        expect(channel, 'app_store');
+        expect(versionCode, 16);
+        return _versionPayload(
+          platform: 'ios',
+          channel: 'app_store',
+          downloadUrl: 'https://apps.apple.com/app/id123456789',
+        );
+      },
+    );
+
+    final info = await service.check();
+
+    expect(info?.updateType, AppUpdateType.force);
+    expect(info?.effectiveDownloadUrl, contains('apps.apple.com'));
   });
 }
