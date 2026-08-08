@@ -6,11 +6,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _SuccessfulAuthService extends AuthService {
+  String? submittedCurrentPassword;
+  String? submittedNewPassword;
+
   @override
   Future<void> changePassword({
     String? currentPassword,
     required String newPassword,
-  }) async {}
+  }) async {
+    submittedCurrentPassword = currentPassword;
+    submittedNewPassword = newPassword;
+  }
 }
 
 class _PopTrackingObserver extends NavigatorObserver {
@@ -34,8 +40,11 @@ void main() {
   Future<_PopTrackingObserver> openSuccessfulPasswordDialog(
     WidgetTester tester, {
     PasswordChangeSuccessCallback? onSuccess,
+    bool hasPassword = false,
+    _SuccessfulAuthService? authService,
   }) async {
     final observer = _PopTrackingObserver();
+    final service = authService ?? _SuccessfulAuthService();
     await tester.pumpWidget(
       MaterialApp(
         navigatorObservers: [observer],
@@ -46,8 +55,8 @@ void main() {
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => SettingsSetPasswordPage(
-                      hasPassword: false,
-                      authService: _SuccessfulAuthService(),
+                      hasPassword: hasPassword,
+                      authService: service,
                       onSuccess: onSuccess,
                     ),
                   ),
@@ -62,6 +71,12 @@ void main() {
 
     await tester.tap(find.text('Open password page'));
     await tester.pumpAndSettle();
+    if (hasPassword) {
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Enter current password'),
+        'current-password',
+      );
+    }
     await tester.enterText(
       find.widgetWithText(TextField, 'Enter new password'),
       'password123',
@@ -75,7 +90,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Password set successfully'), findsOneWidget);
-    expect(observer.pushCount, 2);
+    expect(observer.pushCount, 3);
     return observer;
   }
 
@@ -102,15 +117,38 @@ void main() {
     refresh.complete();
   });
 
+  testWidgets(
+    'changing an existing password dismisses the keyboard before success',
+    (tester) async {
+      final service = _SuccessfulAuthService();
+
+      await openSuccessfulPasswordDialog(
+        tester,
+        hasPassword: true,
+        authService: service,
+      );
+
+      expect(service.submittedCurrentPassword, 'current-password');
+      expect(service.submittedNewPassword, 'password123');
+      expect(tester.testTextInput.isVisible, isFalse);
+      expect(find.text('Password set successfully'), findsOneWidget);
+    },
+  );
+
   testWidgets('confirmation does not leave a modal route above settings', (
     tester,
   ) async {
     final observer = await openSuccessfulPasswordDialog(tester);
 
     await tester.tap(find.text('Ok'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(observer.popCount, 1);
+    expect(find.text('Open password page'), findsNothing);
+
+    await tester.pumpAndSettle();
+
+    expect(observer.popCount, 2);
     expect(find.text('Password set successfully'), findsNothing);
     expect(find.text('Open password page'), findsOneWidget);
   });
@@ -118,7 +156,7 @@ void main() {
   testWidgets('rapid confirmation taps cannot pop more than one page', (
     tester,
   ) async {
-    await openSuccessfulPasswordDialog(tester);
+    final observer = await openSuccessfulPasswordDialog(tester);
 
     final okButton = tester.widget<ElevatedButton>(
       find.widgetWithText(ElevatedButton, 'Ok'),
@@ -127,6 +165,7 @@ void main() {
     okButton.onPressed!.call();
     await tester.pumpAndSettle();
 
+    expect(observer.popCount, 2);
     expect(find.text('Password set successfully'), findsNothing);
     expect(find.text('Open password page'), findsOneWidget);
   });
