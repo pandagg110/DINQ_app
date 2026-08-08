@@ -41,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('New Version Available'), findsOneWidget);
-    expect(find.text('1. Critical fixes'), findsOneWidget);
+    expect(find.text('Critical fixes'), findsOneWidget);
     expect(find.text('Update'), findsOneWidget);
     expect(find.text('Skip'), findsNothing);
     expect(find.text('App content'), findsOneWidget);

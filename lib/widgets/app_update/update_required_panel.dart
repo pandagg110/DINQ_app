@@ -32,8 +32,6 @@ class UpdateRequiredPanel extends StatelessWidget {
     return raw
         .split(RegExp(r'[\r\n]+'))
         .map((line) => line.trim())
-        .map((line) => line.replaceFirst(RegExp(r'^\d+[\.\)、．]\s*'), ''))
-        .map((line) => line.replaceFirst(RegExp(r'^[-•]\s*'), ''))
         .where((line) => line.isNotEmpty)
         .toList();
   }
@@ -46,7 +44,9 @@ class UpdateRequiredPanel extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
+        key: const ValueKey('update-required-panel'),
         width: 335,
+        constraints: const BoxConstraints(maxHeight: 420),
         margin: const EdgeInsets.symmetric(horizontal: 28),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -114,12 +114,12 @@ class UpdateRequiredPanel extends StatelessWidget {
                             ),
                           Text(
                             key: ValueKey('update-release-note-$i'),
-                            '${i + 1}. ${notes[i]}',
-                            style: TextStyle(
+                            notes[i],
+                            style: const TextStyle(
                               fontSize: 12,
                               height: 18 / 12,
                               fontWeight: FontWeight.w400,
-                              color: const Color(0xFF575757),
+                              color: Color(0xFF575757),
                               fontFamily: 'Geist',
                             ),
                           ),
