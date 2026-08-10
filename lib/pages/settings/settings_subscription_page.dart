@@ -8,12 +8,14 @@ import '../../models/user_models.dart';
 import '../../services/analytics_service.dart';
 import '../../services/apple_iap_service.dart';
 import '../../services/payment_service.dart';
+import '../../services/store_cancellation_flow.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/base_page.dart';
 import '../../widgets/common/common_dialog.dart';
 import '../../widgets/common/default_app_bar.dart';
+import '../../widgets/marketing/store_cancellation_dialog.dart';
 
 /// 计划样式配置
 class PlanStyle {
@@ -130,6 +132,18 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
                 children: [
                   // Current Plan 卡片
                   _buildCurrentPlanCard(subscription),
+                  if (subscription != null &&
+                      subscription.cancelAtPeriodEnd) ...[
+                    const SizedBox(height: 12),
+                    StoreCancellationNotice(
+                      message: confirmedStoreCancellationMessage(
+                        cancelAtPeriodEnd: true,
+                        expirationDate: _formatDate(
+                          subscription.currentPeriodEnd,
+                        ),
+                      )!,
+                    ),
+                  ],
                   const SizedBox(height: 12),
 
                   // Credits 卡片

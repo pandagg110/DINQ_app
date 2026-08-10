@@ -81,6 +81,18 @@ void main() {
         'Subscribe',
       );
     });
+
+    test('shows a scheduled state after store cancellation is confirmed', () {
+      expect(
+        subscriptionActionLabel(
+          currentPlan: 'pro_monthly',
+          targetBasePlan: 'free',
+          targetBillingPeriod: 'monthly',
+          cancelAtPeriodEnd: true,
+        ),
+        'Cancellation scheduled',
+      );
+    });
   });
 
   group('initial selection', () {

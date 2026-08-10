@@ -21,6 +21,7 @@ String subscriptionActionLabel({
   required String targetBasePlan,
   required String targetBillingPeriod,
   bool isLoggedIn = true,
+  bool cancelAtPeriodEnd = false,
 }) {
   if (!isLoggedIn) {
     return targetBasePlan == 'free' ? 'Get started' : 'Subscribe';
@@ -29,6 +30,9 @@ String subscriptionActionLabel({
   final targetPlan = targetBasePlan == 'free'
       ? 'free'
       : '${targetBasePlan}_$targetBillingPeriod';
+  if (targetBasePlan == 'free' && cancelAtPeriodEnd) {
+    return 'Cancellation scheduled';
+  }
   if (targetPlan == currentPlan) return 'Current Plan';
   if (targetBasePlan == 'free') return 'Switch to Free';
   if (currentPlan == 'free') return 'Subscribe';

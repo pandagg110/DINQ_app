@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,12 +14,14 @@ import '../../services/google_play_iap_service.dart';
 import '../../services/payment_channel.dart';
 import '../../services/payment_service.dart';
 import '../../services/store_price_display.dart';
+import '../../services/store_cancellation_flow.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/base_page.dart';
 import '../../widgets/common/default_app_bar.dart';
 import '../../widgets/marketing/contact_support_dialog.dart';
+import '../../widgets/marketing/store_cancellation_dialog.dart';
 import 'subscription_plan_display.dart';
 
 // ─── Plan 配置常量 ────────────────────────────────────────────────
@@ -126,7 +130,8 @@ class PricingPage extends StatefulWidget {
   State<PricingPage> createState() => _PricingPageState();
 }
 
-class _PricingPageState extends State<PricingPage> {
+class _PricingPageState extends State<PricingPage>
+    with WidgetsBindingObserver {
   final PaymentService _paymentService = PaymentService();
 
   Map<String, dynamic>? _pricing;
@@ -135,6 +140,9 @@ class _PricingPageState extends State<PricingPage> {
   String _billingPeriod = 'yearly';
   String? _processingPlan;
   bool _selectionInitialized = false;
+  bool _awaitingStoreCancellationReturn = false;
+  bool _leftAppForStoreCancellation = false;
+  bool _isRefreshingStoreCancellation = false;
 
   late PageController _pageController;
   int _currentPage = 1; // Free 用户默认推荐 Basic Yearly
@@ -154,6 +162,7 @@ class _PricingPageState extends State<PricingPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(
       viewportFraction: 0.82,
       initialPage: _currentPage,
@@ -200,12 +209,27 @@ class _PricingPageState extends State<PricingPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_isIOS) AppleIapService.instance.onPurchaseFinished = null;
     if (_usesGooglePlay) {
       GooglePlayIapService.instance.onPurchaseFinished = null;
     }
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_awaitingStoreCancellationReturn) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _leftAppForStoreCancellation = true;
+      return;
+    }
+    if (state == AppLifecycleState.resumed && _leftAppForStoreCancellation) {
+      unawaited(_refreshStoreCancellationConfirmation());
+    }
   }
 
   void _onIapPurchaseFinished(bool success, String? message) {
@@ -287,14 +311,21 @@ class _PricingPageState extends State<PricingPage> {
       targetBasePlan: basePlan,
       targetBillingPeriod: _billingPeriod,
       isLoggedIn: userStore.isLoggedIn(),
+      cancelAtPeriodEnd:
+          basePlan == 'free' &&
+          (userStore.subscription?.cancelAtPeriodEnd ?? false),
     );
   }
 
   bool _isButtonDisabled(String basePlan) {
     if (_processingPlan != null) return true;
+    final userStore = context.read<UserStore>();
+    if (basePlan == 'free' &&
+        (userStore.subscription?.cancelAtPeriodEnd ?? false)) {
+      return true;
+    }
     if (!_isPlanAvailable(basePlan)) return true;
     if (_isCurrentPlan(basePlan)) return true;
-    final userStore = context.read<UserStore>();
     if (userStore.isLoggedIn() && !_canChangePlan(basePlan)) return true;
     return false;
   }
@@ -333,20 +364,11 @@ class _PricingPageState extends State<PricingPage> {
 
     // 降级到 Free：确认后关闭自动续费（对齐 web downgradeDialog + setAutoRenew）
     if (basePlan == 'free') {
-      if (_isIOS && userStore.subscription?.isAppleChannel == true) {
-        try {
-          await AppleIapService.instance.showManageSubscriptions();
-        } catch (_) {
-          final uri = Uri.parse('https://apps.apple.com/account/subscriptions');
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-        }
-        return;
-      }
-      if (_usesGooglePlay &&
-          userStore.subscription?.isGooglePlayChannel == true) {
-        await _openGooglePlaySubscriptions();
+      final storeChannel = storeSubscriptionChannelFromApi(
+        userStore.subscription?.channel,
+      );
+      if (storeChannel != null) {
+        await _handleStoreDowngrade(storeChannel);
         return;
       }
       await _handleDowngradeToFree();
@@ -579,14 +601,114 @@ class _PricingPageState extends State<PricingPage> {
     }
   }
 
-  Future<void> _openGooglePlaySubscriptions() async {
-    final uri = Uri.parse(
-      'https://play.google.com/store/account/subscriptions?package=me.dinq.app',
+  Future<void> _handleStoreDowngrade(
+    StoreSubscriptionChannel channel,
+  ) async {
+    final subscription = context.read<UserStore>().subscription;
+    if (subscription == null || subscription.cancelAtPeriodEnd) return;
+    final copy = storeCancellationCopy(
+      channel: channel,
+      expirationDate: _formatFullDate(subscription.currentPeriodEnd),
     );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StoreCancellationDialog(
+        copy: copy,
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+        onContinue: () => Navigator.of(dialogContext).pop(true),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _processingPlan = 'free');
+    if (channel == StoreSubscriptionChannel.apple) {
+      try {
+        await AppleIapService.instance.showManageSubscriptions();
+        await _refreshStoreCancellationConfirmation();
+        return;
+      } catch (_) {
+        final launched = await _launchStoreSubscriptions(
+          Uri.parse('https://apps.apple.com/account/subscriptions'),
+        );
+        if (launched) return;
+      }
+    } else {
+      final launched = await _launchStoreSubscriptions(
+        Uri.parse(
+          'https://play.google.com/store/account/subscriptions?package=me.dinq.app',
+        ),
+      );
+      if (launched) return;
     }
-    if (mounted) await context.read<UserStore>().refreshSubscription();
+
+    if (!mounted) return;
+    setState(() => _processingPlan = null);
+    TopToastUtil.showError(
+      context: context,
+      title: 'Unable to open subscriptions',
+      description: 'Please open your store account and manage the subscription.',
+    );
+  }
+
+  Future<bool> _launchStoreSubscriptions(Uri uri) async {
+    var launched = false;
+    try {
+      if (await canLaunchUrl(uri)) {
+        _awaitingStoreCancellationReturn = true;
+        _leftAppForStoreCancellation = false;
+        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+    if (!launched) {
+      _awaitingStoreCancellationReturn = false;
+      _leftAppForStoreCancellation = false;
+    }
+    return launched;
+  }
+
+  Future<void> _refreshStoreCancellationConfirmation() async {
+    if (_isRefreshingStoreCancellation || !mounted) return;
+    _isRefreshingStoreCancellation = true;
+    _awaitingStoreCancellationReturn = false;
+    _leftAppForStoreCancellation = false;
+    final userStore = context.read<UserStore>();
+    final confirmed = await refreshUntilStoreCancellationConfirmed(
+      refresh: userStore.refreshSubscription,
+      isConfirmed: () => userStore.subscription?.cancelAtPeriodEnd == true,
+    );
+    _isRefreshingStoreCancellation = false;
+    if (!mounted) return;
+    setState(() => _processingPlan = null);
+
+    if (confirmed) {
+      final subscription = userStore.subscription;
+      final message = confirmedStoreCancellationMessage(
+        cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+        expirationDate: _formatFullDate(subscription?.currentPeriodEnd),
+      );
+      AnalyticsService.instance.track(
+        'subscription_cancel',
+        params: {
+          'current_plan': subscription?.basePlan ?? 'unknown',
+          'payment_provider': subscription?.channel ?? 'unknown',
+        },
+        activationIntent: 'unknown',
+      );
+      TopToastUtil.showSuccess(
+        context: context,
+        title: 'Cancellation scheduled',
+        description: message!,
+      );
+      return;
+    }
+
+    TopToastUtil.showInfo(
+      context: context,
+      title: 'Cancellation not confirmed',
+      description:
+          'We have not received confirmation from the store yet. '
+          'Your current plan remains active.',
+    );
   }
 
   Future<void> _handleRestorePurchases() async {
@@ -875,9 +997,21 @@ class _PricingPageState extends State<PricingPage> {
   }
 
   Widget _buildContent() {
+    final subscription = context.read<UserStore>().subscription;
+    final cancellationMessage = confirmedStoreCancellationMessage(
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+      expirationDate: _formatFullDate(subscription?.currentPeriodEnd),
+    );
     return Column(
       children: [
         const SizedBox(height: 12),
+        if (cancellationMessage != null) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: StoreCancellationNotice(message: cancellationMessage),
+          ),
+          const SizedBox(height: 12),
+        ],
         // Billing period toggle
         _buildBillingToggle(),
         const SizedBox(height: 20),
