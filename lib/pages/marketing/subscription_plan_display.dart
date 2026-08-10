@@ -1,5 +1,36 @@
 const List<String> subscriptionBasePlanOrder = ['free', 'basic', 'pro'];
 
+enum PricingPlanAction { upgrade, unavailable, current, unknown }
+
+PricingPlanAction pricingPlanAction({
+  required Map<String, dynamic>? pricing,
+  required String plan,
+}) {
+  final planData = pricing?[plan];
+  if (planData is! Map || !planData.containsKey('upgrade')) {
+    return PricingPlanAction.unknown;
+  }
+
+  return switch (planData['upgrade']) {
+    true => PricingPlanAction.upgrade,
+    false => PricingPlanAction.unavailable,
+    null => PricingPlanAction.current,
+    _ => PricingPlanAction.unknown,
+  };
+}
+
+String subscriptionButtonLabel({
+  required PricingPlanAction action,
+  required String fallbackLabel,
+}) {
+  return switch (action) {
+    PricingPlanAction.upgrade => 'Upgrade',
+    PricingPlanAction.unavailable => 'Unavailable',
+    PricingPlanAction.current => 'Current Plan',
+    PricingPlanAction.unknown => fallbackLabel,
+  };
+}
+
 List<String> visibleSubscriptionBasePlans({
   required String billingPeriod,
   required String currentPlan,

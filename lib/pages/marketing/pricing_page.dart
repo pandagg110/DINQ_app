@@ -275,9 +275,23 @@ class _PricingPageState extends State<PricingPage>
     }
   }
 
-  // ─── 换购逻辑（对齐 web canChangePlan：升级/降级均放开）───────
+  // ─── 换购逻辑：以 pricing 接口的 upgrade 字段为准 ───────────
+
+  String _planKey(String basePlan) {
+    if (basePlan == 'free') return 'free';
+    return '${basePlan}_$_billingPeriod';
+  }
+
+  PricingPlanAction _pricingAction(String basePlan) {
+    return pricingPlanAction(pricing: _pricing, plan: _planKey(basePlan));
+  }
 
   bool _canChangePlan(String targetBasePlan) {
+    final action = _pricingAction(targetBasePlan);
+    if (action != PricingPlanAction.unknown) {
+      return action == PricingPlanAction.upgrade;
+    }
+
     final userStore = context.read<UserStore>();
     if (!userStore.isLoggedIn()) return true;
 
@@ -290,6 +304,11 @@ class _PricingPageState extends State<PricingPage>
   }
 
   bool _isCurrentPlan(String basePlan) {
+    final action = _pricingAction(basePlan);
+    if (action != PricingPlanAction.unknown) {
+      return action == PricingPlanAction.current;
+    }
+
     final userStore = context.read<UserStore>();
     if (!userStore.isLoggedIn()) return false;
 
@@ -306,7 +325,7 @@ class _PricingPageState extends State<PricingPage>
   // 按钮文案对齐 web pricing.cta
   String _getButtonText(String basePlan) {
     final userStore = context.read<UserStore>();
-    return subscriptionActionLabel(
+    final fallbackLabel = subscriptionActionLabel(
       currentPlan: userStore.subscription?.plan ?? 'free',
       targetBasePlan: basePlan,
       targetBillingPeriod: _billingPeriod,
@@ -315,6 +334,14 @@ class _PricingPageState extends State<PricingPage>
           basePlan == 'free' &&
           (userStore.subscription?.cancelAtPeriodEnd ?? false),
     );
+    if (basePlan == 'free' &&
+        (userStore.subscription?.cancelAtPeriodEnd ?? false)) {
+      return fallbackLabel;
+    }
+    return subscriptionButtonLabel(
+      action: _pricingAction(basePlan),
+      fallbackLabel: fallbackLabel,
+    );
   }
 
   bool _isButtonDisabled(String basePlan) {
@@ -322,6 +349,11 @@ class _PricingPageState extends State<PricingPage>
     final userStore = context.read<UserStore>();
     if (basePlan == 'free' &&
         (userStore.subscription?.cancelAtPeriodEnd ?? false)) {
+      return true;
+    }
+    final action = _pricingAction(basePlan);
+    if (action == PricingPlanAction.current ||
+        action == PricingPlanAction.unavailable) {
       return true;
     }
     if (!_isPlanAvailable(basePlan)) return true;

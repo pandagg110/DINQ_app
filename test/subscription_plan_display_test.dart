@@ -2,6 +2,77 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dinq_app/pages/marketing/subscription_plan_display.dart';
 
 void main() {
+  group('pricing upgrade state', () {
+    final pricing = <String, dynamic>{
+      'free': <String, dynamic>{'upgrade': false},
+      'basic_yearly': <String, dynamic>{'upgrade': null},
+      'pro_monthly': <String, dynamic>{'upgrade': false},
+      'pro_yearly': <String, dynamic>{'upgrade': true},
+    };
+
+    test('uses the backend upgrade flag as the source of truth', () {
+      expect(
+        pricingPlanAction(pricing: pricing, plan: 'pro_yearly'),
+        PricingPlanAction.upgrade,
+      );
+      expect(
+        pricingPlanAction(pricing: pricing, plan: 'pro_monthly'),
+        PricingPlanAction.unavailable,
+      );
+      expect(
+        pricingPlanAction(pricing: pricing, plan: 'basic_yearly'),
+        PricingPlanAction.current,
+      );
+    });
+
+    test('treats a missing or malformed upgrade flag as unknown', () {
+      expect(
+        pricingPlanAction(pricing: pricing, plan: 'basic_monthly'),
+        PricingPlanAction.unknown,
+      );
+      expect(
+        pricingPlanAction(
+          pricing: <String, dynamic>{
+            'basic_monthly': <String, dynamic>{'upgrade': 'true'},
+          },
+          plan: 'basic_monthly',
+        ),
+        PricingPlanAction.unknown,
+      );
+    });
+
+    test('maps backend states to user-facing button labels', () {
+      expect(
+        subscriptionButtonLabel(
+          action: PricingPlanAction.upgrade,
+          fallbackLabel: 'Subscribe',
+        ),
+        'Upgrade',
+      );
+      expect(
+        subscriptionButtonLabel(
+          action: PricingPlanAction.unavailable,
+          fallbackLabel: 'Downgrade to Monthly',
+        ),
+        'Unavailable',
+      );
+      expect(
+        subscriptionButtonLabel(
+          action: PricingPlanAction.current,
+          fallbackLabel: 'Subscribe',
+        ),
+        'Current Plan',
+      );
+      expect(
+        subscriptionButtonLabel(
+          action: PricingPlanAction.unknown,
+          fallbackLabel: 'Subscribe',
+        ),
+        'Subscribe',
+      );
+    });
+  });
+
   group('subscription plan visibility', () {
     test('hides Pro Yearly unless it is the current plan', () {
       expect(
