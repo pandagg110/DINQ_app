@@ -11,6 +11,7 @@ import '../../services/app_update_service.dart';
 import '../../services/google_play_iap_service.dart';
 import '../../services/payment_channel.dart';
 import '../../services/payment_service.dart';
+import '../../services/store_price_display.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
@@ -302,7 +303,8 @@ class _PricingPageState extends State<PricingPage> {
     if (basePlan == 'free' || !_usesStoreBilling) return true;
     final fullPlan = '${basePlan}_$_billingPeriod';
     return _usesAppleIap
-        ? AppleIapService.instance.supportsPlan(fullPlan)
+        ? AppleIapService.instance.supportsPlan(fullPlan) &&
+              AppleIapService.instance.hasProductForPlan(fullPlan)
         : GooglePlayIapService.instance.supportsPlan(fullPlan);
   }
 
@@ -1252,23 +1254,53 @@ class _PricingPageState extends State<PricingPage> {
     int yearlySavings = 0,
   }) {
     final isFreePlan = plan == 'free';
+    final fullPlan = '${plan}_$_billingPeriod';
+    final appleSelectedPrice = !isFreePlan && _usesAppleIap
+        ? AppleIapService.instance.loadedPriceDetailsForPlan(fullPlan)
+        : null;
+    final appleMonthlyPrice =
+        !isFreePlan && _usesAppleIap && _billingPeriod == 'yearly'
+        ? AppleIapService.instance.loadedPriceDetailsForPlan('${plan}_monthly')
+        : null;
+    final applePriceDisplay = appleSelectedPrice == null
+        ? null
+        : buildStorePriceDisplay(
+            billingPeriod: _billingPeriod,
+            selectedPrice: appleSelectedPrice,
+            monthlyPrice: appleMonthlyPrice,
+            localeName: Localizations.localeOf(context).toLanguageTag(),
+          );
     final storePrice = !isFreePlan && _usesStoreBilling
         ? (_usesAppleIap
-              ? AppleIapService.instance.priceForPlan('${plan}_$_billingPeriod')
+              ? appleSelectedPrice?.localizedPrice
               : GooglePlayIapService.instance.priceForPlan(
-                  '${plan}_$_billingPeriod',
+                  fullPlan,
                 ))
         : null;
-    final showYearlyExtras =
-        !isFreePlan && !_usesStoreBilling && _billingPeriod == 'yearly';
-    final displayedPrice = _usesStoreBilling && !isFreePlan
-        ? (storePrice ??
-              (_isCurrentPlan(plan)
-                  ? (_billingPeriod == 'yearly'
-                        ? '\$$yearlyPrice'
-                        : '\$$monthlyPrice')
-                  : 'Unavailable'))
-        : '\$$monthlyPrice';
+    final showYearlyExtras = !isFreePlan &&
+        _billingPeriod == 'yearly' &&
+        (!_usesStoreBilling || applePriceDisplay?.yearlyTotal != null);
+    final displayedPrice = _usesAppleIap && !isFreePlan
+        ? applePriceDisplay?.primaryPrice ?? 'Not available'
+        : (_usesStoreBilling && !isFreePlan
+              ? storePrice ?? 'Not available'
+              : '\$$monthlyPrice');
+    final displayedPeriod = _usesAppleIap
+        ? applePriceDisplay?.primaryPeriod
+        : (_usesStoreBilling
+              ? (_billingPeriod == 'yearly' ? '/year' : '/month')
+              : '/month');
+    final strikethroughPrice = _usesAppleIap
+        ? applePriceDisplay?.strikethroughPrice
+        : (fullMonthlyRate == null ? null : '\$$fullMonthlyRate');
+    final yearlyTotalLabel = _usesAppleIap
+        ? applePriceDisplay?.yearlyTotal
+        : '\$${_formatNumber(yearlyPrice)} /year';
+    final yearlySavingsLabel = _usesAppleIap
+        ? applePriceDisplay?.yearlySavings
+        : (yearlySavings > 0
+              ? '\$${_formatNumber(yearlySavings)}/year'
+              : null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1303,7 +1335,7 @@ class _PricingPageState extends State<PricingPage> {
                 ],
               ),
             ),
-            if (showYearlyExtras && yearlySavings > 0)
+            if (showYearlyExtras && yearlySavingsLabel != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -1320,7 +1352,7 @@ class _PricingPageState extends State<PricingPage> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'You save \$${_formatNumber(yearlySavings)}/year',
+                      'You save $yearlySavingsLabel',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -1340,9 +1372,9 @@ class _PricingPageState extends State<PricingPage> {
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            if (showYearlyExtras && fullMonthlyRate != null) ...[
+            if (showYearlyExtras && strikethroughPrice != null) ...[
               Text(
-                '\$$fullMonthlyRate',
+                strikethroughPrice,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -1363,11 +1395,9 @@ class _PricingPageState extends State<PricingPage> {
                 fontFamily: 'Geist',
               ),
             ),
-            if (!isFreePlan && (!_usesStoreBilling || storePrice != null))
+            if (!isFreePlan && displayedPeriod != null)
               Text(
-                _usesStoreBilling
-                    ? (_billingPeriod == 'yearly' ? '/year' : '/month')
-                    : '/month',
+                displayedPeriod,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -1377,11 +1407,11 @@ class _PricingPageState extends State<PricingPage> {
               ),
           ],
         ),
-        if (showYearlyExtras) ...[
+        if (showYearlyExtras && yearlyTotalLabel != null) ...[
           const SizedBox(height: 4),
           Text(
             // 对齐 web priceSuffix.perYearTotal："$1,008 /year"
-            '\$${_formatNumber(yearlyPrice)} /year',
+            yearlyTotalLabel,
             style: const TextStyle(
               fontSize: 14,
               color: Color(0x4D303030),

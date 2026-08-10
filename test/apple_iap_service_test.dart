@@ -53,6 +53,17 @@ void main() {
         AppleIapService.localizedPriceForPlan('basic_yearly', products),
         isNull,
       );
+      expect(
+        AppleIapService.priceDetailsForPlan('pro_monthly', products)?.rawPrice,
+        988,
+      );
+      expect(
+        AppleIapService.priceDetailsForPlan(
+          'pro_monthly',
+          products,
+        )?.currencyCode,
+        'CNY',
+      );
     });
   });
 
@@ -136,6 +147,8 @@ void main() {
         'me.dinq.app.pro.monthly',
       );
       expect(service.priceForPlan('pro_monthly'), '¥988');
+      expect(service.hasProductForPlan('pro_monthly'), isTrue);
+      expect(service.hasProductForPlan('basic_yearly'), isFalse);
       expect(await service.buy('basic_monthly'), isTrue);
       expect(
         platform.lastPurchaseParam?.productDetails.id,

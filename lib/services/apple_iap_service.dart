@@ -7,6 +7,7 @@ import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_inte
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 import 'payment_service.dart';
+import 'store_price_display.dart';
 
 enum AppleRestoreResult { restored, noPurchases, unavailable, failed }
 
@@ -185,6 +186,23 @@ class AppleIapService {
     return null;
   }
 
+  static StoreProductPrice? priceDetailsForPlan(
+    String plan,
+    Iterable<ProductDetails> products,
+  ) {
+    final productId = productIdForPlan(plan);
+    for (final product in products) {
+      if (product.id == productId) {
+        return StoreProductPrice(
+          localizedPrice: product.price,
+          rawPrice: product.rawPrice,
+          currencyCode: product.currencyCode,
+        );
+      }
+    }
+    return null;
+  }
+
   String? get _appAccountToken =>
       appAccountTokenForUser(_userIdProvider?.call());
 
@@ -192,6 +210,12 @@ class AppleIapService {
 
   String? priceForPlan(String plan) =>
       localizedPriceForPlan(plan, _products.values);
+
+  StoreProductPrice? loadedPriceDetailsForPlan(String plan) =>
+      priceDetailsForPlan(plan, _products.values);
+
+  bool hasProductForPlan(String plan) =>
+      _products.containsKey(productIdForPlan(plan));
 
   String? get purchaseStartErrorMessage => _purchaseStartErrorMessage;
 
