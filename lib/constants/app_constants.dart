@@ -11,6 +11,9 @@ const String githubClientId = String.fromEnvironment(
 // 避免 WebView 拦截稍晚时命中网关的 Web callback 并提前消费一次性 code。
 const String githubRedirectUrl = '$gatewayUrl/auth/oauth/github/callback/app';
 
+/// Password-reset emails must target the deployed web callback route.
+const String passwordResetCallbackUrl = '$appUrl/reset/callback';
+
 // ?type=app：web 的 terms/privacy 页检测到该参数会隐藏页内 Back 返回栏
 // （app WebView 顶部已有原生返回，避免出现两个返回按钮）。
 const String privacyUrl = '$appUrl/privacy?type=app';

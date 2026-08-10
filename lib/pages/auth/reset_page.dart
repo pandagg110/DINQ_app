@@ -283,9 +283,11 @@ class _ResetPageState extends State<ResetPage> {
     Object? sendError;
     try {
       // 构建重置密码回调 URL
-      final redirectUrl = '${appUrl}/reset-callback';
       await ToastUtil.showLoading();
-      await _authService.forgotPassword(email: email, redirectUrl: redirectUrl);
+      await _authService.forgotPassword(
+        email: email,
+        redirectUrl: passwordResetCallbackUrl,
+      );
       if (mounted) {
         setState(() {
           _isSent = true;
