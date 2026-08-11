@@ -23,7 +23,11 @@ void main() {
     await tester.tap(find.text('Upgrade'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(
+      find.byKey(const Key('subscription-managed-elsewhere-dialog')),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('purchased on another platform'),
       findsOneWidget,
@@ -32,15 +36,31 @@ void main() {
 
     await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      find.byKey(const Key('subscription-managed-elsewhere-dialog')),
+      findsOneWidget,
+    );
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      find.byKey(const Key('subscription-managed-elsewhere-dialog')),
+      findsOneWidget,
+    );
+
+    expect(
+      tester
+          .getSize(find.byKey(const Key('subscription-managed-elsewhere-ok')))
+          .height,
+      greaterThanOrEqualTo(48),
+    );
 
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(
+      find.byKey(const Key('subscription-managed-elsewhere-dialog')),
+      findsNothing,
+    );
   });
 
   testWidgets('names Google Play as the original purchase channel', (
