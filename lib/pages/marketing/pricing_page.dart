@@ -521,6 +521,12 @@ class _PricingPageState extends State<PricingPage>
 
   // 按钮文案对齐 web pricing.cta
   String _getButtonText(String basePlan) {
+    final backendDisplay = pricingPlanDisplay(
+      pricing: _pricing,
+      plan: _planKey(basePlan),
+    );
+    if (backendDisplay != null) return backendDisplay;
+
     final userStore = context.read<UserStore>();
     final fallbackLabel = subscriptionActionLabel(
       currentPlan: userStore.subscription?.plan ?? 'free',

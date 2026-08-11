@@ -49,6 +49,20 @@ PricingPlanAction pricingPlanAction({
   };
 }
 
+String? pricingPlanDisplay({
+  required Map<String, dynamic>? pricing,
+  required String plan,
+}) {
+  final planData = pricing?[plan];
+  if (planData is! Map) return null;
+
+  final display = planData['display'];
+  if (display is! String) return null;
+
+  final label = display.trim();
+  return label.isEmpty ? null : label;
+}
+
 bool? pricingPlanActionEnabled(PricingPlanAction action) {
   return switch (action) {
     PricingPlanAction.upgradeTier ||

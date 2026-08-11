@@ -120,6 +120,31 @@ void main() {
         PricingPlanAction.unknown,
       );
     });
+
+    test('uses the backend display field as the button label', () {
+      expect(
+        pricingPlanDisplay(
+          pricing: <String, dynamic>{
+            'free': <String, dynamic>{'display': 'Current plan'},
+            'basic_monthly': <String, dynamic>{'display': 'Upgrade'},
+          },
+          plan: 'basic_monthly',
+        ),
+        'Upgrade',
+      );
+    });
+
+    test('ignores missing, non-string, and blank display values', () {
+      final pricing = <String, dynamic>{
+        'missing': <String, dynamic>{},
+        'invalid': <String, dynamic>{'display': true},
+        'blank': <String, dynamic>{'display': '   '},
+      };
+
+      expect(pricingPlanDisplay(pricing: pricing, plan: 'missing'), isNull);
+      expect(pricingPlanDisplay(pricing: pricing, plan: 'invalid'), isNull);
+      expect(pricingPlanDisplay(pricing: pricing, plan: 'blank'), isNull);
+    });
   });
 
   group('subscription plan visibility', () {
