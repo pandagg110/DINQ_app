@@ -2,73 +2,122 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dinq_app/pages/marketing/subscription_plan_display.dart';
 
 void main() {
-  group('pricing upgrade state', () {
-    final pricing = <String, dynamic>{
-      'free': <String, dynamic>{'upgrade': false},
-      'basic_yearly': <String, dynamic>{'upgrade': null},
-      'pro_monthly': <String, dynamic>{'upgrade': false},
-      'pro_yearly': <String, dynamic>{'upgrade': true},
+  group('pricing plan action', () {
+    final actionCases = <String, PricingPlanAction>{
+      'CURRENT_PLAN': PricingPlanAction.currentPlan,
+      'UPGRADE_TIER': PricingPlanAction.upgradeTier,
+      'UPGRADE_PERIOD': PricingPlanAction.upgradePeriod,
+      'UPGRADE_TIER_AND_PERIOD': PricingPlanAction.upgradeTierAndPeriod,
+      'SWITCH_TO_FREE': PricingPlanAction.switchToFree,
+      'PENDING_SWITCH_TO_FREE': PricingPlanAction.pendingSwitchToFree,
+      'BLOCKED_TIER_DOWNGRADE': PricingPlanAction.blockedTierDowngrade,
+      'BLOCKED_PERIOD_DOWNGRADE': PricingPlanAction.blockedPeriodDowngrade,
     };
 
-    test('uses the backend upgrade flag as the source of truth', () {
-      expect(
-        pricingPlanAction(pricing: pricing, plan: 'pro_yearly'),
-        PricingPlanAction.upgrade,
-      );
-      expect(
-        pricingPlanAction(pricing: pricing, plan: 'pro_monthly'),
-        PricingPlanAction.unavailable,
-      );
-      expect(
-        pricingPlanAction(pricing: pricing, plan: 'basic_yearly'),
-        PricingPlanAction.current,
-      );
+    for (final entry in actionCases.entries) {
+      test('parses ${entry.key}', () {
+        expect(
+          pricingPlanAction(
+            pricing: <String, dynamic>{
+              'target': <String, dynamic>{'action': entry.key},
+            },
+            plan: 'target',
+          ),
+          entry.value,
+        );
+      });
+    }
+
+    test('maps all actions to button labels', () {
+      final labels = <PricingPlanAction, String>{
+        PricingPlanAction.currentPlan: 'Current plan',
+        PricingPlanAction.upgradeTier: 'Upgrade',
+        PricingPlanAction.upgradePeriod: 'Switch to Yearly',
+        PricingPlanAction.upgradeTierAndPeriod: 'Upgrade',
+        PricingPlanAction.switchToFree: 'Switch to Free',
+        PricingPlanAction.pendingSwitchToFree: 'Switching to Free',
+        PricingPlanAction.blockedTierDowngrade: 'Included with Basic',
+        PricingPlanAction.blockedPeriodDowngrade: 'Yearly plan active',
+      };
+
+      for (final entry in labels.entries) {
+        expect(
+          subscriptionButtonLabel(
+            action: entry.key,
+            currentPlan: 'basic_yearly',
+            fallbackLabel: 'Fallback',
+          ),
+          entry.value,
+        );
+      }
     });
 
-    test('treats a missing or malformed upgrade flag as unknown', () {
+    test('only upgrade and switch-to-free actions are clickable', () {
+      for (final action in const [
+        PricingPlanAction.upgradeTier,
+        PricingPlanAction.upgradePeriod,
+        PricingPlanAction.upgradeTierAndPeriod,
+        PricingPlanAction.switchToFree,
+        PricingPlanAction.legacyUpgrade,
+      ]) {
+        expect(pricingPlanActionEnabled(action), isTrue);
+      }
+      for (final action in const [
+        PricingPlanAction.currentPlan,
+        PricingPlanAction.pendingSwitchToFree,
+        PricingPlanAction.blockedTierDowngrade,
+        PricingPlanAction.blockedPeriodDowngrade,
+        PricingPlanAction.legacyUnavailable,
+      ]) {
+        expect(pricingPlanActionEnabled(action), isFalse);
+      }
+      expect(pricingPlanActionEnabled(PricingPlanAction.unknown), isNull);
+    });
+
+    test('falls back to the legacy upgrade field during rollout', () {
       expect(
-        pricingPlanAction(pricing: pricing, plan: 'basic_monthly'),
-        PricingPlanAction.unknown,
+        pricingPlanAction(
+          pricing: <String, dynamic>{
+            'upgrade': <String, dynamic>{'upgrade': true},
+            'blocked': <String, dynamic>{'upgrade': false},
+            'current': <String, dynamic>{'upgrade': null},
+          },
+          plan: 'upgrade',
+        ),
+        PricingPlanAction.legacyUpgrade,
       );
       expect(
         pricingPlanAction(
           pricing: <String, dynamic>{
-            'basic_monthly': <String, dynamic>{'upgrade': 'true'},
+            'blocked': <String, dynamic>{'upgrade': false},
           },
-          plan: 'basic_monthly',
+          plan: 'blocked',
         ),
-        PricingPlanAction.unknown,
+        PricingPlanAction.legacyUnavailable,
+      );
+      expect(
+        pricingPlanAction(
+          pricing: <String, dynamic>{
+            'current': <String, dynamic>{'upgrade': null},
+          },
+          plan: 'current',
+        ),
+        PricingPlanAction.currentPlan,
       );
     });
 
-    test('maps backend states to user-facing button labels', () {
+    test('treats unknown action values as unknown instead of guessing', () {
       expect(
-        subscriptionButtonLabel(
-          action: PricingPlanAction.upgrade,
-          fallbackLabel: 'Subscribe',
+        pricingPlanAction(
+          pricing: <String, dynamic>{
+            'target': <String, dynamic>{
+              'action': 'NEW_ACTION',
+              'upgrade': true,
+            },
+          },
+          plan: 'target',
         ),
-        'Upgrade',
-      );
-      expect(
-        subscriptionButtonLabel(
-          action: PricingPlanAction.unavailable,
-          fallbackLabel: 'Downgrade to Monthly',
-        ),
-        'Unavailable',
-      );
-      expect(
-        subscriptionButtonLabel(
-          action: PricingPlanAction.current,
-          fallbackLabel: 'Subscribe',
-        ),
-        'Current Plan',
-      );
-      expect(
-        subscriptionButtonLabel(
-          action: PricingPlanAction.unknown,
-          fallbackLabel: 'Subscribe',
-        ),
-        'Subscribe',
+        PricingPlanAction.unknown,
       );
     });
   });

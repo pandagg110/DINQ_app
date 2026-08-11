@@ -288,9 +288,8 @@ class _PricingPageState extends State<PricingPage>
 
   bool _canChangePlan(String targetBasePlan) {
     final action = _pricingAction(targetBasePlan);
-    if (action != PricingPlanAction.unknown) {
-      return action == PricingPlanAction.upgrade;
-    }
+    final actionEnabled = pricingPlanActionEnabled(action);
+    if (actionEnabled != null) return actionEnabled;
 
     final userStore = context.read<UserStore>();
     if (!userStore.isLoggedIn()) return true;
@@ -306,7 +305,7 @@ class _PricingPageState extends State<PricingPage>
   bool _isCurrentPlan(String basePlan) {
     final action = _pricingAction(basePlan);
     if (action != PricingPlanAction.unknown) {
-      return action == PricingPlanAction.current;
+      return action == PricingPlanAction.currentPlan;
     }
 
     final userStore = context.read<UserStore>();
@@ -334,12 +333,16 @@ class _PricingPageState extends State<PricingPage>
           basePlan == 'free' &&
           (userStore.subscription?.cancelAtPeriodEnd ?? false),
     );
+    final action = _pricingAction(basePlan);
     if (basePlan == 'free' &&
-        (userStore.subscription?.cancelAtPeriodEnd ?? false)) {
+        (userStore.subscription?.cancelAtPeriodEnd ?? false) &&
+        (action == PricingPlanAction.unknown ||
+            action == PricingPlanAction.legacyUnavailable)) {
       return fallbackLabel;
     }
     return subscriptionButtonLabel(
-      action: _pricingAction(basePlan),
+      action: action,
+      currentPlan: userStore.subscription?.plan ?? 'free',
       fallbackLabel: fallbackLabel,
     );
   }
@@ -352,10 +355,8 @@ class _PricingPageState extends State<PricingPage>
       return true;
     }
     final action = _pricingAction(basePlan);
-    if (action == PricingPlanAction.current ||
-        action == PricingPlanAction.unavailable) {
-      return true;
-    }
+    final actionEnabled = pricingPlanActionEnabled(action);
+    if (actionEnabled == false) return true;
     if (!_isPlanAvailable(basePlan)) return true;
     if (_isCurrentPlan(basePlan)) return true;
     if (userStore.isLoggedIn() && !_canChangePlan(basePlan)) return true;

@@ -1,32 +1,87 @@
 const List<String> subscriptionBasePlanOrder = ['free', 'basic', 'pro'];
 
-enum PricingPlanAction { upgrade, unavailable, current, unknown }
+enum PricingPlanAction {
+  currentPlan,
+  upgradeTier,
+  upgradePeriod,
+  upgradeTierAndPeriod,
+  switchToFree,
+  pendingSwitchToFree,
+  blockedTierDowngrade,
+  blockedPeriodDowngrade,
+  legacyUpgrade,
+  legacyUnavailable,
+  unknown,
+}
 
 PricingPlanAction pricingPlanAction({
   required Map<String, dynamic>? pricing,
   required String plan,
 }) {
   final planData = pricing?[plan];
-  if (planData is! Map || !planData.containsKey('upgrade')) {
+  if (planData is! Map) {
     return PricingPlanAction.unknown;
   }
 
+  if (planData.containsKey('action')) {
+    final action = planData['action'];
+    if (action is! String) return PricingPlanAction.unknown;
+    return switch (action.trim().toUpperCase()) {
+      'CURRENT_PLAN' => PricingPlanAction.currentPlan,
+      'UPGRADE_TIER' => PricingPlanAction.upgradeTier,
+      'UPGRADE_PERIOD' => PricingPlanAction.upgradePeriod,
+      'UPGRADE_TIER_AND_PERIOD' => PricingPlanAction.upgradeTierAndPeriod,
+      'SWITCH_TO_FREE' => PricingPlanAction.switchToFree,
+      'PENDING_SWITCH_TO_FREE' => PricingPlanAction.pendingSwitchToFree,
+      'BLOCKED_TIER_DOWNGRADE' => PricingPlanAction.blockedTierDowngrade,
+      'BLOCKED_PERIOD_DOWNGRADE' => PricingPlanAction.blockedPeriodDowngrade,
+      _ => PricingPlanAction.unknown,
+    };
+  }
+
+  if (!planData.containsKey('upgrade')) return PricingPlanAction.unknown;
+
   return switch (planData['upgrade']) {
-    true => PricingPlanAction.upgrade,
-    false => PricingPlanAction.unavailable,
-    null => PricingPlanAction.current,
+    true => PricingPlanAction.legacyUpgrade,
+    false => PricingPlanAction.legacyUnavailable,
+    null => PricingPlanAction.currentPlan,
     _ => PricingPlanAction.unknown,
+  };
+}
+
+bool? pricingPlanActionEnabled(PricingPlanAction action) {
+  return switch (action) {
+    PricingPlanAction.upgradeTier ||
+    PricingPlanAction.upgradePeriod ||
+    PricingPlanAction.upgradeTierAndPeriod ||
+    PricingPlanAction.switchToFree ||
+    PricingPlanAction.legacyUpgrade => true,
+    PricingPlanAction.currentPlan ||
+    PricingPlanAction.pendingSwitchToFree ||
+    PricingPlanAction.blockedTierDowngrade ||
+    PricingPlanAction.blockedPeriodDowngrade ||
+    PricingPlanAction.legacyUnavailable => false,
+    PricingPlanAction.unknown => null,
   };
 }
 
 String subscriptionButtonLabel({
   required PricingPlanAction action,
+  required String currentPlan,
   required String fallbackLabel,
 }) {
   return switch (action) {
-    PricingPlanAction.upgrade => 'Upgrade',
-    PricingPlanAction.unavailable => 'Unavailable',
-    PricingPlanAction.current => 'Current Plan',
+    PricingPlanAction.currentPlan => 'Current plan',
+    PricingPlanAction.upgradeTier => 'Upgrade',
+    PricingPlanAction.upgradePeriod => 'Switch to Yearly',
+    PricingPlanAction.upgradeTierAndPeriod => 'Upgrade',
+    PricingPlanAction.switchToFree => 'Switch to Free',
+    PricingPlanAction.pendingSwitchToFree => 'Switching to Free',
+    PricingPlanAction.blockedTierDowngrade =>
+      'Included with ${_titleCase(currentPlan.split('_').first)}',
+    PricingPlanAction.blockedPeriodDowngrade => 'Yearly plan active',
+    PricingPlanAction.legacyUpgrade => 'Upgrade',
+    PricingPlanAction.legacyUnavailable => 'Unavailable',
     PricingPlanAction.unknown => fallbackLabel,
   };
 }
