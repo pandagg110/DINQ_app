@@ -37,4 +37,63 @@ void main() {
       SubscriptionPaymentChannel.webCheckout,
     );
   });
+
+  test('detects subscriptions managed by another payment channel', () {
+    expect(
+      isSubscriptionManagedElsewhere(
+        isFree: true,
+        subscriptionChannel: null,
+        paymentChannel: SubscriptionPaymentChannel.apple,
+      ),
+      isFalse,
+    );
+    expect(
+      isSubscriptionManagedElsewhere(
+        isFree: false,
+        subscriptionChannel: 'apple',
+        paymentChannel: SubscriptionPaymentChannel.apple,
+      ),
+      isFalse,
+    );
+    expect(
+      isSubscriptionManagedElsewhere(
+        isFree: false,
+        subscriptionChannel: 'google_play',
+        paymentChannel: SubscriptionPaymentChannel.apple,
+      ),
+      isTrue,
+    );
+    expect(
+      isSubscriptionManagedElsewhere(
+        isFree: false,
+        subscriptionChannel: 'google_play',
+        paymentChannel: SubscriptionPaymentChannel.googlePlay,
+      ),
+      isFalse,
+    );
+    expect(
+      isSubscriptionManagedElsewhere(
+        isFree: false,
+        subscriptionChannel: 'apple',
+        paymentChannel: SubscriptionPaymentChannel.webCheckout,
+      ),
+      isTrue,
+    );
+    expect(
+      isSubscriptionManagedElsewhere(
+        isFree: false,
+        subscriptionChannel: 'stripe',
+        paymentChannel: SubscriptionPaymentChannel.webCheckout,
+      ),
+      isFalse,
+    );
+    expect(
+      isSubscriptionManagedElsewhere(
+        isFree: false,
+        subscriptionChannel: null,
+        paymentChannel: SubscriptionPaymentChannel.webCheckout,
+      ),
+      isFalse,
+    );
+  });
 }

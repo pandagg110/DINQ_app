@@ -22,6 +22,7 @@ import '../../widgets/common/base_page.dart';
 import '../../widgets/common/default_app_bar.dart';
 import '../../widgets/marketing/contact_support_dialog.dart';
 import '../../widgets/marketing/store_cancellation_dialog.dart';
+import '../../widgets/subscription/subscription_managed_elsewhere_dialog.dart';
 import 'subscription_plan_display.dart';
 
 // ─── Plan 配置常量 ────────────────────────────────────────────────
@@ -511,11 +512,9 @@ class _PricingPageState extends State<PricingPage>
     if (!isCurrentPlanFree &&
         (subscription?.isAppleChannel == true ||
             subscription?.isGooglePlayChannel == true)) {
-      TopToastUtil.showError(
-        context: context,
-        title: 'Subscription managed elsewhere',
-        description:
-            'Manage this subscription through the store where you purchased it.',
+      await showSubscriptionManagedElsewhereDialog(
+        context,
+        subscriptionChannel: subscription?.channel,
       );
       return;
     }
@@ -619,11 +618,9 @@ class _PricingPageState extends State<PricingPage>
     final isCurrentPlanFree = subscription?.isFree ?? true;
 
     if (!isCurrentPlanFree && !(subscription?.isAppleChannel ?? false)) {
-      TopToastUtil.showError(
-        context: context,
-        title: 'Subscription managed elsewhere',
-        description:
-            'Your current plan was purchased outside the App Store. Manage it where you subscribed.',
+      await showSubscriptionManagedElsewhereDialog(
+        context,
+        subscriptionChannel: subscription?.channel,
       );
       return;
     }
@@ -674,11 +671,9 @@ class _PricingPageState extends State<PricingPage>
     final subscription = context.read<UserStore>().subscription;
     final isCurrentPlanFree = subscription?.isFree ?? true;
     if (!isCurrentPlanFree && !(subscription?.isGooglePlayChannel ?? false)) {
-      TopToastUtil.showError(
-        context: context,
-        title: 'Subscription managed elsewhere',
-        description:
-            'Your current plan was purchased outside Google Play. Manage it where you subscribed.',
+      await showSubscriptionManagedElsewhereDialog(
+        context,
+        subscriptionChannel: subscription?.channel,
       );
       return;
     }

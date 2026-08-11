@@ -1,9 +1,12 @@
 import 'package:dinq_app/widgets/common/dash_line.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/app_constants.dart';
+import '../../services/app_update_service.dart' show distributionChannel;
+import '../../services/payment_channel.dart';
 import '../../services/upload_service.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
@@ -13,6 +16,7 @@ import '../../theme/dinq_tokens.dart';
 import '../../theme/me_icons.dart';
 import '../../widgets/common/base_page.dart';
 import '../../widgets/common/dinq_svg_icon.dart';
+import '../../widgets/subscription/subscription_managed_elsewhere_dialog.dart';
 import '../marketing/pricing_page.dart' show kPlanLabel;
 
 class MePage extends StatefulWidget {
@@ -25,6 +29,33 @@ class MePage extends StatefulWidget {
 class _MePageState extends State<MePage> {
   final UploadService _uploadService = UploadService();
   bool _isUploading = false;
+
+  Future<void> _handleSubscriptionAction(bool isManagePlan) async {
+    if (isManagePlan) {
+      context.push('/settings/credits');
+      return;
+    }
+
+    final subscription = context.read<UserStore>().subscription;
+    final paymentChannel = resolveSubscriptionPaymentChannel(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+      distributionChannel: distributionChannel,
+    );
+    if (isSubscriptionManagedElsewhere(
+      isFree: subscription?.isFree ?? true,
+      subscriptionChannel: subscription?.channel,
+      paymentChannel: paymentChannel,
+    )) {
+      await showSubscriptionManagedElsewhereDialog(
+        context,
+        subscriptionChannel: subscription?.channel,
+      );
+      return;
+    }
+
+    if (mounted) context.push('/pricing');
+  }
 
   Future<void> _handleAvatarUpload() async {
     if (_isUploading) return;
@@ -288,9 +319,7 @@ class _MePageState extends State<MePage> {
                   ),
                 ),
                 NormalButton(
-                  onTap: () => context.push(
-                    isManagePlan ? '/settings/credits' : '/pricing',
-                  ),
+                  onTap: () => _handleSubscriptionAction(isManagePlan),
                   child: Container(
                     height: 36,
                     padding: const EdgeInsets.symmetric(horizontal: 18),
