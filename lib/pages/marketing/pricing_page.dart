@@ -218,6 +218,85 @@ class SubscriptionPlanHeader extends StatelessWidget {
   }
 }
 
+class SubscriptionPriceSummary extends StatelessWidget {
+  const SubscriptionPriceSummary({
+    super.key,
+    required this.displayedPrice,
+    this.displayedPeriod,
+    this.strikethroughPrice,
+    this.yearlyTotalLabel,
+  });
+
+  final String displayedPrice;
+  final String? displayedPeriod;
+  final String? strikethroughPrice;
+  final String? yearlyTotalLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (strikethroughPrice case final originalPrice?) ...[
+          Text(
+            originalPrice,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF9E9B93),
+              decoration: TextDecoration.lineThrough,
+              decorationColor: Color(0xFF9E9B93),
+              fontFamily: 'Geist',
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                displayedPrice,
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF171717),
+                  fontFamily: 'Geist',
+                ),
+              ),
+              if (displayedPeriod case final period?)
+                Text(
+                  period,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF171717),
+                    fontFamily: 'Geist',
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (yearlyTotalLabel case final total?) ...[
+          const SizedBox(height: 4),
+          Text(
+            total,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0x4D303030),
+              fontFamily: 'Geist',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _PricingPageState extends State<PricingPage>
     with WidgetsBindingObserver {
   final PaymentService _paymentService = PaymentService();
@@ -1564,58 +1643,14 @@ class _PricingPageState extends State<PricingPage>
         ),
         const SizedBox(height: 20),
 
-        // Price：年付时先展示划线原月价（对齐 web）
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            if (showYearlyExtras && strikethroughPrice != null) ...[
-              Text(
-                strikethroughPrice,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF9E9B93),
-                  decoration: TextDecoration.lineThrough,
-                  decorationColor: Color(0xFF9E9B93),
-                  fontFamily: 'Geist',
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Text(
-              displayedPrice,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF171717),
-                fontFamily: 'Geist',
-              ),
-            ),
-            if (!isFreePlan && displayedPeriod != null)
-              Text(
-                displayedPeriod,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF171717),
-                  fontFamily: 'Geist',
-                ),
-              ),
-          ],
+        // 年付价格使用三行结构：原月价、折后月均价、年付总价。
+        // 避免 US$ / HK$ 等较长本地化币种与周期挤在同一行导致溢出。
+        SubscriptionPriceSummary(
+          displayedPrice: displayedPrice,
+          displayedPeriod: !isFreePlan ? displayedPeriod : null,
+          strikethroughPrice: showYearlyExtras ? strikethroughPrice : null,
+          yearlyTotalLabel: showYearlyExtras ? yearlyTotalLabel : null,
         ),
-        if (showYearlyExtras && yearlyTotalLabel != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            // 对齐 web priceSuffix.perYearTotal："$1,008 /year"
-            yearlyTotalLabel,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0x4D303030),
-              fontFamily: 'Geist',
-            ),
-          ),
-        ],
         const SizedBox(height: 20),
 
         // Section header（对齐 web："Free includes:" / "Everything in X, plus:"）
