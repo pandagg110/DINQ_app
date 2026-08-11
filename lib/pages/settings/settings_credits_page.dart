@@ -12,6 +12,7 @@ import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
 import '../../widgets/common/default_app_bar.dart';
 import '../marketing/pricing_page.dart' show kPlanLabel;
+import 'credits_subscription_summary.dart';
 
 bool shouldShowOfficialApkCreditControls({
   required bool isWeb,
@@ -127,6 +128,8 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
     final sub = context.watch<UserStore>().subscription;
     final basePlan = sub?.basePlan ?? 'free';
     final planLabel = kPlanLabel[basePlan] ?? basePlan;
+    final billingLabel = subscriptionBillingLabel(sub);
+    final renewalLabel = subscriptionRenewalLabel(sub);
     final showCreditPurchaseControls = shouldShowOfficialApkCreditControls(
       isWeb: kIsWeb,
       platform: defaultTargetPlatform,
@@ -168,15 +171,45 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$planLabel Plan',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Geist',
-                    color: ColorUtil.textColor,
-                  ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      '$planLabel Plan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Geist',
+                        color: ColorUtil.textColor,
+                      ),
+                    ),
+                    if (billingLabel != null)
+                      Text(
+                        billingLabel,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: 'Geist',
+                          color: Color(0xFF575757),
+                        ),
+                      ),
+                  ],
                 ),
+                if (renewalLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    renewalLabel,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w400,
+                      fontFamily: 'Geist',
+                      color: Color(0xFF575757),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
