@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+
+import '../../../services/subscription_pricing_navigation.dart';
 
 /// 与 TSX NewChatConfirmDialog 一致：Free/Basic 用户新建会话确认
 class NewChatConfirmDialog extends StatelessWidget {
@@ -148,7 +149,7 @@ class NewChatConfirmDialog extends StatelessWidget {
                                 TextButton(
                                   onPressed: () {
                                     onClose();
-                                    context.push('/pricing');
+                                    openSubscriptionPricing(context);
                                   },
                                   style: TextButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(horizontal: 4),

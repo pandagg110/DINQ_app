@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,6 +8,7 @@ import '../../services/analytics_service.dart';
 import '../../services/apple_iap_service.dart';
 import '../../services/payment_service.dart';
 import '../../services/store_cancellation_flow.dart';
+import '../../services/subscription_pricing_navigation.dart';
 import '../../stores/user_store.dart';
 import '../../utils/color_util.dart';
 import '../../utils/top_toast_util.dart';
@@ -309,7 +309,7 @@ class _SettingsSubscriptionPageState extends State<SettingsSubscriptionPage> {
     final isDarkBg = planStyle.backgroundColor.computeLuminance() < 0.5;
 
     return NormalButton(
-      onTap: () => context.push('/pricing'),
+      onTap: () => openSubscriptionPricing(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(

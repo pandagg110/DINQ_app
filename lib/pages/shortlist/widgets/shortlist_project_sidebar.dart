@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../constants/shortlist_constants.dart';
 import '../../../models/shortlist_models.dart';
+import '../../../services/subscription_pricing_navigation.dart';
 import '../../../stores/shortlist_store.dart';
 import '../../../stores/user_store.dart';
 import '../../../utils/top_toast_util.dart';
@@ -111,7 +111,7 @@ class _ShortlistProjectSidebarState extends State<ShortlistProjectSidebar>
     if (isShortlistProjectLimitReached(store.projects.length, plan)) {
       // 达到当前套餐的文件夹上限（free 只有 1 个 Default）：引导到订阅/定价页，
       // 对齐 web 的 openPricingModal("b_shortlist_project_limit")。
-      context.push('/pricing');
+      openSubscriptionPricing(context);
       return;
     }
     setState(() {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../pages/settings/settings_subscription_page.dart';
+import '../../services/subscription_pricing_navigation.dart';
 import '../../stores/chat_history_store.dart';
 import '../../stores/search_store.dart';
 import '../../stores/user_store.dart';
@@ -300,7 +301,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                 child: FilledButton(
                   onPressed: () {
                     widget.onClose?.call();
-                    context.push('/pricing');
+                    openSubscriptionPricing(context);
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF171717),

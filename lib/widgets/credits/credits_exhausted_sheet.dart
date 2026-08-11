@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/user_models.dart';
 import '../../services/payment_service.dart';
+import '../../services/subscription_pricing_navigation.dart';
 import '../../stores/user_store.dart';
 import '../../utils/top_toast_util.dart';
 import 'credits_sheet_icons.dart';
@@ -195,7 +196,7 @@ class _CreditsExhaustedSheetState extends State<CreditsExhaustedSheet> {
     action();
   }
 
-  void _openUpgrade() => _closeThen(() => context.push('/pricing'));
+  void _openUpgrade() => _closeThen(() => openSubscriptionPricing(context));
 
   void _openUsage() => _closeThen(() => context.push('/settings/credits'));
 
@@ -211,7 +212,7 @@ class _CreditsExhaustedSheetState extends State<CreditsExhaustedSheet> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (mounted) {
-      context.push('/pricing');
+      await openSubscriptionPricing(context);
     }
   }
 

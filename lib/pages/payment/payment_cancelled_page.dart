@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+
+import '../../services/subscription_pricing_navigation.dart';
 
 class PaymentCancelledPage extends StatelessWidget {
   const PaymentCancelledPage({super.key});
@@ -18,7 +19,10 @@ class PaymentCancelledPage extends StatelessWidget {
             const Text('Your payment was not completed.'),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => context.go('/pricing'),
+              onPressed: () => openSubscriptionPricing(
+                context,
+                mode: SubscriptionPricingNavigationMode.go,
+              ),
               child: const Text('Return to Pricing'),
             ),
           ],
@@ -27,4 +31,3 @@ class PaymentCancelledPage extends StatelessWidget {
     );
   }
 }
-

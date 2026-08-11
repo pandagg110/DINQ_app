@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/profile_service.dart';
+import '../../services/subscription_pricing_navigation.dart';
 import '../../stores/user_store.dart';
 import 'oauth_webview_page.dart';
 
@@ -551,7 +552,7 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
 
   Widget _buildUpgradeButton() {
     return NormalButton(
-      onTap: () => context.push('/pricing'),
+      onTap: () => openSubscriptionPricing(context),
       child: Container(
         height: 48,
         decoration: BoxDecoration(

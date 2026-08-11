@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../services/payment_service.dart';
 import '../../services/app_update_service.dart';
+import '../../services/subscription_pricing_navigation.dart';
 import '../../stores/user_store.dart';
 import '../../theme/dinq_tokens.dart';
 import '../../utils/color_util.dart';
@@ -182,7 +183,7 @@ class _SettingsCreditsPageState extends State<SettingsCreditsPage> {
                     _pillButton(
                       'Upgrade',
                       filled: false,
-                      onTap: () => context.push('/pricing'),
+                      onTap: () => openSubscriptionPricing(context),
                     ),
                     if (showCreditPurchaseControls) ...[
                       const SizedBox(width: 10),

@@ -2,6 +2,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../services/subscription_pricing_navigation.dart';
 import '../../stores/user_store.dart';
 import '../logo.dart';
 
@@ -72,7 +73,13 @@ class _AppHeaderState extends State<AppHeader> {
           child: _NavButton(label: 'Product', onTap: () {}),
         ),
         const SizedBox(width: 8),
-        _NavButton(label: 'Pricing', onTap: () => context.go('/pricing')),
+        _NavButton(
+          label: 'Pricing',
+          onTap: () => openSubscriptionPricing(
+            context,
+            mode: SubscriptionPricingNavigationMode.go,
+          ),
+        ),
         const SizedBox(width: 8),
         _NavButton(label: 'Blogs', onTap: () => context.go('/blogs')),
       ],
@@ -98,7 +105,10 @@ class _AppHeaderState extends State<AppHeader> {
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: () => context.go('/pricing'),
+            onPressed: () => openSubscriptionPricing(
+              context,
+              mode: SubscriptionPricingNavigationMode.go,
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF171717),
               foregroundColor: Colors.white,
@@ -218,7 +228,7 @@ class _AppHeaderState extends State<AppHeader> {
                 ],
               ),
             ),
-          _MobileNavItem(label: 'Pricing', onTap: () => _navigate(context, '/pricing')),
+          _MobileNavItem(label: 'Pricing', onTap: () => _openPricing(context)),
           _MobileNavItem(label: 'Blogs', onTap: () => _navigate(context, '/blogs')),
           const Divider(height: 1),
           if (isAuthenticated) ...[
@@ -249,6 +259,14 @@ class _AppHeaderState extends State<AppHeader> {
       productExpanded = false;
     });
     context.push(path);
+  }
+
+  void _openPricing(BuildContext context) {
+    setState(() {
+      mobileMenuOpen = false;
+      productExpanded = false;
+    });
+    openSubscriptionPricing(context);
   }
 
   void _handleProductSelection(BuildContext context, String path) {

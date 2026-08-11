@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../services/subscription_pricing_navigation.dart';
+
 /// 与 TSX ChatHistoryEmptyState 一致：empty | error | locked | upgrade_pro
 class ChatHistoryEmptyStateWidget extends StatelessWidget {
   const ChatHistoryEmptyStateWidget({
@@ -244,7 +246,7 @@ class ChatHistoryEmptyStateWidget extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => context.push('/pricing'),
+              onPressed: () => openSubscriptionPricing(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1487FA),
                 foregroundColor: Colors.white,
