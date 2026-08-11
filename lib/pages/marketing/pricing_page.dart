@@ -130,6 +130,93 @@ class PricingPage extends StatefulWidget {
   State<PricingPage> createState() => _PricingPageState();
 }
 
+class SubscriptionPlanHeader extends StatelessWidget {
+  const SubscriptionPlanHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.savingsLabel,
+  });
+
+  final String title;
+  final String subtitle;
+  final String? savingsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF171717),
+                fontFamily: 'Geist',
+              ),
+            ),
+            if (savingsLabel case final label?) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF3),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.sell_outlined,
+                            size: 14,
+                            color: Color(0xFF16A34A),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            label,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF16A34A),
+                              fontFamily: 'Geist',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF9CA3AF),
+            fontFamily: 'Geist',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PricingPageState extends State<PricingPage>
     with WidgetsBindingObserver {
   final PaymentService _paymentService = PaymentService();
@@ -1472,65 +1559,13 @@ class _PricingPageState extends State<PricingPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Plan header：标题 + You save 节省标签（对齐 web savingsLabel）
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    kPlanLabel[plan] ?? plan,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF171717),
-                      fontFamily: 'Geist',
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    config.subtitle,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF9CA3AF),
-                      fontFamily: 'Geist',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (showYearlyExtras && yearlySavingsLabel != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF3),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.sell_outlined,
-                      size: 14,
-                      color: Color(0xFF16A34A),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'You save $yearlySavingsLabel',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF16A34A),
-                        fontFamily: 'Geist',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+        // Plan header：标题与 You save 标签同一中心线，副标题独占下一行。
+        SubscriptionPlanHeader(
+          title: kPlanLabel[plan] ?? plan,
+          subtitle: config.subtitle,
+          savingsLabel: showYearlyExtras && yearlySavingsLabel != null
+              ? 'You save $yearlySavingsLabel'
+              : null,
         ),
         const SizedBox(height: 20),
 
