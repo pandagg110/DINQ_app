@@ -122,6 +122,14 @@ List<InlineSpan> _parseBoldText(String text) {
   return spans;
 }
 
+Future<void> refreshStorePurchaseUi({
+  required Future<void> Function() refreshSubscription,
+  required Future<void> Function() refreshPricing,
+}) async {
+  await refreshSubscription();
+  await refreshPricing();
+}
+
 // ─── PricingPage ─────────────────────────────────────────────────
 
 class PricingPage extends StatefulWidget {
@@ -401,19 +409,42 @@ class _PricingPageState extends State<PricingPage>
 
   void _onIapPurchaseFinished(bool success, String? message) {
     if (!mounted) return;
-    setState(() => _processingPlan = null);
     if (success) {
-      TopToastUtil.showSuccess(
-        context: context,
-        title: 'Subscription activated',
-        description: 'Your plan has been updated.',
-      );
+      unawaited(_refreshAfterStorePurchase());
     } else if (message != null) {
+      setState(() => _processingPlan = null);
       TopToastUtil.showError(
         context: context,
         title: 'Purchase failed',
         description: message,
       );
+    } else {
+      setState(() => _processingPlan = null);
+    }
+  }
+
+  Future<void> _refreshAfterStorePurchase() async {
+    final userStore = context.read<UserStore>();
+    await refreshStorePurchaseUi(
+      refreshSubscription: userStore.refreshSubscription,
+      refreshPricing: _refreshPricingActions,
+    );
+    if (!mounted) return;
+    setState(() => _processingPlan = null);
+    TopToastUtil.showSuccess(
+      context: context,
+      title: 'Subscription activated',
+      description: 'Your plan has been updated.',
+    );
+  }
+
+  Future<void> _refreshPricingActions() async {
+    try {
+      final data = await _paymentService.getPricing();
+      if (mounted) setState(() => _pricing = data);
+    } catch (_) {
+      // The subscription itself is already refreshed. A later page load will
+      // retry pricing action metadata if this secondary request fails.
     }
   }
 
