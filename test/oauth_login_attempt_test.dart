@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dinq_app/services/oauth_login_attempt.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -66,6 +68,36 @@ void main() {
       expect(authenticated, isFalse);
       expect(successCalled, isFalse);
       expect(failureCalled, isFalse);
+    },
+  );
+
+  test(
+    'attempt guard ignores a second login while the first is active',
+    () async {
+      final guard = OAuthLoginAttemptGuard();
+      final firstAttemptCompleter = Completer<void>();
+      var invocationCount = 0;
+
+      final firstAttempt = guard.run(() async {
+        invocationCount++;
+        await firstAttemptCompleter.future;
+      });
+      final secondAttempt = await guard.run(() async {
+        invocationCount++;
+      });
+
+      expect(secondAttempt, isFalse);
+      expect(invocationCount, 1);
+
+      firstAttemptCompleter.complete();
+      expect(await firstAttempt, isTrue);
+      expect(
+        await guard.run(() async {
+          invocationCount++;
+        }),
+        isTrue,
+      );
+      expect(invocationCount, 2);
     },
   );
 }

@@ -2,6 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+/// Prevents the same interactive OAuth flow from being started twice.
+///
+/// Native providers such as Apple reject overlapping authorization requests,
+/// so rapid taps must be ignored until the active attempt has completed.
+final class OAuthLoginAttemptGuard {
+  bool _isRunning = false;
+
+  bool get isRunning => _isRunning;
+
+  Future<bool> run(Future<void> Function() attempt) async {
+    if (_isRunning) return false;
+    _isRunning = true;
+    try {
+      await attempt();
+      return true;
+    } finally {
+      _isRunning = false;
+    }
+  }
+}
+
 /// Keeps authentication failures separate from work performed after the
 /// server has already accepted the login. A navigation or UI cleanup failure
 /// must never be presented as an OAuth credential failure.

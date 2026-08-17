@@ -6,12 +6,15 @@ import 'package:dinq_app/widgets/common/base_page.dart';
 import 'package:dinq_app/widgets/common/common_dialog.dart';
 import 'package:dinq_app/widgets/landing/invite_code_dialog.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/app_constants.dart';
+import '../../services/apple_sign_in_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/github_oauth.dart';
 import '../../services/oauth_login_attempt.dart';
@@ -43,6 +46,7 @@ class _SignInPageState extends State<SignInPage> {
   bool _showPassword = false;
   String? _error;
   bool _isButtonEnabled = false;
+  final _appleSignInGuard = OAuthLoginAttemptGuard();
   late final GoogleSignIn _googleSignInClient = GoogleSignIn(
     scopes: ['email', 'profile'],
   );
@@ -442,6 +446,45 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       ),
                     ),
+                    if (!kIsWeb &&
+                        defaultTargetPlatform == TargetPlatform.iOS) ...[
+                      const SizedBox(height: 10),
+                      NormalButton(
+                        onTap: _appleSignIn,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFFECECEC),
+                              width: 1,
+                            ),
+                          ),
+                          width: double.infinity,
+                          height: 48,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/images/apple_icon.svg',
+                                width: 24,
+                                height: 24,
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                'Continue with Apple',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: ColorUtil.textColor,
+                                  fontFamily: 'Tomato Grotesk',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -655,6 +698,62 @@ class _SignInPageState extends State<SignInPage> {
         );
       },
     );
+  }
+
+  Future<void> _appleSignIn() async {
+    await _appleSignInGuard.run(() async {
+      await runOAuthLoginAttempt(
+        authenticate: () async {
+          final credential = await AppleSignInService.authorize();
+          if (credential == null) return false;
+
+          if (kDebugMode) {
+            debugPrint(
+              'Apple identity token: '
+              '${AppleSignInService.inspectIdentityToken(credential.identityToken)}',
+            );
+          }
+
+          await ToastUtil.showLoading();
+          if (!mounted) {
+            await ToastUtil.dismiss();
+            return false;
+          }
+          await context.read<UserStore>().thirdPartyLogin(
+            provider: 'apple',
+            idToken: credential.identityToken,
+            authorizationCode: credential.authorizationCode,
+            nonce: credential.rawNonce,
+            givenName: credential.givenName,
+            familyName: credential.familyName,
+          );
+          return true;
+        },
+        onAuthenticated: () async {
+          try {
+            await ToastUtil.dismiss();
+          } catch (_) {}
+          if (mounted) _handleLoginSuccess();
+        },
+        onAuthenticationFailed: (error) async {
+          await ToastUtil.dismiss();
+          if (kDebugMode) {
+            final statusCode = error is DioException
+                ? error.response?.statusCode
+                : null;
+            debugPrint(
+              'Apple login failed: type=${error.runtimeType}, '
+              'status=$statusCode, '
+              'message=${thirdPartyLoginErrorMessage(provider: 'apple', error: error)}',
+            );
+          }
+          final message = error is AppleSignInException
+              ? error.message
+              : thirdPartyLoginErrorMessage(provider: 'apple', error: error);
+          await ToastUtil.show(message);
+        },
+      );
+    });
   }
 
   void _handleLoginSuccess({String? email}) {

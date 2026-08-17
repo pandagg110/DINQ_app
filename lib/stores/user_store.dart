@@ -140,7 +140,9 @@ class UserStore extends ChangeNotifier {
         }
       }
     }
-    debugPrint('Unable to clear persisted auth token: ${lastError.runtimeType}');
+    debugPrint(
+      'Unable to clear persisted auth token: ${lastError.runtimeType}',
+    );
   }
 
   void setCardOwner(UserData? data) {
@@ -196,6 +198,10 @@ class UserStore extends ChangeNotifier {
     required String provider,
     required String idToken,
     String? redirectUri,
+    String? authorizationCode,
+    String? nonce,
+    String? givenName,
+    String? familyName,
   }) async {
     isLoading = true;
     notifyListeners();
@@ -204,6 +210,10 @@ class UserStore extends ChangeNotifier {
         provider: provider,
         idToken: idToken,
         redirectUri: redirectUri,
+        authorizationCode: authorizationCode,
+        nonce: nonce,
+        givenName: givenName,
+        familyName: familyName,
       );
       final token = result['token']?.toString().trim();
       if (token == null || token.isEmpty) {

@@ -8,7 +8,19 @@ Map<String, dynamic> buildThirdPartyLoginPayload({
   required String provider,
   required String idToken,
   String? redirectUri,
-}) => {'provider': provider, 'id_token': idToken, 'redirect_uri': ?redirectUri};
+  String? authorizationCode,
+  String? nonce,
+  String? givenName,
+  String? familyName,
+}) => {
+  'provider': provider,
+  'id_token': idToken,
+  'redirect_uri': ?redirectUri,
+  'authorization_code': ?authorizationCode,
+  'nonce': ?nonce,
+  if (givenName?.trim().isNotEmpty ?? false) 'given_name': givenName!.trim(),
+  if (familyName?.trim().isNotEmpty ?? false) 'family_name': familyName!.trim(),
+};
 
 Map<String, dynamic> buildVerificationPayload({
   required String email,
@@ -202,6 +214,7 @@ String _passwordChangeServerMessage(Object error) {
 String _providerLabel(String provider) => switch (provider.toLowerCase()) {
   'github' => 'GitHub',
   'google' => 'Google',
+  'apple' => 'Apple',
   _ => 'this account',
 };
 
@@ -236,6 +249,10 @@ class AuthService {
     required String provider,
     required String idToken,
     String? redirectUri,
+    String? authorizationCode,
+    String? nonce,
+    String? givenName,
+    String? familyName,
   }) async {
     final response = await _dio.post(
       '/auth/oauth/app-login',
@@ -243,6 +260,10 @@ class AuthService {
         provider: provider,
         idToken: idToken,
         redirectUri: redirectUri,
+        authorizationCode: authorizationCode,
+        nonce: nonce,
+        givenName: givenName,
+        familyName: familyName,
       ),
     );
     return Map<String, dynamic>.from(response.data as Map);
