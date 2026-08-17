@@ -14,10 +14,10 @@ void main() {
               key: Key('price-width'),
               width: 280,
               child: SubscriptionPriceSummary(
-                displayedPrice: r'US$41.67',
-                displayedPeriod: '/month',
+                displayedPrice: r'US$499.99',
+                displayedPeriod: '/year',
                 strikethroughPrice: r'US$49.00',
-                yearlyTotalLabel: r'US$499.99 /year',
+                yearlyTotalLabel: r'US$41.67 /month',
               ),
             ),
           ),
@@ -28,13 +28,13 @@ void main() {
     expect(tester.takeException(), isNull);
 
     final originalPrice = tester.getRect(find.text(r'US$49.00'));
-    final mainPrice = tester.getRect(find.text(r'US$41.67'));
-    final period = tester.getRect(find.text('/month'));
-    final yearlyTotal = tester.getRect(find.text(r'US$499.99 /year'));
+    final mainPrice = tester.getRect(find.text(r'US$499.99'));
+    final period = tester.getRect(find.text('/year'));
+    final monthlyEquivalent = tester.getRect(find.text(r'US$41.67 /month'));
     final availableWidth = tester.getRect(find.byKey(const Key('price-width')));
 
     expect(originalPrice.bottom, lessThanOrEqualTo(mainPrice.top));
-    expect(yearlyTotal.top, greaterThanOrEqualTo(mainPrice.bottom));
+    expect(monthlyEquivalent.top, greaterThanOrEqualTo(mainPrice.bottom));
     expect(period.right, lessThanOrEqualTo(availableWidth.right));
   });
 }

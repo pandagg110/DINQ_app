@@ -52,10 +52,10 @@ StorePriceDisplay buildStorePriceDisplay({
       : 0.0;
 
   return StorePriceDisplay(
-    primaryPrice: format.format(selectedPrice.rawPrice / 12),
-    primaryPeriod: '/month',
+    primaryPrice: selectedPrice.localizedPrice,
+    primaryPeriod: '/year',
     strikethroughPrice: sameCurrency ? monthlyPrice!.localizedPrice : null,
-    yearlyTotal: '${selectedPrice.localizedPrice} /year',
+    yearlyTotal: '${format.format(selectedPrice.rawPrice / 12)} /month',
     yearlySavings: savings > 0 ? '${format.format(savings)}/year' : null,
   );
 }

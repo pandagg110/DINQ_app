@@ -37,9 +37,9 @@ void main() {
         localeName: 'en_US',
       );
 
-      expect(display.primaryPrice, r'$24.17');
-      expect(display.primaryPeriod, '/month');
-      expect(display.yearlyTotal, r'$290.00 /year');
+      expect(display.primaryPrice, r'$290.00');
+      expect(display.primaryPeriod, '/year');
+      expect(display.yearlyTotal, r'$24.17 /month');
       expect(display.yearlySavings, r'$58.00/year');
     });
 
@@ -59,7 +59,9 @@ void main() {
         localeName: 'en_SG',
       );
 
-      expect(display.primaryPrice, r'S$32.50');
+      expect(display.primaryPrice, r'S$390.00');
+      expect(display.primaryPeriod, '/year');
+      expect(display.yearlyTotal, r'S$32.50 /month');
       expect(display.yearlySavings, isNull);
     });
   });

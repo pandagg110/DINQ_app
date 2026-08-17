@@ -1645,22 +1645,25 @@ class _PricingPageState extends State<PricingPage>
     final showYearlyExtras = !isFreePlan &&
         _billingPeriod == 'yearly' &&
         (!_usesStoreBilling || applePriceDisplay?.yearlyTotal != null);
+    // 年付：大字为年费总价，小字为折后月均价；月付：仅展示月价。
     final displayedPrice = _usesAppleIap && !isFreePlan
         ? applePriceDisplay?.primaryPrice ?? 'Not available'
         : (_usesStoreBilling && !isFreePlan
               ? storePrice ?? 'Not available'
-              : '\$$monthlyPrice');
+              : (showYearlyExtras
+                  ? '\$${_formatNumber(yearlyPrice)}'
+                  : '\$$monthlyPrice'));
     final displayedPeriod = _usesAppleIap
         ? applePriceDisplay?.primaryPeriod
         : (_usesStoreBilling
               ? (_billingPeriod == 'yearly' ? '/year' : '/month')
-              : '/month');
+              : (showYearlyExtras ? '/year' : '/month'));
     final strikethroughPrice = _usesAppleIap
         ? applePriceDisplay?.strikethroughPrice
         : (fullMonthlyRate == null ? null : '\$$fullMonthlyRate');
-    final yearlyTotalLabel = _usesAppleIap
+    final secondaryPriceLabel = _usesAppleIap
         ? applePriceDisplay?.yearlyTotal
-        : '\$${_formatNumber(yearlyPrice)} /year';
+        : (showYearlyExtras ? '\$$monthlyPrice /month' : null);
     final yearlySavingsLabel = _usesAppleIap
         ? applePriceDisplay?.yearlySavings
         : (yearlySavings > 0
@@ -1680,13 +1683,13 @@ class _PricingPageState extends State<PricingPage>
         ),
         const SizedBox(height: 20),
 
-        // 年付价格使用三行结构：原月价、折后月均价、年付总价。
+        // 年付价格使用三行结构：原月价、年付总价（大字）、折后月均价（小字）。
         // 避免 US$ / HK$ 等较长本地化币种与周期挤在同一行导致溢出。
         SubscriptionPriceSummary(
           displayedPrice: displayedPrice,
           displayedPeriod: !isFreePlan ? displayedPeriod : null,
           strikethroughPrice: showYearlyExtras ? strikethroughPrice : null,
-          yearlyTotalLabel: showYearlyExtras ? yearlyTotalLabel : null,
+          yearlyTotalLabel: showYearlyExtras ? secondaryPriceLabel : null,
         ),
         const SizedBox(height: 20),
 
